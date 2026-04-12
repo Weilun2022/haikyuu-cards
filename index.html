@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排球少年!! バボカ!!BREAK 卡牌資料庫</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --border: #2e2e40;
+    --text: #e8e8f0;
+    --text-dim: #8888aa;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+
+    /* rarity */
+    --r-himitsu: #f0c040;
+    --r-top: #c084fc;
+    --r-s: #60a5fa;
+    --r-r: #4ade80;
+    --r-n: #94a3b8;
+    --r-d: #fb923c;
+    --r-p: #f87171;
+
+    /* school */
+    --s-烏野: #f97316;
+    --s-音駒: #ef4444;
+    --s-稲荷崎: #a855f7;
+    --s-白鳥沢: #3b82f6;
+    --s-伊達工業: #22c55e;
+    --s-青葉城西: #06b6d4;
+    --s-梟谷: #a16207;
+    --s-鴎台: #8b5cf6;
+    --s-other: #64748b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #1a0a2e 0%, #0a1628 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
+  header .subtitle { font-size: 12px; color: var(--text-dim); }
+  header .count { margin-left: auto; font-size: 13px; color: var(--text-dim); }
+  header .count span { color: var(--text); font-weight: 600; }
+
+  /* ── Filter Panel ── */
+  .filter-panel {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-group label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
+
+  select, input[type="text"] {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  select:focus, input:focus { border-color: var(--accent); }
+  select { cursor: pointer; }
+
+  .search-box { flex: 1; min-width: 180px; max-width: 320px; }
+
+  /* Category toggle buttons */
+  .toggle-group { display: flex; gap: 4px; flex-wrap: wrap; }
+  .toggle-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .toggle-btn:hover { border-color: var(--accent); color: var(--text); }
+  .toggle-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .btn-reset {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-reset:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  /* ── Card Grid ── */
+  .grid-container {
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(108,99,255,0.25);
+    border-color: var(--accent);
+  }
+
+  .card-img-wrap {
+    position: relative;
+    width: 100%;
+    padding-top: 140%; /* roughly card aspect ratio */
+    background: var(--surface2);
+    overflow: hidden;
+  }
+  .card-img-wrap img {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: opacity 0.2s;
+  }
+  .card-img-wrap img.error { opacity: 0.3; }
+  .img-placeholder {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+  }
+
+  /* Rarity badge */
+  .rarity-badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+  }
+
+  .card-info {
+    padding: 8px 10px;
+  }
+  .card-no { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
+  .card-name { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+  .card-school {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 20px;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  .card-stats {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .stat {
+    font-size: 10px;
+    padding: 1px 5px;
+    background: var(--surface2);
+    border-radius: 3px;
+    color: var(--text-dim);
+  }
+  .stat b { color: var(--text); }
+
+  /* ── Empty state ── */
+  .empty {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+  }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 16px;
+    overflow-y: auto;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 680px;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+    position: relative;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+    z-index: 1;
+  }
+  .modal-close:hover { background: var(--border); }
+
+  .modal-img {
+    width: 220px;
+    flex-shrink: 0;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .modal-img img { width: 100%; object-fit: cover; }
+
+  .modal-body {
+    padding: 20px 20px 20px 20px;
+    flex: 1;
+    overflow-y: auto;
+    max-height: 80vh;
+  }
+
+  .modal-no { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .modal-name { font-size: 22px; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
+
+  .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .tag {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  .modal-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .stat-box {
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .stat-box .label { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
+  .stat-box .value { font-size: 20px; font-weight: 700; }
+
+  .modal-skill-title { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.5px; }
+  .modal-skill {
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-wrap;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px 14px;
+    border-left: 3px solid var(--accent);
+  }
+
+  /* Loading */
+  #loading {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    font-size: 16px;
+    color: var(--text-dim);
+  }
+  #loading.hidden { display: none; }
+
+  @media (max-width: 600px) {
+    .modal { flex-direction: column; }
+    .modal-img { width: 100%; height: 240px; }
+    .grid-container { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+    .filter-panel { padding: 12px 16px; }
+    header { padding: 12px 16px; }
+    .grid-container { padding: 14px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">載入卡牌資料中...</div>
+
+<header>
+  <div>
+    <h1>排球少年!! バボカ!!BREAK</h1>
+    <div class="subtitle">卡牌資料庫 / Card Database</div>
+  </div>
+  <div class="count">顯示 <span id="count-display">0</span> / <span id="count-total">0</span> 張</div>
+</header>
+
+<div class="filter-panel">
+  <!-- 搜尋 -->
+  <div class="filter-group">
+    <label>搜尋</label>
+    <input type="text" class="search-box" id="search" placeholder="卡名 / 卡號 / 技能關鍵字...">
+  </div>
+
+  <!-- 系列 -->
+  <div class="filter-group">
+    <label>系列</label>
+    <select id="filter-series">
+      <option value="">全部系列</option>
+    </select>
+  </div>
+
+  <!-- 學校 -->
+  <div class="filter-group">
+    <label>學校</label>
+    <select id="filter-school">
+      <option value="">全部學校</option>
+    </select>
+  </div>
+
+  <!-- 類型 -->
+  <div class="filter-group">
+    <label>類型</label>
+    <div class="toggle-group" id="filter-category">
+      <button class="toggle-btn active" data-val="">全部</button>
+      <button class="toggle-btn" data-val="CHARACTER">角色</button>
+      <button class="toggle-btn" data-val="EVENT">事件</button>
+      <button class="toggle-btn" data-val="SERVE">發球</button>
+    </div>
+  </div>
+
+  <!-- 稀有度 -->
+  <div class="filter-group">
+    <label>稀有度</label>
+    <select id="filter-rarity">
+      <option value="">全部稀有度</option>
+    </select>
+  </div>
+
+  <button class="btn-reset" id="btn-reset">重置篩選</button>
+</div>
+
+<div class="grid-container" id="card-grid"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modal-close">✕</button>
+    <div class="modal-img">
+      <img id="modal-img" src="" alt="">
+    </div>
+    <div class="modal-body">
+      <div class="modal-no" id="modal-no"></div>
+      <div class="modal-name" id="modal-name"></div>
+      <div class="modal-tags" id="modal-tags"></div>
+      <div class="modal-stats-grid" id="modal-stats"></div>
+      <div class="modal-skill-title">技能文字</div>
+      <div class="modal-skill" id="modal-skill"></div>
+    </div>
+  </div>
+</div>
+
+<script src="cards_data.js"></script>
+<script>
+// ── Constants ──────────────────────────────────────────────────────────
+const RARITY_COLOR = {
+  '秘': '#f0c040', '頂': '#c084fc', 'S': '#60a5fa',
+  'R': '#4ade80', 'N': '#94a3b8', 'D': '#fb923c', 'P': '#f87171'
+};
+const RARITY_ORDER = ['秘','頂','S','R','N','D','P'];
+
+const SCHOOL_COLOR = {
+  '烏野': '#f97316', '音駒': '#ef4444', '稲荷崎': '#a855f7',
+  '白鳥沢': '#3b82f6', '伊達工業': '#22c55e', '青葉城西': '#06b6d4',
+  '梟谷': '#a16207', '鴎台': '#8b5cf6'
+};
+
+const CATEGORY_ZH = { 'CHARACTER': '角色', 'EVENT': '事件', 'SERVE': '發球' };
+const STAT_LABELS = {
+  'atk': '攻擊', 'blk': '攔網', 'rcv': '接球',
+  'tos': '舉球', 'srv': '發球'
+};
+
+// ── State ──────────────────────────────────────────────────────────────
+let cards = [];
+let filtered = [];
+let activeCategory = '';
+let activeSeries = '';
+let activeSchool = '';
+let activeRarity = '';
+let searchText = '';
+
+// ── Init ───────────────────────────────────────────────────────────────
+function init() {
+  cards = CARDS_DATA.cards;
+  document.getElementById('count-total').textContent = cards.length;
+  document.getElementById('loading').classList.add('hidden');
+
+  buildFilters();
+  applyFilters();
+  bindEvents();
+}
+
+function buildFilters() {
+  // Series
+  const seriesSet = [...new Set(cards.map(c => c.product_type).filter(Boolean))];
+  const seriesLabels = CARDS_DATA.product_labels || {};
+  const seriesSel = document.getElementById('filter-series');
+  // Use CARDS_DATA product order
+  const seriesOrder = ['HV-P01','HV-P02','HV-D01','HV-D02','HV-D03','HVBP','HV-PR'];
+  seriesOrder.filter(s => seriesSet.includes(s)).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = seriesLabels[s] || s;
+    seriesSel.appendChild(opt);
+  });
+  // Any remaining
+  seriesSet.filter(s => !seriesOrder.includes(s)).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = seriesLabels[s] || s;
+    seriesSel.appendChild(opt);
+  });
+
+  // School
+  const schoolSet = [...new Set(cards.map(c => c.school).filter(Boolean))];
+  const schoolOrder = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台'];
+  const schoolSel = document.getElementById('filter-school');
+  [...schoolOrder.filter(s => schoolSet.includes(s)),
+   ...schoolSet.filter(s => !schoolOrder.includes(s)).sort()
+  ].forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    schoolSel.appendChild(opt);
+  });
+
+  // Rarity
+  const raritySet = [...new Set(cards.map(c => c.rarity).filter(Boolean))];
+  const raritySel = document.getElementById('filter-rarity');
+  RARITY_ORDER.filter(r => raritySet.includes(r)).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r;
+    opt.textContent = r;
+    raritySel.appendChild(opt);
+  });
+}
+
+// ── Events ─────────────────────────────────────────────────────────────
+function bindEvents() {
+  document.getElementById('search').addEventListener('input', e => {
+    searchText = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  document.getElementById('filter-series').addEventListener('change', e => {
+    activeSeries = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('filter-school').addEventListener('change', e => {
+    activeSchool = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('filter-rarity').addEventListener('change', e => {
+    activeRarity = e.target.value;
+    applyFilters();
+  });
+
+  document.getElementById('filter-category').addEventListener('click', e => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeCategory = btn.dataset.val;
+    applyFilters();
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    document.getElementById('search').value = '';
+    document.getElementById('filter-series').value = '';
+    document.getElementById('filter-school').value = '';
+    document.getElementById('filter-rarity').value = '';
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.toggle-btn[data-val=""]').classList.add('active');
+    searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = '';
+    applyFilters();
+  });
+
+  document.getElementById('modal-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  });
+  document.getElementById('modal-close').addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+}
+
+// ── Filter Logic ───────────────────────────────────────────────────────
+function applyFilters() {
+  filtered = cards.filter(c => {
+    if (activeSeries && c.product_type !== activeSeries) return false;
+    if (activeSchool && c.school !== activeSchool) return false;
+    if (activeCategory && c.category !== activeCategory) return false;
+    if (activeRarity && c.rarity !== activeRarity) return false;
+    if (searchText) {
+      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity]
+        .filter(Boolean).join(' ').toLowerCase();
+      if (!haystack.includes(searchText)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('count-display').textContent = filtered.length;
+  renderGrid();
+}
+
+// ── Render ─────────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('card-grid');
+  grid.innerHTML = '';
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty"><div class="icon">搜尋無結果</div><div>沒有符合條件的卡牌</div></div>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  filtered.forEach(card => {
+    const el = buildCardEl(card);
+    frag.appendChild(el);
+  });
+  grid.appendChild(frag);
+}
+
+function buildCardEl(card) {
+  const div = document.createElement('div');
+  div.className = 'card';
+  div.addEventListener('click', () => openModal(card));
+
+  const rarityColor = RARITY_COLOR[card.rarity] || '#888';
+  const schoolColor = SCHOOL_COLOR[card.school] || '#64748b';
+  const imgSrc = card.image_file ? `images/${card.image_file}` : '';
+
+  // Stats for CHARACTER cards
+  let statsHtml = '';
+  if (card.category === 'CHARACTER') {
+    const statPairs = [
+      ['atk', card.atk], ['blk', card.blk], ['rcv', card.rcv],
+      ['tos', card.tos], ['srv', card.srv]
+    ].filter(([,v]) => v !== null && v !== undefined && v !== '' && v != 0);
+    if (statPairs.length) {
+      statsHtml = `<div class="card-stats">${statPairs.map(([k,v]) =>
+        `<div class="stat">${STAT_LABELS[k]}<b>${v}</b></div>`
+      ).join('')}</div>`;
+    }
+  }
+
+  div.innerHTML = `
+    <div class="card-img-wrap">
+      <img src="${imgSrc}" alt="${card.name || ''}" loading="lazy" onerror="this.classList.add('error')">
+      <div class="img-placeholder" style="display:none"></div>
+      <div class="rarity-badge" style="color:${rarityColor}">${card.rarity || ''}</div>
+    </div>
+    <div class="card-info">
+      <div class="card-no">${card.card_no || ''}</div>
+      <div class="card-name">${card.name || '（無名稱）'}</div>
+      <div class="card-school" style="background:${schoolColor}">${card.school || ''}</div>
+      ${statsHtml}
+    </div>`;
+  return div;
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────
+function openModal(card) {
+  const rarityColor = RARITY_COLOR[card.rarity] || '#888';
+  const schoolColor = SCHOOL_COLOR[card.school] || '#64748b';
+
+  document.getElementById('modal-no').textContent = card.card_no || '';
+  document.getElementById('modal-name').textContent = card.name || '（無名稱）';
+  document.getElementById('modal-img').src = card.image_file ? `images/${card.image_file}` : '';
+
+  // Tags
+  const tags = [];
+  if (card.rarity) tags.push(`<span class="tag" style="color:${rarityColor};border-color:${rarityColor}">${card.rarity}</span>`);
+  if (card.school) tags.push(`<span class="tag" style="color:${schoolColor};border-color:${schoolColor}">${card.school}</span>`);
+  if (card.category) tags.push(`<span class="tag">${CATEGORY_ZH[card.category] || card.category}</span>`);
+  if (card.affiliation) tags.push(`<span class="tag">${card.affiliation}</span>`);
+  if (card.product_label) tags.push(`<span class="tag">${card.product_label}</span>`);
+  document.getElementById('modal-tags').innerHTML = tags.join('');
+
+  // Stats
+  const statsEl = document.getElementById('modal-stats');
+  if (card.category === 'CHARACTER') {
+    const statDefs = [
+      ['atk', '攻擊', '#f87171'], ['blk', '攔網', '#60a5fa'],
+      ['rcv', '接球', '#4ade80'], ['tos', '舉球', '#a78bfa'],
+      ['srv', '發球', '#fb923c']
+    ];
+    statsEl.innerHTML = statDefs.map(([k, label, color]) => {
+      const v = card[k];
+      const val = (v !== null && v !== undefined && v !== '') ? v : '—';
+      return `<div class="stat-box"><div class="label">${label}</div><div class="value" style="color:${color}">${val}</div></div>`;
+    }).join('');
+    statsEl.style.display = 'grid';
+  } else {
+    statsEl.style.display = 'none';
+    statsEl.innerHTML = '';
+  }
+
+  // Skill
+  const skill = card.skill_zh || card.skill || '';
+  const skillEl = document.getElementById('modal-skill');
+  if (skill && skill !== '—') {
+    skillEl.textContent = skill;
+    skillEl.style.display = 'block';
+    skillEl.previousElementSibling.style.display = 'block';
+  } else {
+    skillEl.style.display = 'none';
+    skillEl.previousElementSibling.style.display = 'none';
+  }
+
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Start ──────────────────────────────────────────────────────────────
+if (typeof CARDS_DATA !== 'undefined') {
+  init();
+} else {
+  document.getElementById('loading').textContent = '錯誤：找不到 cards_data.js，請先執行 build_data.py';
+}
+</script>
+</body>
+</html>
