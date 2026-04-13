@@ -849,12 +849,10 @@ let searchText = '';
 
 // ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
 const DECK_LS_KEY  = 'hv_decks';
-const OWNED_LS_KEY = 'hv_owned';
 const MAX_TOTAL    = 40;
 const MAX_EVENT    = 8;
 let decks          = [];
 let currentDeckId  = null;
-let ownedCards     = {};
 let pendingImport  = null;
 
 // ── Init ───────────────────────────────────────────────────────────────
@@ -1142,19 +1140,27 @@ if (typeof CARDS_DATA !== 'undefined') {
 
 // ── Persistence ────────────────────────────────────────
 function loadDecks() {
-  try { const r = localStorage.getItem(DECK_LS_KEY);  decks = r ? JSON.parse(r) : []; if (!Array.isArray(decks)) decks = []; } catch { decks = []; }
-  try { const r = localStorage.getItem(OWNED_LS_KEY); ownedCards = r ? JSON.parse(r) : {}; } catch { ownedCards = {}; }
+  try { const r = localStorage.getItem(DECK_LS_KEY); decks = r ? JSON.parse(r) : []; if (!Array.isArray(decks)) decks = []; } catch { decks = []; }
+  // 確保每個牌組都有 owned 欄位（舊資料遷移）
+  decks.forEach(d => { if (!d.owned) d.owned = {}; });
   if (decks.length > 0) currentDeckId = decks[0].id;
 }
-function saveDecks() { localStorage.setItem(DECK_LS_KEY,  JSON.stringify(decks)); }
-function saveOwned() { localStorage.setItem(OWNED_LS_KEY, JSON.stringify(ownedCards)); }
+function saveDecks() { localStorage.setItem(DECK_LS_KEY, JSON.stringify(decks)); }
+
+// 取得當前牌組的持有資料（per-deck）
+function getDeckOwned() {
+  const deck = getCurrentDeck();
+  if (!deck) return {};
+  if (!deck.owned) deck.owned = {};
+  return deck.owned;
+}
 
 // ── Deck helpers ───────────────────────────────────────
 function getCurrentDeck() { return decks.find(d => d.id === currentDeckId) || null; }
 function makeDeckId()     { return 'dk_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
 
 function createDeck(name) {
-  const d = { id: makeDeckId(), name: name || '新牌組', cards: [] };
+  const d = { id: makeDeckId(), name: name || '新牌組', cards: [], owned: {} };
   decks.push(d);
   currentDeckId = d.id;
   saveDecks();
@@ -1308,7 +1314,7 @@ function renderDeckPanel() {
 // ── Export / Import ────────────────────────────────────
 function exportDecks() {
   const date = new Date().toISOString().slice(0,10);
-  const data = { version: 1, exported: new Date().toISOString(), decks, owned_cards: ownedCards };
+  const data = { version: 2, exported: new Date().toISOString(), decks };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = Object.assign(document.createElement('a'), { href: url, download: `HVBreak-decks-${date}.json` });
@@ -1318,17 +1324,18 @@ function exportDecks() {
 
 function doImport(mode) {
   if (!pendingImport) return;
-  const { decks: iDecks = [], owned_cards: iOwned = {} } = pendingImport;
+  const { decks: iDecks = [] } = pendingImport;
   pendingImport = null;
+  // 確保匯入的牌組都有 owned 欄位
+  iDecks.forEach(d => { if (!d.owned) d.owned = {}; });
   if (mode === 'overwrite') {
-    decks = iDecks; ownedCards = iOwned;
+    decks = iDecks;
     currentDeckId = decks.length ? decks[0].id : null;
   } else {
     iDecks.forEach(d => { if (!decks.find(x => x.id === d.id)) decks.push(d); });
-    Object.assign(ownedCards, iOwned);
     if (!currentDeckId && decks.length) currentDeckId = decks[0].id;
   }
-  saveDecks(); saveOwned();
+  saveDecks();
   renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
   document.getElementById('import-confirm-overlay').classList.remove('open');
   showToast('匯入成功！');
@@ -1348,12 +1355,12 @@ function renderAnalysis() {
   if (!deck) return;
   document.getElementById('analysis-title').textContent = `缺牌分析 — ${deck.name}`;
 
-  // 缺牌數 = Σ max(0, 牌組需要 − 實際持有)
+  // 缺牌數 = Σ max(0, 牌組需要 − 此牌組的持有數)
   const total = getTotalCount(deck);
+  const owned = getDeckOwned();   // 此牌組專屬持有資料
   let missing = 0;
   deck.cards.forEach(e => {
-    const have = ownedCards[e.card_no] || 0;
-    missing += Math.max(0, e.count - have);
+    missing += Math.max(0, e.count - (owned[e.card_no] || 0));
   });
   document.getElementById('analysis-total').textContent   = total;
   document.getElementById('analysis-missing').textContent = missing;
@@ -1364,9 +1371,8 @@ function renderAnalysis() {
     const card = cards.find(c => c.card_no === entry.card_no);
     if (!card) return;
 
-    const have   = ownedCards[card.card_no] || 0;
+    const have   = owned[card.card_no] || 0;
     const need   = entry.count;
-    // 三種狀態：持有足夠 / 持有部分 / 完全沒有
     const state  = have >= need ? 'owned' : have > 0 ? 'partial' : 'not-owned';
     const imgSrc = card.image_file ? `images/${card.image_file}` : '';
 
@@ -1383,13 +1389,13 @@ function renderAnalysis() {
 
     div.querySelector('.an-dec').addEventListener('click', e => {
       e.stopPropagation();
-      const cur = ownedCards[card.card_no] || 0;
-      if (cur > 0) { ownedCards[card.card_no] = cur - 1; saveOwned(); renderAnalysis(); }
+      const cur = deck.owned[card.card_no] || 0;
+      if (cur > 0) { deck.owned[card.card_no] = cur - 1; saveDecks(); renderAnalysis(); }
     });
     div.querySelector('.an-inc').addEventListener('click', e => {
       e.stopPropagation();
-      ownedCards[card.card_no] = (ownedCards[card.card_no] || 0) + 1;
-      saveOwned();
+      deck.owned[card.card_no] = (deck.owned[card.card_no] || 0) + 1;
+      saveDecks();
       renderAnalysis();
     });
     div.addEventListener('click', () => openModal(card));
