@@ -373,7 +373,7 @@
   @media (max-width: 600px) {
     .modal { flex-direction: column; }
     .modal-img { width: 100%; height: 240px; }
-    .grid-container { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+    .grid-container { grid-template-columns: repeat(3, 1fr); gap: 8px; }
     header { padding: 12px 16px; }
     .grid-container { padding: 14px 16px; }
 
@@ -637,6 +637,58 @@
     text-align: center; line-height: 1.2; pointer-events: none;
   }
 
+  /* ── Qty Modal ── */
+  .qty-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 220;
+    justify-content: center; align-items: flex-end;
+  }
+  .qty-overlay.open { display: flex; }
+  .qty-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px 16px 0 0; padding: 20px 20px 28px;
+    width: 100%; max-width: 400px;
+  }
+  .qty-box-name {
+    font-size: 14px; font-weight: 700; margin-bottom: 14px;
+    color: var(--text); text-align: center;
+  }
+  .qty-box-row {
+    display: flex; align-items: center; gap: 10px;
+    justify-content: center; margin-bottom: 16px;
+  }
+  .qty-box-label { font-size: 13px; color: var(--text-dim); }
+  .qty-input {
+    width: 80px; padding: 6px 10px; text-align: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; font-size: 18px;
+    font-weight: 700; outline: none;
+  }
+  .qty-input:focus { border-color: var(--accent); }
+  .qty-box-btns { display: flex; gap: 8px; justify-content: center; }
+
+  /* ── Deck count number input ── */
+  .deck-count-input {
+    width: 52px; padding: 3px 6px; text-align: center;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; font-size: 13px;
+    font-weight: 700; outline: none;
+  }
+  .deck-count-input:focus { border-color: var(--accent); }
+
+  /* ── Analysis count number input ── */
+  .an-count-input {
+    width: 46px; padding: 2px 4px; text-align: center;
+    background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; border-radius: 4px; font-size: 11px;
+    font-weight: 700; outline: none; appearance: textfield;
+  }
+  .an-count-input::-webkit-inner-spin-button,
+  .an-count-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .an-count-input:focus { border-color: var(--accent); }
+  .an-card.owned   .an-count-input { color: #4ade80; }
+  .an-card.partial .an-count-input { color: #fb923c; }
+
   /* ── Import Confirm Modal ── */
   .import-confirm-overlay {
     display: none; position: fixed; inset: 0;
@@ -801,6 +853,21 @@
   </div>
 </div>
 
+<!-- ── Qty Modal ── -->
+<div class="qty-overlay" id="qty-overlay">
+  <div class="qty-box">
+    <div class="qty-box-name" id="qty-modal-name"></div>
+    <div class="qty-box-row">
+      <label class="qty-box-label">加入張數</label>
+      <input type="number" id="qty-input" class="qty-input" min="1" max="40" value="1">
+    </div>
+    <div class="qty-box-btns">
+      <button class="tray-btn" id="qty-cancel">取消</button>
+      <button class="tray-btn primary" id="qty-confirm">加入牌組</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="hv-toast"></div>
 
@@ -856,9 +923,10 @@ let searchText = '';
 const DECK_LS_KEY  = 'hv_decks';
 const MAX_TOTAL    = 40;
 const MAX_EVENT    = 8;
-let decks          = [];
-let currentDeckId  = null;
-let pendingImport  = null;
+let decks               = [];
+let currentDeckId       = null;
+let pendingImport       = null;
+let qtyPendingImageFile = null;
 
 // ── Init ───────────────────────────────────────────────────────────────
 function init() {
@@ -1049,15 +1117,17 @@ function buildCardEl(card) {
     }
   }
 
-  const deckCount = getCardCountInDeck(card.card_no);
+  const deckCount = getCardCountInDeck(card.image_file);
+  // badge id 用 image_file（唯一），但需 escape 特殊字元
+  const badgeId = `badge-${card.image_file}`;
 
   div.innerHTML = `
     <div class="card-img-wrap">
       <img src="${imgSrc}" alt="${card.name || ''}" loading="lazy" onerror="this.classList.add('error')">
       <div class="img-placeholder" style="display:none"></div>
       <div class="rarity-badge" style="color:${rarityColor}">${card.rarity || ''}</div>
-      <div class="card-deck-badge${deckCount > 0 ? ' show' : ''}" id="badge-${card.card_no}">×${deckCount}</div>
-      <button class="card-add-btn" data-no="${card.card_no}" title="加入牌組">＋</button>
+      <div class="card-deck-badge${deckCount > 0 ? ' show' : ''}" id="${badgeId}">×${deckCount}</div>
+      <button class="card-add-btn" data-no="${card.image_file}" title="加入牌組">＋</button>
     </div>
     <div class="card-info">
       <div class="card-no">${card.card_no || ''}</div>
@@ -1069,8 +1139,8 @@ function buildCardEl(card) {
   div.querySelector('.card-add-btn').addEventListener('click', e => {
     e.stopPropagation();
     e.preventDefault();
-    const no = e.currentTarget.dataset.no;  // 直接從 DOM 讀，避免 closure 問題
-    addCardToDeck(no);
+    const imgFile = e.currentTarget.dataset.no;  // image_file
+    openQtyModal(imgFile);
   });
 
   return div;
@@ -1149,7 +1219,30 @@ if (typeof CARDS_DATA !== 'undefined') {
 function loadDecks() {
   try { const r = localStorage.getItem(DECK_LS_KEY); decks = r ? JSON.parse(r) : []; if (!Array.isArray(decks)) decks = []; } catch { decks = []; }
   // 確保每個牌組都有 owned 欄位（舊資料遷移）
-  decks.forEach(d => { if (!d.owned) d.owned = {}; });
+  decks.forEach(d => {
+    if (!d.owned) d.owned = {};
+    // 遷移：舊格式 { card_no, count } → 新格式 { image_file, card_no, count }
+    d.cards = d.cards.map(entry => {
+      if (entry.image_file) return entry;  // 已是新格式
+      const cardObj = cards.find(c => c.card_no === entry.card_no);
+      return {
+        image_file: cardObj?.image_file || entry.card_no,
+        card_no: entry.card_no,
+        count: entry.count
+      };
+    });
+    // 遷移 owned keys：舊格式用 card_no，新格式用 image_file
+    const newOwned = {};
+    Object.entries(d.owned).forEach(([key, val]) => {
+      if (key.includes('.webp')) {
+        newOwned[key] = val;  // 已是新格式
+      } else {
+        const c = cards.find(x => x.card_no === key);
+        if (c) newOwned[c.image_file] = val;
+      }
+    });
+    d.owned = newOwned;
+  });
   if (decks.length > 0) currentDeckId = decks[0].id;
 }
 function saveDecks() { localStorage.setItem(DECK_LS_KEY, JSON.stringify(decks)); }
@@ -1178,52 +1271,55 @@ function getTotalCount(deck) { return deck.cards.reduce((s,c) => s + c.count, 0)
 
 function getEventCount(deck) {
   return deck.cards.reduce((s, c) => {
-    const card = cards.find(x => x.card_no === c.card_no);
+    const card = cards.find(x => x.image_file === c.image_file);
     return s + (card && card.category === 'EVENT' ? c.count : 0);
   }, 0);
 }
 
-function getCardCountInDeck(card_no) {
+function getCardCountInDeck(image_file) {
   const deck = getCurrentDeck();
   if (!deck) return 0;
-  const e = deck.cards.find(c => c.card_no === card_no);
+  const e = deck.cards.find(c => c.image_file === image_file);
   return e ? e.count : 0;
 }
 
 // ── Add / Remove ───────────────────────────────────────
-function addCardToDeck(card_no) {
-  if (!card_no) { showToast('錯誤：card_no 無效'); return; }
+function addCardToDeck(image_file, quantity = 1) {
+  if (!image_file) { showToast('錯誤：image_file 無效'); return; }
   if (!currentDeckId && decks.length === 0) createDeck('我的牌組 1');
   const deck = getCurrentDeck();
   if (!deck) return;
-  if (getTotalCount(deck) >= MAX_TOTAL) { showToast('牌組已達 40 張上限！'); return; }
-  const entry = deck.cards.find(c => c.card_no === card_no);
-  if (entry) entry.count++; else deck.cards.push({ card_no, count: 1 });
+  const currentTotal = getTotalCount(deck);
+  const qty = Math.min(quantity, MAX_TOTAL - currentTotal);
+  if (qty <= 0) { showToast('牌組已達 40 張上限！'); return; }
+  const cardObj = cards.find(c => c.image_file === image_file);
+  const entry = deck.cards.find(c => c.image_file === image_file);
+  if (entry) entry.count += qty;
+  else deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: qty });
   saveDecks();
-  refreshCardBadge(card_no);
+  refreshCardBadge(image_file);
   updateTray();
-  // 診斷 toast：顯示加入的卡名（確認正確性）
-  const cardObj = cards.find(c => c.card_no === card_no);
-  showToast(`＋ ${cardObj ? cardObj.name : card_no}`);
-  if (getEventCount(deck) > MAX_EVENT) setTimeout(() => showToast(`⚠️ 事件卡已超過 ${MAX_EVENT} 張！`), 500);
+  const nm = cardObj ? cardObj.name : image_file;
+  showToast(`＋${qty} ${nm}`);
+  if (getEventCount(deck) > MAX_EVENT) setTimeout(() => showToast(`⚠️ 事件卡已超過 ${MAX_EVENT} 張！`), 600);
 }
 
-function removeCardFromDeck(card_no) {
+function removeCardFromDeck(image_file) {
   const deck = getCurrentDeck();
   if (!deck) return;
-  const idx = deck.cards.findIndex(c => c.card_no === card_no);
+  const idx = deck.cards.findIndex(c => c.image_file === image_file);
   if (idx === -1) return;
   if (deck.cards[idx].count > 1) deck.cards[idx].count--;
   else deck.cards.splice(idx, 1);
   saveDecks();
-  refreshCardBadge(card_no);
+  refreshCardBadge(image_file);
   updateTray();
 }
 
-function refreshCardBadge(card_no) {
-  const badge = document.getElementById(`badge-${card_no}`);
+function refreshCardBadge(image_file) {
+  const badge = document.getElementById(`badge-${image_file}`);
   if (!badge) return;
-  const n = getCardCountInDeck(card_no);
+  const n = getCardCountInDeck(image_file);
   badge.textContent = `×${n}`;
   badge.classList.toggle('show', n > 0);
 }
@@ -1292,32 +1388,61 @@ function renderDeckPanel() {
 
   list.innerHTML = '';
   deck.cards.forEach(entry => {
-    const card = cards.find(c => c.card_no === entry.card_no);
+    const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
     const item = document.createElement('div');
     item.className = 'deck-card-item';
     const imgSrc = card.image_file ? `images/${card.image_file}` : '';
     const rc = RARITY_COLOR[card.rarity] || '#888';
+    const variant = getVariantCode(entry.image_file);
+    const displayName = (card.name || '（無名稱）') + (variant ? ` (${variant})` : '');
     item.innerHTML = `
       <img class="deck-card-item-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--border)'">
       <div class="deck-card-item-info">
-        <div class="deck-card-item-name">${card.name || '（無名稱）'}</div>
+        <div class="deck-card-item-name">${displayName}</div>
         <div class="deck-card-item-sub" style="color:${rc}">${card.rarity || ''} · ${card.card_no}</div>
       </div>
       <div class="deck-card-item-count">
-        <button class="count-btn" data-action="dec" data-no="${card.card_no}">−</button>
-        <span class="count-num">${entry.count}</span>
-        <button class="count-btn" data-action="inc" data-no="${card.card_no}">＋</button>
+        <button class="count-btn" data-action="dec" data-img="${entry.image_file}">−</button>
+        <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1" max="${MAX_TOTAL}">
+        <button class="count-btn" data-action="inc" data-img="${entry.image_file}">＋</button>
       </div>`;
     list.appendChild(item);
   });
 
+  // 事件委派：+/- 按鈕
   list.querySelectorAll('.count-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      if (btn.dataset.action === 'inc') addCardToDeck(btn.dataset.no);
-      else removeCardFromDeck(btn.dataset.no);
+      const img = btn.dataset.img;
+      if (btn.dataset.action === 'inc') addCardToDeck(img, 1);
+      else removeCardFromDeck(img);
       renderDeckPanel();
+    });
+  });
+
+  // 事件委派：數字輸入
+  list.querySelectorAll('.deck-count-input').forEach(input => {
+    input.addEventListener('change', e => {
+      const img = input.dataset.img;
+      const newCount = parseInt(input.value, 10);
+      if (isNaN(newCount) || newCount < 1) { input.value = 1; return; }
+      const d = getCurrentDeck();
+      if (!d) return;
+      const entry = d.cards.find(c => c.image_file === img);
+      if (!entry) return;
+      const otherTotal = getTotalCount(d) - entry.count;
+      entry.count = Math.min(newCount, MAX_TOTAL - otherTotal);
+      input.value = entry.count;
+      saveDecks();
+      refreshCardBadge(img);
+      updateTray();
+      const info = document.getElementById('deck-panel-info');
+      const total2 = getTotalCount(d);
+      const warns = [];
+      if (total2 >= MAX_TOTAL) warns.push('已達上限');
+      if (getEventCount(d) > MAX_EVENT) warns.push(`事件卡超限`);
+      info.innerHTML = `共 ${total2}/40 張` + (warns.length ? `　<span class="warn-orange">${warns.join(' · ')}</span>` : '');
     });
   });
 }
@@ -1368,10 +1493,10 @@ function renderAnalysis() {
 
   // 缺牌數 = Σ max(0, 牌組需要 − 此牌組的持有數)
   const total = getTotalCount(deck);
-  const owned = getDeckOwned();   // 此牌組專屬持有資料
+  const owned = getDeckOwned();   // 此牌組專屬持有資料（以 image_file 為 key）
   let missing = 0;
   deck.cards.forEach(e => {
-    missing += Math.max(0, e.count - (owned[e.card_no] || 0));
+    missing += Math.max(0, e.count - (owned[e.image_file] || 0));
   });
   document.getElementById('analysis-total').textContent   = total;
   document.getElementById('analysis-missing').textContent = missing;
@@ -1379,35 +1504,40 @@ function renderAnalysis() {
   const body = document.getElementById('analysis-body');
   body.innerHTML = '';
   deck.cards.forEach(entry => {
-    const card = cards.find(c => c.card_no === entry.card_no);
+    const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
 
-    const have   = owned[card.card_no] || 0;
+    const have   = owned[entry.image_file] || 0;
     const need   = entry.count;
     const state  = have >= need ? 'owned' : have > 0 ? 'partial' : 'not-owned';
     const imgSrc = card.image_file ? `images/${card.image_file}` : '';
+    const variant = getVariantCode(entry.image_file);
+    const displayName = (card.name || '') + (variant ? ` (${variant})` : '');
 
     const div = document.createElement('div');
     div.className = `an-card ${state}`;
     div.innerHTML = `
       <img class="an-card-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--surface2)'">
       <div class="an-own-counter">
-        <button class="an-counter-btn an-dec" data-no="${card.card_no}" title="減少持有數">−</button>
-        <span class="an-counter-num" title="持有/需要">${have}/${need}</span>
-        <button class="an-counter-btn an-inc" data-no="${card.card_no}" title="增加持有數">＋</button>
+        <input type="number" class="an-count-input" data-img="${entry.image_file}" data-need="${need}" value="${have}" min="0" title="持有數（需要 ${need} 張）">
       </div>
-      <div class="an-card-name">${card.name || ''}</div>`;
+      <div class="an-card-name">${displayName}</div>`;
 
-    div.querySelector('.an-dec').addEventListener('click', e => {
+    div.querySelector('.an-count-input').addEventListener('click', e => e.stopPropagation());
+    div.querySelector('.an-count-input').addEventListener('change', e => {
       e.stopPropagation();
-      const cur = deck.owned[card.card_no] || 0;
-      if (cur > 0) { deck.owned[card.card_no] = cur - 1; saveDecks(); renderAnalysis(); }
-    });
-    div.querySelector('.an-inc').addEventListener('click', e => {
-      e.stopPropagation();
-      deck.owned[card.card_no] = (deck.owned[card.card_no] || 0) + 1;
+      const img = e.target.dataset.img;
+      const val = parseInt(e.target.value, 10);
+      deck.owned[img] = isNaN(val) || val < 0 ? 0 : val;
       saveDecks();
-      renderAnalysis();
+      // 更新此卡的 state class 而不 re-render 整頁（避免失焦問題）
+      const have2 = deck.owned[img] || 0;
+      const need2 = parseInt(e.target.dataset.need, 10);
+      div.className = `an-card ${have2 >= need2 ? 'owned' : have2 > 0 ? 'partial' : 'not-owned'}`;
+      // 更新統計
+      let missing2 = 0;
+      deck.cards.forEach(en => { missing2 += Math.max(0, en.count - (deck.owned[en.image_file] || 0)); });
+      document.getElementById('analysis-missing').textContent = missing2;
     });
     div.addEventListener('click', () => openModal(card));
     body.appendChild(div);
@@ -1581,7 +1711,7 @@ async function drawDeckCanvas(deck) {
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
-    const card  = cards.find(c => c.card_no === entry.card_no);
+    const card  = cards.find(c => c.image_file === entry.image_file);
     if (!card) continue;
 
     const col = i % COLS;
@@ -1614,8 +1744,9 @@ async function drawDeckCanvas(deck) {
     ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    const nm = card.name || '';
-    ctx.fillText(nm.length > 9 ? nm.slice(0,8)+'…' : nm, x + CARD_W/2, y + CARD_H - 8);
+    const variant = getVariantCode(entry.image_file);
+    const nm = (card.name || '') + (variant ? ` (${variant})` : '');
+    ctx.fillText(nm.length > 10 ? nm.slice(0,9)+'…' : nm, x + CARD_W/2, y + CARD_H - 8);
     ctx.textAlign = 'left';
 
     // 數量徽章（>1 才顯示）
@@ -1704,6 +1835,39 @@ async function importDeckFromImage(file) {
   }
 }
 
+// ── Variant Code Helper ─────────────────────────────────
+// 從 image_file 萃取變體碼，例如 HV-P01-004-KP.webp → "KP"
+// 若最後片段是純數字（非特殊版本）就回傳空字串
+function getVariantCode(image_file) {
+  if (!image_file) return '';
+  const m = image_file.match(/-([^-]+)\.webp$/i);
+  if (!m) return '';
+  const code = m[1];
+  return /^\d+$/.test(code) ? '' : code;  // 純數字表示無特殊版本
+}
+
+// ── Qty Modal ───────────────────────────────────────────
+function openQtyModal(image_file) {
+  if (!image_file) return;
+  qtyPendingImageFile = image_file;
+  const cardObj = cards.find(c => c.image_file === image_file);
+  const variant = getVariantCode(image_file);
+  const nm = (cardObj ? cardObj.name : image_file) + (variant ? ` (${variant})` : '');
+  document.getElementById('qty-modal-name').textContent = nm;
+  const deck = getCurrentDeck();
+  const remaining = deck ? MAX_TOTAL - getTotalCount(deck) : MAX_TOTAL;
+  const input = document.getElementById('qty-input');
+  input.value = 1;
+  input.max = Math.max(1, remaining);
+  document.getElementById('qty-overlay').classList.add('open');
+  setTimeout(() => input.select(), 50);
+}
+
+function closeQtyModal() {
+  qtyPendingImageFile = null;
+  document.getElementById('qty-overlay').classList.remove('open');
+}
+
 // ── Bind Deck Events ────────────────────────────────────
 function bindDeckEvents() {
   document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
@@ -1786,6 +1950,22 @@ function bindDeckEvents() {
     const file = e.target.files[0]; if (!file) return;
     importDeckFromImage(file);
     e.target.value = '';
+  });
+
+  // ── Qty Modal events ──
+  document.getElementById('qty-cancel').addEventListener('click', closeQtyModal);
+  document.getElementById('qty-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('qty-overlay')) closeQtyModal();
+  });
+  document.getElementById('qty-confirm').addEventListener('click', () => {
+    if (!qtyPendingImageFile) return;
+    const qty = Math.max(1, parseInt(document.getElementById('qty-input').value, 10) || 1);
+    addCardToDeck(qtyPendingImageFile, qty);
+    closeQtyModal();
+  });
+  document.getElementById('qty-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('qty-confirm').click();
+    if (e.key === 'Escape') closeQtyModal();
   });
 }
 </script>
