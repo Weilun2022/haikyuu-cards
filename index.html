@@ -455,7 +455,7 @@
   .deck-tray.mini .tray-warn-text,
   .deck-tray.mini #tray-analysis-btn,
   .deck-tray.mini #tray-open-btn { display: none; }
-  .deck-tray.mini .tray-deck-name { max-width: none; flex: 1; }
+  .deck-tray.mini .tray-deck-select { max-width: none; flex: 1; }
   body.deck-active.tray-mini .grid-container { padding-bottom: 36px; }
 
   /* 收合/展開切換按鈕 */
@@ -466,11 +466,20 @@
   }
   .tray-toggle-btn:hover { color: var(--accent); }
 
-  .tray-deck-name {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  .tray-deck-select {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; outline: none;
+    max-width: 140px;
     flex-shrink: 1;
+    transition: border-color 0.15s;
   }
+  .tray-deck-select:hover,
+  .tray-deck-select:focus { border-color: var(--accent); }
   .tray-count-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
   .tray-count-num { font-weight: 700; color: var(--accent); }
   .tray-count-num.warn { color: #fb923c; }
@@ -811,7 +820,7 @@
 <!-- ── Deck Tray ── -->
 <div class="deck-tray" id="deck-tray">
   <button class="tray-toggle-btn" id="tray-toggle-btn" title="收合／展開">▼</button>
-  <div class="tray-deck-name" id="tray-deck-name">牌組</div>
+  <select class="tray-deck-select" id="tray-deck-select"></select>
   <div class="tray-count-label">
     <span class="tray-count-num" id="tray-count-num">0</span>/40 張
   </div>
@@ -830,7 +839,6 @@
         <button class="tray-btn" style="margin-left:auto;padding:3px 9px;font-size:11px" id="deck-panel-close">✕</button>
       </div>
       <div class="deck-selector-row">
-        <select class="deck-switch-select" id="deck-switcher"></select>
         <input type="text" class="deck-name-input" id="deck-name-input" placeholder="牌組名稱...">
         <button class="tray-btn" id="deck-rename-btn">改名</button>
         <button class="tray-btn" id="deck-new-btn">＋新增</button>
@@ -1398,7 +1406,7 @@ function updateTray() {
   tray.classList.add('visible');
   document.body.classList.add('deck-active');
 
-  document.getElementById('tray-deck-name').textContent = deck.name;
+  document.getElementById('tray-deck-select').value = currentDeckId;
   const total = getTotalCount(deck);
   const numEl = document.getElementById('tray-count-num');
   numEl.textContent = total;
@@ -1423,13 +1431,15 @@ function openDeckPanel() {
 function closeDeckPanel() { document.getElementById('deck-panel-overlay').classList.remove('open'); }
 
 function renderDeckSwitcher() {
-  const sel = document.getElementById('deck-switcher');
-  sel.innerHTML = '';
+  // tray 下拉選單
+  const traySel = document.getElementById('tray-deck-select');
+  traySel.innerHTML = '';
   decks.forEach(d => {
     const o = document.createElement('option');
     o.value = d.id; o.textContent = d.name; o.selected = d.id === currentDeckId;
-    sel.appendChild(o);
+    traySel.appendChild(o);
   });
+  // 管理面板的改名欄位
   const deck = getCurrentDeck();
   if (deck) document.getElementById('deck-name-input').value = deck.name;
 }
@@ -1949,7 +1959,7 @@ function bindDeckEvents() {
     if (e.target === document.getElementById('deck-panel-overlay')) closeDeckPanel();
   });
 
-  document.getElementById('deck-switcher').addEventListener('change', e => {
+  document.getElementById('tray-deck-select').addEventListener('change', e => {
     currentDeckId = e.target.value;
     const deck = getCurrentDeck();
     if (deck) document.getElementById('deck-name-input').value = deck.name;
