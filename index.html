@@ -373,7 +373,7 @@
   @media (max-width: 600px) {
     .modal { flex-direction: column; }
     .modal-img { width: 100%; height: 240px; }
-    .grid-container { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .grid-container { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
     header { padding: 12px 16px; }
     .grid-container { padding: 14px 16px; }
 
@@ -448,6 +448,26 @@
   }
   .deck-tray.visible { transform: translateY(0); }
   body.deck-active .grid-container { padding-bottom: 72px; }
+
+  /* 收合狀態：只剩一條細帶 */
+  .deck-tray.mini {
+    padding: 5px 16px;
+    flex-wrap: nowrap;
+  }
+  .deck-tray.mini .tray-spacer,
+  .deck-tray.mini .tray-warn-text,
+  .deck-tray.mini #tray-analysis-btn,
+  .deck-tray.mini #tray-open-btn { display: none; }
+  .deck-tray.mini .tray-deck-name { max-width: none; flex: 1; }
+  body.deck-active.tray-mini .grid-container { padding-bottom: 36px; }
+
+  /* 收合/展開切換按鈕 */
+  .tray-toggle-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 14px; cursor: pointer; padding: 2px 4px;
+    flex-shrink: 0; line-height: 1; transition: color 0.15s;
+  }
+  .tray-toggle-btn:hover { color: var(--accent); }
 
   .tray-deck-name {
     font-size: 13px; font-weight: 600; color: var(--text);
@@ -665,6 +685,16 @@
     font-weight: 700; outline: none;
   }
   .qty-input:focus { border-color: var(--accent); }
+  .qty-input::-webkit-inner-spin-button,
+  .qty-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .qty-adj-btn {
+    width: 36px; height: 36px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; font-size: 20px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, border-color 0.15s; flex-shrink: 0;
+  }
+  .qty-adj-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
   .qty-box-btns { display: flex; gap: 8px; justify-content: center; }
 
   /* ── Deck count number input ── */
@@ -780,6 +810,7 @@
 
 <!-- ── Deck Tray ── -->
 <div class="deck-tray" id="deck-tray">
+  <button class="tray-toggle-btn" id="tray-toggle-btn" title="收合／展開">▼</button>
   <div class="tray-deck-name" id="tray-deck-name">牌組</div>
   <div class="tray-count-label">
     <span class="tray-count-num" id="tray-count-num">0</span>/40 張
@@ -858,8 +889,9 @@
   <div class="qty-box">
     <div class="qty-box-name" id="qty-modal-name"></div>
     <div class="qty-box-row">
-      <label class="qty-box-label">加入張數</label>
+      <button class="qty-adj-btn" id="qty-minus">−</button>
       <input type="number" id="qty-input" class="qty-input" min="1" max="40" value="1">
+      <button class="qty-adj-btn" id="qty-plus">＋</button>
     </div>
     <div class="qty-box-btns">
       <button class="tray-btn" id="qty-cancel">取消</button>
@@ -1966,6 +1998,25 @@ function bindDeckEvents() {
   document.getElementById('qty-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('qty-confirm').click();
     if (e.key === 'Escape') closeQtyModal();
+  });
+  document.getElementById('qty-minus').addEventListener('click', () => {
+    const inp = document.getElementById('qty-input');
+    const v = parseInt(inp.value, 10) || 1;
+    if (v > 1) inp.value = v - 1;
+  });
+  document.getElementById('qty-plus').addEventListener('click', () => {
+    const inp = document.getElementById('qty-input');
+    const v = parseInt(inp.value, 10) || 1;
+    const max = parseInt(inp.max, 10) || 40;
+    if (v < max) inp.value = v + 1;
+  });
+
+  // ── Tray 收合 / 展開 ──
+  document.getElementById('tray-toggle-btn').addEventListener('click', () => {
+    const tray = document.getElementById('deck-tray');
+    const isMini = tray.classList.toggle('mini');
+    document.getElementById('tray-toggle-btn').textContent = isMini ? '▲' : '▼';
+    document.body.classList.toggle('tray-mini', isMini);
   });
 }
 </script>
