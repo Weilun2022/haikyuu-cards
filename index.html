@@ -923,6 +923,96 @@
 
 <script src="cards_data.js"></script>
 <script>
+// ════════════════════════════════════════════════════════════════════════
+// 維護指南 — 排球少年!! バボカ!!BREAK 卡牌資料庫
+// ════════════════════════════════════════════════════════════════════════
+//
+// 【檔案結構】
+//   全站只有一個 index.html，CSS / HTML / JS 全部內聯。
+//   cards_data.js 由 build_data.py 產生，載入後掛在 window.CARDS_DATA。
+//
+// 【資料來源】
+//   CARDS_DATA.cards       → 卡片陣列（見下方卡片欄位說明）
+//   CARDS_DATA.product_labels → 系列代碼對照（如 HV-P01 → "第一彈"）
+//   localStorage key: 'hv_decks' → 牌組 JSON 陣列（版本 2 格式）
+//
+// 【卡片物件欄位】
+//   image_file  — 唯一識別碼（如 HV-P01-004-KP.webp）★ 作為所有 key 的依據
+//   card_no     — 卡號（非唯一，平行/金箔變體共用同一 card_no）
+//   name        — 卡名（繁體中文）
+//   rarity      — 稀有度：秘/頂/S/R/N/D/P
+//   school      — 學校（烏野/音駒/稲荷崎/白鳥沢/伊達工業/青葉城西/梟谷/鴎台）
+//   category    — 類型：CHARACTER / EVENT / SERVE
+//   product_type — 系列代碼（如 HV-P01）
+//   affiliation  — 所屬（社團等）
+//   atk/blk/rcv/tos/srv — CHARACTER 數值（非 CHARACTER 為 null）
+//   skill_zh    — 技能繁體中文（由 build_data.py 翻譯）
+//
+// 【為何用 image_file 而非 card_no 作為唯一鍵】
+//   364 張卡中有 66 張平行/金箔變體（如 -KP, -K, -R 後綴）共用同一 card_no，
+//   導致加入牌組時無法區分。image_file 是唯一的 (364/364)，因此以它作 key。
+//   getVariantCode(image_file) 可從檔名萃取變體碼（如 KP、K、R），純數字→空字串。
+//
+// 【牌組資料格式（localStorage 版本 2）】
+//   [
+//     {
+//       id:    "dk_<timestamp>_<random>",   // 唯一 ID
+//       name:  "我的牌組 1",
+//       cards: [
+//         { image_file: "HV-P01-004-KP.webp", card_no: "HV-P01-004", count: 2 },
+//         ...
+//       ],
+//       owned: {                             // 此牌組的持有數（缺牌分析用）
+//         "HV-P01-004-KP.webp": 1,          // key = image_file, value = 持有張數
+//         ...
+//       }
+//     },
+//     ...
+//   ]
+//   ⚠ loadDecks() 內有舊格式自動遷移邏輯（card_no key → image_file key）
+//
+// 【牌組規則】
+//   MAX_TOTAL = 40  → 牌組上限 40 張
+//   MAX_EVENT = 8   → 事件卡上限 8 張（超過時顯示警告，不強制阻擋）
+//
+// 【主要函式速查】
+//   init()                   → 進入點：載入資料、建篩選器、渲染、綁事件
+//   applyFilters()           → 依目前篩選條件過濾 cards → filtered，呼叫 renderGrid()
+//   renderGrid()             → 將 filtered 渲染到 #card-grid
+//   buildCardEl(card)        → 建立單張卡片 DOM，「＋」按鈕觸發 openQtyModal()
+//   openModal(card)          → 開啟卡片詳細資訊 Modal
+//
+//   addCardToDeck(image_file, qty=1)  → 加入指定張數到當前牌組（自動限制上限）
+//   removeCardFromDeck(image_file)    → 減少一張（至 0 時移除）
+//   getCardCountInDeck(image_file)    → 取得當前牌組中此卡的數量
+//   refreshCardBadge(image_file)      → 更新主網格上的數量徽章
+//   getTotalCount(deck)               → 計算牌組總張數
+//   getEventCount(deck)               → 計算牌組事件卡張數
+//
+//   loadDecks() / saveDecks()         → localStorage 讀寫（含舊格式遷移）
+//   getCurrentDeck()                  → 取得 currentDeckId 對應的 deck 物件
+//   createDeck(name)                  → 新增牌組並切換
+//
+//   renderDeckPanel()        → 渲染牌組管理面板卡片列表
+//   renderAnalysis()         → 渲染缺牌分析（以 deck.owned[image_file] 比對需求量）
+//
+//   openQtyModal(image_file) → 彈出加入張數選擇器（底部 sheet）
+//   closeQtyModal()          → 關閉選擇器並清除 qtyPendingImageFile
+//   getVariantCode(image_file) → 從檔名萃取變體碼（HV-P01-004-KP.webp → "KP"）
+//
+//   exportDeckAsImage()      → Canvas 5x 高解析度，PNG 內嵌牌組 JSON（tEXt chunk）
+//   importDeckFromImage(file)→ 讀取 PNG tEXt chunk 還原牌組
+//   drawDeckCanvas(deck)     → 實際繪製 Canvas（SCALE=5，COLS≤5，超過換列）
+//   injectPngChunk / readPngChunk → PNG tEXt chunk 寫入/讀取（含 CRC32）
+//
+// 【新增功能常見步驟】
+//   1. 卡片資料欄位：修改 build_data.py 的 row dict，重跑產生 cards_data.js
+//   2. 新篩選條件：在 buildFilters() 加 select/toggle，applyFilters() 加判斷
+//   3. 牌組新欄位：在 createDeck() 初始化，loadDecks() 補遷移，saveDecks() 自動存
+//   4. 新 Modal/面板：參考 .qty-overlay 的 CSS + HTML 結構，在 bindDeckEvents() 綁事件
+//
+// ════════════════════════════════════════════════════════════════════════
+
 // ── Constants ──────────────────────────────────────────────────────────
 const RARITY_COLOR = {
   '秘': '#f0c040', '頂': '#c084fc', 'S': '#60a5fa',
