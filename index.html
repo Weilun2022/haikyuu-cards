@@ -1339,6 +1339,7 @@ function createDeck(name) {
   decks.push(d);
   currentDeckId = d.id;
   saveDecks();
+  renderDeckSwitcher();
   return d;
 }
 
