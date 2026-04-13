@@ -763,7 +763,10 @@
     <div class="deck-panel-footer">
       <button class="tray-btn" id="deck-export-btn">📤 匯出 JSON</button>
       <button class="tray-btn" id="deck-import-btn">📥 匯入 JSON</button>
+      <button class="tray-btn primary" id="deck-export-img-btn">🖼️ 匯出圖片</button>
+      <button class="tray-btn" id="deck-import-img-btn">📸 匯入圖片</button>
       <input type="file" id="deck-import-file" accept=".json" style="display:none">
+      <input type="file" id="deck-import-img-file" accept="image/png" style="display:none">
     </div>
   </div>
 </div>
@@ -1411,6 +1414,275 @@ function showToast(msg) {
   t._tmr = setTimeout(() => { t.style.opacity = '0'; }, 2200);
 }
 
+// ══════════════════════════════════════════════════════
+// PNG 圖片匯出 / 匯入
+// ══════════════════════════════════════════════════════
+
+const PNG_KEYWORD = 'HVBreakDeck';
+
+// CRC32 查表（PNG chunk 必需）
+const CRC32_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c;
+  }
+  return t;
+})();
+
+function crc32(buf) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buf.length; i++) crc = CRC32_TABLE[(crc ^ buf[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+// 把 tEXt chunk 注入 PNG bytes（插在第一個 IDAT 之前）
+function injectPngChunk(pngBytes, keyword, text) {
+  const enc = new TextEncoder();
+  const kw  = enc.encode(keyword);
+  const tx  = enc.encode(text);
+  const data = new Uint8Array(kw.length + 1 + tx.length);
+  data.set(kw); data[kw.length] = 0; data.set(tx, kw.length + 1);
+
+  const typeArr = new Uint8Array([116,69,88,116]); // 'tEXt'
+  const crcIn   = new Uint8Array(4 + data.length);
+  crcIn.set(typeArr); crcIn.set(data, 4);
+  const crcVal  = crc32(crcIn);
+
+  const chunk = new Uint8Array(12 + data.length);
+  const dv    = new DataView(chunk.buffer);
+  dv.setUint32(0, data.length, false);
+  chunk.set(typeArr, 4);
+  chunk.set(data, 8);
+  dv.setUint32(8 + data.length, crcVal, false);
+
+  // 找 IDAT 位置
+  let pos = 8;
+  while (pos + 8 <= pngBytes.length) {
+    const len  = new DataView(pngBytes.buffer, pngBytes.byteOffset + pos).getUint32(0, false);
+    const type = String.fromCharCode(pngBytes[pos+4], pngBytes[pos+5], pngBytes[pos+6], pngBytes[pos+7]);
+    if (type === 'IDAT') break;
+    pos += 12 + len;
+  }
+
+  const out = new Uint8Array(pngBytes.length + chunk.length);
+  out.set(pngBytes.slice(0, pos));
+  out.set(chunk, pos);
+  out.set(pngBytes.slice(pos), pos + chunk.length);
+  return out;
+}
+
+// 從 PNG bytes 讀取我們的 tEXt chunk
+function readPngChunk(pngBytes, keyword) {
+  const dec = new TextDecoder();
+  let pos = 8;
+  while (pos + 8 <= pngBytes.length) {
+    const dv   = new DataView(pngBytes.buffer, pngBytes.byteOffset + pos);
+    const len  = dv.getUint32(0, false);
+    const type = String.fromCharCode(pngBytes[pos+4], pngBytes[pos+5], pngBytes[pos+6], pngBytes[pos+7]);
+    if (type === 'IEND') break;
+    if (type === 'tEXt' && pos + 8 + len <= pngBytes.length) {
+      const data = pngBytes.slice(pos + 8, pos + 8 + len);
+      const sep  = data.indexOf(0);
+      if (sep !== -1 && dec.decode(data.slice(0, sep)) === keyword) {
+        return dec.decode(data.slice(sep + 1));
+      }
+    }
+    pos += 12 + len;
+  }
+  return null;
+}
+
+// 圓角矩形輔助（相容舊瀏覽器）
+function canvasRoundRect(ctx, x, y, w, h, r) {
+  const [tl, tr, br, bl] = typeof r === 'number' ? [r,r,r,r] : r;
+  ctx.beginPath();
+  ctx.moveTo(x + tl, y);
+  ctx.lineTo(x + w - tr, y);   ctx.quadraticCurveTo(x+w, y,   x+w, y+tr);
+  ctx.lineTo(x + w, y + h - br); ctx.quadraticCurveTo(x+w, y+h, x+w-br, y+h);
+  ctx.lineTo(x + bl, y + h);   ctx.quadraticCurveTo(x,   y+h, x,   y+h-bl);
+  ctx.lineTo(x, y + tl);       ctx.quadraticCurveTo(x,   y,   x+tl, y);
+  ctx.closePath();
+}
+
+// 畫牌組 Canvas
+async function drawDeckCanvas(deck) {
+  const COLS   = 5;
+  const CARD_W = 96;
+  const CARD_H = 134;
+  const GAP    = 8;
+  const PAD    = 18;
+  const HEAD_H = 68;
+  const FOOT_H = 32;
+
+  const entries  = deck.cards;
+  const rows     = Math.ceil(entries.length / COLS);
+  const W        = PAD*2 + COLS*(CARD_W+GAP) - GAP;
+  const H        = HEAD_H + PAD + rows*(CARD_H+GAP) - GAP + PAD + FOOT_H;
+
+  const canvas   = document.createElement('canvas');
+  canvas.width   = W; canvas.height = H;
+  const ctx      = canvas.getContext('2d');
+
+  // 背景
+  ctx.fillStyle = '#0f0f13';
+  ctx.fillRect(0, 0, W, H);
+
+  // 標題列
+  ctx.fillStyle = '#13091f';
+  ctx.fillRect(0, 0, W, HEAD_H);
+  ctx.fillStyle = '#6c63ff';
+  ctx.fillRect(0, HEAD_H - 2, W, 2);
+
+  ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#6c63ff';
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 26);
+
+  ctx.font = 'bold 16px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#e8e8f0';
+  ctx.fillText(deck.name, PAD, 52);
+
+  ctx.font = '11px "Segoe UI",sans-serif';
+  ctx.fillStyle = '#8888aa';
+  ctx.textAlign = 'right';
+  ctx.fillText(`共 ${getTotalCount(deck)} 張`, W - PAD, 26);
+  ctx.textAlign = 'left';
+
+  // 載入圖片
+  const loadImg = src => new Promise(res => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => res(img);
+    img.onerror = () => res(null);
+    img.src = src;
+  });
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    const card  = cards.find(c => c.card_no === entry.card_no);
+    if (!card) continue;
+
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    const x   = PAD + col * (CARD_W + GAP);
+    const y   = HEAD_H + PAD + row * (CARD_H + GAP);
+
+    // 卡片底色
+    ctx.fillStyle = '#1a1a24';
+    canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 6); ctx.fill();
+
+    // 卡片圖片
+    if (card.image_file) {
+      const img = await loadImg(`images/${card.image_file}`);
+      if (img) {
+        ctx.save();
+        canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 6); ctx.clip();
+        ctx.drawImage(img, x, y, CARD_W, CARD_H);
+        ctx.restore();
+      }
+    }
+
+    // 底部漸層＋卡名
+    const grad = ctx.createLinearGradient(x, y + CARD_H - 32, x, y + CARD_H);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.88)');
+    ctx.fillStyle = grad;
+    canvasRoundRect(ctx, x, y + CARD_H - 32, CARD_W, 32, [0,0,6,6]); ctx.fill();
+
+    ctx.font = '9px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    const nm = (card.name || '');
+    ctx.fillText(nm.length > 9 ? nm.slice(0,8)+'…' : nm, x + CARD_W/2, y + CARD_H - 7);
+    ctx.textAlign = 'left';
+
+    // 數量徽章（>1 才顯示）
+    if (entry.count > 1) {
+      const bw = 20, bh = 16;
+      ctx.fillStyle = '#6c63ff';
+      canvasRoundRect(ctx, x + CARD_W - bw - 3, y + 3, bw, bh, 4); ctx.fill();
+      ctx.font = 'bold 10px "Segoe UI",sans-serif';
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(`×${entry.count}`, x + CARD_W - bw/2 - 3, y + 14);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // 頁尾
+  ctx.fillStyle = '#2e2e40';
+  ctx.fillRect(0, H - FOOT_H, W, 1);
+  ctx.font = '10px "Segoe UI",sans-serif';
+  ctx.fillStyle = '#555570';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    `weilun2022.github.io/haikyuu-cards  ·  ${new Date().toLocaleDateString('zh-TW')}`,
+    W/2, H - 10
+  );
+  ctx.textAlign = 'left';
+
+  return canvas;
+}
+
+// 匯出圖片（PNG + 嵌入牌組資料）
+async function exportDeckAsImage() {
+  const deck = getCurrentDeck();
+  if (!deck || deck.cards.length === 0) { showToast('牌組是空的！'); return; }
+
+  showToast('圖片生成中...');
+  try {
+    const canvas  = await drawDeckCanvas(deck);
+    const dataUrl = canvas.toDataURL('image/png');
+    const bin     = atob(dataUrl.split(',')[1]);
+    const bytes   = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+    const payload  = JSON.stringify({ name: deck.name, cards: deck.cards });
+    const injected = injectPngChunk(bytes, PNG_KEYWORD, payload);
+
+    const blob = new Blob([injected], { type: 'image/png' });
+    const url  = URL.createObjectURL(blob);
+    const safe = deck.name.replace(/[^\w\u4e00-\u9fff\-]/g, '_');
+    Object.assign(document.createElement('a'), {
+      href: url,
+      download: `HVBreak-${safe}-${new Date().toISOString().slice(0,10)}.png`
+    }).click();
+    URL.revokeObjectURL(url);
+    showToast('圖片已下載！');
+  } catch(e) {
+    console.error(e);
+    showToast('圖片生成失敗，請確認主控台訊息');
+  }
+}
+
+// 從圖片匯入牌組
+async function importDeckFromImage(file) {
+  try {
+    const buf      = await file.arrayBuffer();
+    const bytes    = new Uint8Array(buf);
+    const SIG      = [137,80,78,71,13,10,26,10];
+    const validPng = SIG.every((b,i) => bytes[i] === b);
+    if (!validPng) { showToast('不是有效的 PNG 圖片'); return; }
+
+    const text = readPngChunk(bytes, PNG_KEYWORD);
+    if (!text) { showToast('此圖片不含牌組資料'); return; }
+
+    const data = JSON.parse(text);
+    if (!Array.isArray(data.cards)) { showToast('牌組資料格式錯誤'); return; }
+
+    const newDeck = { id: makeDeckId(), name: data.name || '匯入的牌組', cards: data.cards, owned: {} };
+    decks.push(newDeck);
+    currentDeckId = newDeck.id;
+    saveDecks();
+    renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+    showToast(`已匯入「${newDeck.name}」！`);
+  } catch(e) {
+    console.error(e);
+    showToast('匯入失敗');
+  }
+}
+
 // ── Bind Deck Events ────────────────────────────────────
 function bindDeckEvents() {
   document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
@@ -1481,6 +1753,19 @@ function bindDeckEvents() {
   document.getElementById('import-overwrite-btn').addEventListener('click', () => doImport('overwrite'));
 
   document.getElementById('analysis-back-btn').addEventListener('click', closeAnalysis);
+
+  // 圖片匯出
+  document.getElementById('deck-export-img-btn').addEventListener('click', exportDeckAsImage);
+
+  // 圖片匯入
+  document.getElementById('deck-import-img-btn').addEventListener('click', () => {
+    document.getElementById('deck-import-img-file').click();
+  });
+  document.getElementById('deck-import-img-file').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    importDeckFromImage(file);
+    e.target.value = '';
+  });
 }
 </script>
 </body>
