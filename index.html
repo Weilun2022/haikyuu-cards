@@ -394,6 +394,263 @@
       max-height: 600px;
     }
   }
+
+  /* ── Deck: Add Button on Card ── */
+  .card-add-btn {
+    position: absolute;
+    bottom: 6px; right: 6px;
+    width: 26px; height: 26px;
+    background: var(--accent);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s, transform 0.15s;
+    z-index: 3;
+    flex-shrink: 0;
+  }
+  .card:hover .card-add-btn { opacity: 1; }
+  .card-add-btn:hover { transform: scale(1.15); background: #5a52e0; }
+  @media (max-width: 600px) { .card-add-btn { opacity: 1; width: 22px; height: 22px; font-size: 15px; } }
+
+  .card-deck-badge {
+    position: absolute;
+    bottom: 6px; left: 6px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    display: none;
+    z-index: 3;
+    pointer-events: none;
+  }
+  .card-deck-badge.show { display: block; }
+
+  /* ── Bottom Deck Tray ── */
+  .deck-tray {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(135deg, #1a0a2e 0%, #0a1628 100%);
+    border-top: 2px solid var(--accent);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 150;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    flex-wrap: nowrap;
+  }
+  .deck-tray.visible { transform: translateY(0); }
+  body.deck-active .grid-container { padding-bottom: 72px; }
+
+  .tray-deck-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    flex-shrink: 1;
+  }
+  .tray-count-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
+  .tray-count-num { font-weight: 700; color: var(--accent); }
+  .tray-count-num.warn { color: #fb923c; }
+  .tray-warn-text { font-size: 11px; color: #fb923c; white-space: nowrap; }
+  .tray-spacer { flex: 1; min-width: 4px; }
+
+  .tray-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 11px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .tray-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tray-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tray-btn.primary:hover { opacity: 0.85; color: #fff; }
+  .tray-btn.danger:hover { border-color: var(--accent2); color: var(--accent2); }
+  .tray-btn:disabled { opacity: 0.4; cursor: default; }
+
+  /* ── Deck Panel (slide-up) ── */
+  .deck-panel-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 160;
+  }
+  .deck-panel-overlay.open { display: block; }
+
+  .deck-panel {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 161;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .deck-panel-header {
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .deck-panel-titlerow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; font-weight: 700;
+  }
+  .deck-selector-row {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  }
+  .deck-switch-select {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px;
+    padding: 5px 8px; font-size: 12px; cursor: pointer; outline: none; flex-shrink: 0;
+  }
+  .deck-name-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px;
+    padding: 5px 10px; font-size: 13px;
+    flex: 1; min-width: 80px; outline: none;
+  }
+  .deck-name-input:focus { border-color: var(--accent); }
+  .deck-panel-info { font-size: 11px; color: var(--text-dim); }
+  .deck-panel-info .warn-orange { color: #fb923c; font-weight: 600; }
+
+  .deck-panel-body { flex: 1; overflow-y: auto; padding: 10px 16px; }
+  .deck-card-list { display: flex; flex-direction: column; gap: 6px; }
+  .deck-empty { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
+
+  .deck-card-item {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface2); border-radius: 8px; padding: 6px 10px;
+  }
+  .deck-card-item-img {
+    width: 32px; height: 45px; object-fit: cover;
+    border-radius: 4px; background: var(--border); flex-shrink: 0;
+  }
+  .deck-card-item-info { flex: 1; min-width: 0; }
+  .deck-card-item-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .deck-card-item-sub { font-size: 10px; color: var(--text-dim); }
+  .deck-card-item-count { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .count-btn {
+    background: var(--border); border: none; color: var(--text);
+    width: 22px; height: 22px; border-radius: 4px; font-size: 14px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .count-btn:hover { background: var(--accent); }
+  .count-num { font-size: 13px; font-weight: 700; min-width: 18px; text-align: center; }
+
+  .deck-panel-footer {
+    padding: 10px 16px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+  }
+
+  /* ── Analysis Overlay ── */
+  .analysis-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--bg); z-index: 170; flex-direction: column;
+  }
+  .analysis-overlay.open { display: flex; }
+
+  .analysis-header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .analysis-title { font-size: 15px; font-weight: 700; flex: 1; min-width: 100px; }
+  .analysis-stats { display: flex; gap: 6px; flex-shrink: 0; }
+  .analysis-stat {
+    font-size: 12px; background: var(--surface2);
+    border-radius: 20px; padding: 3px 11px;
+  }
+  .analysis-stat .num { font-weight: 700; }
+  .analysis-stat .num.miss { color: var(--accent2); }
+
+  .analysis-body {
+    flex: 1; overflow-y: auto; padding: 14px 16px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px; align-content: start;
+  }
+
+  .an-card {
+    position: relative; border-radius: 10px; overflow: hidden;
+    cursor: pointer; border: 2px solid transparent;
+    transition: border-color 0.15s, opacity 0.15s;
+  }
+  .an-card.owned { border-color: #4ade80; }
+  .an-card.not-owned { opacity: 0.38; filter: grayscale(50%); }
+  .an-card.not-owned:hover { opacity: 0.65; }
+
+  .an-card-img {
+    width: 100%; aspect-ratio: 5/7; object-fit: cover;
+    display: block; background: var(--surface2);
+  }
+  .an-own-btn {
+    position: absolute; top: 5px; left: 5px;
+    width: 24px; height: 24px;
+    background: rgba(0,0,0,0.65); border: 2px solid rgba(255,255,255,0.25);
+    border-radius: 50%; color: rgba(255,255,255,0.5);
+    font-size: 11px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s; z-index: 2;
+  }
+  .an-card.owned .an-own-btn { background: #4ade80; border-color: #4ade80; color: #000; }
+  .an-card-count {
+    position: absolute; top: 5px; right: 5px;
+    background: rgba(0,0,0,0.7); color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 5px; border-radius: 10px; pointer-events: none;
+  }
+  .an-card-name {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    padding: 14px 5px 5px; font-size: 10px; color: #fff;
+    text-align: center; line-height: 1.2; pointer-events: none;
+  }
+
+  /* ── Import Confirm Modal ── */
+  .import-confirm-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7); z-index: 210;
+    justify-content: center; align-items: center;
+  }
+  .import-confirm-overlay.open { display: flex; }
+  .import-confirm-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px 20px; width: 90%; max-width: 340px;
+  }
+  .import-confirm-box h3 { font-size: 15px; margin-bottom: 8px; }
+  .import-confirm-box p { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
+  .import-confirm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* Toast */
+  #hv-toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 18px; border-radius: 20px;
+    font-size: 13px; z-index: 999; opacity: 0;
+    transition: opacity 0.3s; pointer-events: none; white-space: nowrap;
+  }
 </style>
 </head>
 <body>
@@ -460,6 +717,79 @@
 
 <div class="grid-container" id="card-grid"></div>
 
+<!-- ── Deck Tray ── -->
+<div class="deck-tray" id="deck-tray">
+  <div class="tray-deck-name" id="tray-deck-name">牌組</div>
+  <div class="tray-count-label">
+    <span class="tray-count-num" id="tray-count-num">0</span>/40 張
+  </div>
+  <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
+  <div class="tray-spacer"></div>
+  <button class="tray-btn" id="tray-analysis-btn">缺牌分析</button>
+  <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
+</div>
+
+<!-- ── Deck Panel ── -->
+<div class="deck-panel-overlay" id="deck-panel-overlay">
+  <div class="deck-panel" id="deck-panel">
+    <div class="deck-panel-header">
+      <div class="deck-panel-titlerow">
+        🃏 牌組管理
+        <button class="tray-btn" style="margin-left:auto;padding:3px 9px;font-size:11px" id="deck-panel-close">✕</button>
+      </div>
+      <div class="deck-selector-row">
+        <select class="deck-switch-select" id="deck-switcher"></select>
+        <input type="text" class="deck-name-input" id="deck-name-input" placeholder="牌組名稱...">
+        <button class="tray-btn" id="deck-rename-btn">改名</button>
+        <button class="tray-btn" id="deck-new-btn">＋新增</button>
+        <button class="tray-btn danger" id="deck-delete-btn">刪除</button>
+      </div>
+      <div class="deck-panel-info" id="deck-panel-info"></div>
+    </div>
+    <div class="deck-panel-body">
+      <div class="deck-card-list" id="deck-card-list">
+        <div class="deck-empty">牌組是空的，到卡片列表按「＋」加入卡片</div>
+      </div>
+    </div>
+    <div class="deck-panel-footer">
+      <button class="tray-btn" id="deck-export-btn">📤 匯出 JSON</button>
+      <button class="tray-btn" id="deck-import-btn">📥 匯入 JSON</button>
+      <input type="file" id="deck-import-file" accept=".json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<!-- ── Analysis Overlay ── -->
+<div class="analysis-overlay" id="analysis-overlay">
+  <div class="analysis-header">
+    <button class="tray-btn" id="analysis-back-btn">← 返回</button>
+    <div class="analysis-title" id="analysis-title">缺牌分析</div>
+    <div class="analysis-stats">
+      <div class="analysis-stat">全部 <span class="num" id="analysis-total">0</span> 張</div>
+      <div class="analysis-stat">缺 <span class="num miss" id="analysis-missing">0</span> 張</div>
+    </div>
+  </div>
+  <div class="analysis-body" id="analysis-body"></div>
+</div>
+
+<!-- ── Import Confirm ── -->
+<div class="import-confirm-overlay" id="import-confirm-overlay">
+  <div class="import-confirm-box">
+    <h3>匯入 JSON</h3>
+    <p>請選擇匯入方式：<br>
+    <b>覆蓋</b> — 取代所有現有牌組與收藏資料<br>
+    <b>合併</b> — 保留現有資料，加入新牌組（ID 不重複才加入）</p>
+    <div class="import-confirm-btns">
+      <button class="tray-btn" id="import-cancel-btn">取消</button>
+      <button class="tray-btn" id="import-merge-btn">合併</button>
+      <button class="tray-btn primary" id="import-overwrite-btn">覆蓋</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="hv-toast"></div>
+
 <!-- Modal -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" id="modal">
@@ -514,9 +844,12 @@ function init() {
   document.getElementById('count-total').textContent = cards.length;
   document.getElementById('loading').classList.add('hidden');
 
+  loadDecks();
   buildFilters();
   applyFilters();
   bindEvents();
+  bindDeckEvents();
+  updateTray();
 }
 
 function buildFilters() {
@@ -694,11 +1027,15 @@ function buildCardEl(card) {
     }
   }
 
+  const deckCount = getCardCountInDeck(card.card_no);
+
   div.innerHTML = `
     <div class="card-img-wrap">
       <img src="${imgSrc}" alt="${card.name || ''}" loading="lazy" onerror="this.classList.add('error')">
       <div class="img-placeholder" style="display:none"></div>
       <div class="rarity-badge" style="color:${rarityColor}">${card.rarity || ''}</div>
+      <div class="card-deck-badge${deckCount > 0 ? ' show' : ''}" id="badge-${card.card_no}">×${deckCount}</div>
+      <button class="card-add-btn" data-no="${card.card_no}" title="加入牌組">＋</button>
     </div>
     <div class="card-info">
       <div class="card-no">${card.card_no || ''}</div>
@@ -706,6 +1043,12 @@ function buildCardEl(card) {
       <div class="card-school" style="background:${schoolColor}">${card.school || ''}</div>
       ${statsHtml}
     </div>`;
+
+  div.querySelector('.card-add-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    addCardToDeck(card.card_no);
+  });
+
   return div;
 }
 
@@ -772,6 +1115,338 @@ if (typeof CARDS_DATA !== 'undefined') {
   init();
 } else {
   document.getElementById('loading').textContent = '錯誤：找不到 cards_data.js，請先執行 build_data.py';
+}
+
+// ══════════════════════════════════════════════════════
+// DECK MANAGEMENT (PR #2 + PR #3)
+// ══════════════════════════════════════════════════════
+const DECK_LS_KEY  = 'hv_decks';
+const OWNED_LS_KEY = 'hv_owned';
+const MAX_TOTAL    = 40;
+const MAX_EVENT    = 8;
+
+let decks          = [];
+let currentDeckId  = null;
+let ownedCards     = {};
+let pendingImport  = null;
+
+// ── Persistence ────────────────────────────────────────
+function loadDecks() {
+  try { const r = localStorage.getItem(DECK_LS_KEY);  decks = r ? JSON.parse(r) : []; if (!Array.isArray(decks)) decks = []; } catch { decks = []; }
+  try { const r = localStorage.getItem(OWNED_LS_KEY); ownedCards = r ? JSON.parse(r) : {}; } catch { ownedCards = {}; }
+  if (decks.length > 0) currentDeckId = decks[0].id;
+}
+function saveDecks() { localStorage.setItem(DECK_LS_KEY,  JSON.stringify(decks)); }
+function saveOwned() { localStorage.setItem(OWNED_LS_KEY, JSON.stringify(ownedCards)); }
+
+// ── Deck helpers ───────────────────────────────────────
+function getCurrentDeck() { return decks.find(d => d.id === currentDeckId) || null; }
+function makeDeckId()     { return 'dk_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+
+function createDeck(name) {
+  const d = { id: makeDeckId(), name: name || '新牌組', cards: [] };
+  decks.push(d);
+  currentDeckId = d.id;
+  saveDecks();
+  return d;
+}
+
+function getTotalCount(deck) { return deck.cards.reduce((s,c) => s + c.count, 0); }
+
+function getEventCount(deck) {
+  return deck.cards.reduce((s, c) => {
+    const card = cards.find(x => x.card_no === c.card_no);
+    return s + (card && card.category === 'EVENT' ? c.count : 0);
+  }, 0);
+}
+
+function getCardCountInDeck(card_no) {
+  const deck = getCurrentDeck();
+  if (!deck) return 0;
+  const e = deck.cards.find(c => c.card_no === card_no);
+  return e ? e.count : 0;
+}
+
+// ── Add / Remove ───────────────────────────────────────
+function addCardToDeck(card_no) {
+  if (!currentDeckId && decks.length === 0) createDeck('我的牌組 1');
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  if (getTotalCount(deck) >= MAX_TOTAL) { showToast('牌組已達 40 張上限！'); return; }
+  const e = deck.cards.find(c => c.card_no === card_no);
+  if (e) e.count++; else deck.cards.push({ card_no, count: 1 });
+  saveDecks();
+  refreshCardBadge(card_no);
+  updateTray();
+  if (getEventCount(deck) > MAX_EVENT) showToast(`⚠️ 事件卡已超過 ${MAX_EVENT} 張上限！`);
+}
+
+function removeCardFromDeck(card_no) {
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  const idx = deck.cards.findIndex(c => c.card_no === card_no);
+  if (idx === -1) return;
+  if (deck.cards[idx].count > 1) deck.cards[idx].count--;
+  else deck.cards.splice(idx, 1);
+  saveDecks();
+  refreshCardBadge(card_no);
+  updateTray();
+}
+
+function refreshCardBadge(card_no) {
+  const badge = document.getElementById(`badge-${card_no}`);
+  if (!badge) return;
+  const n = getCardCountInDeck(card_no);
+  badge.textContent = `×${n}`;
+  badge.classList.toggle('show', n > 0);
+}
+
+// ── Tray ───────────────────────────────────────────────
+function updateTray() {
+  const deck = getCurrentDeck();
+  const tray = document.getElementById('deck-tray');
+  if (!deck) { tray.classList.remove('visible'); document.body.classList.remove('deck-active'); return; }
+  tray.classList.add('visible');
+  document.body.classList.add('deck-active');
+
+  document.getElementById('tray-deck-name').textContent = deck.name;
+  const total = getTotalCount(deck);
+  const numEl = document.getElementById('tray-count-num');
+  numEl.textContent = total;
+  numEl.className = 'tray-count-num' + (total >= MAX_TOTAL ? ' warn' : '');
+
+  const warnEl = document.getElementById('tray-warn-text');
+  const evCnt  = getEventCount(deck);
+  const warns  = [];
+  if (total >= MAX_TOTAL) warns.push('已滿');
+  if (evCnt > MAX_EVENT)  warns.push(`事件 ${evCnt}/8`);
+  warnEl.textContent = warns.join(' · ');
+  warnEl.style.display = warns.length ? 'inline' : 'none';
+}
+
+// ── Deck Panel ─────────────────────────────────────────
+function openDeckPanel() {
+  if (decks.length === 0) createDeck('我的牌組 1');
+  renderDeckSwitcher();
+  renderDeckPanel();
+  document.getElementById('deck-panel-overlay').classList.add('open');
+}
+function closeDeckPanel() { document.getElementById('deck-panel-overlay').classList.remove('open'); }
+
+function renderDeckSwitcher() {
+  const sel = document.getElementById('deck-switcher');
+  sel.innerHTML = '';
+  decks.forEach(d => {
+    const o = document.createElement('option');
+    o.value = d.id; o.textContent = d.name; o.selected = d.id === currentDeckId;
+    sel.appendChild(o);
+  });
+  const deck = getCurrentDeck();
+  if (deck) document.getElementById('deck-name-input').value = deck.name;
+}
+
+function renderDeckPanel() {
+  const deck = getCurrentDeck();
+  const list = document.getElementById('deck-card-list');
+  const info = document.getElementById('deck-panel-info');
+
+  if (!deck || deck.cards.length === 0) {
+    list.innerHTML = '<div class="deck-empty">牌組是空的，到卡片列表按「＋」加入卡片</div>';
+    info.textContent = '';
+    return;
+  }
+
+  const total = getTotalCount(deck);
+  const evCnt = getEventCount(deck);
+  const warns = [];
+  if (total >= MAX_TOTAL) warns.push('已達上限');
+  if (evCnt > MAX_EVENT)  warns.push(`事件卡 ${evCnt}/8（超限）`);
+  info.innerHTML = `共 ${total}/40 張` + (warns.length ? `　<span class="warn-orange">${warns.join(' · ')}</span>` : '');
+
+  list.innerHTML = '';
+  deck.cards.forEach(entry => {
+    const card = cards.find(c => c.card_no === entry.card_no);
+    if (!card) return;
+    const item = document.createElement('div');
+    item.className = 'deck-card-item';
+    const imgSrc = card.image_file ? `images/${card.image_file}` : '';
+    const rc = RARITY_COLOR[card.rarity] || '#888';
+    item.innerHTML = `
+      <img class="deck-card-item-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--border)'">
+      <div class="deck-card-item-info">
+        <div class="deck-card-item-name">${card.name || '（無名稱）'}</div>
+        <div class="deck-card-item-sub" style="color:${rc}">${card.rarity || ''} · ${card.card_no}</div>
+      </div>
+      <div class="deck-card-item-count">
+        <button class="count-btn" data-action="dec" data-no="${card.card_no}">−</button>
+        <span class="count-num">${entry.count}</span>
+        <button class="count-btn" data-action="inc" data-no="${card.card_no}">＋</button>
+      </div>`;
+    list.appendChild(item);
+  });
+
+  list.querySelectorAll('.count-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (btn.dataset.action === 'inc') addCardToDeck(btn.dataset.no);
+      else removeCardFromDeck(btn.dataset.no);
+      renderDeckPanel();
+    });
+  });
+}
+
+// ── Export / Import ────────────────────────────────────
+function exportDecks() {
+  const date = new Date().toISOString().slice(0,10);
+  const data = { version: 1, exported: new Date().toISOString(), decks, owned_cards: ownedCards };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: `HVBreak-decks-${date}.json` });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function doImport(mode) {
+  if (!pendingImport) return;
+  const { decks: iDecks = [], owned_cards: iOwned = {} } = pendingImport;
+  pendingImport = null;
+  if (mode === 'overwrite') {
+    decks = iDecks; ownedCards = iOwned;
+    currentDeckId = decks.length ? decks[0].id : null;
+  } else {
+    iDecks.forEach(d => { if (!decks.find(x => x.id === d.id)) decks.push(d); });
+    Object.assign(ownedCards, iOwned);
+    if (!currentDeckId && decks.length) currentDeckId = decks[0].id;
+  }
+  saveDecks(); saveOwned();
+  renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+  document.getElementById('import-confirm-overlay').classList.remove('open');
+  showToast('匯入成功！');
+}
+
+// ── Analysis (PR #3) ───────────────────────────────────
+function openAnalysis() {
+  const deck = getCurrentDeck();
+  if (!deck || deck.cards.length === 0) { showToast('牌組是空的！'); return; }
+  renderAnalysis();
+  document.getElementById('analysis-overlay').classList.add('open');
+}
+function closeAnalysis() { document.getElementById('analysis-overlay').classList.remove('open'); }
+
+function renderAnalysis() {
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  document.getElementById('analysis-title').textContent = `缺牌分析 — ${deck.name}`;
+
+  const total = getTotalCount(deck);
+  let missing = 0;
+  deck.cards.forEach(e => { if (!ownedCards[e.card_no]) missing += e.count; });
+  document.getElementById('analysis-total').textContent   = total;
+  document.getElementById('analysis-missing').textContent = missing;
+
+  const body = document.getElementById('analysis-body');
+  body.innerHTML = '';
+  deck.cards.forEach(entry => {
+    const card = cards.find(c => c.card_no === entry.card_no);
+    if (!card) return;
+    const owned  = !!ownedCards[card.card_no];
+    const imgSrc = card.image_file ? `images/${card.image_file}` : '';
+    const div    = document.createElement('div');
+    div.className = 'an-card ' + (owned ? 'owned' : 'not-owned');
+    div.innerHTML = `
+      <img class="an-card-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--surface2)'">
+      <button class="an-own-btn" data-no="${card.card_no}" title="切換擁有狀態">✓</button>
+      ${entry.count > 1 ? `<div class="an-card-count">×${entry.count}</div>` : ''}
+      <div class="an-card-name">${card.name || ''}</div>`;
+    div.querySelector('.an-own-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      ownedCards[card.card_no] = !ownedCards[card.card_no];
+      saveOwned();
+      renderAnalysis();
+    });
+    div.addEventListener('click', () => openModal(card));
+    body.appendChild(div);
+  });
+}
+
+// ── Toast ───────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('hv-toast');
+  t.textContent = msg; t.style.opacity = '1';
+  clearTimeout(t._tmr);
+  t._tmr = setTimeout(() => { t.style.opacity = '0'; }, 2200);
+}
+
+// ── Bind Deck Events ────────────────────────────────────
+function bindDeckEvents() {
+  document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
+  document.getElementById('tray-analysis-btn').addEventListener('click', openAnalysis);
+
+  document.getElementById('deck-panel-close').addEventListener('click', closeDeckPanel);
+  document.getElementById('deck-panel-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('deck-panel-overlay')) closeDeckPanel();
+  });
+
+  document.getElementById('deck-switcher').addEventListener('change', e => {
+    currentDeckId = e.target.value;
+    const deck = getCurrentDeck();
+    if (deck) document.getElementById('deck-name-input').value = deck.name;
+    renderDeckPanel(); updateTray(); renderGrid();
+  });
+
+  document.getElementById('deck-rename-btn').addEventListener('click', () => {
+    const deck = getCurrentDeck(); if (!deck) return;
+    const name = document.getElementById('deck-name-input').value.trim();
+    if (!name) return;
+    deck.name = name; saveDecks(); updateTray(); renderDeckSwitcher(); showToast('已重新命名！');
+  });
+  document.getElementById('deck-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('deck-rename-btn').click();
+  });
+
+  document.getElementById('deck-new-btn').addEventListener('click', () => {
+    createDeck(`我的牌組 ${decks.length + 1}`);
+    renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+  });
+
+  document.getElementById('deck-delete-btn').addEventListener('click', () => {
+    const deck = getCurrentDeck(); if (!deck) return;
+    if (decks.length <= 1) {
+      deck.cards = []; saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
+      showToast('牌組已清空'); return;
+    }
+    const idx = decks.findIndex(d => d.id === currentDeckId);
+    decks.splice(idx, 1);
+    currentDeckId = decks[Math.max(0, idx - 1)].id;
+    saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+    showToast('已刪除牌組');
+  });
+
+  document.getElementById('deck-export-btn').addEventListener('click', exportDecks);
+
+  document.getElementById('deck-import-btn').addEventListener('click', () => {
+    document.getElementById('deck-import-file').click();
+  });
+  document.getElementById('deck-import-file').addEventListener('change', e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        pendingImport = JSON.parse(ev.target.result);
+        document.getElementById('import-confirm-overlay').classList.add('open');
+      } catch { showToast('JSON 格式錯誤！'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+  document.getElementById('import-cancel-btn').addEventListener('click', () => {
+    pendingImport = null;
+    document.getElementById('import-confirm-overlay').classList.remove('open');
+  });
+  document.getElementById('import-merge-btn').addEventListener('click',     () => doImport('merge'));
+  document.getElementById('import-overwrite-btn').addEventListener('click', () => doImport('overwrite'));
+
+  document.getElementById('analysis-back-btn').addEventListener('click', closeAnalysis);
 }
 </script>
 </body>
