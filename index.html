@@ -1816,8 +1816,8 @@ async function drawDeckCanvas(deck) {
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
     const variant = getVariantCode(entry.image_file);
-    const nm = (card.name || '') + (variant ? ` (${variant})` : '');
-    ctx.fillText(nm.length > 10 ? nm.slice(0,9)+'…' : nm, x + CARD_W/2, y + CARD_H - 8);
+    const nm = (card.card_no || '') + (variant ? `-${variant}` : '');
+    ctx.fillText(nm, x + CARD_W/2, y + CARD_H - 8);
     ctx.textAlign = 'left';
 
     // 數量徽章（>1 才顯示）
