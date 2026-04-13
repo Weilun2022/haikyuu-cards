@@ -597,30 +597,39 @@
     cursor: pointer; border: 2px solid transparent;
     transition: border-color 0.15s, opacity 0.15s;
   }
-  .an-card.owned { border-color: #4ade80; }
-  .an-card.not-owned { opacity: 0.38; filter: grayscale(50%); }
-  .an-card.not-owned:hover { opacity: 0.65; }
+  .an-card.owned   { border-color: #4ade80; }
+  .an-card.partial { border-color: #fb923c; }
+  .an-card.not-owned { opacity: 0.35; filter: grayscale(55%); }
+  .an-card.not-owned:hover { opacity: 0.6; }
 
   .an-card-img {
     width: 100%; aspect-ratio: 5/7; object-fit: cover;
     display: block; background: var(--surface2);
   }
-  .an-own-btn {
+
+  /* 左上角持有數量計數器 */
+  .an-own-counter {
     position: absolute; top: 5px; left: 5px;
-    width: 24px; height: 24px;
-    background: rgba(0,0,0,0.65); border: 2px solid rgba(255,255,255,0.25);
-    border-radius: 50%; color: rgba(255,255,255,0.5);
-    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; gap: 2px;
+    z-index: 2;
+  }
+  .an-counter-btn {
+    width: 20px; height: 20px;
+    background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 4px; color: #fff; font-size: 13px; line-height: 1;
     cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: all 0.15s; z-index: 2;
+    transition: background 0.12s; flex-shrink: 0;
   }
-  .an-card.owned .an-own-btn { background: #4ade80; border-color: #4ade80; color: #000; }
-  .an-card-count {
-    position: absolute; top: 5px; right: 5px;
-    background: rgba(0,0,0,0.7); color: #fff;
-    font-size: 10px; font-weight: 700;
-    padding: 1px 5px; border-radius: 10px; pointer-events: none;
+  .an-counter-btn:hover { background: rgba(255,255,255,0.2); }
+  .an-counter-num {
+    min-width: 22px; text-align: center;
+    font-size: 10px; font-weight: 700; color: #fff;
+    background: rgba(0,0,0,0.72); border-radius: 3px;
+    padding: 2px 3px; line-height: 1.3;
   }
+  .an-card.owned   .an-counter-num { color: #4ade80; }
+  .an-card.partial .an-counter-num { color: #fb923c; }
+
   .an-card-name {
     position: absolute; bottom: 0; left: 0; right: 0;
     background: linear-gradient(transparent, rgba(0,0,0,0.85));
@@ -1339,9 +1348,13 @@ function renderAnalysis() {
   if (!deck) return;
   document.getElementById('analysis-title').textContent = `缺牌分析 — ${deck.name}`;
 
+  // 缺牌數 = Σ max(0, 牌組需要 − 實際持有)
   const total = getTotalCount(deck);
   let missing = 0;
-  deck.cards.forEach(e => { if (!ownedCards[e.card_no]) missing += e.count; });
+  deck.cards.forEach(e => {
+    const have = ownedCards[e.card_no] || 0;
+    missing += Math.max(0, e.count - have);
+  });
   document.getElementById('analysis-total').textContent   = total;
   document.getElementById('analysis-missing').textContent = missing;
 
@@ -1350,18 +1363,32 @@ function renderAnalysis() {
   deck.cards.forEach(entry => {
     const card = cards.find(c => c.card_no === entry.card_no);
     if (!card) return;
-    const owned  = !!ownedCards[card.card_no];
+
+    const have   = ownedCards[card.card_no] || 0;
+    const need   = entry.count;
+    // 三種狀態：持有足夠 / 持有部分 / 完全沒有
+    const state  = have >= need ? 'owned' : have > 0 ? 'partial' : 'not-owned';
     const imgSrc = card.image_file ? `images/${card.image_file}` : '';
-    const div    = document.createElement('div');
-    div.className = 'an-card ' + (owned ? 'owned' : 'not-owned');
+
+    const div = document.createElement('div');
+    div.className = `an-card ${state}`;
     div.innerHTML = `
       <img class="an-card-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--surface2)'">
-      <button class="an-own-btn" data-no="${card.card_no}" title="切換擁有狀態">✓</button>
-      ${entry.count > 1 ? `<div class="an-card-count">×${entry.count}</div>` : ''}
+      <div class="an-own-counter">
+        <button class="an-counter-btn an-dec" data-no="${card.card_no}" title="減少持有數">−</button>
+        <span class="an-counter-num" title="持有/需要">${have}/${need}</span>
+        <button class="an-counter-btn an-inc" data-no="${card.card_no}" title="增加持有數">＋</button>
+      </div>
       <div class="an-card-name">${card.name || ''}</div>`;
-    div.querySelector('.an-own-btn').addEventListener('click', e => {
+
+    div.querySelector('.an-dec').addEventListener('click', e => {
       e.stopPropagation();
-      ownedCards[card.card_no] = !ownedCards[card.card_no];
+      const cur = ownedCards[card.card_no] || 0;
+      if (cur > 0) { ownedCards[card.card_no] = cur - 1; saveOwned(); renderAnalysis(); }
+    });
+    div.querySelector('.an-inc').addEventListener('click', e => {
+      e.stopPropagation();
+      ownedCards[card.card_no] = (ownedCards[card.card_no] || 0) + 1;
       saveOwned();
       renderAnalysis();
     });
