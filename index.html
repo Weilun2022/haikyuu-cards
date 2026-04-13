@@ -826,7 +826,7 @@
   </div>
   <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
   <div class="tray-spacer"></div>
-  <button class="tray-btn" id="tray-analysis-btn">缺牌分析</button>
+  <button class="tray-btn" id="tray-analysis-btn">庫存分析</button>
   <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
 </div>
 
@@ -868,7 +868,7 @@
 <div class="analysis-overlay" id="analysis-overlay">
   <div class="analysis-header">
     <button class="tray-btn" id="analysis-back-btn">← 返回</button>
-    <div class="analysis-title" id="analysis-title">缺牌分析</div>
+    <div class="analysis-title" id="analysis-title">庫存分析</div>
     <div class="analysis-stats">
       <div class="analysis-stat">全部 <span class="num" id="analysis-total">0</span> 張</div>
       <div class="analysis-stat">缺 <span class="num miss" id="analysis-missing">0</span> 張</div>
@@ -1183,7 +1183,7 @@ function buildCardEl(card) {
   inp.addEventListener('keydown', e => { if (e.key === 'Enter') inp.blur(); e.stopPropagation(); });
 
   const saveCount = () => {
-    if (!currentDeckId && decks.length === 0) createDeck('我的牌組 1');
+    if (!currentDeckId && decks.length === 0) createDeck('我的牌組1');
     const deck = getCurrentDeck();
     if (!deck) return;
     const imgFile = inp.dataset.img;
@@ -1360,7 +1360,7 @@ function getCardCountInDeck(image_file) {
 // ── Add / Remove ───────────────────────────────────────
 function addCardToDeck(image_file, quantity = 1) {
   if (!image_file) { showToast('錯誤：image_file 無效'); return; }
-  if (!currentDeckId && decks.length === 0) createDeck('我的牌組 1');
+  if (!currentDeckId && decks.length === 0) createDeck('我的牌組1');
   const deck = getCurrentDeck();
   if (!deck) return;
   const currentTotal = getTotalCount(deck);
@@ -1423,7 +1423,7 @@ function updateTray() {
 
 // ── Deck Panel ─────────────────────────────────────────
 function openDeckPanel() {
-  if (decks.length === 0) createDeck('我的牌組 1');
+  if (decks.length === 0) createDeck('我的牌組1');
   renderDeckSwitcher();
   renderDeckPanel();
   document.getElementById('deck-panel-overlay').classList.add('open');
@@ -1565,7 +1565,7 @@ function closeAnalysis() { document.getElementById('analysis-overlay').classList
 function renderAnalysis() {
   const deck = getCurrentDeck();
   if (!deck) return;
-  document.getElementById('analysis-title').textContent = `缺牌分析 — ${deck.name}`;
+  document.getElementById('analysis-title').textContent = `庫存分析 — ${deck.name}`;
 
   // 缺牌數 = Σ max(0, 牌組需要 − 此牌組的持有數)
   const total = getTotalCount(deck);
@@ -1600,6 +1600,7 @@ function renderAnalysis() {
       <div class="an-card-name">${displayName}</div>`;
 
     div.querySelector('.an-count-input').addEventListener('click', e => e.stopPropagation());
+    div.querySelector('.an-count-input').addEventListener('focus', e => { e.stopPropagation(); e.target.value = ''; });
 
     // 共用的儲存邏輯：change（含 Enter）或 blur（離開欄位）都觸發
     const saveAnCount = e => {
@@ -1977,7 +1978,7 @@ function bindDeckEvents() {
   });
 
   document.getElementById('deck-new-btn').addEventListener('click', () => {
-    createDeck(`我的牌組 ${decks.length + 1}`);
+    createDeck(`我的牌組${decks.length + 1}`);
     renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
   });
 
