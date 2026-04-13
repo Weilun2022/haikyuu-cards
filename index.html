@@ -838,6 +838,16 @@ let activeSchool = '';
 let activeRarity = '';
 let searchText = '';
 
+// ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
+const DECK_LS_KEY  = 'hv_decks';
+const OWNED_LS_KEY = 'hv_owned';
+const MAX_TOTAL    = 40;
+const MAX_EVENT    = 8;
+let decks          = [];
+let currentDeckId  = null;
+let ownedCards     = {};
+let pendingImport  = null;
+
 // ── Init ───────────────────────────────────────────────────────────────
 function init() {
   cards = CARDS_DATA.cards;
@@ -1120,15 +1130,6 @@ if (typeof CARDS_DATA !== 'undefined') {
 // ══════════════════════════════════════════════════════
 // DECK MANAGEMENT (PR #2 + PR #3)
 // ══════════════════════════════════════════════════════
-const DECK_LS_KEY  = 'hv_decks';
-const OWNED_LS_KEY = 'hv_owned';
-const MAX_TOTAL    = 40;
-const MAX_EVENT    = 8;
-
-let decks          = [];
-let currentDeckId  = null;
-let ownedCards     = {};
-let pendingImport  = null;
 
 // ── Persistence ────────────────────────────────────────
 function loadDecks() {
