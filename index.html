@@ -763,8 +763,10 @@
     <div class="deck-panel-footer">
       <button class="tray-btn" id="deck-export-btn">📤 匯出 JSON</button>
       <button class="tray-btn" id="deck-import-btn">📥 匯入 JSON</button>
-      <button class="tray-btn primary" id="deck-export-img-btn">🖼️ 匯出圖片</button>
-      <button class="tray-btn" id="deck-import-img-btn">📸 匯入圖片</button>
+      <div style="display:flex;gap:8px;width:100%">
+        <button class="tray-btn primary" id="deck-export-img-btn" style="flex:1">🖼️ 牌組轉圖片</button>
+        <button class="tray-btn" id="deck-import-img-btn" style="flex:1">📸 圖片轉牌組</button>
+      </div>
       <input type="file" id="deck-import-file" accept=".json" style="display:none">
       <input type="file" id="deck-import-img-file" accept="image/png" style="display:none">
     </div>
@@ -1506,24 +1508,32 @@ function canvasRoundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// 畫牌組 Canvas
+// 畫牌組 Canvas（高解析度）
 async function drawDeckCanvas(deck) {
-  const COLS   = 5;
-  const CARD_W = 96;
-  const CARD_H = 134;
-  const GAP    = 8;
-  const PAD    = 18;
-  const HEAD_H = 68;
-  const FOOT_H = 32;
+  const SCALE  = 3;          // 3x 高解析度
+  const entries = deck.cards;
 
-  const entries  = deck.cards;
-  const rows     = Math.ceil(entries.length / COLS);
-  const W        = PAD*2 + COLS*(CARD_W+GAP) - GAP;
-  const H        = HEAD_H + PAD + rows*(CARD_H+GAP) - GAP + PAD + FOOT_H;
+  // 欄數：≤5張用實際張數寬度，>5張固定5欄
+  const COLS   = Math.min(5, entries.length);
 
-  const canvas   = document.createElement('canvas');
-  canvas.width   = W; canvas.height = H;
-  const ctx      = canvas.getContext('2d');
+  const CARD_W = 100;        // 邏輯尺寸（實際 ×SCALE）
+  const CARD_H = 140;
+  const GAP    = 10;
+  const PAD    = 20;
+  const HEAD_H = 72;
+  const FOOT_H = 34;
+
+  const rows = Math.ceil(entries.length / COLS);
+  const W    = PAD*2 + COLS*(CARD_W+GAP) - GAP;
+  const H    = HEAD_H + PAD + rows*(CARD_H+GAP) - GAP + PAD + FOOT_H;
+
+  const canvas  = document.createElement('canvas');
+  canvas.width  = W * SCALE;
+  canvas.height = H * SCALE;
+  const ctx     = canvas.getContext('2d');
+  ctx.scale(SCALE, SCALE);               // 之後所有座標用邏輯尺寸即可
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
 
   // 背景
   ctx.fillStyle = '#0f0f13';
@@ -1537,26 +1547,31 @@ async function drawDeckCanvas(deck) {
 
   ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#6c63ff';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 26);
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 27);
 
-  ctx.font = 'bold 16px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#e8e8f0';
-  ctx.fillText(deck.name, PAD, 52);
+  ctx.fillText(deck.name, PAD, 54);
 
   ctx.font = '11px "Segoe UI",sans-serif';
   ctx.fillStyle = '#8888aa';
   ctx.textAlign = 'right';
-  ctx.fillText(`共 ${getTotalCount(deck)} 張`, W - PAD, 26);
+  ctx.fillText(`共 ${getTotalCount(deck)} 張`, W - PAD, 27);
   ctx.textAlign = 'left';
 
-  // 載入圖片
-  const loadImg = src => new Promise(res => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload  = () => res(img);
-    img.onerror = () => res(null);
-    img.src = src;
-  });
+  // 載入圖片（快取避免重複請求）
+  const imgCache = {};
+  const loadImg  = src => {
+    if (imgCache[src]) return imgCache[src];
+    imgCache[src] = new Promise(res => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload  = () => res(img);
+      img.onerror = () => res(null);
+      img.src = src;
+    });
+    return imgCache[src];
+  };
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -1570,42 +1585,42 @@ async function drawDeckCanvas(deck) {
 
     // 卡片底色
     ctx.fillStyle = '#1a1a24';
-    canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 6); ctx.fill();
+    canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 7); ctx.fill();
 
     // 卡片圖片
     if (card.image_file) {
       const img = await loadImg(`images/${card.image_file}`);
       if (img) {
         ctx.save();
-        canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 6); ctx.clip();
+        canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 7); ctx.clip();
         ctx.drawImage(img, x, y, CARD_W, CARD_H);
         ctx.restore();
       }
     }
 
     // 底部漸層＋卡名
-    const grad = ctx.createLinearGradient(x, y + CARD_H - 32, x, y + CARD_H);
+    const grad = ctx.createLinearGradient(x, y + CARD_H - 36, x, y + CARD_H);
     grad.addColorStop(0, 'rgba(0,0,0,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.88)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.9)');
     ctx.fillStyle = grad;
-    canvasRoundRect(ctx, x, y + CARD_H - 32, CARD_W, 32, [0,0,6,6]); ctx.fill();
+    canvasRoundRect(ctx, x, y + CARD_H - 36, CARD_W, 36, [0,0,7,7]); ctx.fill();
 
-    ctx.font = '9px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'center';
-    const nm = (card.name || '');
-    ctx.fillText(nm.length > 9 ? nm.slice(0,8)+'…' : nm, x + CARD_W/2, y + CARD_H - 7);
+    const nm = card.name || '';
+    ctx.fillText(nm.length > 9 ? nm.slice(0,8)+'…' : nm, x + CARD_W/2, y + CARD_H - 8);
     ctx.textAlign = 'left';
 
     // 數量徽章（>1 才顯示）
     if (entry.count > 1) {
-      const bw = 20, bh = 16;
-      ctx.fillStyle = '#6c63ff';
-      canvasRoundRect(ctx, x + CARD_W - bw - 3, y + 3, bw, bh, 4); ctx.fill();
-      ctx.font = 'bold 10px "Segoe UI",sans-serif';
+      const bw = 22, bh = 17;
+      ctx.fillStyle = 'rgba(108,99,255,0.92)';
+      canvasRoundRect(ctx, x + CARD_W - bw - 4, y + 4, bw, bh, 5); ctx.fill();
+      ctx.font = 'bold 11px "Segoe UI",sans-serif';
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
-      ctx.fillText(`×${entry.count}`, x + CARD_W - bw/2 - 3, y + 14);
+      ctx.fillText(`×${entry.count}`, x + CARD_W - bw/2 - 4, y + 15);
       ctx.textAlign = 'left';
     }
   }
@@ -1614,11 +1629,11 @@ async function drawDeckCanvas(deck) {
   ctx.fillStyle = '#2e2e40';
   ctx.fillRect(0, H - FOOT_H, W, 1);
   ctx.font = '10px "Segoe UI",sans-serif';
-  ctx.fillStyle = '#555570';
+  ctx.fillStyle = '#44445a';
   ctx.textAlign = 'center';
   ctx.fillText(
     `weilun2022.github.io/haikyuu-cards  ·  ${new Date().toLocaleDateString('zh-TW')}`,
-    W/2, H - 10
+    W/2, H - 11
   );
   ctx.textAlign = 'left';
 
