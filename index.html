@@ -45,6 +45,13 @@
     min-height: 100vh;
   }
 
+  /* ── Sticky Wrapper ── */
+  #sticky-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
   /* ── Header ── */
   header {
     background: linear-gradient(135deg, #1a0a2e 0%, #0a1628 100%);
@@ -53,14 +60,42 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
   }
   header h1 { font-size: 18px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
   header .subtitle { font-size: 12px; color: var(--text-dim); }
   header .count { margin-left: auto; font-size: 13px; color: var(--text-dim); }
   header .count span { color: var(--text); font-weight: 600; }
+
+  /* Filter toggle button (mobile only) */
+  .filter-toggle-btn {
+    display: none;
+    position: relative;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .filter-toggle-btn.has-active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .filter-badge {
+    background: var(--accent);
+    color: #fff;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 5px;
+    line-height: 1.4;
+  }
 
   /* ── Filter Panel ── */
   .filter-panel {
@@ -339,9 +374,25 @@
     .modal { flex-direction: column; }
     .modal-img { width: 100%; height: 240px; }
     .grid-container { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-    .filter-panel { padding: 12px 16px; }
     header { padding: 12px 16px; }
     .grid-container { padding: 14px 16px; }
+
+    /* Show toggle button on mobile */
+    .filter-toggle-btn { display: flex; }
+
+    /* Filter panel: collapsed by default on mobile */
+    .filter-panel {
+      padding: 0 16px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+
+    /* Filter panel: expanded state */
+    .filter-panel.open {
+      padding: 12px 16px;
+      max-height: 600px;
+    }
   }
 </style>
 </head>
@@ -349,15 +400,19 @@
 
 <div id="loading">載入卡牌資料中...</div>
 
+<div id="sticky-wrapper">
 <header>
   <div>
     <h1>排球少年!! バボカ!!BREAK</h1>
     <div class="subtitle">卡牌資料庫 / Card Database</div>
   </div>
   <div class="count">顯示 <span id="count-display">0</span> / <span id="count-total">0</span> 張</div>
+  <button class="filter-toggle-btn" id="filter-toggle" aria-label="篩選">
+    ☰ 篩選<span class="filter-badge" id="filter-badge" style="display:none">0</span>
+  </button>
 </header>
 
-<div class="filter-panel">
+<div class="filter-panel" id="filter-panel">
   <!-- 搜尋 -->
   <div class="filter-group">
     <label>搜尋</label>
@@ -401,6 +456,7 @@
 
   <button class="btn-reset" id="btn-reset">重置篩選</button>
 </div>
+</div><!-- /#sticky-wrapper -->
 
 <div class="grid-container" id="card-grid"></div>
 
@@ -555,6 +611,11 @@ function bindEvents() {
   });
   document.getElementById('modal-close').addEventListener('click', closeModal);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  document.getElementById('filter-toggle').addEventListener('click', () => {
+    const panel = document.getElementById('filter-panel');
+    panel.classList.toggle('open');
+  });
 }
 
 // ── Filter Logic ───────────────────────────────────────────────────────
@@ -573,7 +634,23 @@ function applyFilters() {
   });
 
   document.getElementById('count-display').textContent = filtered.length;
+  updateFilterBadge();
   renderGrid();
+}
+
+function updateFilterBadge() {
+  const count = [activeSeries, activeSchool, activeCategory, activeRarity, searchText]
+    .filter(Boolean).length;
+  const badge = document.getElementById('filter-badge');
+  const btn = document.getElementById('filter-toggle');
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+    btn.classList.add('has-active');
+  } else {
+    badge.style.display = 'none';
+    btn.classList.remove('has-active');
+  }
 }
 
 // ── Render ─────────────────────────────────────────────────────────────
