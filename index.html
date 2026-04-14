@@ -241,6 +241,11 @@
     color: var(--text-dim);
   }
   .stat b { color: var(--text); }
+  .stat.stat-srv b { color: #EAB308; }
+  .stat.stat-blk b { color: #9CA3AF; }
+  .stat.stat-rcv b { color: #2563EB; }
+  .stat.stat-tos b { color: #16A34A; }
+  .stat.stat-atk b { color: #DC2626; }
 
   /* ── Empty state ── */
   .empty {
@@ -331,10 +336,12 @@
 
   .modal-stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 6px;
     margin-bottom: 14px;
   }
+  .modal-stats-grid .stat-box:nth-child(-n+2) { grid-column: span 3; }
+  .modal-stats-grid .stat-box:nth-child(n+3)  { grid-column: span 2; }
   .stat-box {
     background: var(--surface2);
     border-radius: 8px;
@@ -343,6 +350,21 @@
   }
   .stat-box .label { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
   .stat-box .value { font-size: 20px; font-weight: 700; }
+  .stat-box-srv { background: #EAB308; }
+  .stat-box-srv .label { color: rgba(0,0,0,0.6); }
+  .stat-box-srv .value { color: #1A1A1A !important; }
+  .stat-box-blk { background: #1C1C1C; border: 1px solid #444; }
+  .stat-box-blk .label { color: #888; }
+  .stat-box-blk .value { color: #FFFFFF !important; }
+  .stat-box-rcv { background: #2563EB; }
+  .stat-box-rcv .label { color: rgba(255,255,255,0.65); }
+  .stat-box-rcv .value { color: #FFFFFF !important; }
+  .stat-box-tos { background: #16A34A; }
+  .stat-box-tos .label { color: rgba(255,255,255,0.65); }
+  .stat-box-tos .value { color: #FFFFFF !important; }
+  .stat-box-atk { background: #DC2626; }
+  .stat-box-atk .label { color: rgba(255,255,255,0.65); }
+  .stat-box-atk .value { color: #FFFFFF !important; }
 
   .modal-skill-title { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.5px; }
   .modal-skill {
@@ -1299,7 +1321,7 @@ function buildCardEl(card) {
     ].filter(([,v]) => v !== null && v !== undefined && v !== '' && v != 0);
     if (statPairs.length) {
       statsHtml = `<div class="card-stats">${statPairs.map(([k,v]) =>
-        `<div class="stat">${STAT_LABELS[k]}<b>${v}</b></div>`
+        `<div class="stat stat-${k}">${STAT_LABELS[k]}<b>${v}</b></div>`
       ).join('')}</div>`;
     }
   }
@@ -1389,14 +1411,14 @@ function openModal(card) {
   const statsEl = document.getElementById('modal-stats');
   if (card.category === 'CHARACTER') {
     const statDefs = [
-      ['atk', '攻擊', '#f87171'], ['blk', '攔網', '#60a5fa'],
-      ['rcv', '接球', '#4ade80'], ['tos', '舉球', '#a78bfa'],
-      ['srv', '發球', '#fb923c']
+      ['srv', '發球', '#EAB308'], ['blk', '攔網', '#1C1C1C'],
+      ['rcv', '接球', '#2563EB'], ['tos', '舉球', '#16A34A'],
+      ['atk', '攻擊', '#DC2626']
     ];
     statsEl.innerHTML = statDefs.map(([k, label, color]) => {
       const v = card[k];
       const val = (v !== null && v !== undefined && v !== '') ? v : '—';
-      return `<div class="stat-box"><div class="label">${label}</div><div class="value" style="color:${color}">${val}</div></div>`;
+      return `<div class="stat-box stat-box-${k}"><div class="label">${label}</div><div class="value" style="color:${color}">${val}</div></div>`;
     }).join('');
     statsEl.style.display = 'grid';
   } else {
