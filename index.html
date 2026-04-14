@@ -378,6 +378,70 @@
     border-left: 3px solid var(--accent);
   }
 
+  /* ── Modal Q&A ── */
+  .modal-qa-section { margin-top: 14px; }
+  .modal-qa-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+    text-align: left;
+  }
+  .modal-qa-toggle:hover { border-color: var(--accent); color: var(--text); }
+  .modal-qa-toggle.open { color: var(--text); border-color: var(--accent); }
+  .modal-qa-arrow { font-style: normal; transition: transform 0.2s ease; display: inline-block; }
+  .modal-qa-toggle.open .modal-qa-arrow { transform: rotate(90deg); }
+  .modal-qa-list {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .modal-qa-list.open { max-height: 4000px; }
+  .qa-item {
+    padding: 10px 0 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .qa-item:last-child { border-bottom: none; }
+  .qa-date {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .qa-q, .qa-a {
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+  }
+  .qa-q { color: var(--text); margin-bottom: 4px; }
+  .qa-a { color: var(--text-dim); }
+  .qa-prefix-q {
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 4px;
+  }
+  .qa-prefix-a {
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-right: 4px;
+  }
+  .modal-qa-inner {
+    background: var(--surface2);
+    border-radius: 0 0 8px 8px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-top: none;
+  }
+
   /* Loading */
   #loading {
     position: fixed;
@@ -947,6 +1011,7 @@
       <div class="modal-stats-grid" id="modal-stats"></div>
       <div class="modal-skill-title">技能文字</div>
       <div class="modal-skill" id="modal-skill"></div>
+      <div class="modal-qa-section" id="modal-qa"></div>
     </div>
   </div>
 </div>
@@ -1438,8 +1503,50 @@ function openModal(card) {
     skillEl.previousElementSibling.style.display = 'none';
   }
 
+  // Q&A
+  const qaEl = document.getElementById('modal-qa');
+  const qa = Array.isArray(card.qa) ? card.qa : [];
+  if (qa.length === 0) {
+    qaEl.innerHTML = '';
+  } else {
+    const toggleId = 'modal-qa-toggle';
+    const listId = 'modal-qa-list';
+    qaEl.innerHTML = `
+      <button class="modal-qa-toggle" id="${toggleId}" aria-expanded="false">
+        <span class="modal-qa-arrow">▶</span> Q&amp;A（${qa.length} 件）
+      </button>
+      <div class="modal-qa-inner" style="display:none" id="${listId}">
+        <div class="modal-qa-list" id="${listId}-inner">
+          ${qa.map(item => `
+            <div class="qa-item">
+              <div class="qa-date">${item.date || ''}</div>
+              <div class="qa-q"><span class="qa-prefix-q">Q</span>${escapeHtml(item.question || '')}</div>
+              <div class="qa-a"><span class="qa-prefix-a">A</span>${escapeHtml(item.answer || '').replace(/\n/g, '<br>')}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+    document.getElementById(toggleId).addEventListener('click', function() {
+      const isOpen = this.classList.toggle('open');
+      this.setAttribute('aria-expanded', isOpen);
+      const wrapper = document.getElementById(listId);
+      const inner = document.getElementById(listId + '-inner');
+      if (isOpen) {
+        wrapper.style.display = 'block';
+        // force reflow then add open class for transition
+        requestAnimationFrame(() => inner.classList.add('open'));
+      } else {
+        inner.classList.remove('open');
+        inner.addEventListener('transitionend', () => { wrapper.style.display = 'none'; }, { once: true });
+      }
+    });
+  }
+
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function closeModal() {
