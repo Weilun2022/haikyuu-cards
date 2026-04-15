@@ -885,6 +885,12 @@
   }
   .color-assign-status.warn { color: #fb923c; }
   .color-assign-status.done { color: #4ade80; }
+  .color-assign-status.over { color: #ef4444; }
+  .color-assign-total-row {
+    border-bottom: 2px solid var(--border) !important;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
   .color-assign-btns { display: flex; gap: 8px; justify-content: center; }
 
   /* ── Analysis count number input ── */
@@ -1085,6 +1091,12 @@
   <div class="color-assign-box">
     <div class="color-assign-title" id="color-assign-title"></div>
     <div class="color-assign-sub" id="color-assign-sub"></div>
+    <div class="color-assign-row color-assign-total-row">
+      <span class="color-assign-label">總張數</span>
+      <button class="color-assign-adj" id="color-total-minus">−</button>
+      <span class="color-assign-num" id="color-total-num">1</span>
+      <button class="color-assign-adj" id="color-total-plus">＋</button>
+    </div>
     <div id="color-assign-rows"></div>
     <div class="color-assign-status" id="color-assign-status"></div>
     <div class="color-assign-btns">
@@ -2110,6 +2122,7 @@ function renderDeckPanel() {
 // ── Color Assign Modal ─────────────────────────────────
 // colorDraft = { free, receive, set, attack } — working copy while modal is open
 let colorDraft = {};
+let colorModalTotal = 1; // working total count while modal is open
 
 function openColorModal(imageFile) {
   const deck = getCurrentDeck();
@@ -2127,15 +2140,18 @@ function openColorModal(imageFile) {
   const variant = getVariantCode(imageFile);
   const nm = (card ? card.name : imageFile) + (variant ? ` (${variant})` : '');
   document.getElementById('color-assign-title').textContent = nm;
-  document.getElementById('color-assign-sub').textContent = `共 ${entry.count} 張，分配各顏色數量`;
+  document.getElementById('color-assign-sub').textContent = `分配各顏色數量`;
+  colorModalTotal = entry.count;
+  document.getElementById('color-total-num').textContent = colorModalTotal;
 
-  renderColorModalRows(entry.count);
+  renderColorModalRows(colorModalTotal);
   document.getElementById('color-assign-overlay').classList.add('open');
 }
 
 function closeColorModal() {
   colorPendingImageFile = null;
   colorDraft = {};
+  colorModalTotal = 1;
   document.getElementById('color-assign-overlay').classList.remove('open');
 }
 
@@ -2156,17 +2172,15 @@ function renderColorModalRows(totalCount) {
 
   rowsEl.querySelectorAll('.color-assign-adj').forEach(btn => {
     btn.addEventListener('click', () => {
-      const deck = getCurrentDeck();
-      const entry = deck && deck.cards.find(c => c.image_file === colorPendingImageFile);
-      if (!entry) return;
+      if (!getCurrentDeck()) return;
       const key = btn.dataset.key;
       const dir = parseInt(btn.dataset.dir, 10);
       const assigned = COLOR_TAGS.reduce((s, { key: k }) => s + colorDraft[k], 0);
-      if (dir === 1 && assigned >= entry.count) return; // cap at total
+      if (dir === 1 && assigned >= colorModalTotal) return; // cap at total
       if (dir === -1 && colorDraft[key] <= 0) return;
       colorDraft[key] += dir;
       document.getElementById(`color-num-${key}`).textContent = colorDraft[key];
-      updateColorModalStatus(entry.count);
+      updateColorModalStatus(colorModalTotal);
     });
   });
 
@@ -2175,26 +2189,38 @@ function renderColorModalRows(totalCount) {
 
 function updateColorModalStatus(totalCount) {
   const assigned = COLOR_TAGS.reduce((s, { key }) => s + colorDraft[key], 0);
-  const unassigned = totalCount - assigned;
   const el = document.getElementById('color-assign-status');
-  if (unassigned > 0) {
+  const confirmBtn = document.getElementById('color-assign-confirm');
+  if (assigned > totalCount) {
+    el.className = 'color-assign-status over';
+    el.textContent = `⚠ 已超出 ${assigned - totalCount} 張`;
+    confirmBtn.disabled = true;
+  } else if (assigned < totalCount) {
     el.className = 'color-assign-status warn';
-    el.textContent = `未分配 ${unassigned} 張`;
+    el.textContent = `未分配 ${totalCount - assigned} 張`;
+    confirmBtn.disabled = false;
   } else {
     el.className = 'color-assign-status done';
     el.textContent = `已分配 ${assigned}/${totalCount}`;
+    confirmBtn.disabled = false;
   }
 }
 
 function confirmColorModal() {
   const deck = getCurrentDeck();
   if (!deck || !colorPendingImageFile) return;
+  const entry = deck.cards.find(c => c.image_file === colorPendingImageFile);
+  if (!entry) return;
+  const assigned = COLOR_TAGS.reduce((s, { key }) => s + colorDraft[key], 0);
+  if (assigned > colorModalTotal) return; // safety guard (button should be disabled)
   const allZero = COLOR_TAGS.every(({ key }) => colorDraft[key] === 0);
   if (allZero) {
     clearCardColorMap(deck.id, colorPendingImageFile);
   } else {
     setCardColorMap(deck.id, colorPendingImageFile, { ...colorDraft });
   }
+  entry.count = colorModalTotal;
+  saveDecks();
   closeColorModal();
   renderDeckPanel();
 }
@@ -2414,7 +2440,7 @@ async function drawDeckCanvas(deck) {
   const CARD_H = 140;
   const GAP    = 10;
   const PAD    = 20;
-  const HEAD_H = 88;         // 加高以容納統計列
+  const HEAD_H = 56;         // 兩列：品牌名 + 牌組名/統計合併列
   const FOOT_H = 34;
 
   const rows = Math.ceil(entries.length / COLS);
@@ -2439,48 +2465,64 @@ async function drawDeckCanvas(deck) {
   ctx.fillStyle = '#6c63ff';
   ctx.fillRect(0, HEAD_H - 2, W, 2);
 
+  // 第一列：品牌名（左）
   ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#6c63ff';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 26);
+  ctx.textAlign = 'left';
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 22);
 
+  // 第二列：牌組名（左）+ 統計＋共N張（右）
+  const ROW2_Y = 44;
   ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#e8e8f0';
-  ctx.fillText(deck.name, PAD, 50);
+  ctx.textAlign = 'left';
+  ctx.fillText(deck.name, PAD, ROW2_Y);
 
+  // 右側：先量「共 N 張」寬度，再左推統計列
+  const totalTxt = `共 ${getTotalCount(deck)} 張`;
+  ctx.font = '11px "Segoe UI",sans-serif';
+  const totalTxtW = ctx.measureText(totalTxt).width;
+
+  const colorStats = getColorStats(deck);
+  const evCnt = getEventCount(deck);
+  const statsItems = [
+    ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, val: String(colorStats[key]) })),
+    { label: '事件', hex: EVENT_COLOR_HEX, val: `${evCnt}/8` },
+  ];
+  const DOT_R    = 3.5;
+  const ITEM_GAP = 10;
+  const STATS_TOTAL_GAP = 8; // 統計列與「共 N 張」之間距
+
+  ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
+  // 量出所有 stats 總寬
+  const statsWidths = statsItems.map(({ label, val }) => {
+    const txt = `${label} ${val}`;
+    return DOT_R * 2 + 4 + ctx.measureText(txt).width;
+  });
+  const totalStatsW = statsWidths.reduce((s, w) => s + w, 0) + ITEM_GAP * (statsItems.length - 1);
+
+  // 統計列起始 X（由右往左算：PAD + totalTxtW + gap + totalStatsW）
+  let sx = W - PAD - totalTxtW - STATS_TOTAL_GAP - totalStatsW;
+  for (let i = 0; i < statsItems.length; i++) {
+    const { label, hex, val } = statsItems[i];
+    ctx.beginPath();
+    ctx.arc(sx + DOT_R, ROW2_Y - DOT_R - 1, DOT_R, 0, Math.PI * 2);
+    ctx.fillStyle = hex;
+    ctx.fill();
+    sx += DOT_R * 2 + 4;
+    const txt = `${label} ${val}`;
+    ctx.fillStyle = '#b0b0c8';
+    ctx.textAlign = 'left';
+    ctx.fillText(txt, sx, ROW2_Y);
+    sx += statsWidths[i] - (DOT_R * 2 + 4) + ITEM_GAP;
+  }
+
+  // 「共 N 張」最右
   ctx.font = '11px "Segoe UI",sans-serif';
   ctx.fillStyle = '#8888aa';
   ctx.textAlign = 'right';
-  ctx.fillText(`共 ${getTotalCount(deck)} 張`, W - PAD, 26);
+  ctx.fillText(totalTxt, W - PAD, ROW2_Y);
   ctx.textAlign = 'left';
-
-  // ── 統計列（右上角，y≈70）──────────────────────────────────────────
-  {
-    const colorStats = getColorStats(deck);
-    const evCnt = getEventCount(deck);
-    const statsItems = [
-      ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, val: String(colorStats[key]) })),
-      { label: '事件', hex: EVENT_COLOR_HEX, val: `${evCnt}/8` },
-    ];
-    const statsY = 73;
-    const DOT_R  = 3.5;
-    const ITEM_GAP = 12;
-    ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
-    let sx = PAD;
-    for (const { label, hex, val } of statsItems) {
-      // 色點
-      ctx.beginPath();
-      ctx.arc(sx + DOT_R, statsY - DOT_R - 1, DOT_R, 0, Math.PI * 2);
-      ctx.fillStyle = hex;
-      ctx.fill();
-      sx += DOT_R * 2 + 4;
-      // 文字
-      const txt = `${label} ${val}`;
-      ctx.fillStyle = '#b0b0c8';
-      ctx.textAlign = 'left';
-      ctx.fillText(txt, sx, statsY);
-      sx += ctx.measureText(txt).width + ITEM_GAP;
-    }
-  }
 
   // 載入圖片（快取避免重複請求）
   const imgCache = {};
@@ -2756,6 +2798,17 @@ function bindDeckEvents() {
   });
 
   // ── Color Assign Modal events ──
+  document.getElementById('color-total-minus').addEventListener('click', () => {
+    if (colorModalTotal <= 1) return;
+    colorModalTotal--;
+    document.getElementById('color-total-num').textContent = colorModalTotal;
+    updateColorModalStatus(colorModalTotal);
+  });
+  document.getElementById('color-total-plus').addEventListener('click', () => {
+    colorModalTotal++;
+    document.getElementById('color-total-num').textContent = colorModalTotal;
+    updateColorModalStatus(colorModalTotal);
+  });
   document.getElementById('color-assign-cancel').addEventListener('click', closeColorModal);
   document.getElementById('color-assign-confirm').addEventListener('click', confirmColorModal);
   document.getElementById('color-assign-overlay').addEventListener('click', e => {
