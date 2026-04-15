@@ -1752,6 +1752,7 @@ function getColorStats(deck) {
 }
 
 // Expand deck.cards into canvas entries (each color group → separate slot)
+// Flat expansion in deck order (used internally)
 function expandEntriesForCanvas(deck) {
   const cs = deckColorState[deck.id] || {};
   const result = [];
@@ -1776,6 +1777,41 @@ function expandEntriesForCanvas(deck) {
     }
   }
   return result;
+}
+
+// Grouped expansion for export: 未設定 → 自由 → 接球 → 舉球 → 攻擊 → 事件
+function expandEntriesForCanvasGrouped(deck) {
+  const cs = deckColorState[deck.id] || {};
+  const groups = { unassigned: [], free: [], receive: [], set: [], attack: [], event: [] };
+
+  for (const entry of deck.cards) {
+    const card = cards.find(c => c.image_file === entry.image_file);
+    const isEvent = card && card.category === 'EVENT';
+    if (isEvent) {
+      groups.event.push({ ...entry, borderColor: EVENT_COLOR_HEX });
+    } else {
+      const cm = cs[entry.image_file];
+      if (!cm) {
+        groups.unassigned.push({ ...entry, borderColor: null });
+      } else {
+        const assignedTotal = COLOR_TAGS.reduce((s, { key }) => s + (cm[key] || 0), 0);
+        const unassigned = entry.count - assignedTotal;
+        if (unassigned > 0) groups.unassigned.push({ ...entry, count: unassigned, borderColor: null });
+        for (const { key, hex } of COLOR_TAGS) {
+          const cnt = cm[key] || 0;
+          if (cnt > 0) groups[key].push({ ...entry, count: cnt, borderColor: hex });
+        }
+      }
+    }
+  }
+  return [
+    ...groups.unassigned,
+    ...groups.free,
+    ...groups.receive,
+    ...groups.set,
+    ...groups.attack,
+    ...groups.event,
+  ];
 }
 
 // 取得當前牌組的持有資料（per-deck）
@@ -2365,7 +2401,7 @@ function canvasRoundRect(ctx, x, y, w, h, r) {
 // 畫牌組 Canvas（高解析度）
 async function drawDeckCanvas(deck) {
   const SCALE  = 3;          // 3x 高解析度
-  const entries = expandEntriesForCanvas(deck);
+  const entries = expandEntriesForCanvasGrouped(deck);
 
   // 欄數：≤5張用實際張數寬度，>5張固定5欄
   const COLS   = Math.min(5, entries.length);
@@ -2374,7 +2410,7 @@ async function drawDeckCanvas(deck) {
   const CARD_H = 140;
   const GAP    = 10;
   const PAD    = 20;
-  const HEAD_H = 72;
+  const HEAD_H = 88;         // 加高以容納統計列
   const FOOT_H = 34;
 
   const rows = Math.ceil(entries.length / COLS);
@@ -2401,17 +2437,46 @@ async function drawDeckCanvas(deck) {
 
   ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#6c63ff';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 27);
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 26);
 
   ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#e8e8f0';
-  ctx.fillText(deck.name, PAD, 54);
+  ctx.fillText(deck.name, PAD, 50);
 
   ctx.font = '11px "Segoe UI",sans-serif';
   ctx.fillStyle = '#8888aa';
   ctx.textAlign = 'right';
-  ctx.fillText(`共 ${getTotalCount(deck)} 張`, W - PAD, 27);
+  ctx.fillText(`共 ${getTotalCount(deck)} 張`, W - PAD, 26);
   ctx.textAlign = 'left';
+
+  // ── 統計列（右上角，y≈70）──────────────────────────────────────────
+  {
+    const colorStats = getColorStats(deck);
+    const evCnt = getEventCount(deck);
+    const statsItems = [
+      ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, val: String(colorStats[key]) })),
+      { label: '事件', hex: EVENT_COLOR_HEX, val: `${evCnt}/8` },
+    ];
+    const statsY = 73;
+    const DOT_R  = 3.5;
+    const ITEM_GAP = 12;
+    ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
+    let sx = PAD;
+    for (const { label, hex, val } of statsItems) {
+      // 色點
+      ctx.beginPath();
+      ctx.arc(sx + DOT_R, statsY - DOT_R - 1, DOT_R, 0, Math.PI * 2);
+      ctx.fillStyle = hex;
+      ctx.fill();
+      sx += DOT_R * 2 + 4;
+      // 文字
+      const txt = `${label} ${val}`;
+      ctx.fillStyle = '#b0b0c8';
+      ctx.textAlign = 'left';
+      ctx.fillText(txt, sx, statsY);
+      sx += ctx.measureText(txt).width + ITEM_GAP;
+    }
+  }
 
   // 載入圖片（快取避免重複請求）
   const imgCache = {};
