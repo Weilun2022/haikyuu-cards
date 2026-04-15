@@ -2255,7 +2255,7 @@ function confirmColorModal() {
 // ── Export / Import ────────────────────────────────────
 function exportDecks() {
   const date = new Date().toISOString().slice(0,10);
-  const data = { version: 2, exported: new Date().toISOString(), decks };
+  const data = { version: 2, exported: new Date().toISOString(), decks, colors: deckColorState };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = Object.assign(document.createElement('a'), { href: url, download: `HVBreak-decks-${date}.json` });
@@ -2265,17 +2265,22 @@ function exportDecks() {
 
 function doImport(mode) {
   if (!pendingImport) return;
-  const { decks: iDecks = [] } = pendingImport;
+  const { decks: iDecks = [], colors: importedColors = {} } = pendingImport;
   pendingImport = null;
   // 確保匯入的牌組都有 owned 欄位
   iDecks.forEach(d => { if (!d.owned) d.owned = {}; });
   if (mode === 'overwrite') {
     decks = iDecks;
     currentDeckId = decks.length ? decks[0].id : null;
+    deckColorState = importedColors;
   } else {
     iDecks.forEach(d => { if (!decks.find(x => x.id === d.id)) decks.push(d); });
     if (!currentDeckId && decks.length) currentDeckId = decks[0].id;
+    Object.keys(importedColors).forEach(id => {
+      if (!deckColorState[id]) deckColorState[id] = importedColors[id];
+    });
   }
+  saveColorState();
   saveDecks();
   renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
   document.getElementById('import-confirm-overlay').classList.remove('open');
@@ -2662,7 +2667,7 @@ async function exportDeckAsImage() {
     const bytes   = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
 
-    const payload  = JSON.stringify({ name: deck.name, cards: deck.cards });
+    const payload  = JSON.stringify({ name: deck.name, cards: deck.cards, colors: deckColorState[deck.id] || {} });
     const injected = injectPngChunk(bytes, PNG_KEYWORD, payload);
 
     const blob = new Blob([injected], { type: 'image/png' });
@@ -2699,6 +2704,10 @@ async function importDeckFromImage(file) {
     decks.push(newDeck);
     currentDeckId = newDeck.id;
     saveDecks();
+    if (data.colors && typeof data.colors === 'object') {
+      deckColorState[newDeck.id] = data.colors;
+      saveColorState();
+    }
     renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
     showToast(`已匯入「${newDeck.name}」！`);
   } catch(e) {
