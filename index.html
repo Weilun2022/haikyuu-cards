@@ -801,6 +801,92 @@
   }
   .deck-count-input:focus { border-color: var(--accent); }
 
+  /* ── Color Tag Feature ── */
+  .deck-color-stats {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 6px 16px 4px; font-size: 11px; color: var(--text-dim);
+    border-bottom: 1px solid var(--border); background: var(--surface);
+  }
+  .deck-color-stat-item {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .deck-color-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .deck-color-tag-btn {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--surface2); color: var(--text-dim);
+    font-size: 14px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: border-color 0.15s;
+    padding: 0;
+  }
+  .deck-color-tag-btn:hover { border-color: var(--accent); }
+  .deck-color-tag-btn.has-color { border-color: transparent; }
+  .deck-color-tag-btn .color-dots {
+    display: flex; gap: 2px; flex-wrap: wrap;
+    width: 16px; height: 16px; align-content: center; justify-content: center;
+  }
+  .deck-color-tag-btn .color-dots span {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+  .deck-color-subrow {
+    display: flex; align-items: center; gap: 8px;
+    border: 2px solid transparent;
+    border-radius: 6px; margin: 0 6px;
+    padding: 4px 10px;
+  }
+  .deck-color-subrow-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .deck-color-subrow-name { font-size: 11px; color: var(--text-dim); flex: 1; }
+  .deck-color-subrow-count { font-size: 12px; font-weight: 700; color: var(--text-dim); }
+
+  /* ── Color Assign Modal ── */
+  .color-assign-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65); z-index: 230;
+    justify-content: center; align-items: center;
+  }
+  .color-assign-overlay.open { display: flex; }
+  .color-assign-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; width: 320px; max-width: 94vw;
+  }
+  .color-assign-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 2px;
+    color: var(--text); text-align: center;
+  }
+  .color-assign-sub {
+    font-size: 11px; color: var(--text-dim); text-align: center; margin-bottom: 14px;
+  }
+  .color-assign-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .color-assign-row:last-of-type { border-bottom: none; }
+  .color-assign-label { font-size: 13px; flex: 1; }
+  .color-assign-adj {
+    width: 26px; height: 26px; border-radius: 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    line-height: 1;
+  }
+  .color-assign-adj:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .color-assign-num {
+    width: 30px; text-align: center; font-size: 14px; font-weight: 700;
+    color: var(--text);
+  }
+  .color-assign-status {
+    text-align: center; margin: 12px 0 14px;
+    font-size: 12px; font-weight: 600;
+  }
+  .color-assign-status.warn { color: #fb923c; }
+  .color-assign-status.done { color: #4ade80; }
+  .color-assign-btns { display: flex; gap: 8px; justify-content: center; }
+
   /* ── Analysis count number input ── */
   .an-count-input {
     width: 46px; padding: 2px 4px; text-align: center;
@@ -994,6 +1080,20 @@
   </div>
 </div>
 
+<!-- ── Color Assign Modal ── -->
+<div class="color-assign-overlay" id="color-assign-overlay">
+  <div class="color-assign-box">
+    <div class="color-assign-title" id="color-assign-title"></div>
+    <div class="color-assign-sub" id="color-assign-sub"></div>
+    <div id="color-assign-rows"></div>
+    <div class="color-assign-status" id="color-assign-status"></div>
+    <div class="color-assign-btns">
+      <button class="tray-btn" id="color-assign-cancel">取消</button>
+      <button class="tray-btn primary" id="color-assign-confirm">確定</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="hv-toast"></div>
 
@@ -1178,6 +1278,15 @@ const SCHOOL_COLOR = {
 };
 
 const CATEGORY_ZH = { 'CHARACTER': '角色', 'EVENT': '事件', 'SERVE': '發球' };
+
+// ── Color Tag Constants ─────────────────────────────────────────────────
+const COLOR_TAGS = [
+  { key: 'free',    label: '自由',  hex: '#888888' },
+  { key: 'receive', label: '接球',  hex: '#3b82f6' },
+  { key: 'set',     label: '舉球',  hex: '#22c55e' },
+  { key: 'attack',  label: '攻擊',  hex: '#ef4444' },
+];
+const EVENT_COLOR_HEX = '#eab308';
 const STAT_LABELS = {
   'atk': '攻擊', 'blk': '攔網', 'rcv': '接球',
   'tos': '舉球', 'srv': '發球'
@@ -1201,6 +1310,12 @@ let currentDeckId       = null;
 let pendingImport       = null;
 let qtyPendingImageFile = null;
 
+// ── Color State ─────────────────────────────────────────────────────────
+// Structure: { [deckId]: { [imageFile]: { free, receive, set, attack } | null } }
+const COLOR_LS_KEY = 'hv_deck_colors';
+let deckColorState = {};
+let colorPendingImageFile = null; // tracks which card the color modal is editing
+
 // ── Init ───────────────────────────────────────────────────────────────
 function init() {
   cards = CARDS_DATA.cards;
@@ -1208,6 +1323,7 @@ function init() {
   document.getElementById('loading').classList.add('hidden');
 
   loadDecks();
+  loadColorState();
   buildFilters();
   applyFilters();
   bindEvents();
@@ -1589,6 +1705,79 @@ function loadDecks() {
 }
 function saveDecks() { localStorage.setItem(DECK_LS_KEY, JSON.stringify(decks)); }
 
+// ── Color State Persistence ─────────────────────────────────────────────
+function loadColorState() {
+  try { const r = localStorage.getItem(COLOR_LS_KEY); deckColorState = r ? JSON.parse(r) : {}; }
+  catch { deckColorState = {}; }
+}
+function saveColorState() { localStorage.setItem(COLOR_LS_KEY, JSON.stringify(deckColorState)); }
+
+// ── Color State Helpers ─────────────────────────────────────────────────
+function getCardColorMap(deckId, imageFile) {
+  return (deckColorState[deckId] || {})[imageFile] || null;
+}
+function setCardColorMap(deckId, imageFile, colorMap) {
+  if (!deckColorState[deckId]) deckColorState[deckId] = {};
+  deckColorState[deckId][imageFile] = colorMap;
+  saveColorState();
+}
+function clearCardColorMap(deckId, imageFile) {
+  if (deckColorState[deckId]) {
+    delete deckColorState[deckId][imageFile];
+    saveColorState();
+  }
+}
+
+// Hex color → rgba string for background tint
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// Compute per-color totals for a deck (for stats row)
+function getColorStats(deck) {
+  const stats = { free: 0, receive: 0, set: 0, attack: 0, event: 0 };
+  const cs = deckColorState[deck.id] || {};
+  for (const entry of deck.cards) {
+    const card = cards.find(c => c.image_file === entry.image_file);
+    if (card && card.category === 'EVENT') { stats.event += entry.count; continue; }
+    const cm = cs[entry.image_file];
+    if (cm) {
+      for (const { key } of COLOR_TAGS) stats[key] += cm[key] || 0;
+    }
+  }
+  return stats;
+}
+
+// Expand deck.cards into canvas entries (each color group → separate slot)
+function expandEntriesForCanvas(deck) {
+  const cs = deckColorState[deck.id] || {};
+  const result = [];
+  for (const entry of deck.cards) {
+    const card = cards.find(c => c.image_file === entry.image_file);
+    const isEvent = card && card.category === 'EVENT';
+    if (isEvent) {
+      result.push({ ...entry, borderColor: EVENT_COLOR_HEX });
+    } else {
+      const cm = cs[entry.image_file];
+      if (!cm) {
+        result.push({ ...entry, borderColor: null });
+      } else {
+        const assignedTotal = COLOR_TAGS.reduce((s, { key }) => s + (cm[key] || 0), 0);
+        const unassigned = entry.count - assignedTotal;
+        if (unassigned > 0) result.push({ ...entry, count: unassigned, borderColor: null });
+        for (const { key, hex } of COLOR_TAGS) {
+          const cnt = cm[key] || 0;
+          if (cnt > 0) result.push({ ...entry, count: cnt, borderColor: hex });
+        }
+      }
+    }
+  }
+  return result;
+}
+
 // 取得當前牌組的持有資料（per-deck）
 function getDeckOwned() {
   const deck = getCurrentDeck();
@@ -1650,6 +1839,8 @@ function removeCardFromDeck(image_file) {
   if (!deck) return;
   const idx = deck.cards.findIndex(c => c.image_file === image_file);
   if (idx === -1) return;
+  // Any decrease clears color assignment
+  clearCardColorMap(deck.id, image_file);
   if (deck.cards[idx].count > 1) deck.cards[idx].count--;
   else deck.cards.splice(idx, 1);
   saveDecks();
@@ -1717,24 +1908,67 @@ function renderDeckPanel() {
   if (!deck || deck.cards.length === 0) {
     list.innerHTML = '<div class="deck-empty">牌組是空的，到卡片列表按「＋」加入卡片</div>';
     info.textContent = '';
+    // Remove stats row if present
+    const oldStats = document.getElementById('deck-color-stats');
+    if (oldStats) oldStats.remove();
     return;
   }
 
   const total = getTotalCount(deck);
-  const evCnt = getEventCount(deck);
-  const warns = [];
-  info.innerHTML = `共 ${total} 張` + (warns.length ? `　<span class="warn-orange">${warns.join(' · ')}</span>` : '');
+  info.innerHTML = `共 ${total} 張`;
 
+  // ── Color stats row ─────────────────────────────────────────────────
+  const stats = getColorStats(deck);
+  const statsRow = [
+    ...COLOR_TAGS.map(({ key, label, hex }) => ({ key, label, hex, count: stats[key] })),
+    { key: 'event', label: '事件', hex: EVENT_COLOR_HEX, count: stats.event }
+  ];
+  let statsEl = document.getElementById('deck-color-stats');
+  if (!statsEl) {
+    statsEl = document.createElement('div');
+    statsEl.id = 'deck-color-stats';
+    statsEl.className = 'deck-color-stats';
+    // Insert just before deck-panel-body
+    const body = document.querySelector('.deck-panel-body');
+    body.parentNode.insertBefore(statsEl, body);
+  }
+  statsEl.innerHTML = statsRow.map(({ label, hex, count }) =>
+    `<span class="deck-color-stat-item">
+       <span class="deck-color-dot" style="background:${hex}"></span>${label} ${count}
+     </span>`
+  ).join('');
+
+  // ── Card list ────────────────────────────────────────────────────────
   list.innerHTML = '';
   deck.cards.forEach(entry => {
     const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
-    const item = document.createElement('div');
-    item.className = 'deck-card-item';
+    const isEvent = card.category === 'EVENT';
+    const colorMap = isEvent ? null : getCardColorMap(deck.id, entry.image_file);
+
     const imgSrc = card.image_file ? `images/${card.image_file}` : '';
     const rc = RARITY_COLOR[card.rarity] || '#888';
     const variant = getVariantCode(entry.image_file);
     const displayName = (card.name || '（無名稱）') + (variant ? ` (${variant})` : '');
+
+    // Color tag button content
+    let colorBtnInner;
+    if (isEvent) {
+      colorBtnInner = `<span class="deck-color-dot" style="background:${EVENT_COLOR_HEX}"></span>`;
+    } else if (colorMap) {
+      const activeDots = COLOR_TAGS
+        .filter(({ key }) => (colorMap[key] || 0) > 0)
+        .map(({ hex }) => `<span style="width:5px;height:5px;border-radius:50%;background:${hex};display:inline-block"></span>`)
+        .join('');
+      colorBtnInner = `<span class="color-dots">${activeDots}</span>`;
+    } else {
+      colorBtnInner = '＋';
+    }
+    const colorBtnClass = 'deck-color-tag-btn' + (colorMap || isEvent ? ' has-color' : '');
+    const colorBtnDisabled = isEvent ? 'disabled title="事件卡自動套用黃色"' : `data-img="${entry.image_file}"`;
+
+    const item = document.createElement('div');
+    item.className = 'deck-card-item';
     item.innerHTML = `
       <img class="deck-card-item-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--border)'">
       <div class="deck-card-item-info">
@@ -1745,11 +1979,42 @@ function renderDeckPanel() {
         <button class="count-btn" data-action="dec" data-img="${entry.image_file}">−</button>
         <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1">
         <button class="count-btn" data-action="inc" data-img="${entry.image_file}">＋</button>
-      </div>`;
+      </div>
+      <button class="${colorBtnClass}" ${colorBtnDisabled}>${colorBtnInner}</button>`;
     list.appendChild(item);
+
+    // ── Color sub-rows (only when colorMap is set) ───────────────────
+    if (!isEvent && colorMap) {
+      const assignedTotal = COLOR_TAGS.reduce((s, { key }) => s + (colorMap[key] || 0), 0);
+      const unassigned = entry.count - assignedTotal;
+
+      if (unassigned > 0) {
+        const subRow = document.createElement('div');
+        subRow.className = 'deck-color-subrow';
+        subRow.innerHTML = `
+          <span class="deck-color-dot" style="background:var(--text-dim)"></span>
+          <span class="deck-color-subrow-name">未分配</span>
+          <span class="deck-color-subrow-count">${unassigned} 張</span>`;
+        list.appendChild(subRow);
+      }
+
+      for (const { key, label, hex } of COLOR_TAGS) {
+        const cnt = colorMap[key] || 0;
+        if (cnt === 0) continue;
+        const subRow = document.createElement('div');
+        subRow.className = 'deck-color-subrow';
+        subRow.style.borderColor = hex;
+        subRow.style.background = hexToRgba(hex, 0.08);
+        subRow.innerHTML = `
+          <span class="deck-color-dot" style="background:${hex}"></span>
+          <span class="deck-color-subrow-name">${label}</span>
+          <span class="deck-color-subrow-count">${cnt} 張</span>`;
+        list.appendChild(subRow);
+      }
+    }
   });
 
-  // 事件委派：+/- 按鈕
+  // ── 事件委派：+/- 按鈕 ───────────────────────────────────────────────
   list.querySelectorAll('.count-btn').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -1760,7 +2025,7 @@ function renderDeckPanel() {
     });
   });
 
-  // 事件委派：數字輸入
+  // ── 事件委派：數字輸入 ──────────────────────────────────────────────
   list.querySelectorAll('.deck-count-input').forEach(input => {
     input.addEventListener('change', e => {
       const img = input.dataset.img;
@@ -1771,16 +2036,118 @@ function renderDeckPanel() {
       const entry = d.cards.find(c => c.image_file === img);
       if (!entry) return;
       const otherTotal = getTotalCount(d) - entry.count;
+      if (newCount < entry.count) clearCardColorMap(d.id, img);
       entry.count = newCount;
       input.value = entry.count;
       saveDecks();
       refreshCardBadge(img);
       updateTray();
-      const info = document.getElementById('deck-panel-info');
+      const info2 = document.getElementById('deck-panel-info');
       const total2 = getTotalCount(d);
-      info.innerHTML = `共 ${total2} 張`;
+      info2.innerHTML = `共 ${total2} 張`;
+      renderDeckPanel();
     });
   });
+
+  // ── 事件委派：顏色標籤按鈕 ─────────────────────────────────────────
+  list.querySelectorAll('.deck-color-tag-btn[data-img]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openColorModal(btn.dataset.img);
+    });
+  });
+}
+
+// ── Color Assign Modal ─────────────────────────────────
+// colorDraft = { free, receive, set, attack } — working copy while modal is open
+let colorDraft = {};
+
+function openColorModal(imageFile) {
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  const entry = deck.cards.find(c => c.image_file === imageFile);
+  if (!entry) return;
+  colorPendingImageFile = imageFile;
+
+  // Init draft from existing state or zeros
+  const existing = getCardColorMap(deck.id, imageFile);
+  colorDraft = {};
+  for (const { key } of COLOR_TAGS) colorDraft[key] = (existing && existing[key]) || 0;
+
+  const card = cards.find(c => c.image_file === imageFile);
+  const variant = getVariantCode(imageFile);
+  const nm = (card ? card.name : imageFile) + (variant ? ` (${variant})` : '');
+  document.getElementById('color-assign-title').textContent = nm;
+  document.getElementById('color-assign-sub').textContent = `共 ${entry.count} 張，分配各顏色數量`;
+
+  renderColorModalRows(entry.count);
+  document.getElementById('color-assign-overlay').classList.add('open');
+}
+
+function closeColorModal() {
+  colorPendingImageFile = null;
+  colorDraft = {};
+  document.getElementById('color-assign-overlay').classList.remove('open');
+}
+
+function renderColorModalRows(totalCount) {
+  const rowsEl = document.getElementById('color-assign-rows');
+  rowsEl.innerHTML = '';
+  for (const { key, label, hex } of COLOR_TAGS) {
+    const row = document.createElement('div');
+    row.className = 'color-assign-row';
+    row.innerHTML = `
+      <span class="deck-color-dot" style="background:${hex}"></span>
+      <span class="color-assign-label">${label}</span>
+      <button class="color-assign-adj" data-key="${key}" data-dir="-1">−</button>
+      <span class="color-assign-num" id="color-num-${key}">${colorDraft[key]}</span>
+      <button class="color-assign-adj" data-key="${key}" data-dir="1">＋</button>`;
+    rowsEl.appendChild(row);
+  }
+
+  rowsEl.querySelectorAll('.color-assign-adj').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const deck = getCurrentDeck();
+      const entry = deck && deck.cards.find(c => c.image_file === colorPendingImageFile);
+      if (!entry) return;
+      const key = btn.dataset.key;
+      const dir = parseInt(btn.dataset.dir, 10);
+      const assigned = COLOR_TAGS.reduce((s, { key: k }) => s + colorDraft[k], 0);
+      if (dir === 1 && assigned >= entry.count) return; // cap at total
+      if (dir === -1 && colorDraft[key] <= 0) return;
+      colorDraft[key] += dir;
+      document.getElementById(`color-num-${key}`).textContent = colorDraft[key];
+      updateColorModalStatus(entry.count);
+    });
+  });
+
+  updateColorModalStatus(totalCount);
+}
+
+function updateColorModalStatus(totalCount) {
+  const assigned = COLOR_TAGS.reduce((s, { key }) => s + colorDraft[key], 0);
+  const unassigned = totalCount - assigned;
+  const el = document.getElementById('color-assign-status');
+  if (unassigned > 0) {
+    el.className = 'color-assign-status warn';
+    el.textContent = `未分配 ${unassigned} 張`;
+  } else {
+    el.className = 'color-assign-status done';
+    el.textContent = `已分配 ${assigned}/${totalCount}`;
+  }
+}
+
+function confirmColorModal() {
+  const deck = getCurrentDeck();
+  if (!deck || !colorPendingImageFile) return;
+  const allZero = COLOR_TAGS.every(({ key }) => colorDraft[key] === 0);
+  if (allZero) {
+    clearCardColorMap(deck.id, colorPendingImageFile);
+  } else {
+    setCardColorMap(deck.id, colorPendingImageFile, { ...colorDraft });
+  }
+  closeColorModal();
+  renderDeckPanel();
 }
 
 // ── Export / Import ────────────────────────────────────
@@ -1989,7 +2356,7 @@ function canvasRoundRect(ctx, x, y, w, h, r) {
 // 畫牌組 Canvas（高解析度）
 async function drawDeckCanvas(deck) {
   const SCALE  = 3;          // 3x 高解析度
-  const entries = deck.cards;
+  const entries = expandEntriesForCanvas(deck);
 
   // 欄數：≤5張用實際張數寬度，>5張固定5欄
   const COLS   = Math.min(5, entries.length);
@@ -2101,6 +2468,15 @@ async function drawDeckCanvas(deck) {
       ctx.textAlign = 'center';
       ctx.fillText(`×${entry.count}`, x + CARD_W - bw/2 - 4, y + 15);
       ctx.textAlign = 'left';
+    }
+
+    // 顏色外框
+    if (entry.borderColor) {
+      const brd = 3;
+      ctx.strokeStyle = entry.borderColor;
+      ctx.lineWidth = brd;
+      canvasRoundRect(ctx, x + brd/2, y + brd/2, CARD_W - brd, CARD_H - brd, 5.5);
+      ctx.stroke();
     }
   }
 
@@ -2299,6 +2675,13 @@ function bindDeckEvents() {
     const file = e.target.files[0]; if (!file) return;
     importDeckFromImage(file);
     e.target.value = '';
+  });
+
+  // ── Color Assign Modal events ──
+  document.getElementById('color-assign-cancel').addEventListener('click', closeColorModal);
+  document.getElementById('color-assign-confirm').addEventListener('click', confirmColorModal);
+  document.getElementById('color-assign-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('color-assign-overlay')) closeColorModal();
   });
 
   // ── Qty Modal events ──
