@@ -90,26 +90,35 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # ── 翻譯函式（改良版，從 convert_cards.py 移植並強化） ─────────────
 
+# 動態事件牌名清單，由 main() 在載入 all_cards.json 後填入
+_EVENT_NAMES: list = []
+
+
+def restore_event_names(text: str, zh_to_jp: dict) -> str:
+    """將 Q&A 文字中已翻譯的中文事件牌名還原為日文原文。"""
+    if not text:
+        return text
+    for zh, jp in zh_to_jp.items():
+        text = text.replace(zh, jp)
+    return text
+
+
 def num_zh(n):
     mapping = {'1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六'}
     return mapping.get(str(n), str(n))
 
-def translate_skill(text):
+def translate_skill(text, event_names=None):
     if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
         return ''
     t = text
 
     # 0. 事件牌名稱保護機制（翻譯前先置換為佔位符，翻譯後再還原）
-    # 這些名稱出現在技能描述的「」引號內時應保留日文原文
-    EVENT_NAMES = [
-        '超インナークロス!!!',
-        'オープン攻撃',
-        '助けてもらう!!!',
-        'どん ぴしゃり',
-        '今日 何をする？',
-    ]
+    # event_names 由 main() 動態傳入（取自 all_cards.json 的 EVENT 卡 name 欄位）
+    # 傳入 event_names=[] 可繞過保護（用於取得事件牌名的中文譯名）
+    if event_names is None:
+        event_names = _EVENT_NAMES
     evt_placeholders = {}
-    for i, name in enumerate(EVENT_NAMES):
+    for i, name in enumerate(event_names):
         placeholder = f'__EVTNAME_{i}__'
         evt_placeholders[placeholder] = name
         t = t.replace(f'「{name}」', f'「{placeholder}」')
@@ -1111,6 +1120,22 @@ def main():
     with open(src, 'r', encoding='utf-8') as f:
         raw = json.load(f)
 
+    # 建立動態事件牌名清單（取自 all_cards.json 的 EVENT 卡 name 欄位）
+    global _EVENT_NAMES
+    _EVENT_NAMES = list({
+        c['name']
+        for c in raw
+        if c.get('category') == 'EVENT' and c.get('name', '').strip()
+    })
+    print(f'[INFO] 動態事件牌名清單：{len(_EVENT_NAMES)} 個')
+
+    # 建立中文→日文事件牌名反查表（用於還原 Q&A 文字中被翻譯的事件牌名）
+    zh_to_jp_event: dict = {}
+    for jp_name in _EVENT_NAMES:
+        zh_name = translate_skill(jp_name, event_names=[])  # 不套保護，取得中文譯名
+        if zh_name and zh_name != jp_name:
+            zh_to_jp_event[zh_name] = jp_name
+
     qa_path = os.path.join(base, 'haikyuu_output', 'qa_data_zh.json')
     if os.path.exists(qa_path):
         with open(qa_path, 'r', encoding='utf-8') as f:
@@ -1161,8 +1186,8 @@ def main():
                     'date':        qa_entry['date'],
                     'question_jp': qa_entry['question'],
                     'answer_jp':   qa_entry['answer'],
-                    'question':    qa_entry['question_zh'],
-                    'answer':      qa_entry['answer_zh'],
+                    'question':    restore_event_names(qa_entry['question_zh'], zh_to_jp_event),
+                    'answer':      restore_event_names(qa_entry['answer_zh'],   zh_to_jp_event),
                 }
                 for qa_entry in qa_map.get(card_no, [])
             ],
