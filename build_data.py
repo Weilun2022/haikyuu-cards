@@ -1190,6 +1190,23 @@ def clean_qa_text(text: str) -> str:
     t = re.sub(r'出場した', '出場的', t)
     t = re.sub(r'登場した', '出場的', t)
 
+    # 11. AI 誤譯的技能標記修正（音譯 / 意譯錯誤 → 正確中文標記）
+    # [=doshat(N)] / [=Doshat(N)]（ドシャット音譯）→ [=強扣(N)]
+    t = re.sub(r'\[=(?:doshat|Doshat)\((\w+)\)\]', r'[=強扣(\1)]', t)
+    # [=一鍵(N)]（AI 誤譯 ワンタッチ）→ [=一觸(N)]
+    t = re.sub(r'\[=一鍵\((\w+)\)\]', r'[=一觸(\1)]', t)
+    # [=一次觸摸(N)]（AI 誤譯 ワンタッチ）→ [=一觸(N)]
+    t = re.sub(r'\[=一次觸摸\((\w+)\)\]', r'[=一觸(\1)]', t)
+    # [=一擊(N)]（AI 誤譯 ワンタッチ，僅在 [=...] 標記內）→ [=一觸(N)]
+    t = re.sub(r'\[=一擊\((\w+)\)\]', r'[=一觸(\1)]', t)
+    # [=兩次攻擊(N)]（AI 誤譯 ツーアタック）→ [=二段攻擊(N)]
+    t = re.sub(r'\[=兩次攻擊\((\w+)\)\]', r'[=二段攻擊(\1)]', t)
+    # [=A Pass(N)] / [=A Pass（N）]（Aパス 音譯）→ [=A傳球(N)]
+    t = re.sub(r'\[=A Pass[（(](\w+)[)）]\]', r'[=A傳球(\1)]', t)
+    # [=攔網(N)]（AI 誤譯 ブロックアウト，遺漏「出界」）→ [=攔網出界(N)]
+    # 注意：只修正 [=攔網(數字)] 形式，避免影響「攔網值」等一般中文描述
+    t = re.sub(r'\[=攔網\((\w+)\)\]', r'[=攔網出界(\1)]', t)
+
     return t.strip()
 
 
@@ -1266,8 +1283,8 @@ def main():
                     'date':        qa_entry['date'],
                     'question_jp': qa_entry['question'],
                     'answer_jp':   qa_entry['answer'],
-                    'question':    restore_event_names(qa_entry['question_zh'], zh_to_jp_event),
-                    'answer':      restore_event_names(qa_entry['answer_zh'],   zh_to_jp_event),
+                    'question':    restore_event_names(clean_qa_text(qa_entry['question_zh']), zh_to_jp_event),
+                    'answer':      restore_event_names(clean_qa_text(qa_entry['answer_zh']),   zh_to_jp_event),
                 }
                 for qa_entry in qa_map.get(card_no, [])
             ],
