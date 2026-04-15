@@ -1903,8 +1903,8 @@ function updateTray() {
   document.getElementById('tray-deck-select').value = currentDeckId;
   const total = getTotalCount(deck);
   const numEl = document.getElementById('tray-count-num');
-  numEl.textContent = total;
-  numEl.className = 'tray-count-num';
+  numEl.textContent = total > 40 ? `⚠ ${total}` : total;
+  numEl.className = 'tray-count-num' + (total > 40 ? ' warn' : '');
 
   const warnEl = document.getElementById('tray-warn-text');
   const evCnt  = getEventCount(deck);
@@ -1951,7 +1951,9 @@ function renderDeckPanel() {
   }
 
   const total = getTotalCount(deck);
-  info.innerHTML = `共 ${total} 張`;
+  info.innerHTML = total > 40
+    ? `<span class="warn-orange">⚠ ${total} / 40</span>`
+    : `${total} / 40`;
 
   // ── Color stats row ─────────────────────────────────────────────────
   const stats = getColorStats(deck);
@@ -2089,7 +2091,9 @@ function renderDeckPanel() {
       updateTray();
       const info2 = document.getElementById('deck-panel-info');
       const total2 = getTotalCount(d);
-      info2.innerHTML = `共 ${total2} 張`;
+      info2.innerHTML = total2 > 40
+        ? `<span class="warn-orange">⚠ ${total2} / 40</span>`
+        : `${total2} / 40`;
       renderDeckPanel();
     });
   });
