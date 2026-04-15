@@ -908,7 +908,7 @@
   <button class="tray-toggle-btn" id="tray-toggle-btn" title="收合／展開">▼</button>
   <select class="tray-deck-select" id="tray-deck-select"></select>
   <div class="tray-count-label">
-    <span class="tray-count-num" id="tray-count-num">0</span>/40 張
+    <span class="tray-count-num" id="tray-count-num">0</span> 張
   </div>
   <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
   <div class="tray-spacer"></div>
@@ -1194,7 +1194,7 @@ let searchText = '';
 
 // ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
 const DECK_LS_KEY  = 'hv_decks';
-const MAX_TOTAL    = 40;
+const MAX_TOTAL    = Infinity;
 const MAX_EVENT    = 8;
 let decks               = [];
 let currentDeckId       = null;
@@ -1402,7 +1402,7 @@ function buildCardEl(card) {
         id="input-${card.image_file}"
         data-img="${card.image_file}"
         value="${deckCount > 0 ? deckCount : ''}"
-        min="0" max="${MAX_TOTAL}" placeholder="0">
+        min="0" placeholder="0">
     </div>
     <div class="card-info">
       <div class="card-no">${card.card_no || ''}</div>
@@ -1424,8 +1424,6 @@ function buildCardEl(card) {
     const newCount = parseInt(inp.value, 10);
     const cardObj  = cards.find(c => c.image_file === imgFile);
     const existing = deck.cards.find(c => c.image_file === imgFile);
-    const existingCount = existing ? existing.count : 0;
-    const remaining = MAX_TOTAL - getTotalCount(deck) + existingCount;
 
     if (isNaN(newCount) || newCount <= 0) {
       // 移除此卡
@@ -1434,19 +1432,13 @@ function buildCardEl(card) {
       inp.value = '';
       inp.classList.remove('has-count');
     } else {
-      if (newCount > remaining) {
-        showToast(`⚠️ 牌組最多還能加 ${remaining} 張！`);
-      }
-      const final = Math.min(newCount, remaining);
-      if (final <= 0) { inp.value = ''; inp.classList.remove('has-count'); saveDecks(); updateTray(); return; }
-      if (existing) existing.count = final;
-      else deck.cards.push({ image_file: imgFile, card_no: cardObj?.card_no || '', count: final });
-      inp.value = final;
+      if (existing) existing.count = newCount;
+      else deck.cards.push({ image_file: imgFile, card_no: cardObj?.card_no || '', count: newCount });
+      inp.value = newCount;
       inp.classList.add('has-count');
     }
     saveDecks();
     updateTray();
-    if (getEventCount(deck) > MAX_EVENT) setTimeout(() => showToast(`⚠️ 事件卡已超過 ${MAX_EVENT} 張！`), 400);
   };
   inp.addEventListener('change', saveCount);
   inp.addEventListener('blur',   saveCount);
@@ -1641,8 +1633,7 @@ function addCardToDeck(image_file, quantity = 1) {
   const deck = getCurrentDeck();
   if (!deck) return;
   const currentTotal = getTotalCount(deck);
-  const qty = Math.min(quantity, MAX_TOTAL - currentTotal);
-  if (qty <= 0) { showToast('牌組已達 40 張上限！'); return; }
+  const qty = quantity;
   const cardObj = cards.find(c => c.image_file === image_file);
   const entry = deck.cards.find(c => c.image_file === image_file);
   if (entry) entry.count += qty;
@@ -1652,7 +1643,6 @@ function addCardToDeck(image_file, quantity = 1) {
   updateTray();
   const nm = cardObj ? cardObj.name : image_file;
   showToast(`＋${qty} ${nm}`);
-  if (getEventCount(deck) > MAX_EVENT) setTimeout(() => showToast(`⚠️ 事件卡已超過 ${MAX_EVENT} 張！`), 600);
 }
 
 function removeCardFromDeck(image_file) {
@@ -1687,15 +1677,13 @@ function updateTray() {
   const total = getTotalCount(deck);
   const numEl = document.getElementById('tray-count-num');
   numEl.textContent = total;
-  numEl.className = 'tray-count-num' + (total >= MAX_TOTAL ? ' warn' : '');
+  numEl.className = 'tray-count-num';
 
   const warnEl = document.getElementById('tray-warn-text');
   const evCnt  = getEventCount(deck);
   const warns  = [];
-  if (total >= MAX_TOTAL) warns.push('已滿');
-  if (evCnt > MAX_EVENT)  warns.push(`事件 ${evCnt}/8`);
-  warnEl.textContent = warns.join(' · ');
-  warnEl.style.display = warns.length ? 'inline' : 'none';
+  warnEl.textContent = '';
+  warnEl.style.display = 'none';
 }
 
 // ── Deck Panel ─────────────────────────────────────────
@@ -1735,9 +1723,7 @@ function renderDeckPanel() {
   const total = getTotalCount(deck);
   const evCnt = getEventCount(deck);
   const warns = [];
-  if (total >= MAX_TOTAL) warns.push('已達上限');
-  if (evCnt > MAX_EVENT)  warns.push(`事件卡 ${evCnt}/8（超限）`);
-  info.innerHTML = `共 ${total}/40 張` + (warns.length ? `　<span class="warn-orange">${warns.join(' · ')}</span>` : '');
+  info.innerHTML = `共 ${total} 張` + (warns.length ? `　<span class="warn-orange">${warns.join(' · ')}</span>` : '');
 
   list.innerHTML = '';
   deck.cards.forEach(entry => {
@@ -1757,7 +1743,7 @@ function renderDeckPanel() {
       </div>
       <div class="deck-card-item-count">
         <button class="count-btn" data-action="dec" data-img="${entry.image_file}">−</button>
-        <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1" max="${MAX_TOTAL}">
+        <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1">
         <button class="count-btn" data-action="inc" data-img="${entry.image_file}">＋</button>
       </div>`;
     list.appendChild(item);
@@ -1785,17 +1771,14 @@ function renderDeckPanel() {
       const entry = d.cards.find(c => c.image_file === img);
       if (!entry) return;
       const otherTotal = getTotalCount(d) - entry.count;
-      entry.count = Math.min(newCount, MAX_TOTAL - otherTotal);
+      entry.count = newCount;
       input.value = entry.count;
       saveDecks();
       refreshCardBadge(img);
       updateTray();
       const info = document.getElementById('deck-panel-info');
       const total2 = getTotalCount(d);
-      const warns = [];
-      if (total2 >= MAX_TOTAL) warns.push('已達上限');
-      if (getEventCount(d) > MAX_EVENT) warns.push(`事件卡超限`);
-      info.innerHTML = `共 ${total2}/40 張` + (warns.length ? `　<span class="warn-orange">${warns.join(' · ')}</span>` : '');
+      info.innerHTML = `共 ${total2} 張`;
     });
   });
 }
@@ -2140,6 +2123,13 @@ async function drawDeckCanvas(deck) {
 async function exportDeckAsImage() {
   const deck = getCurrentDeck();
   if (!deck || deck.cards.length === 0) { showToast('牌組是空的！'); return; }
+
+  const total  = getTotalCount(deck);
+  const evCnt  = getEventCount(deck);
+  const errors = [];
+  if (total > 40)          errors.push(`總張數 ${total} 張（上限 40）`);
+  if (evCnt > MAX_EVENT)   errors.push(`事件卡 ${evCnt} 張（上限 8）`);
+  if (errors.length) { showToast(`⚠️ 無法輸出：${errors.join('　')}`); return; }
 
   showToast('圖片生成中...');
   try {
