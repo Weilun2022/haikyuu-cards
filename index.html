@@ -879,6 +879,15 @@
     width: 30px; text-align: center; font-size: 14px; font-weight: 700;
     color: var(--text);
   }
+  .color-assign-num-input {
+    width: 46px; padding: 3px 5px; text-align: center;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; font-size: 14px;
+    font-weight: 700; outline: none;
+  }
+  .color-assign-num-input:focus { border-color: var(--accent); }
+  .color-assign-num-input::-webkit-inner-spin-button,
+  .color-assign-num-input::-webkit-outer-spin-button { -webkit-appearance: none; }
   .color-assign-status {
     text-align: center; margin: 12px 0 14px;
     font-size: 12px; font-weight: 600;
@@ -1094,7 +1103,7 @@
     <div class="color-assign-row color-assign-total-row">
       <span class="color-assign-label">總張數</span>
       <button class="color-assign-adj" id="color-total-minus">−</button>
-      <span class="color-assign-num" id="color-total-num">1</span>
+      <input type="number" class="color-assign-num-input" id="color-total-num" min="1">
       <button class="color-assign-adj" id="color-total-plus">＋</button>
     </div>
     <div id="color-assign-rows"></div>
@@ -2142,7 +2151,7 @@ function openColorModal(imageFile) {
   document.getElementById('color-assign-title').textContent = nm;
   document.getElementById('color-assign-sub').textContent = `分配各顏色數量`;
   colorModalTotal = entry.count;
-  document.getElementById('color-total-num').textContent = colorModalTotal;
+  document.getElementById('color-total-num').value = colorModalTotal;
 
   renderColorModalRows(colorModalTotal);
   document.getElementById('color-assign-overlay').classList.add('open');
@@ -2165,8 +2174,10 @@ function renderColorModalRows(totalCount) {
       <span class="deck-color-dot" style="background:${hex}"></span>
       <span class="color-assign-label">${label}</span>
       <button class="color-assign-adj" data-key="${key}" data-dir="-1">−</button>
-      <span class="color-assign-num" id="color-num-${key}">${colorDraft[key]}</span>
+      <input type="number" class="color-assign-num-input" id="color-num-${key}" min="0">
       <button class="color-assign-adj" data-key="${key}" data-dir="1">＋</button>`;
+    // set initial value for the input
+    row.querySelector(`#color-num-${key}`).value = colorDraft[key];
     rowsEl.appendChild(row);
   }
 
@@ -2179,9 +2190,25 @@ function renderColorModalRows(totalCount) {
       if (dir === 1 && assigned >= colorModalTotal) return; // cap at total
       if (dir === -1 && colorDraft[key] <= 0) return;
       colorDraft[key] += dir;
-      document.getElementById(`color-num-${key}`).textContent = colorDraft[key];
+      document.getElementById(`color-num-${key}`).value = colorDraft[key];
       updateColorModalStatus(colorModalTotal);
     });
+  });
+
+  rowsEl.querySelectorAll('.color-assign-num-input').forEach(input => {
+    const key = input.id.replace('color-num-', '');
+    input.addEventListener('focus', e => { e.target.value = ''; });
+    function validateColorInput() {
+      const val = parseInt(input.value, 10);
+      if (isNaN(val) || val < 0) {
+        input.value = colorDraft[key];
+      } else {
+        colorDraft[key] = val;
+        updateColorModalStatus(colorModalTotal);
+      }
+    }
+    input.addEventListener('change', validateColorInput);
+    input.addEventListener('blur',   validateColorInput);
   });
 
   updateColorModalStatus(totalCount);
@@ -2801,14 +2828,29 @@ function bindDeckEvents() {
   document.getElementById('color-total-minus').addEventListener('click', () => {
     if (colorModalTotal <= 1) return;
     colorModalTotal--;
-    document.getElementById('color-total-num').textContent = colorModalTotal;
+    document.getElementById('color-total-num').value = colorModalTotal;
     updateColorModalStatus(colorModalTotal);
   });
   document.getElementById('color-total-plus').addEventListener('click', () => {
     colorModalTotal++;
-    document.getElementById('color-total-num').textContent = colorModalTotal;
+    document.getElementById('color-total-num').value = colorModalTotal;
     updateColorModalStatus(colorModalTotal);
   });
+  (function() {
+    const totalInput = document.getElementById('color-total-num');
+    totalInput.addEventListener('focus', e => { e.target.value = ''; });
+    function validateTotalInput() {
+      const val = parseInt(totalInput.value, 10);
+      if (isNaN(val) || val < 1) {
+        totalInput.value = colorModalTotal;
+      } else {
+        colorModalTotal = val;
+        updateColorModalStatus(colorModalTotal);
+      }
+    }
+    totalInput.addEventListener('change', validateTotalInput);
+    totalInput.addEventListener('blur',   validateTotalInput);
+  })();
   document.getElementById('color-assign-cancel').addEventListener('click', closeColorModal);
   document.getElementById('color-assign-confirm').addEventListener('click', confirmColorModal);
   document.getElementById('color-assign-overlay').addEventListener('click', e => {
