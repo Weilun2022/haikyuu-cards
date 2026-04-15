@@ -1940,77 +1940,86 @@ function renderDeckPanel() {
 
   // ── Card list ────────────────────────────────────────────────────────
   list.innerHTML = '';
+
+  // Helper: build a single full card row element
+  function makeCardRow({ imageFile, card, displayName, rc, countContent, colorBtnInner, colorBtnClass, colorBtnAttr, borderHex }) {
+    const imgSrc = card.image_file ? `images/${card.image_file}` : '';
+    const row = document.createElement('div');
+    row.className = 'deck-card-item';
+    if (borderHex) {
+      row.style.border = `2px solid ${borderHex}`;
+      row.style.background = hexToRgba(borderHex, 0.08);
+      row.style.borderRadius = '6px';
+      row.style.margin = '3px 6px';
+    }
+    row.innerHTML = `
+      <img class="deck-card-item-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--border)'">
+      <div class="deck-card-item-info">
+        <div class="deck-card-item-name">${displayName}</div>
+        <div class="deck-card-item-sub" style="color:${rc}">${card.rarity || ''} · ${card.card_no}</div>
+      </div>
+      ${countContent}
+      <button class="${colorBtnClass}" ${colorBtnAttr}>${colorBtnInner}</button>`;
+    return row;
+  }
+
   deck.cards.forEach(entry => {
     const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
     const isEvent = card.category === 'EVENT';
     const colorMap = isEvent ? null : getCardColorMap(deck.id, entry.image_file);
 
-    const imgSrc = card.image_file ? `images/${card.image_file}` : '';
     const rc = RARITY_COLOR[card.rarity] || '#888';
     const variant = getVariantCode(entry.image_file);
     const displayName = (card.name || '（無名稱）') + (variant ? ` (${variant})` : '');
 
-    // Color tag button content
-    let colorBtnInner;
-    if (isEvent) {
-      colorBtnInner = `<span class="deck-color-dot" style="background:${EVENT_COLOR_HEX}"></span>`;
-    } else if (colorMap) {
-      const activeDots = COLOR_TAGS
-        .filter(({ key }) => (colorMap[key] || 0) > 0)
-        .map(({ hex }) => `<span style="width:5px;height:5px;border-radius:50%;background:${hex};display:inline-block"></span>`)
-        .join('');
-      colorBtnInner = `<span class="color-dots">${activeDots}</span>`;
-    } else {
-      colorBtnInner = '＋';
+    // ── 未設定顏色（含事件卡）：正常單列，帶 +/- 控制 ────────────────
+    if (!colorMap) {
+      let colorBtnInner, colorBtnClass, colorBtnAttr;
+      if (isEvent) {
+        colorBtnInner = `<span class="deck-color-dot" style="background:${EVENT_COLOR_HEX}"></span>`;
+        colorBtnClass = 'deck-color-tag-btn has-color';
+        colorBtnAttr  = 'disabled title="事件卡自動套用黃色"';
+      } else {
+        colorBtnInner = '＋';
+        colorBtnClass = 'deck-color-tag-btn';
+        colorBtnAttr  = `data-img="${entry.image_file}"`;
+      }
+      const countContent = `
+        <div class="deck-card-item-count">
+          <button class="count-btn" data-action="dec" data-img="${entry.image_file}">−</button>
+          <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1">
+          <button class="count-btn" data-action="inc" data-img="${entry.image_file}">＋</button>
+        </div>`;
+      list.appendChild(makeCardRow({ imageFile: entry.image_file, card, displayName, rc, countContent, colorBtnInner, colorBtnClass, colorBtnAttr, borderHex: null }));
+      return;
     }
-    const colorBtnClass = 'deck-color-tag-btn' + (colorMap || isEvent ? ' has-color' : '');
-    const colorBtnDisabled = isEvent ? 'disabled title="事件卡自動套用黃色"' : `data-img="${entry.image_file}"`;
 
-    const item = document.createElement('div');
-    item.className = 'deck-card-item';
-    item.innerHTML = `
-      <img class="deck-card-item-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--border)'">
-      <div class="deck-card-item-info">
-        <div class="deck-card-item-name">${displayName}</div>
-        <div class="deck-card-item-sub" style="color:${rc}">${card.rarity || ''} · ${card.card_no}</div>
-      </div>
-      <div class="deck-card-item-count">
-        <button class="count-btn" data-action="dec" data-img="${entry.image_file}">−</button>
-        <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1">
-        <button class="count-btn" data-action="inc" data-img="${entry.image_file}">＋</button>
-      </div>
-      <button class="${colorBtnClass}" ${colorBtnDisabled}>${colorBtnInner}</button>`;
-    list.appendChild(item);
+    // ── 已設定顏色：主列消失，替換為各顏色群組的完整卡片行 ────────────
+    const assignedTotal = COLOR_TAGS.reduce((s, { key }) => s + (colorMap[key] || 0), 0);
+    const unassigned = entry.count - assignedTotal;
 
-    // ── Color sub-rows (only when colorMap is set) ───────────────────
-    if (!isEvent && colorMap) {
-      const assignedTotal = COLOR_TAGS.reduce((s, { key }) => s + (colorMap[key] || 0), 0);
-      const unassigned = entry.count - assignedTotal;
+    // 共用的顏色按鈕（顯示已分配的彩色點）
+    const activeDots = COLOR_TAGS
+      .filter(({ key }) => (colorMap[key] || 0) > 0)
+      .map(({ hex }) => `<span style="width:5px;height:5px;border-radius:50%;background:${hex};display:inline-block"></span>`)
+      .join('');
+    const sharedColorBtnInner = `<span class="color-dots">${activeDots}</span>`;
+    const sharedColorBtnClass = 'deck-color-tag-btn has-color';
+    const sharedColorBtnAttr  = `data-img="${entry.image_file}"`;
 
-      if (unassigned > 0) {
-        const subRow = document.createElement('div');
-        subRow.className = 'deck-color-subrow';
-        subRow.innerHTML = `
-          <span class="deck-color-dot" style="background:var(--text-dim)"></span>
-          <span class="deck-color-subrow-name">未分配</span>
-          <span class="deck-color-subrow-count">${unassigned} 張</span>`;
-        list.appendChild(subRow);
-      }
+    // 未分配副本（無彩框）
+    if (unassigned > 0) {
+      const countContent = `<div class="deck-card-item-count" style="font-size:12px;font-weight:700;color:var(--text-dim)">${unassigned} 張</div>`;
+      list.appendChild(makeCardRow({ imageFile: entry.image_file, card, displayName, rc, countContent, colorBtnInner: sharedColorBtnInner, colorBtnClass: sharedColorBtnClass, colorBtnAttr: sharedColorBtnAttr, borderHex: null }));
+    }
 
-      for (const { key, label, hex } of COLOR_TAGS) {
-        const cnt = colorMap[key] || 0;
-        if (cnt === 0) continue;
-        const subRow = document.createElement('div');
-        subRow.className = 'deck-color-subrow';
-        subRow.style.borderColor = hex;
-        subRow.style.background = hexToRgba(hex, 0.08);
-        subRow.innerHTML = `
-          <span class="deck-color-dot" style="background:${hex}"></span>
-          <span class="deck-color-subrow-name">${label}</span>
-          <span class="deck-color-subrow-count">${cnt} 張</span>`;
-        list.appendChild(subRow);
-      }
+    // 各顏色群組（各自一整列，彩色邊框）
+    for (const { key, hex } of COLOR_TAGS) {
+      const cnt = colorMap[key] || 0;
+      if (cnt === 0) continue;
+      const countContent = `<div class="deck-card-item-count" style="font-size:12px;font-weight:700;color:${hex}">${cnt} 張</div>`;
+      list.appendChild(makeCardRow({ imageFile: entry.image_file, card, displayName, rc, countContent, colorBtnInner: sharedColorBtnInner, colorBtnClass: sharedColorBtnClass, colorBtnAttr: sharedColorBtnAttr, borderHex: hex }));
     }
   });
 
