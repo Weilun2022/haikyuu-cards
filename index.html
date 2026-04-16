@@ -1067,9 +1067,12 @@
         <button class="tray-btn" id="deck-rename-btn">改名</button>
         <button class="tray-btn" id="deck-new-btn">＋新增</button>
         <button class="tray-btn danger" id="deck-delete-btn">刪除</button>
-        <button class="tray-btn" id="deck-share-btn">分享</button>
+        <button class="tray-btn danger" id="deck-clear-btn" style="margin-left:8px;border-left:1px solid var(--border);padding-left:8px">清空當前牌組</button>
       </div>
-      <div class="deck-panel-info" id="deck-panel-info"></div>
+      <div class="deck-panel-info" id="deck-panel-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span id="deck-panel-info-text"></span>
+        <button class="tray-btn" id="deck-reorganize-btn" style="font-size:11px;padding:2px 8px;flex-shrink:0">🔀 整理（依顏色分組 · 卡號排序）</button>
+      </div>
     </div>
     <div class="deck-panel-body">
       <div class="deck-card-list" id="deck-card-list">
@@ -1077,12 +1080,14 @@
       </div>
     </div>
     <div class="deck-panel-footer">
-      <button class="tray-btn" id="deck-reorganize-btn" style="width:100%">🔀 整理（依顏色分組 · 卡號排序）</button>
-      <button class="tray-btn" id="deck-export-btn">📤 匯出 JSON</button>
-      <button class="tray-btn" id="deck-import-btn">📥 匯入 JSON</button>
+      <button class="tray-btn primary" id="deck-share-btn" style="width:100%">📲 QR Code 快速分享</button>
       <div style="display:flex;gap:8px;width:100%">
         <button class="tray-btn primary" id="deck-export-img-btn" style="flex:1">🖼️ 牌組轉圖片</button>
         <button class="tray-btn" id="deck-import-img-btn" style="flex:1">📸 圖片轉牌組</button>
+      </div>
+      <div style="display:flex;gap:8px;width:100%">
+        <button class="tray-btn" id="deck-export-btn" style="flex:1">📤 匯出所有牌組</button>
+        <button class="tray-btn" id="deck-import-btn" style="flex:1">📥 匯入所有牌組</button>
       </div>
       <input type="file" id="deck-import-file" accept=".json" style="display:none">
       <input type="file" id="deck-import-img-file" accept="image/png" style="display:none">
@@ -2161,11 +2166,10 @@ function renderDeckSwitcher() {
 function renderDeckPanel() {
   const deck = getCurrentDeck();
   const list = document.getElementById('deck-card-list');
-  const info = document.getElementById('deck-panel-info');
 
   if (!deck || deck.cards.length === 0) {
     list.innerHTML = '<div class="deck-empty">牌組是空的，到卡片列表按「＋」加入卡片</div>';
-    info.textContent = '';
+    document.getElementById('deck-panel-info-text').textContent = '';
     // Remove stats row if present
     const oldStats = document.getElementById('deck-color-stats');
     if (oldStats) oldStats.remove();
@@ -2173,7 +2177,7 @@ function renderDeckPanel() {
   }
 
   const total = getTotalCount(deck);
-  info.innerHTML = total > 40
+  document.getElementById('deck-panel-info-text').innerHTML = total > 40
     ? `<span class="warn-orange">⚠ ${total} / 40</span>`
     : `${total} / 40`;
 
@@ -2311,9 +2315,8 @@ function renderDeckPanel() {
       saveDecks();
       refreshCardBadge(img);
       updateTray();
-      const info2 = document.getElementById('deck-panel-info');
       const total2 = getTotalCount(d);
-      info2.innerHTML = total2 > 40
+      document.getElementById('deck-panel-info-text').innerHTML = total2 > 40
         ? `<span class="warn-orange">⚠ ${total2} / 40</span>`
         : `${total2} / 40`;
       renderDeckPanel();
@@ -3031,6 +3034,18 @@ function bindDeckEvents() {
 
   const shareOverlay = document.getElementById('share-modal-overlay');
   const closeShare = () => { shareOverlay.style.display = 'none'; };
+
+  document.getElementById('deck-clear-btn').addEventListener('click', () => {
+    const deck = getCurrentDeck();
+    if (!deck) return;
+    if (deck.cards.length === 0) { showToast('牌組已經是空的'); return; }
+    if (!confirm(`確定要清空「${deck.name}」的所有卡片嗎？此動作無法復原。`)) return;
+    deck.cards = [];
+    deck.owned = {};
+    saveDecks();
+    renderDeckPanel();
+    showToast('已清空牌組');
+  });
 
   document.getElementById('deck-share-btn').addEventListener('click', openShareModal);
   document.getElementById('share-modal-close').addEventListener('click', closeShare);
