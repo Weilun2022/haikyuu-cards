@@ -2526,7 +2526,7 @@ function renderAnalysis() {
     const state  = have >= need ? 'owned' : have > 0 ? 'partial' : 'not-owned';
     const imgSrc = card.image_file ? `images/${card.image_file}` : '';
     const variant = getVariantCode(entry.image_file);
-    const displayName = (card.name || '') + (variant ? ` (${variant})` : '');
+    const displayName = (card.card_no || '') + (variant ? `-${variant}` : '');
 
     const div = document.createElement('div');
     div.className = `an-card ${state}`;
