@@ -287,6 +287,7 @@
     display: none;
     position: fixed;
     inset: 0;
+    z-index: 200;
     background: rgba(0,0,0,0.75);
     backdrop-filter: blur(6px);
     z-index: 200;
@@ -2092,6 +2093,7 @@ function removeCardFromDeck(image_file) {
   else deck.cards.splice(idx, 1);
   saveDecks();
   refreshCardBadge(image_file);
+  refreshStarButton(image_file);
   updateTray();
 }
 
