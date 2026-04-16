@@ -3004,7 +3004,16 @@ function bindDeckEvents() {
 
   document.getElementById('deck-rename-btn').addEventListener('click', () => {
     const deck = getCurrentDeck(); if (!deck) return;
-    if (deck.id === QUICK_DECK_ID) { showToast('快速查詢牌組不可改名'); return; }
+    if (deck.id === QUICK_DECK_ID) {
+      const name = document.getElementById('deck-name-input').value.trim();
+      if (!name) { showToast('請輸入牌組名稱'); return; }
+      const newDeck = createDeck(name);
+      newDeck.cards = deck.cards.map(c => ({ ...c }));
+      deck.cards = [];
+      saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+      showToast(`已另存為「${name}」並清空快速查詢`);
+      return;
+    }
     const name = document.getElementById('deck-name-input').value.trim();
     if (!name) return;
     deck.name = name; saveDecks(); updateTray(); renderDeckSwitcher(); showToast('已重新命名！');
