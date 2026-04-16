@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>排球少年!! バボカ!!BREAK 卡牌資料庫</title>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #0f0f13;
@@ -178,6 +180,28 @@
     box-shadow: 0 8px 24px rgba(108,99,255,0.25);
     border-color: var(--accent);
   }
+
+  .card-star-btn {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    background: rgba(0,0,0,0.45);
+    border: none;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    color: rgba(255,255,255,0.5);
+    transition: background 0.15s, color 0.15s;
+  }
+  .card-star-btn:hover { background: rgba(0,0,0,0.7); }
+  .card-star-btn.starred { color: #FFD700; }
 
   .card-img-wrap {
     position: relative;
@@ -1035,6 +1059,7 @@
         <button class="tray-btn" id="deck-rename-btn">改名</button>
         <button class="tray-btn" id="deck-new-btn">＋新增</button>
         <button class="tray-btn danger" id="deck-delete-btn">刪除</button>
+        <button class="tray-btn" id="deck-share-btn">分享</button>
       </div>
       <div class="deck-panel-info" id="deck-panel-info"></div>
     </div>
@@ -1122,6 +1147,24 @@
 
 <!-- Toast -->
 <div id="hv-toast"></div>
+
+<!-- ── Share Modal ── -->
+<div class="modal-overlay" id="share-modal-overlay">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:340px;width:90%;text-align:center">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+      <span id="share-modal-title" style="font-weight:700;font-size:15px">分享牌組</span>
+      <button class="modal-close" id="share-modal-close">✕</button>
+    </div>
+    <div style="padding:20px">
+      <canvas id="share-qr-canvas"></canvas>
+      <div style="margin-top:12px">
+        <input type="text" id="share-url-input" readonly
+          style="width:100%;font-size:11px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);box-sizing:border-box">
+      </div>
+      <button id="share-copy-btn" class="tray-btn" style="margin-top:10px;width:100%">複製連結</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal -->
 <div class="modal-overlay" id="modal-overlay">
@@ -1329,6 +1372,7 @@ let searchText = '';
 
 // ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
 const DECK_LS_KEY  = 'hv_decks';
+const QUICK_DECK_ID = 'dk_quick';
 const MAX_TOTAL    = Infinity;
 const MAX_EVENT    = 8;
 let decks               = [];
@@ -1341,6 +1385,75 @@ let qtyPendingImageFile = null;
 const COLOR_LS_KEY = 'hv_deck_colors';
 let deckColorState = {};
 let colorPendingImageFile = null; // tracks which card the color modal is editing
+
+// ── Share / QR ─────────────────────────────────────────────────────────
+function encodeDeck(deck) {
+  const payload = {
+    n: deck.name,
+    c: deck.cards.map(c => [c.card_no, c.count])
+  };
+  return LZString.compressToEncodedURIComponent(JSON.stringify(payload));
+}
+
+function decodeDeck(str) {
+  try {
+    const json = LZString.decompressFromEncodedURIComponent(str);
+    const payload = JSON.parse(json);
+    return {
+      name: payload.n,
+      cards: payload.c.map(([card_no, count]) => {
+        const cardObj = cards.find(c => c.card_no === card_no);
+        return { image_file: cardObj?.image_file || card_no, card_no, count };
+      })
+    };
+  } catch { return null; }
+}
+
+function openShareModal() {
+  const deck = getCurrentDeck();
+  if (!deck || deck.cards.length === 0) { showToast('牌組是空的，無法分享'); return; }
+
+  const encoded = encodeDeck(deck);
+  const url = `${location.origin}${location.pathname}?deck=${encoded}`;
+
+  document.getElementById('share-modal-title').textContent = `分享「${deck.name}」`;
+  document.getElementById('share-url-input').value = url;
+
+  const canvas = document.getElementById('share-qr-canvas');
+  QRCode.toCanvas(canvas, url, { width: 220, margin: 2 }, err => {
+    if (err) showToast('QR Code 生成失敗');
+  });
+
+  document.getElementById('share-modal-overlay').classList.add('open');
+}
+
+function checkSharedDeck() {
+  const params = new URLSearchParams(location.search);
+  const encoded = params.get('deck');
+  if (!encoded) return;
+
+  const imported = decodeDeck(encoded);
+  if (!imported) { showToast('分享連結無效'); return; }
+
+  history.replaceState(null, '', location.pathname);
+
+  const total = imported.cards.reduce((s, c) => s + c.count, 0);
+  if (confirm(`收到分享牌組「${imported.name}」（${total} 張），是否匯入？`)) {
+    const d = {
+      id: makeDeckId(),
+      name: imported.name,
+      cards: imported.cards,
+      owned: {}
+    };
+    decks.push(d);
+    currentDeckId = d.id;
+    saveDecks();
+    renderDeckSwitcher();
+    updateTray();
+    renderGrid();
+    showToast(`已匯入「${imported.name}」`);
+  }
+}
 
 // ── Init ───────────────────────────────────────────────────────────────
 function init() {
@@ -1356,6 +1469,7 @@ function init() {
   bindDeckEvents();
   renderDeckSwitcher();
   updateTray();
+  checkSharedDeck();
 }
 
 function buildFilters() {
@@ -1566,6 +1680,11 @@ function buildCardEl(card) {
         data-img="${card.image_file}"
         value="${deckCount > 0 ? deckCount : ''}"
         min="0" placeholder="0">
+      <button class="card-star-btn ${isCardInQuickDeck(card.image_file) ? 'starred' : ''}"
+        data-img="${card.image_file}"
+        title="${isCardInQuickDeck(card.image_file) ? '從快速查詢移除' : '加入快速查詢'}">
+        ${isCardInQuickDeck(card.image_file) ? '★' : '☆'}
+      </button>
     </div>
     <div class="card-info">
       <div class="card-no">${card.card_no || ''}</div>
@@ -1573,6 +1692,12 @@ function buildCardEl(card) {
       <div class="card-school" style="background:${schoolColor}">${card.school || ''}</div>
       ${statsHtml}
     </div>`;
+
+  const starBtn = div.querySelector('.card-star-btn');
+  starBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    toggleQuickDeck(starBtn.dataset.img);
+  });
 
   const inp = div.querySelector('.card-count-input');
   inp.addEventListener('click',  e => e.stopPropagation());
@@ -1748,7 +1873,18 @@ function loadDecks() {
     });
     d.owned = newOwned;
   });
-  if (decks.length > 0) currentDeckId = decks[0].id;
+  // 確保快速查詢牌組永遠存在，且固定在第一位
+  let qd = decks.find(d => d.id === QUICK_DECK_ID);
+  if (!qd) {
+    qd = { id: QUICK_DECK_ID, name: '快速查詢', cards: [], owned: {} };
+    decks.unshift(qd);
+    saveDecks();
+  } else {
+    const idx = decks.indexOf(qd);
+    if (idx !== 0) { decks.splice(idx, 1); decks.unshift(qd); }
+  }
+  // 預設切到快速查詢
+  currentDeckId = QUICK_DECK_ID;
 }
 function saveDecks() { localStorage.setItem(DECK_LS_KEY, JSON.stringify(decks)); }
 
@@ -1896,6 +2032,34 @@ function getCardCountInDeck(image_file) {
   if (!deck) return 0;
   const e = deck.cards.find(c => c.image_file === image_file);
   return e ? e.count : 0;
+}
+
+// ── Quick Deck Helpers ─────────────────────────────────
+function isCardInQuickDeck(image_file) {
+  const qd = decks.find(d => d.id === QUICK_DECK_ID);
+  return qd ? qd.cards.some(c => c.image_file === image_file) : false;
+}
+function toggleQuickDeck(image_file) {
+  const qd = decks.find(d => d.id === QUICK_DECK_ID);
+  if (!qd) return;
+  const idx = qd.cards.findIndex(c => c.image_file === image_file);
+  if (idx !== -1) {
+    qd.cards.splice(idx, 1);
+  } else {
+    const cardObj = cards.find(c => c.image_file === image_file);
+    qd.cards.push({ image_file, card_no: cardObj?.card_no || '', count: 1 });
+  }
+  saveDecks();
+  refreshStarButton(image_file);
+  if (currentDeckId === QUICK_DECK_ID) { updateTray(); renderDeckPanel(); }
+}
+function refreshStarButton(image_file) {
+  document.querySelectorAll(`.card-star-btn[data-img="${image_file}"]`).forEach(btn => {
+    const inQ = isCardInQuickDeck(image_file);
+    btn.textContent = inQ ? '★' : '☆';
+    btn.classList.toggle('starred', inQ);
+    btn.title = inQ ? '從快速查詢移除' : '加入快速查詢';
+  });
 }
 
 // ── Add / Remove ───────────────────────────────────────
@@ -2794,6 +2958,7 @@ function bindDeckEvents() {
 
   document.getElementById('deck-rename-btn').addEventListener('click', () => {
     const deck = getCurrentDeck(); if (!deck) return;
+    if (deck.id === QUICK_DECK_ID) { showToast('快速查詢牌組不可改名'); return; }
     const name = document.getElementById('deck-name-input').value.trim();
     if (!name) return;
     deck.name = name; saveDecks(); updateTray(); renderDeckSwitcher(); showToast('已重新命名！');
@@ -2809,6 +2974,7 @@ function bindDeckEvents() {
 
   document.getElementById('deck-delete-btn').addEventListener('click', () => {
     const deck = getCurrentDeck(); if (!deck) return;
+    if (deck.id === QUICK_DECK_ID) { showToast('快速查詢牌組不可刪除'); return; }
     if (decks.length <= 1) {
       deck.cards = []; saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
       showToast('牌組已清空'); return;
@@ -2818,6 +2984,16 @@ function bindDeckEvents() {
     currentDeckId = decks[Math.max(0, idx - 1)].id;
     saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
     showToast('已刪除牌組');
+  });
+
+  document.getElementById('deck-share-btn').addEventListener('click', openShareModal);
+  document.getElementById('share-modal-close').addEventListener('click', () => {
+    document.getElementById('share-modal-overlay').classList.remove('open');
+  });
+  document.getElementById('share-copy-btn').addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('share-url-input').value)
+      .then(() => showToast('連結已複製'))
+      .catch(() => showToast('複製失敗，請手動複製'));
   });
 
   document.getElementById('deck-export-btn').addEventListener('click', exportDecks);
