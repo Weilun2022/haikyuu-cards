@@ -1077,6 +1077,7 @@
       </div>
     </div>
     <div class="deck-panel-footer">
+      <button class="tray-btn" id="deck-reorganize-btn" style="width:100%">🔀 整理（依顏色分組 · 卡號排序）</button>
       <button class="tray-btn" id="deck-export-btn">📤 匯出 JSON</button>
       <button class="tray-btn" id="deck-import-btn">📥 匯入 JSON</button>
       <div style="display:flex;gap:8px;width:100%">
@@ -2950,6 +2951,37 @@ function closeQtyModal() {
   document.getElementById('qty-overlay').classList.remove('open');
 }
 
+// ── Reorganize Deck ─────────────────────────────────────
+function reorganizeDeck() {
+  const deck = getCurrentDeck();
+  if (!deck || deck.cards.length === 0) return;
+
+  // 決定每張卡的「主要顏色排序鍵」
+  // 順序：free(0) → receive(1) → set(2) → attack(3) → event(4) → 無色(5)
+  function getColorOrder(entry) {
+    const card = cards.find(c => c.image_file === entry.image_file);
+    if (!card) return 99;
+    if (card.category === 'EVENT') return COLOR_TAGS.length; // 事件牌排在一般顏色後
+    const colorMap = getCardColorMap(deck.id, entry.image_file);
+    if (!colorMap) return COLOR_TAGS.length + 1; // 無顏色標籤排最後
+    for (let i = 0; i < COLOR_TAGS.length; i++) {
+      if ((colorMap[COLOR_TAGS[i].key] || 0) > 0) return i;
+    }
+    return COLOR_TAGS.length + 1; // 標籤全為 0，視為無色
+  }
+
+  deck.cards.sort((a, b) => {
+    const aOrd = getColorOrder(a);
+    const bOrd = getColorOrder(b);
+    if (aOrd !== bOrd) return aOrd - bOrd;
+    return (a.card_no || '').localeCompare(b.card_no || '');
+  });
+
+  saveDecks();
+  renderDeckPanel();
+  showToast('已依顏色整理！');
+}
+
 // ── Bind Deck Events ────────────────────────────────────
 function bindDeckEvents() {
   document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
@@ -3009,6 +3041,8 @@ function bindDeckEvents() {
       .then(() => showToast('連結已複製'))
       .catch(() => showToast('複製失敗，請手動複製'));
   });
+
+  document.getElementById('deck-reorganize-btn').addEventListener('click', reorganizeDeck);
 
   document.getElementById('deck-export-btn').addEventListener('click', exportDecks);
 
