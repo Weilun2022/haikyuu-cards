@@ -3043,7 +3043,7 @@ function bindDeckEvents() {
     deck.cards = [];
     deck.owned = {};
     saveDecks();
-    renderDeckPanel();
+    renderDeckPanel(); updateTray(); renderGrid();
     showToast('已清空牌組');
   });
 
