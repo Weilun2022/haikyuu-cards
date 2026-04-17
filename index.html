@@ -1753,7 +1753,11 @@ function applyFilters() {
     if (activeCategory && c.category !== activeCategory) return false;
     if (activeRarity && c.rarity !== activeRarity && c.rarity !== activeRarity + 'P') return false;
     if (searchText) {
-      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity]
+      const stats = [
+        c.atk && `攻擊${c.atk}`, c.rcv && `接球${c.rcv}`,
+        c.tos && `舉球${c.tos}`, c.blk && `攔網${c.blk}`, c.srv && `發球${c.srv}`
+      ].filter(Boolean).join(' ');
+      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity, stats]
         .filter(Boolean).join(' ').toLowerCase();
       const terms = searchText.split(/\s+/).filter(Boolean);
       if (!terms.every(t => haystack.includes(t))) return false;
