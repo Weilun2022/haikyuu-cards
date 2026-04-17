@@ -3,32 +3,44 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>バボカ!! BREAK — 對戰大廳</title>
+<title>バボカ!! BREAK</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
+/* ── Base ── */
 :root {
-  --bg: #0f0f13;
-  --surface: #1a1a24;
-  --surface2: #22222f;
-  --border: #2e2e40;
-  --text: #e8e8f0;
-  --text-dim: #8888aa;
-  --accent: #6c63ff;
-  --accent2: #ff6584;
-  --green: #4ade80;
-  --orange: #fb923c;
-  --zone-bg: #141420;
-  --zone-hover: #1c1c2e;
-  --net-color: #3a3a5c;
+  --bg:           #0d0d14;
+  --surface:      #16161f;
+  --surface2:     #1e1e2a;
+  --surface3:     #24242f;
+  --border:       #2a2a3e;
+  --text:         #e8e8f2;
+  --text-dim:     #6868a0;
+  --accent:       #6c63ff;
+  --accent2:      #ff6584;
+  --green:        #4ade80;
+  --orange:       #fb923c;
+  --blue:         #60a5fa;
+  --zone-bg:      #111118;
+  --zone-hover:   #1a1a26;
+  --net-color:    #252540;
+  /* Phase theming – updated dynamically */
+  --pc:           #fb923c;
+  --pc-bg:        rgba(251,146,60,.08);
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+  font-family: 'Segoe UI', 'Noto Sans TC', system-ui, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
 /* ── Screens ── */
 .screen { display: none; width: 100%; min-height: 100vh; }
@@ -44,16 +56,32 @@ body {
   color: var(--text);
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.15s;
+  font-family: inherit;
+  transition: all .15s;
+  white-space: nowrap;
 }
-.btn:hover { background: var(--border); }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-.btn.primary:hover:not(:disabled) { opacity: 0.85; }
-.btn.danger { background: var(--accent2); border-color: var(--accent2); color: #fff; }
-.btn.danger:hover { opacity: 0.85; }
-.btn.sm { padding: 4px 10px; font-size: 12px; }
-.btn.xs { padding: 2px 7px; font-size: 11px; }
+.btn:hover:not(:disabled) { background: var(--surface3); border-color: var(--text-dim); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+.btn.primary:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+.btn.danger { background: var(--accent2); border-color: transparent; color: #fff; font-weight: 600; }
+.btn.danger:hover:not(:disabled) { opacity: .88; }
+.btn.sm { padding: 5px 11px; font-size: 12px; }
+.btn.xs { padding: 2px 8px; font-size: 11px; }
+.btn.end-turn {
+  background: linear-gradient(135deg, var(--accent) 0%, #5045cc 100%);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.btn.end-turn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(108,99,255,.4); }
+.btn.end-turn.opp-turn { background: var(--surface2); color: var(--text-dim); transform: none; box-shadow: none; }
 
 /* ── Inputs ── */
 input[type=text], select, textarea {
@@ -65,17 +93,15 @@ input[type=text], select, textarea {
   font-size: 13px;
   outline: none;
   font-family: inherit;
+  transition: border-color .15s;
 }
 input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+input[type=text]::placeholder { color: var(--text-dim); }
 
 /* ══════════════════════════════════════
    SCREEN: CONFIG
 ══════════════════════════════════════ */
-#screen-config {
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
+#screen-config { align-items: center; justify-content: center; padding: 24px; }
 .config-box {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -96,12 +122,7 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   line-height: 2;
 }
 .config-steps a { color: var(--accent); }
-.config-steps code {
-  background: #1a1a30;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-family: monospace;
-}
+.config-steps code { background: #1a1a30; padding: 1px 6px; border-radius: 4px; font-family: monospace; }
 .config-box textarea {
   width: 100%;
   height: 180px;
@@ -114,42 +135,122 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
 /* ══════════════════════════════════════
    SCREEN: LOBBY
 ══════════════════════════════════════ */
-#screen-lobby {
-  align-items: center;
-  overflow-y: auto;
+#screen-lobby { overflow-y: auto; background: var(--bg); }
+
+/* Hero section */
+.lobby-hero {
+  background: linear-gradient(160deg, #0d0d14 0%, #14112e 50%, #0d0d14 100%);
+  padding: 52px 24px 36px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
 }
-.lobby-wrap {
-  width: 100%;
-  max-width: 700px;
+.lobby-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(108,99,255,.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.lobby-hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.hero-icon {
+  font-size: 52px;
+  display: block;
+  margin-bottom: 14px;
+  animation: heroFloat 4s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 20px rgba(108,99,255,.5));
+}
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-10px) rotate(3deg); }
+}
+.lobby-hero h1 {
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--text);
+  position: relative;
+  z-index: 1;
+  letter-spacing: -0.5px;
+}
+.lobby-hero h1 em { color: var(--accent); font-style: normal; }
+.lobby-hero p { font-size: 13px; color: var(--text-dim); margin-top: 6px; position: relative; z-index: 1; }
+
+/* Lobby body */
+.lobby-body {
+  max-width: 680px;
   margin: 0 auto;
-  padding: 32px 20px;
+  padding: 28px 20px 40px;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.lobby-header { text-align: center; }
-.lobby-header h1 { font-size: 28px; font-weight: 800; color: var(--accent); }
-.lobby-header p { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
-
 .lobby-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 14px;
+  overflow: hidden;
 }
-.lobby-card h3 { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+.lobby-card-head {
+  padding: 14px 18px 0;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  font-weight: 600;
+}
+.lobby-card-body { padding: 12px 18px 18px; }
+
+/* Avatar picker */
+.avatar-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.avatar-opt {
+  width: 42px; height: 42px;
+  border-radius: 11px;
+  border: 2px solid var(--border);
+  background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.avatar-opt:hover { border-color: var(--accent); transform: scale(1.08); }
+.avatar-opt.sel { border-color: var(--accent); background: rgba(108,99,255,.12); box-shadow: 0 0 0 3px rgba(108,99,255,.15); }
+
+/* Setup fields */
 .setup-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .setup-col { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 6px; }
-.setup-col label { font-size: 11px; color: var(--text-dim); }
+.setup-col label { font-size: 11px; color: var(--text-dim); font-weight: 500; }
 .setup-col input, .setup-col select { width: 100%; }
 
+/* Action row */
 .lobby-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.lobby-actions .btn { flex: 1; min-width: 120px; padding: 12px; font-size: 14px; text-align: center; }
+.lobby-actions .btn { flex: 1; min-width: 130px; padding: 13px 18px; font-size: 14px; text-align: center; border-radius: 10px; }
 .join-row { flex: 1; min-width: 200px; display: flex; gap: 8px; }
-.join-row input { flex: 1; font-family: monospace; letter-spacing: 4px; font-size: 16px; text-align: center; text-transform: uppercase; }
+.join-row input {
+  flex: 1;
+  font-family: monospace;
+  letter-spacing: 6px;
+  font-size: 18px;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 700;
+}
 
+/* Room list */
 .room-list-header {
-  padding: 12px 16px;
+  padding: 12px 18px;
   font-size: 13px;
   font-weight: 600;
   border-bottom: 1px solid var(--border);
@@ -159,31 +260,72 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
 }
 .live-dot {
   display: inline-block;
-  width: 8px; height: 8px;
+  width: 7px; height: 7px;
   border-radius: 50%;
   background: var(--green);
-  margin-right: 6px;
-  animation: blink 2s ease-in-out infinite;
+  margin-right: 7px;
+  animation: livePulse 2.5s ease-in-out infinite;
 }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+@keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.85)} }
 
-#room-list { min-height: 80px; max-height: 280px; overflow-y: auto; }
+#room-list { min-height: 80px; max-height: 300px; overflow-y: auto; }
 .room-item {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  padding: 12px 18px;
   gap: 12px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background .15s;
+  position: relative;
 }
 .room-item:last-child { border-bottom: none; }
+.room-item::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0;
+  background: var(--accent);
+  border-radius: 0 3px 3px 0;
+  transition: width .2s;
+}
 .room-item:hover { background: var(--surface2); }
-.room-code-tag { font-size: 20px; font-weight: 800; color: var(--accent); font-family: monospace; min-width: 54px; }
-.room-item-info { flex: 1; }
-.room-item-host { font-size: 13px; font-weight: 600; }
-.room-item-deck { font-size: 11px; color: var(--text-dim); }
-.room-empty { text-align: center; padding: 32px; color: var(--text-dim); font-size: 13px; }
+.room-item:hover::before { width: 3px; }
+.room-avatar {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.room-info { flex: 1; min-width: 0; }
+.room-host { font-size: 14px; font-weight: 700; }
+.room-deck { font-size: 11px; color: var(--text-dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.room-code-tag {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--accent);
+  font-family: monospace;
+  min-width: 52px;
+  letter-spacing: 2px;
+}
+.room-status {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green);
+  border: 1px solid var(--green);
+  border-radius: 20px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+.room-empty { text-align: center; padding: 36px; color: var(--text-dim); font-size: 13px; }
+
+/* Lobby footer */
+.lobby-footer { text-align: center; font-size: 12px; color: var(--text-dim); }
+.lobby-footer a { color: var(--accent); text-decoration: none; }
+.lobby-footer a:hover { text-decoration: underline; }
 
 /* ══════════════════════════════════════
    SCREEN: WAITING
@@ -192,78 +334,152 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
 .waiting-box {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 40px 36px;
   text-align: center;
-  max-width: 440px;
+  max-width: 460px;
   width: 100%;
+  position: relative;
+  overflow: hidden;
 }
-.waiting-box h2 { font-size: 18px; margin-bottom: 12px; }
+.waiting-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.waiting-title { font-size: 14px; color: var(--text-dim); margin-bottom: 8px; font-weight: 500; }
+
 .room-code-big {
-  font-size: 60px;
-  font-weight: 800;
+  font-size: 64px;
+  font-weight: 900;
   color: var(--accent);
-  letter-spacing: 10px;
+  letter-spacing: 12px;
   font-family: monospace;
-  padding: 16px 0;
+  padding: 14px 0;
+  text-shadow: 0 0 30px rgba(108,99,255,.4);
 }
-.copy-hint { font-size: 12px; color: var(--text-dim); margin-bottom: 24px; }
-.copy-hint a { color: var(--accent); cursor: pointer; }
+
+/* QR code */
+.qr-section { margin: 16px 0; }
+.qr-section p { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+#qr-canvas {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px;
+  display: inline-block;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+.share-row { display: flex; gap: 8px; justify-content: center; margin-top: 10px; }
+
+/* Waiting dots */
+.waiting-dots { margin: 16px 0 8px; }
+.waiting-dots span {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  margin: 0 3px;
+  animation: dotBounce 1.4s ease-in-out infinite;
+}
+.waiting-dots span:nth-child(2) { animation-delay: .2s; }
+.waiting-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dotBounce { 0%,80%,100%{transform:scale(.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
+
+/* Player cards in waiting */
 .waiting-players { display: flex; gap: 14px; margin: 20px 0; }
 .waiting-player {
   flex: 1;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 16px 12px;
+  transition: border-color .3s;
 }
-.wp-role { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.wp-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.waiting-player.joined { border-color: var(--green); }
+.wp-avatar { font-size: 28px; margin-bottom: 6px; }
+.wp-role { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.wp-name { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
 .wp-deck { font-size: 11px; color: var(--text-dim); }
-.wp-status { font-size: 12px; margin-top: 8px; color: var(--orange); }
-.wp-status.ready { color: var(--green); }
-.waiting-footer { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+.wp-badge {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 20px;
+  padding: 2px 10px;
+}
+.wp-badge.ready { color: var(--green); border: 1px solid var(--green); }
+.wp-badge.waiting { color: var(--orange); border: 1px solid var(--orange); animation: dotBounce 2s ease-in-out infinite; }
+.waiting-footer { display: flex; gap: 10px; justify-content: center; margin-top: 24px; }
 
 /* ══════════════════════════════════════
    SCREEN: GAME
 ══════════════════════════════════════ */
+/* Header */
 #game-header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  padding: 6px 14px;
+  padding: 0 14px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   flex-shrink: 0;
-  height: 48px;
+  height: 50px;
 }
-.game-score {
+/* Phase strip */
+#phase-strip {
+  height: 3px;
+  background: var(--pc);
+  transition: background .5s ease;
+  flex-shrink: 0;
+}
+
+/* Header score */
+.game-score { display: flex; align-items: center; gap: 8px; }
+.score-block { display: flex; align-items: center; gap: 6px; }
+.score-avatar { font-size: 16px; }
+.score-name { font-size: 11px; color: var(--text-dim); max-width: 72px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.score-val { font-size: 24px; font-weight: 900; color: var(--accent); line-height: 1; }
+.score-sep { color: var(--border); font-size: 18px; margin: 0 2px; }
+.score-block.my-turn .score-name { color: var(--text); }
+.score-block.my-turn .score-val { color: var(--pc); text-shadow: 0 0 12px rgba(255,255,255,.2); }
+
+/* Phase pill */
+.phase-pill {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-weight: 700;
-}
-.score-name { font-size: 11px; color: var(--text-dim); max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.score-val { font-size: 22px; color: var(--accent); line-height: 1; }
-.score-sep { color: var(--border); }
-.badge {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 3px 10px;
+  border-radius: 20px;
+  padding: 4px 12px;
   font-size: 12px;
+  font-weight: 600;
+  color: var(--pc);
+  transition: color .5s, border-color .5s;
 }
-.badge.accent { color: var(--accent); font-weight: 700; }
+.phase-icon { font-size: 14px; }
+
+/* Turn badge */
+.turn-badge {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.turn-badge.my { background: rgba(108,99,255,.12); border-color: var(--accent); color: var(--accent); }
+
 .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 
-#game-body {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  min-height: 0;
-}
+/* Body */
+#game-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 
-/* ── Board ── */
+/* Board */
 #game-board {
   flex: 1;
   display: flex;
@@ -281,32 +497,37 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   gap: 5px;
   min-height: 0;
   position: relative;
+  border-radius: 10px;
+  padding: 2px;
+  border: 1px solid transparent;
+  transition: border-color .4s, box-shadow .4s;
 }
+.player-area.my-turn-glow {
+  border-color: rgba(108,99,255,.35);
+  box-shadow: inset 0 0 24px rgba(108,99,255,.06), 0 0 0 1px rgba(108,99,255,.1);
+}
+
 .area-name {
   position: absolute;
-  top: 3px; left: 3px;
+  top: 5px; left: 5px;
   font-size: 9px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 6px;
+  border-radius: 5px;
+  padding: 2px 7px;
   color: var(--text-dim);
   z-index: 5;
   pointer-events: none;
+  letter-spacing: .3px;
+  font-weight: 600;
 }
-.area-name.self { color: var(--accent); border-color: var(--accent); }
+.area-name.self { color: var(--accent); border-color: rgba(108,99,255,.4); }
 
-.side-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex-shrink: 0;
-  width: 58px;
-}
+.side-col { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; width: 58px; }
 .info-tile {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   padding: 5px;
   text-align: center;
   flex: 1;
@@ -314,38 +535,18 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  cursor: default;
+  transition: border-color .15s, background .15s;
 }
 .info-tile.clickable { cursor: pointer; }
-.info-tile.clickable:hover { border-color: var(--accent); }
-.info-tile .t-label { font-size: 9px; color: var(--text-dim); line-height: 1; margin-bottom: 2px; }
-.info-tile .t-val { font-size: 18px; font-weight: 700; line-height: 1; }
+.info-tile.clickable:hover { border-color: var(--accent); background: var(--surface3); }
+.info-tile .t-label { font-size: 9px; color: var(--text-dim); line-height: 1; margin-bottom: 3px; font-weight: 500; }
+.info-tile .t-val { font-size: 20px; font-weight: 800; line-height: 1; }
 
-.zones-row {
-  flex: 1;
-  display: flex;
-  align-items: stretch;
-  gap: 4px;
-  min-width: 0;
-}
+.zones-row { flex: 1; display: flex; align-items: stretch; gap: 4px; min-width: 0; }
 
-/* Zone wrapper */
-.zone-w {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1;
-  min-width: 0;
-  gap: 2px;
-}
+.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 3px; }
 .zone-w.wide { flex: 2.2; }
-.z-label {
-  font-size: 9px;
-  color: var(--text-dim);
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-}
+.z-label { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
 
 /* Zone slots */
 .z-slot {
@@ -353,60 +554,70 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   flex: 1;
   background: var(--zone-bg);
   border: 1.5px dashed var(--border);
-  border-radius: 7px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color .15s, background .15s, box-shadow .15s;
   min-height: 0;
 }
 .z-slot:hover { border-color: var(--accent); background: var(--zone-hover); }
-.z-slot.filled { border-style: solid; }
+.z-slot.filled { border-style: solid; border-color: var(--border); }
 .z-slot.filled:hover { border-color: var(--accent2); }
 .z-slot.opp { cursor: default; }
 .z-slot.opp:hover { border-color: var(--border); background: var(--zone-bg); }
 .z-slot.opp.filled { cursor: pointer; }
-.z-slot.opp.filled:hover { border-color: var(--text-dim); }
+.z-slot.opp.filled:hover { border-color: var(--text-dim); background: var(--zone-hover); }
 
-.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 5px; display: block; }
+/* Zone targeting animation */
+@keyframes zoneTarget {
+  0%, 100% { border-color: var(--green); box-shadow: inset 0 0 10px rgba(74,222,128,.1); }
+  50% { border-color: var(--green); box-shadow: inset 0 0 20px rgba(74,222,128,.25), 0 0 8px rgba(74,222,128,.15); }
+}
+.z-slot.target { border-style: solid; animation: zoneTarget 1.1s ease-in-out infinite; }
+.z-slot.target:hover { animation: none; border-color: var(--green); background: rgba(74,222,128,.1); }
+
+/* Guts target animation */
+@keyframes gutsTarget {
+  0%, 100% { border-color: var(--orange); box-shadow: inset 0 0 10px rgba(251,146,60,.1); }
+  50% { border-color: var(--orange); box-shadow: inset 0 0 20px rgba(251,146,60,.25), 0 0 8px rgba(251,146,60,.15); }
+}
+.z-slot.guts-target { animation: gutsTarget 1.1s ease-in-out infinite; }
+
+.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; }
 .z-guts {
   position: absolute;
   bottom: 2px; right: 2px;
-  background: rgba(0,0,0,.75);
-  border-radius: 3px;
-  padding: 0 4px;
+  background: rgba(0,0,0,.8);
+  border-radius: 4px;
+  padding: 1px 5px;
   font-size: 9px;
   color: var(--orange);
-  font-weight: 700;
+  font-weight: 800;
+  backdrop-filter: blur(4px);
 }
 .z-count {
   position: absolute;
   top: 2px; right: 2px;
-  background: rgba(0,0,0,.75);
-  border-radius: 3px;
-  padding: 0 4px;
+  background: rgba(0,0,0,.8);
+  border-radius: 4px;
+  padding: 1px 5px;
   font-size: 9px;
   color: var(--text-dim);
   font-weight: 700;
 }
-.z-empty { font-size: 9px; color: var(--border); }
+.z-empty { font-size: 10px; color: var(--border); }
 
-/* Block zone: 3 mini slots in a row */
+/* Block row */
 .block-row { display: flex; gap: 3px; width: 100%; flex: 1; }
 .block-row .z-slot { flex: 1; }
 
-/* Net divider */
-.net-div {
-  flex-shrink: 0;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.net-line { flex: 1; height: 2px; background: var(--net-color); }
+/* Net */
+.net-div { flex-shrink: 0; height: 20px; display: flex; align-items: center; gap: 8px; }
+.net-line { flex: 1; height: 2px; background: var(--net-color); border-radius: 1px; }
 .net-text { font-size: 9px; color: var(--net-color); font-weight: 800; letter-spacing: 2px; }
 
 /* ── Hand ── */
@@ -414,80 +625,186 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   flex-shrink: 0;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 6px 10px;
+  padding: 8px 12px;
   display: flex;
   align-items: center;
   gap: 6px;
   overflow-x: auto;
-  min-height: 96px;
-  max-height: 110px;
+  min-height: 100px;
+  max-height: 114px;
+  position: relative;
 }
-.hand-lbl { font-size: 9px; color: var(--text-dim); writing-mode: vertical-rl; flex-shrink: 0; }
+.hand-lbl {
+  font-size: 9px;
+  color: var(--text-dim);
+  writing-mode: vertical-rl;
+  flex-shrink: 0;
+  font-weight: 600;
+  letter-spacing: .3px;
+}
 .hand-card {
-  height: 84px;
+  height: 88px;
   aspect-ratio: 2/2.8;
-  border-radius: 6px;
+  border-radius: 7px;
   overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: transform .15s, border-color .15s;
+  transition: transform .18s cubic-bezier(.34,1.56,.64,1), border-color .15s, box-shadow .15s;
 }
-.hand-card:hover { transform: translateY(-6px); border-color: var(--accent); }
-.hand-card.selected { transform: translateY(-10px); border-color: var(--accent2); }
-.hand-card img { width: 100%; height: 100%; object-fit: cover; }
+.hand-card:hover { transform: translateY(-8px); border-color: var(--accent); box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+.hand-card.selected { transform: translateY(-12px); border-color: var(--accent2); box-shadow: 0 10px 24px rgba(255,101,132,.3); }
+.hand-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hand-empty { font-size: 12px; color: var(--text-dim); padding: 0 10px; }
 #hand-meta { font-size: 11px; color: var(--text-dim); white-space: nowrap; margin-left: 4px; flex-shrink: 0; }
 
+/* Guts mode banner */
+#guts-banner {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(251,146,60,.12), rgba(251,146,60,.04));
+  border-top: 2px solid rgba(251,146,60,.6);
+  padding: 7px 16px;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#guts-banner.show { display: flex; }
+.guts-text { font-size: 12px; font-weight: 700; color: var(--orange); }
+.guts-hint { font-size: 11px; color: var(--text-dim); }
+
 /* ── Sidebar ── */
 #sidebar {
-  width: 210px;
+  width: 212px;
   flex-shrink: 0;
   background: var(--surface);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width .25s;
 }
+#sidebar.collapsed { width: 0; overflow: hidden; }
+.sb-toggle {
+  position: absolute;
+  right: 212px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  width: 16px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 9px;
+  color: var(--text-dim);
+  transition: right .25s;
+}
+.sb-toggle:hover { background: var(--surface2); color: var(--text); }
+
 .sb-section {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.sb-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.sb-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; font-weight: 600; }
+
+/* Score grid */
 .sets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .set-box {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
   padding: 8px;
   text-align: center;
 }
+.set-box.active { border-color: rgba(108,99,255,.4); background: rgba(108,99,255,.06); }
+.set-box .sb-av { font-size: 16px; margin-bottom: 2px; }
 .set-box .sb-name { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.set-box .sb-num { font-size: 26px; font-weight: 800; color: var(--accent); line-height: 1.1; }
-.set-box .sb-btns { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
+.set-box .sb-num { font-size: 28px; font-weight: 900; color: var(--accent); line-height: 1.1; }
+.set-box .sb-btns { display: flex; gap: 4px; justify-content: center; margin-top: 5px; }
 
+/* Phase controls */
 .phase-row { display: flex; gap: 5px; margin-bottom: 6px; }
 .phase-row select { flex: 1; font-size: 12px; padding: 6px 8px; }
 
-#log-wrap {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 10px;
+/* Log */
+#log-wrap { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
+.log-line { font-size: 11px; color: var(--text-dim); line-height: 1.4; border-bottom: 1px solid #1e1e2e; padding-bottom: 3px; }
+.log-line .lp { color: var(--accent); font-weight: 600; }
+.log-line .lp.opp { color: var(--accent2); }
+.log-line .lt { color: var(--border); float: right; }
+
+/* ══════════════════════════════════════
+   CARD PREVIEW POPUP
+══════════════════════════════════════ */
+#card-preview {
+  position: fixed;
+  bottom: 124px;
+  right: 226px;
+  width: 140px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,.85);
+  border: 2px solid var(--accent);
+  z-index: 800;
+  opacity: 0;
+  transform: scale(.92) translateY(8px);
+  transition: opacity .2s, transform .2s;
+  pointer-events: none;
+}
+#card-preview.show { opacity: 1; transform: scale(1) translateY(0); }
+#card-preview img { width: 100%; display: block; }
+#card-preview-name {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,.85));
+  padding: 14px 6px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ══════════════════════════════════════
+   OPPONENT NOTIFICATIONS
+══════════════════════════════════════ */
+#notif-wrap {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
+  pointer-events: none;
 }
-.log-line {
-  font-size: 11px;
-  color: var(--text-dim);
-  line-height: 1.4;
-  border-bottom: 1px solid #1e1e2e;
-  padding-bottom: 3px;
+.notif {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent2);
+  border-radius: 9px;
+  padding: 8px 16px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateY(-12px) scale(.95);
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.log-line .lp { color: var(--accent); font-weight: 600; }
-.log-line .lt { color: var(--border); float: right; }
+.notif.show { opacity: 1; transform: translateY(0) scale(1); }
+.notif-icon { font-size: 14px; }
+.notif-text { color: var(--text); }
+.notif-player { color: var(--accent2); font-weight: 700; }
 
 /* ══════════════════════════════════════
    CONTEXT MENU
@@ -496,22 +813,31 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   position: fixed;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 28px rgba(0,0,0,.6);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.7);
   z-index: 1000;
-  min-width: 180px;
+  min-width: 190px;
   overflow: hidden;
   display: none;
 }
 #ctx.open { display: block; }
-.ctx-head { padding: 8px 12px; font-size: 11px; color: var(--text-dim); border-bottom: 1px solid var(--border); }
+.ctx-head {
+  padding: 9px 14px;
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .ctx-item {
   padding: 9px 14px;
   font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   transition: background .1s;
 }
 .ctx-item:hover { background: var(--surface2); }
@@ -524,32 +850,34 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
 #detail-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.7);
+  background: rgba(0,0,0,.75);
   z-index: 900;
   display: none;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(3px);
 }
 #detail-overlay.open { display: flex; }
 #detail-box {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
-  max-width: 380px;
-  width: 90%;
+  max-width: 400px;
+  width: 92%;
   display: flex;
   gap: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.7);
 }
-#detail-box img { width: 110px; border-radius: 8px; flex-shrink: 0; object-fit: cover; }
+#detail-box img { width: 120px; border-radius: 10px; flex-shrink: 0; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,.5); }
 .detail-info { flex: 1; min-width: 0; }
-.detail-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
-.detail-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
-.detail-stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; margin-bottom: 10px; }
-.d-stat { background: var(--surface2); border-radius: 5px; padding: 4px 2px; text-align: center; }
+.detail-name { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.detail-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 12px; }
+.detail-stats { display: grid; grid-template-columns: repeat(5,1fr); gap: 4px; margin-bottom: 12px; }
+.d-stat { background: var(--surface2); border-radius: 6px; padding: 5px 2px; text-align: center; }
 .d-stat .dl { font-size: 9px; color: var(--text-dim); }
-.d-stat .dv { font-size: 14px; font-weight: 700; }
-.detail-skill { font-size: 11px; color: var(--text-dim); line-height: 1.5; max-height: 80px; overflow-y: auto; }
+.d-stat .dv { font-size: 14px; font-weight: 800; }
+.detail-skill { font-size: 11px; color: var(--text-dim); line-height: 1.6; max-height: 80px; overflow-y: auto; }
 
 /* ══════════════════════════════════════
    DROP VIEWER
@@ -562,23 +890,25 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   display: none;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(3px);
 }
 #drop-overlay.open { display: flex; }
 #drop-box {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 20px;
-  max-width: 500px;
-  width: 90%;
+  max-width: 520px;
+  width: 92%;
   max-height: 70vh;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.7);
 }
-#drop-box h3 { font-size: 14px; margin-bottom: 12px; }
+#drop-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
 #drop-cards { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; flex: 1; }
-#drop-cards img { width: 60px; border-radius: 4px; cursor: pointer; }
-#drop-cards img:hover { opacity: .8; }
+#drop-cards img { width: 62px; border-radius: 5px; cursor: pointer; transition: transform .15s, opacity .15s; }
+#drop-cards img:hover { transform: scale(1.05); opacity: .85; }
 
 /* ══════════════════════════════════════
    TOAST
@@ -590,16 +920,44 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   transform: translateX(-50%) translateY(20px);
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 10px 20px;
   font-size: 13px;
-  z-index: 2000;
+  z-index: 5000;
   opacity: 0;
   transition: all .3s;
   pointer-events: none;
   white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0,0,0,.5);
 }
 #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════
+   PHASE TRANSITION OVERLAY
+══════════════════════════════════════ */
+#phase-flash {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4000;
+  opacity: 0;
+  transition: opacity .25s;
+}
+#phase-flash.show { opacity: 1; }
+#phase-flash-text {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 36px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 4px;
+  text-shadow: 0 0 40px currentColor;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.8);
+  transition: all .3s cubic-bezier(.34,1.56,.64,1);
+}
+#phase-flash.show #phase-flash-text { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 </style>
 </head>
 <body>
@@ -624,41 +982,52 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   "messagingSenderId": "123456789",
   "appId": "1:123456789:web:abc..."
 }'></textarea>
-    <button class="btn primary" onclick="saveConfig()" style="width:100%;padding:12px;font-size:14px">儲存並連線</button>
+    <button class="btn primary" onclick="saveConfig()" style="width:100%;padding:13px;font-size:14px">儲存並連線</button>
   </div>
 </div>
 
 <!-- ══════════════════════ SCREEN: LOBBY ══════════════════════ -->
 <div id="screen-lobby" class="screen">
-  <div class="lobby-wrap">
-    <div class="lobby-header">
-      <h1>バボカ!! BREAK</h1>
-      <p>對戰大廳 — 使用你在卡牌資料庫建立的牌組</p>
-    </div>
+  <!-- Hero -->
+  <div class="lobby-hero">
+    <span class="hero-icon">🏐</span>
+    <h1>バボカ!! <em>BREAK</em></h1>
+    <p>對戰大廳 — 使用你在卡牌資料庫建立的牌組</p>
+  </div>
 
+  <div class="lobby-body">
+    <!-- Player setup -->
     <div class="lobby-card">
-      <h3>玩家設定</h3>
-      <div class="setup-row">
-        <div class="setup-col">
-          <label>玩家名稱</label>
-          <input id="player-name" type="text" placeholder="輸入名稱" maxlength="16">
-        </div>
-        <div class="setup-col">
-          <label>選擇牌組</label>
-          <select id="deck-select"><option value="">— 請選擇 —</option></select>
+      <div class="lobby-card-head">玩家設定</div>
+      <div class="lobby-card-body">
+        <!-- Avatar picker -->
+        <div class="avatar-row" id="avatar-row"></div>
+        <div class="setup-row">
+          <div class="setup-col">
+            <label>玩家名稱</label>
+            <input id="player-name" type="text" placeholder="輸入你的名稱" maxlength="16">
+          </div>
+          <div class="setup-col">
+            <label>選擇牌組</label>
+            <select id="deck-select"><option value="">— 請選擇 —</option></select>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- Actions -->
     <div class="lobby-actions">
-      <button class="btn primary" onclick="createRoom()">＋ 建立新房間</button>
+      <button class="btn primary" onclick="createRoom()" style="gap:6px;display:flex;align-items:center;justify-content:center">
+        <span>＋</span><span>建立新房間</span>
+      </button>
       <div class="join-row">
         <input id="join-code" type="text" placeholder="房號" maxlength="4">
         <button class="btn" onclick="joinByCode()">加入</button>
       </div>
     </div>
 
-    <div class="lobby-card" style="padding:0;overflow:hidden">
+    <!-- Room list -->
+    <div class="lobby-card" style="padding:0">
       <div class="room-list-header">
         <span><span class="live-dot"></span>公開房間</span>
         <span id="room-count" style="font-size:11px;color:var(--text-dim)"></span>
@@ -666,8 +1035,8 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
       <div id="room-list"><div class="room-empty">連線中...</div></div>
     </div>
 
-    <div style="text-align:center;font-size:12px;color:var(--text-dim)">
-      <a href="index.html" style="color:var(--accent)">← 返回卡牌資料庫</a>
+    <div class="lobby-footer">
+      <a href="index.html">← 返回卡牌資料庫</a>
       &nbsp;·&nbsp;
       <a href="#" onclick="clearConfig()" style="color:var(--text-dim)">重設 Firebase 設定</a>
     </div>
@@ -677,26 +1046,43 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
 <!-- ══════════════════════ SCREEN: WAITING ══════════════════════ -->
 <div id="screen-waiting" class="screen">
   <div class="waiting-box" style="margin:auto">
-    <h2>等待對手加入</h2>
+    <div class="waiting-title">房間號碼</div>
     <div class="room-code-big" id="w-code">----</div>
-    <p class="copy-hint">將房號傳給你的對手 · <a onclick="copyCode()">複製連結</a></p>
+
+    <!-- QR code -->
+    <div class="qr-section">
+      <p>掃描 QR Code 或複製連結邀請對手</p>
+      <div id="qr-canvas"></div>
+      <div class="share-row">
+        <button class="btn sm" onclick="copyCode()">📋 複製邀請連結</button>
+      </div>
+    </div>
+
+    <!-- Players -->
     <div class="waiting-players">
-      <div class="waiting-player">
+      <div class="waiting-player joined">
+        <div class="wp-avatar" id="w-host-avatar">🏐</div>
         <div class="wp-role">房主</div>
         <div class="wp-name" id="w-host-name">—</div>
         <div class="wp-deck" id="w-host-deck">—</div>
-        <div class="wp-status ready">已就緒</div>
+        <div class="wp-badge ready">已就緒</div>
       </div>
-      <div class="waiting-player">
+      <div class="waiting-player" id="w-guest-card">
+        <div class="wp-avatar" id="w-guest-avatar">❓</div>
         <div class="wp-role">挑戰者</div>
         <div class="wp-name" id="w-guest-name">等待中...</div>
         <div class="wp-deck" id="w-guest-deck">—</div>
-        <div class="wp-status" id="w-guest-status">尚未加入</div>
+        <div class="wp-badge waiting" id="w-guest-badge">尚未加入</div>
       </div>
     </div>
+
+    <div class="waiting-dots" id="waiting-dots">
+      <span></span><span></span><span></span>
+    </div>
+
     <div class="waiting-footer">
       <button class="btn" onclick="leaveRoom()">離開</button>
-      <button class="btn primary" id="start-btn" onclick="startGame()" disabled>開始對戰</button>
+      <button class="btn primary" id="start-btn" onclick="startGame()" disabled>開始對戰 ▶</button>
     </div>
   </div>
 </div>
@@ -706,25 +1092,39 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   <!-- Header -->
   <div id="game-header">
     <div class="game-score">
-      <span class="score-name" id="h-host-name">—</span>
-      <span class="score-val" id="h-host-sets">0</span>
+      <div class="score-block" id="score-host">
+        <span class="score-avatar" id="h-host-av">🏐</span>
+        <span class="score-name" id="h-host-name">—</span>
+        <span class="score-val" id="h-host-sets">0</span>
+      </div>
       <span class="score-sep">—</span>
-      <span class="score-val" id="h-guest-sets">0</span>
-      <span class="score-name" id="h-guest-name">—</span>
+      <div class="score-block" id="score-guest">
+        <span class="score-val" id="h-guest-sets">0</span>
+        <span class="score-name" id="h-guest-name">—</span>
+        <span class="score-avatar" id="h-guest-av">🏐</span>
+      </div>
     </div>
-    <span style="font-size:11px;color:var(--text-dim)">手番：</span>
-    <span class="badge accent" id="h-turn">—</span>
-    <span style="font-size:11px;color:var(--text-dim)">フェイズ：</span>
-    <span class="badge" id="h-phase">—</span>
+
+    <div class="phase-pill" id="phase-pill">
+      <span class="phase-icon" id="phase-icon">🏐</span>
+      <span id="h-phase">サーブターン</span>
+    </div>
+
+    <div class="turn-badge" id="turn-badge">—</div>
+
     <div class="header-right">
-      <button class="btn sm" onclick="drawCard()">抽牌</button>
+      <button class="btn sm" onclick="drawCard()" title="抽牌 (D)">抽牌</button>
+      <button class="btn sm end-turn" id="end-turn-btn" onclick="endTurn()" title="結束回合 / 下一フェイズ">結束フェイズ ▶</button>
       <button class="btn sm" onclick="openDropViewer('self')">棄牌區</button>
-      <button class="btn sm danger" onclick="declareLost()">ロスト</button>
+      <button class="btn sm danger" onclick="declareLost()" title="ロスト宣告">ロスト</button>
     </div>
   </div>
 
+  <!-- Phase strip -->
+  <div id="phase-strip"></div>
+
   <!-- Body -->
-  <div id="game-body">
+  <div id="game-body" style="position:relative">
     <div id="game-board">
       <!-- Opponent -->
       <div class="player-area" id="opp-area">
@@ -743,7 +1143,7 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
       <div class="net-div"><div class="net-line"></div><div class="net-text">NET</div><div class="net-line"></div></div>
 
       <!-- Self -->
-      <div class="player-area" id="self-area">
+      <div class="player-area my-turn-glow" id="self-area">
         <span class="area-name self" id="self-lbl">自己</span>
         <div class="side-col">
           <div class="info-tile clickable" onclick="showDeckInfo()">
@@ -765,7 +1165,8 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
       <div class="sb-section">
         <div class="sb-title">セット戦績</div>
         <div class="sets-grid">
-          <div class="set-box">
+          <div class="set-box" id="sb-box-host">
+            <div class="sb-av" id="sb-host-av">🏐</div>
             <div class="sb-name" id="sb-host-name">—</div>
             <div class="sb-num" id="sb-host-sets">0</div>
             <div class="sb-btns">
@@ -773,7 +1174,8 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
               <button class="btn xs" onclick="adjustSets('host',1)">＋</button>
             </div>
           </div>
-          <div class="set-box">
+          <div class="set-box" id="sb-box-guest">
+            <div class="sb-av" id="sb-guest-av">🏐</div>
             <div class="sb-name" id="sb-guest-name">—</div>
             <div class="sb-num" id="sb-guest-sets">0</div>
             <div class="sb-btns">
@@ -785,7 +1187,7 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
       </div>
 
       <div class="sb-section">
-        <div class="sb-title">回合控制</div>
+        <div class="sb-title">手動調整</div>
         <div class="phase-row">
           <select id="turn-sel">
             <option value="host">房主手番</option>
@@ -803,9 +1205,16 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
         </div>
       </div>
 
-      <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border)">行動記錄</div>
+      <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
       <div id="log-wrap"></div>
     </div>
+  </div>
+
+  <!-- Guts mode banner -->
+  <div id="guts-banner">
+    <span class="guts-text">🔶 Guts 模式</span>
+    <span class="guts-hint">點擊場上角色牌以疊放 Guts</span>
+    <button class="btn xs" onclick="cancelGuts()">取消</button>
   </div>
 
   <!-- Hand -->
@@ -831,7 +1240,7 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
       <div class="detail-sub" id="d-sub"></div>
       <div class="detail-stats" id="d-stats"></div>
       <div class="detail-skill" id="d-skill"></div>
-      <button class="btn sm" onclick="closeDetail()" style="width:100%;margin-top:10px">關閉</button>
+      <button class="btn sm" onclick="closeDetail()" style="width:100%;margin-top:12px">關閉</button>
     </div>
   </div>
 </div>
@@ -845,6 +1254,20 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
   </div>
 </div>
 
+<!-- Card hover preview -->
+<div id="card-preview">
+  <img id="card-preview-img" src="" alt="">
+  <div id="card-preview-name"></div>
+</div>
+
+<!-- Opponent notifications -->
+<div id="notif-wrap"></div>
+
+<!-- Phase flash -->
+<div id="phase-flash">
+  <div id="phase-flash-text"></div>
+</div>
+
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -855,27 +1278,38 @@ input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accen
 const CONFIG_KEY = 'hv_firebase_config';
 const DECK_KEY   = 'hv_decks';
 const NAME_KEY   = 'hv_player_name';
+const AVATAR_KEY = 'hv_avatar';
+
+const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
 
 const ZONE_NAMES  = ['serve','block','receive','toss','attack','event'];
 const ZONE_LABEL  = { serve:'サーブ', block:'ブロック', receive:'レシーブ', toss:'トス', attack:'アタック', event:'イベント', drop:'棄牌' };
-const PHASE_LABEL = { serve:'サーブターン', block:'ブロックターン', receive:'レシーブターン' };
+
+const PHASE_META = {
+  serve:   { label:'サーブターン',   icon:'🏐', color:'#fb923c', bg:'rgba(251,146,60,.08)'  },
+  block:   { label:'ブロックターン', icon:'🛡️', color:'#60a5fa', bg:'rgba(96,165,250,.08)' },
+  receive: { label:'レシーブターン', icon:'🤝', color:'#4ade80', bg:'rgba(74,222,128,.08)'  },
+};
 
 // ══════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════
 let db         = null;
-let allCards   = {};   // image_file → card
+let allCards   = {};
 let myDecks    = [];
-let myRole     = null; // 'host'|'guest'
+let myRole     = null;
 let roomId     = null;
 let gameState  = null;
 let gameRef    = null;
+let lastLogKey = null;
+let _qrInstance = null;
 
-const L = {          // local (never synced to Firebase)
-  name: '',
-  deckId: '',
-  hand: [],          // [image_file, ...]
-  pile: [],          // shuffled deck pile
+const L = {
+  name:    '',
+  avatar:  '🏐',
+  deckId:  '',
+  hand:    [],
+  pile:    [],
   setCards: 5,
 };
 
@@ -883,17 +1317,38 @@ const L = {          // local (never synced to Firebase)
 // INIT
 // ══════════════════════════════════════════════════════
 async function init() {
+  buildAvatarPicker();
+
   try {
     const res = await fetch('./cards_zh.json');
     const data = await res.json();
     data.cards.forEach(c => { allCards[c.image_file] = c; });
-  } catch (e) { console.warn('cards_zh.json load failed', e); }
+  } catch (e) { console.warn('cards_zh.json not found – card details unavailable'); }
 
   const saved = localStorage.getItem(CONFIG_KEY);
   if (saved) {
     try { startFirebase(JSON.parse(saved)); return; } catch {}
   }
   showScreen('config');
+}
+
+function buildAvatarPicker() {
+  const row = document.getElementById('avatar-row');
+  if (row.children.length) return; // already built
+  const cur = localStorage.getItem(AVATAR_KEY) || AVATARS[0];
+  L.avatar = cur;
+  AVATARS.forEach(av => {
+    const el = document.createElement('div');
+    el.className = 'avatar-opt' + (av === cur ? ' sel' : '');
+    el.textContent = av;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.avatar-opt').forEach(x => x.classList.remove('sel'));
+      el.classList.add('sel');
+      L.avatar = av;
+      localStorage.setItem(AVATAR_KEY, av);
+    });
+    row.appendChild(el);
+  });
 }
 
 function saveConfig() {
@@ -936,8 +1391,8 @@ function loadDecks() {
     opt.textContent = `${d.name} (${total}張)`;
     sel.appendChild(opt);
   });
-  const saved = localStorage.getItem(NAME_KEY);
-  if (saved) document.getElementById('player-name').value = saved;
+  const savedName = localStorage.getItem(NAME_KEY);
+  if (savedName) document.getElementById('player-name').value = savedName;
 }
 
 // ══════════════════════════════════════════════════════
@@ -955,19 +1410,22 @@ function listenRooms() {
   db.ref('rooms').on('value', snap => {
     const rooms = snap.val() || {};
     const waiting = Object.values(rooms).filter(r => r.status === 'waiting');
-    document.getElementById('room-count').textContent = `${waiting.length} 間等待中`;
+    const cntEl = document.getElementById('room-count');
+    if (cntEl) cntEl.textContent = waiting.length ? `${waiting.length} 間等待中` : '目前無房間';
     const el = document.getElementById('room-list');
-    if (!waiting.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間</div>'; return; }
+    if (!waiting.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間<br>建立一個吧！</div>'; return; }
     el.innerHTML = '';
     waiting.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).forEach(r => {
       const row = document.createElement('div');
       row.className = 'room-item';
       row.innerHTML = `
+        <div class="room-avatar">${esc(r.hostAvatar || '🏐')}</div>
         <span class="room-code-tag">${esc(r.id)}</span>
-        <div class="room-item-info">
-          <div class="room-item-host">${esc(r.hostName)}</div>
-          <div class="room-item-deck">${esc(r.deckName||'未知牌組')}</div>
+        <div class="room-info">
+          <div class="room-host">${esc(r.hostName)}</div>
+          <div class="room-deck">${esc(r.deckName || '未知牌組')}</div>
         </div>
+        <span class="room-status">等待中</span>
         <button class="btn sm primary">加入</button>`;
       row.querySelector('button').addEventListener('click', e => { e.stopPropagation(); joinRoom(r.id); });
       el.appendChild(row);
@@ -1007,7 +1465,7 @@ async function createRoom() {
 
   await db.ref(`rooms/${id}`).set({
     id, status: 'waiting',
-    hostName: L.name, deckName: deck.name,
+    hostName: L.name, hostAvatar: L.avatar, deckName: deck.name,
     createdAt: firebase.database.ServerValue.TIMESTAMP,
   });
 
@@ -1017,7 +1475,7 @@ async function createRoom() {
     setScore: { host:0, guest:0 },
     log: null,
     players: {
-      host: { name:L.name, deckName:deck.name, ready:true, setCardsLeft:5, zones:emptyZones() },
+      host: { name:L.name, avatar:L.avatar, deckName:deck.name, ready:true, setCardsLeft:5, zones:emptyZones() },
       guest: null,
     },
   });
@@ -1045,7 +1503,7 @@ async function joinRoom(id) {
   myRole = 'guest';
 
   await db.ref(`games/${id}/players/guest`).set({
-    name: L.name, deckName: deck.name, ready: true, setCardsLeft: 5, zones: emptyZones(),
+    name: L.name, avatar: L.avatar, deckName: deck.name, ready: true, setCardsLeft: 5, zones: emptyZones(),
   });
   await db.ref(`rooms/${id}/status`).set('playing');
 
@@ -1067,12 +1525,21 @@ async function leaveRoom() {
 
 function showWaitingScreen(id) {
   document.getElementById('w-code').textContent = id;
+  document.getElementById('w-host-avatar').textContent = L.avatar;
   showScreen('waiting');
+
+  // Generate QR code
+  const url = `${location.origin}${location.pathname}?join=${id}`;
+  const qrEl = document.getElementById('qr-canvas');
+  qrEl.innerHTML = '';
+  if (typeof QRCode !== 'undefined') {
+    _qrInstance = new QRCode(qrEl, { text: url, width: 120, height: 120, colorDark: '#000', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
+  }
 }
 
 function copyCode() {
   const url = `${location.origin}${location.pathname}?join=${roomId}`;
-  navigator.clipboard.writeText(url).then(() => toast('連結已複製！對手打開即可加入'));
+  navigator.clipboard.writeText(url).then(() => toast('連結已複製！傳給對手後掃描或打開即可加入'));
 }
 
 // ══════════════════════════════════════════════════════
@@ -1082,15 +1549,18 @@ function listenGame() {
   gameRef.on('value', snap => {
     const data = snap.val();
     if (!data) return;
+
+    const prevState = gameState;
     gameState = data;
-    syncUI(data);
+    syncUI(data, prevState);
   });
 }
 
-function syncUI(data) {
+function syncUI(data, prev) {
   updateWaitingScreen(data);
   if (document.getElementById('screen-game').classList.contains('active')) {
     renderBoard(data);
+    detectOppActions(data, prev);
   }
 }
 
@@ -1099,20 +1569,62 @@ function updateWaitingScreen(data) {
   const g = data.players?.guest;
   document.getElementById('w-host-name').textContent = h?.name || '—';
   document.getElementById('w-host-deck').textContent = h?.deckName || '—';
+  if (h?.avatar) document.getElementById('w-host-avatar').textContent = h.avatar;
+
   document.getElementById('w-guest-name').textContent = g?.name || '等待中...';
   document.getElementById('w-guest-deck').textContent = g?.deckName || '—';
+  document.getElementById('w-guest-avatar').textContent = g?.avatar || '❓';
 
-  const status = document.getElementById('w-guest-status');
-  const btn    = document.getElementById('start-btn');
+  const gCard = document.getElementById('w-guest-card');
+  const badge = document.getElementById('w-guest-badge');
+  const dots  = document.getElementById('waiting-dots');
+  const btn   = document.getElementById('start-btn');
+
   if (g?.ready) {
-    status.textContent = '已就緒';
-    status.className = 'wp-status ready';
+    gCard.classList.add('joined');
+    badge.textContent = '已就緒';
+    badge.className = 'wp-badge ready';
+    if (dots) dots.style.display = 'none';
     btn.disabled = false;
   }
-  // Guest auto-enters when game starts
+
   if (data.started && myRole === 'guest') {
     enterGame();
   }
+}
+
+// ══════════════════════════════════════════════════════
+// OPPONENT NOTIFICATION
+// ══════════════════════════════════════════════════════
+function detectOppActions(data, prev) {
+  if (!data.log || !prev) return;
+  const oppRole = myRole === 'host' ? 'guest' : 'host';
+  const oppName = data.players?.[oppRole]?.name || '對手';
+
+  const entries = Object.entries(data.log).sort((a,b) => (a[1].timestamp||0) - (b[1].timestamp||0));
+  const prevKeys = prev?.log ? new Set(Object.keys(prev.log)) : new Set();
+
+  entries.forEach(([k, v]) => {
+    if (prevKeys.has(k)) return;
+    if (v.player && v.player !== L.name && v.player !== 'system') {
+      showOppNotification(v.player, v.action);
+    }
+  });
+}
+
+function showOppNotification(player, action) {
+  const wrap = document.getElementById('notif-wrap');
+  const n = document.createElement('div');
+  n.className = 'notif';
+
+  const icon = action.includes('ロスト') ? '⚡' : action.includes('抽牌') ? '🃏' : action.includes('棄') ? '🗑' : '📋';
+  n.innerHTML = `<span class="notif-icon">${icon}</span><span class="notif-text"><span class="notif-player">${esc(player)}</span> ${esc(action)}</span>`;
+  wrap.appendChild(n);
+  requestAnimationFrame(() => n.classList.add('show'));
+  setTimeout(() => {
+    n.classList.remove('show');
+    setTimeout(() => n.remove(), 350);
+  }, 3500);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1127,23 +1639,96 @@ function startGame() {
 function enterGame() {
   if (document.getElementById('screen-game').classList.contains('active')) return;
 
-  // Build and shuffle deck
   const deck = myDecks.find(d => d.id === L.deckId);
   if (!deck) return;
   L.pile = [];
-  deck.cards.forEach(e => {
-    for (let i = 0; i < (e.count||1); i++) L.pile.push(e.image_file);
-  });
+  deck.cards.forEach(e => { for (let i = 0; i < (e.count||1); i++) L.pile.push(e.image_file); });
   shuffle(L.pile);
   L.hand = [];
   L.setCards = 5;
 
-  // Draw opening hand (6 cards)
   for (let i = 0; i < 6; i++) drawFromPile();
 
   showScreen('game');
   renderBoard(gameState);
   addLog('system', '對戰開始！每人抽 6 張手牌。');
+  updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
+}
+
+// ══════════════════════════════════════════════════════
+// PHASE UI
+// ══════════════════════════════════════════════════════
+function updatePhaseUI(phase, turn) {
+  const meta = PHASE_META[phase] || PHASE_META.serve;
+  document.documentElement.style.setProperty('--pc', meta.color);
+  document.documentElement.style.setProperty('--pc-bg', meta.bg);
+  document.getElementById('phase-strip').style.background = meta.color;
+
+  const pill = document.getElementById('phase-pill');
+  pill.style.color = meta.color;
+  pill.style.borderColor = meta.color + '66';
+  pill.style.background = meta.bg;
+  document.getElementById('phase-icon').textContent = meta.icon;
+  document.getElementById('h-phase').textContent = meta.label;
+
+  const isMyTurn = turn === myRole;
+  const turnBadge = document.getElementById('turn-badge');
+  const endBtn = document.getElementById('end-turn-btn');
+  const selfArea = document.getElementById('self-area');
+
+  if (isMyTurn) {
+    const phaseLabelNext = phase === 'receive' ? '結束回合' : (PHASE_META[phase === 'serve' ? 'block' : 'receive']?.label || '');
+    endBtn.textContent = phase === 'receive' ? '結束回合 ▶' : `→ ${phaseLabelNext}`;
+    endBtn.classList.remove('opp-turn');
+    turnBadge.textContent = '我的手番';
+    turnBadge.className = 'turn-badge my';
+    selfArea.classList.add('my-turn-glow');
+  } else {
+    endBtn.textContent = '對手手番中...';
+    endBtn.classList.add('opp-turn');
+    const oppRole = myRole === 'host' ? 'guest' : 'host';
+    const oppName = gameState?.players?.[oppRole]?.name || '對手';
+    turnBadge.textContent = oppName + ' 的手番';
+    turnBadge.className = 'turn-badge';
+    selfArea.classList.remove('my-turn-glow');
+  }
+
+  // Score block turn indicator
+  document.getElementById('score-host').classList.toggle('my-turn', turn === 'host' && myRole === 'host' || turn === 'host');
+  document.getElementById('score-guest').classList.toggle('my-turn', turn === 'guest');
+}
+
+// ══════════════════════════════════════════════════════
+// END TURN
+// ══════════════════════════════════════════════════════
+async function endTurn() {
+  if (gameState?.turn !== myRole) { toast('現在是對手的手番'); return; }
+  const phases = ['serve', 'block', 'receive'];
+  const cur = phases.indexOf(gameState?.phase || 'serve');
+  if (cur < 2) {
+    const next = phases[cur + 1];
+    await db.ref(`games/${roomId}/phase`).set(next);
+    addLog(L.name, `フェイズ進行 → ${PHASE_META[next].label}`);
+    flashPhase(next);
+  } else {
+    const oppRole = myRole === 'host' ? 'guest' : 'host';
+    await db.ref(`games/${roomId}/turn`).set(oppRole);
+    await db.ref(`games/${roomId}/phase`).set('serve');
+    const oppName = gameState?.players?.[oppRole]?.name || '對手';
+    addLog(L.name, `🔄 回合結束 → ${oppName} 的サーブターン`);
+    flashPhase('serve');
+  }
+}
+
+function flashPhase(phase) {
+  const meta = PHASE_META[phase] || PHASE_META.serve;
+  const overlay = document.getElementById('phase-flash');
+  const text = document.getElementById('phase-flash-text');
+  overlay.style.background = meta.bg;
+  text.style.color = meta.color;
+  text.textContent = meta.icon + ' ' + meta.label;
+  overlay.classList.add('show');
+  setTimeout(() => overlay.classList.remove('show'), 800);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1155,67 +1740,64 @@ function renderBoard(data) {
   const self    = data.players[myRole];
   const opp     = data.players[oppRole];
 
-  // Header
   const hn = data.players.host?.name || '房主';
   const gn = data.players.guest?.name || '挑戰者';
+  const hav = data.players.host?.avatar || '🏐';
+  const gav = data.players.guest?.avatar || '🏐';
+
   document.getElementById('h-host-name').textContent  = hn;
   document.getElementById('h-guest-name').textContent = gn;
+  document.getElementById('h-host-av').textContent    = hav;
+  document.getElementById('h-guest-av').textContent   = gav;
   document.getElementById('h-host-sets').textContent  = data.setScore?.host  ?? 0;
   document.getElementById('h-guest-sets').textContent = data.setScore?.guest ?? 0;
-  document.getElementById('h-turn').textContent  = (data.turn==='host'?hn:gn);
-  document.getElementById('h-phase').textContent = PHASE_LABEL[data.phase] || data.phase;
 
-  // Sidebar names/scores
   document.getElementById('sb-host-name').textContent  = hn;
   document.getElementById('sb-guest-name').textContent = gn;
+  document.getElementById('sb-host-av').textContent    = hav;
+  document.getElementById('sb-guest-av').textContent   = gav;
   document.getElementById('sb-host-sets').textContent  = data.setScore?.host  ?? 0;
   document.getElementById('sb-guest-sets').textContent = data.setScore?.guest ?? 0;
 
-  // Labels
+  // Active player box highlight
+  document.getElementById('sb-box-host').classList.toggle('active', data.turn === 'host');
+  document.getElementById('sb-box-guest').classList.toggle('active', data.turn === 'guest');
+
   document.getElementById('self-lbl').textContent = L.name;
   document.getElementById('opp-lbl').textContent  = opp?.name || '對手';
 
-  // Opponent zones
   renderZones('opp-zones', opp?.zones, true);
   document.getElementById('opp-set').textContent  = opp?.setCardsLeft ?? '?';
   document.getElementById('opp-drop').textContent = countDrop(opp?.zones);
 
-  // Self zones
   renderZones('self-zones', self?.zones, false);
   document.getElementById('self-deck').textContent = L.pile.length;
   document.getElementById('self-set').textContent  = L.setCards;
   document.getElementById('self-drop').textContent = countDrop(self?.zones);
 
-  // Log
-  if (data.log) renderLog(data.log);
+  updatePhaseUI(data.phase || 'serve', data.turn);
 
+  if (data.log) renderLog(data.log);
   renderHand();
 }
 
-function countDrop(zones) {
-  return zones?.drop?.length ?? 0;
-}
+function countDrop(zones) { return zones?.drop?.length ?? 0; }
 
 function renderZones(containerId, zones, isOpp) {
   const el = document.getElementById(containerId);
   el.innerHTML = '';
-
   ZONE_NAMES.forEach(zn => {
     const w = document.createElement('div');
     w.className = 'zone-w' + (zn === 'block' ? ' wide' : '');
-
     const lbl = document.createElement('div');
     lbl.className = 'z-label';
     lbl.textContent = ZONE_LABEL[zn];
     w.appendChild(lbl);
-
     if (zn === 'block') {
       const row = document.createElement('div');
       row.className = 'block-row';
       const blocks = normaliseBlock(zones?.block);
-      for (let i = 0; i < 3; i++) {
-        row.appendChild(buildSlot(blocks[i] || null, isOpp, `block:${i}`));
-      }
+      for (let i = 0; i < 3; i++) row.appendChild(buildSlot(blocks[i] || null, isOpp, `block:${i}`));
       w.appendChild(row);
     } else if (zn === 'event') {
       const evts = zones?.event || [];
@@ -1224,7 +1806,6 @@ function renderZones(containerId, zones, isOpp) {
     } else {
       w.appendChild(buildSlot(zones?.[zn] || null, isOpp, zn));
     }
-
     el.appendChild(w);
   });
 }
@@ -1238,6 +1819,7 @@ function normaliseBlock(raw) {
 function buildSlot(cardData, isOpp, zoneName) {
   const slot = document.createElement('div');
   slot.className = 'z-slot' + (cardData?.img ? ' filled' : '') + (isOpp ? ' opp' : '');
+  slot.dataset.zone = zoneName;
 
   if (cardData?.img) {
     const img = document.createElement('img');
@@ -1251,12 +1833,21 @@ function buildSlot(cardData, isOpp, zoneName) {
     if (cardData.count > 1) {
       const c = document.createElement('div'); c.className = 'z-count'; c.textContent = `×${cardData.count}`; slot.appendChild(c);
     }
-    slot.addEventListener('click', e => { e.stopPropagation(); isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData); });
+    slot.addEventListener('click', e => {
+      e.stopPropagation();
+      if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+      isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+    });
   } else {
     const e = document.createElement('div'); e.className = 'z-empty'; e.textContent = '—'; slot.appendChild(e);
-    if (!isOpp) slot.addEventListener('click', ev => { ev.stopPropagation(); onEmptyZoneClick(zoneName); });
+    if (!isOpp) {
+      slot.addEventListener('click', ev => {
+        ev.stopPropagation();
+        if (gutsHandIdx !== null) { toast('請點擊有角色的區域疊 Guts'); return; }
+        onEmptyZoneClick(zoneName);
+      });
+    }
   }
-
   return slot;
 }
 
@@ -1266,7 +1857,6 @@ function buildSlot(cardData, isOpp, zoneName) {
 function renderHand() {
   const wrap = document.getElementById('hand-cards');
   wrap.innerHTML = '';
-
   if (!L.hand.length) {
     const e = document.createElement('div'); e.className = 'hand-empty'; e.textContent = '手牌為空'; wrap.appendChild(e);
   } else {
@@ -1276,10 +1866,61 @@ function renderHand() {
       div.dataset.idx = idx;
       div.innerHTML = `<img src="images/${img}" loading="lazy" alt="">`;
       div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div); });
+      div.addEventListener('mouseenter', () => schedulePreview(img));
+      div.addEventListener('mouseleave', cancelPreview);
       wrap.appendChild(div);
     });
   }
   document.getElementById('hand-meta').textContent = `${L.hand.length} 張`;
+}
+
+// ══════════════════════════════════════════════════════
+// CARD HOVER PREVIEW
+// ══════════════════════════════════════════════════════
+let _previewTimer = null;
+function schedulePreview(img) {
+  _previewTimer = setTimeout(() => showPreview(img), 500);
+}
+function cancelPreview() {
+  clearTimeout(_previewTimer);
+  hidePreview();
+}
+function showPreview(img) {
+  const el = document.getElementById('card-preview');
+  const i  = document.getElementById('card-preview-img');
+  const n  = document.getElementById('card-preview-name');
+  i.src = `images/${img}`;
+  n.textContent = allCards[img]?.name || '';
+  el.classList.add('show');
+}
+function hidePreview() {
+  document.getElementById('card-preview').classList.remove('show');
+}
+
+// ══════════════════════════════════════════════════════
+// ZONE TARGETING
+// ══════════════════════════════════════════════════════
+function highlightTargetZones(category) {
+  clearZoneHighlights();
+  const validZones = category === 'EVENT'
+    ? ['event']
+    : ['serve','receive','toss','attack','block:0','block:1','block:2'];
+  document.querySelectorAll('#self-zones .z-slot:not(.filled)').forEach(slot => {
+    const zn = slot.dataset.zone || '';
+    const base = zn.split(':')[0];
+    if (validZones.includes(zn) || validZones.includes(base)) slot.classList.add('target');
+  });
+}
+function clearZoneHighlights() {
+  document.querySelectorAll('.z-slot.target').forEach(s => s.classList.remove('target'));
+  document.querySelectorAll('.z-slot.guts-target').forEach(s => s.classList.remove('guts-target'));
+}
+function highlightGutsTargets() {
+  clearZoneHighlights();
+  document.querySelectorAll('#self-zones .z-slot.filled:not(.opp)').forEach(slot => {
+    const zn = slot.dataset.zone || '';
+    if (!zn.startsWith('block')) slot.classList.add('guts-target');
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -1288,10 +1929,10 @@ function renderHand() {
 let selectedHandIdx = null;
 
 function onHandClick(idx, el) {
-  // Deselect if same card
   if (selectedHandIdx === idx) {
     selectedHandIdx = null;
     document.querySelectorAll('.hand-card.selected').forEach(c => c.classList.remove('selected'));
+    clearZoneHighlights();
     closeCtx();
     return;
   }
@@ -1302,26 +1943,28 @@ function onHandClick(idx, el) {
   const img  = L.hand[idx];
   const card = allCards[img];
   const cat  = card?.category;
-  const items = [];
 
+  // Highlight valid zones
+  highlightTargetZones(cat);
+
+  const items = [];
   if (cat === 'CHARACTER') {
-    items.push({ icon:'🏐', label:'→ サーブエリア', fn: () => placeCard(idx,'serve') });
-    items.push({ icon:'🛡', label:'→ ブロックエリア', fn: () => placeCard(idx,'block') });
-    items.push({ icon:'🤝', label:'→ レシーブエリア', fn: () => placeCard(idx,'receive') });
-    items.push({ icon:'✋', label:'→ トスエリア', fn: () => placeCard(idx,'toss') });
-    items.push({ icon:'⚡', label:'→ アタックエリア', fn: () => placeCard(idx,'attack') });
+    items.push({ icon:'🏐', label:'→ サーブエリア',   fn: () => placeCard(idx,'serve') });
+    items.push({ icon:'🛡', label:'→ ブロックエリア',  fn: () => placeCard(idx,'block') });
+    items.push({ icon:'🤝', label:'→ レシーブエリア',  fn: () => placeCard(idx,'receive') });
+    items.push({ icon:'✋', label:'→ トスエリア',      fn: () => placeCard(idx,'toss') });
+    items.push({ icon:'⚡', label:'→ アタックエリア',  fn: () => placeCard(idx,'attack') });
     items.push('sep');
     items.push({ icon:'📥', label:'ガッツとして積む…', fn: () => enterGutsMode(idx) });
   } else if (cat === 'EVENT') {
-    items.push({ icon:'📋', label:'→ イベントエリア', fn: () => placeCard(idx,'event') });
+    items.push({ icon:'📋', label:'→ イベントエリア',  fn: () => placeCard(idx,'event') });
   } else {
-    items.push({ icon:'📋', label:'→ イベントエリア', fn: () => placeCard(idx,'event') });
-    items.push({ icon:'🛡', label:'→ ブロックエリア', fn: () => placeCard(idx,'block') });
+    items.push({ icon:'📋', label:'→ イベントエリア',  fn: () => placeCard(idx,'event') });
+    items.push({ icon:'🛡', label:'→ ブロックエリア',  fn: () => placeCard(idx,'block') });
   }
   items.push('sep');
-  items.push({ icon:'🗑', label:'棄牌', fn: () => discardFromHand(idx), red: true });
+  items.push({ icon:'🗑', label:'棄牌',    fn: () => discardFromHand(idx), red: true });
   items.push({ icon:'🔍', label:'卡片詳細', fn: () => showDetail(img) });
-
   showCtx(el, card?.name || img, items);
 }
 
@@ -1329,11 +1972,11 @@ function onEmptyZoneClick(zoneName) {
   if (selectedHandIdx !== null) {
     placeCard(selectedHandIdx, zoneName);
     clearSelection();
-    return;
+    closeCtx();
   }
 }
 
-function onZoneClick(zoneName, cardData) {
+function onZoneClick(zoneName, cardData, slotEl) {
   const card  = allCards[cardData.img];
   const items = [];
   items.push({ icon:'🔍', label:'卡片詳細', fn: () => showDetail(cardData.img) });
@@ -1346,13 +1989,14 @@ function onZoneClick(zoneName, cardData) {
   if (zoneName.split(':')[0] !== 'block') {
     items.push({ icon:'📥', label:'疊上 Guts…', fn: () => enterGutsStackMode(zoneName) });
   }
-  showCtx(document.querySelector('.z-slot.filled:hover') || document.body, card?.name || cardData.img, items);
+  showCtx(slotEl || document.body, card?.name || cardData.img, items);
 }
 
 // ── Place card from hand ─────────────────────────────
 async function placeCard(handIdx, zoneName) {
   closeCtx();
   clearSelection();
+  clearZoneHighlights();
   const img  = L.hand[handIdx];
   const card = allCards[img];
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
@@ -1382,7 +2026,6 @@ async function moveCard(fromZone, toZone, cardData) {
   closeCtx();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   removeFromZone(zones, fromZone, cardData.img);
-
   if (toZone === 'block') {
     const b = normaliseBlock(zones.block);
     const i = b.findIndex(x => !x);
@@ -1396,7 +2039,6 @@ async function moveCard(fromZone, toZone, cardData) {
     if (zones[toZone]?.img) { toast(`${ZONE_LABEL[toZone]}已有角色`); return; }
     zones[toZone] = { img: cardData.img, guts: cardData.guts || [] };
   }
-
   const card = allCards[cardData.img];
   await pushZones(zones);
   addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[toZone]}`);
@@ -1419,6 +2061,7 @@ async function discardFromZone(zoneName, cardData) {
 async function discardFromHand(idx) {
   closeCtx();
   clearSelection();
+  clearZoneHighlights();
   const img  = L.hand.splice(idx, 1)[0];
   const card = allCards[img];
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
@@ -1431,18 +2074,26 @@ async function discardFromHand(idx) {
 
 // ── Guts modes ───────────────────────────────────────
 let gutsHandIdx = null;
-let gutsStackZone = null;
 
 function enterGutsMode(handIdx) {
   closeCtx();
   gutsHandIdx = handIdx;
-  toast('點擊要疊放 Guts 的場域（角色牌上）');
+  document.getElementById('guts-banner').classList.add('show');
+  highlightGutsTargets();
+  toast('點擊場上角色牌疊放 Guts');
 }
 
 function enterGutsStackMode(zoneName) {
   closeCtx();
   if (selectedHandIdx === null) { toast('請先選擇手牌，再進入 Guts 疊放模式'); return; }
   applyGuts(selectedHandIdx, zoneName);
+}
+
+function cancelGuts() {
+  gutsHandIdx = null;
+  document.getElementById('guts-banner').classList.remove('show');
+  clearZoneHighlights();
+  clearSelection();
 }
 
 async function applyGuts(handIdx, zoneName) {
@@ -1454,8 +2105,8 @@ async function applyGuts(handIdx, zoneName) {
   target.guts.push(img);
   setZoneCard(zones, zoneName, target);
   await pushZones(zones);
-  addLog(L.name, `在 ${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）`);
-  clearSelection();
+  addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）`);
+  cancelGuts();
   renderHand();
 }
 
@@ -1463,7 +2114,7 @@ async function applyGuts(handIdx, zoneName) {
 // GAME CONTROLS
 // ══════════════════════════════════════════════════════
 function drawCard() {
-  if (!L.pile.length) { toast('牌庫已空'); return; }
+  if (!L.pile.length) { toast('牌庫已空！'); return; }
   drawFromPile();
   addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
   document.getElementById('self-deck').textContent = L.pile.length;
@@ -1496,13 +2147,9 @@ async function declareLost() {
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const cur = gameState?.setScore?.[oppRole] ?? 0;
   await db.ref(`games/${roomId}/setScore/${oppRole}`).set(cur + 1);
-
-  // セット牌 -1
   L.setCards = Math.max(0, L.setCards - 1);
   document.getElementById('self-set').textContent = L.setCards;
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(L.setCards);
-
-  // Clear own public zones
   await pushZones(emptyZones());
   addLog(L.name, `⚡ ロスト宣告！${gameState?.players?.[oppRole]?.name || '對手'} 獲得 1 セット`);
   toast(`ロスト！セット牌剩 ${L.setCards} 張`);
@@ -1523,7 +2170,8 @@ function setTurn() {
 function setPhase() {
   const v = document.getElementById('phase-sel').value;
   db.ref(`games/${roomId}/phase`).set(v);
-  addLog(L.name, `フェイズ → ${PHASE_LABEL[v]}`);
+  addLog(L.name, `フェイズ → ${PHASE_META[v]?.label || v}`);
+  flashPhase(v);
 }
 
 // ══════════════════════════════════════════════════════
@@ -1542,13 +2190,16 @@ async function addLog(player, action) {
 
 function renderLog(log) {
   const el = document.getElementById('log-wrap');
-  const entries = Object.values(log || {}).slice(-40).reverse();
+  const entries = Object.values(log || {}).slice(-50).reverse();
   el.innerHTML = '';
+  const oppRole = myRole === 'host' ? 'guest' : 'host';
+  const oppName = gameState?.players?.[oppRole]?.name;
   entries.forEach(e => {
     const d = document.createElement('div');
     d.className = 'log-line';
     const t = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
-    d.innerHTML = `<span class="lp">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
+    const isOpp = e.player && e.player !== L.name && e.player !== 'system';
+    d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
     el.appendChild(d);
   });
 }
@@ -1581,7 +2232,7 @@ function closeDropViewer() { document.getElementById('drop-overlay').classList.r
 // ══════════════════════════════════════════════════════
 function showDetail(img) {
   const c = allCards[img];
-  if (!c) return;
+  if (!c) { toast('無卡片資訊'); return; }
   document.getElementById('d-img').src = `images/${img}`;
   document.getElementById('d-name').textContent = c.name || img;
   document.getElementById('d-sub').textContent = [c.affiliation, c.position_zh || c.category_zh].filter(Boolean).join(' · ');
@@ -1615,8 +2266,12 @@ function showCtx(anchor, title, items) {
     body.appendChild(el);
   });
   const rect = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : {left:100,bottom:100};
-  menu.style.left = Math.min(rect.left, window.innerWidth - 200) + 'px';
-  menu.style.top  = Math.min(rect.bottom + 4, window.innerHeight - 200) + 'px';
+  let x = rect.left;
+  let y = rect.bottom + 4;
+  if (x + 200 > window.innerWidth) x = window.innerWidth - 204;
+  if (y + 300 > window.innerHeight) y = rect.top - 4;
+  menu.style.left = Math.max(4, x) + 'px';
+  menu.style.top  = Math.max(4, y) + 'px';
   menu.classList.add('open');
 }
 function closeCtx() { document.getElementById('ctx').classList.remove('open'); }
@@ -1631,7 +2286,6 @@ function emptyZones() {
 function sanitise(zones) {
   const z = deepCopy(zones);
   if (Array.isArray(z.block)) z.block = z.block.map(b => b || false);
-  // Firebase doesn't allow undefined
   return JSON.parse(JSON.stringify(z, (_, v) => v === undefined ? null : v));
 }
 
@@ -1682,9 +2336,26 @@ function toast(msg) {
 
 function clearSelection() {
   selectedHandIdx = null;
-  gutsHandIdx = null;
   document.querySelectorAll('.hand-card.selected').forEach(c => c.classList.remove('selected'));
+  clearZoneHighlights();
 }
+
+// ══════════════════════════════════════════════════════
+// KEYBOARD SHORTCUTS
+// ══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (!document.getElementById('screen-game').classList.contains('active')) return;
+  if (e.key === 'd' || e.key === 'D') { e.preventDefault(); drawCard(); }
+  if (e.key === 'Escape') {
+    closeCtx();
+    closeDetail();
+    closeDropViewer();
+    clearSelection();
+    cancelGuts();
+  }
+  if (e.key === 'Enter') { e.preventDefault(); endTurn(); }
+});
 
 // ══════════════════════════════════════════════════════
 // URL AUTO-JOIN
@@ -1700,6 +2371,7 @@ function checkUrlJoin() {
 // ══════════════════════════════════════════════════════
 document.addEventListener('click', e => {
   if (!document.getElementById('ctx').contains(e.target)) closeCtx();
+  if (!document.getElementById('hand-area').contains(e.target)) { cancelPreview(); }
 });
 document.getElementById('join-code').addEventListener('keydown', e => { if (e.key==='Enter') joinByCode(); });
 document.getElementById('player-name').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('deck-select').focus(); });
