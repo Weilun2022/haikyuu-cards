@@ -609,7 +609,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .z-slot.guts-target { animation: gutsTarget 1.1s ease-in-out infinite; }
 
-.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; }
+.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; position: relative; z-index: 1; }
+.z-guts-peek {
+  position: absolute;
+  inset: 3px;
+  border-radius: 5px;
+  overflow: hidden;
+  transform: translate(-4px, 4px) rotate(-4deg);
+  z-index: 0;
+  opacity: .75;
+  border: 1px solid var(--orange);
+}
+.z-guts-peek img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .z-guts {
   position: absolute;
   bottom: 2px; right: 2px;
@@ -620,6 +631,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   color: var(--orange);
   font-weight: 800;
   backdrop-filter: blur(4px);
+  z-index: 2;
 }
 .z-count {
   position: absolute;
@@ -661,7 +673,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   letter-spacing: .3px;
 }
 .hand-card {
-  height: 88px;
+  height: 104px;
   aspect-ratio: 2/2.8;
   border-radius: 7px;
   overflow: hidden;
@@ -1866,6 +1878,9 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
     img.className = 'z-img'; img.src = `images/${cardData.img}`; img.loading = 'lazy';
     slot.appendChild(img);
     if (cardData.guts?.length) {
+      const peek = document.createElement('div'); peek.className = 'z-guts-peek';
+      const pi = document.createElement('img'); pi.src = `images/${cardData.guts[cardData.guts.length-1]}`; pi.loading = 'lazy';
+      peek.appendChild(pi); slot.appendChild(peek);
       const g = document.createElement('div'); g.className = 'z-guts'; g.textContent = `G:${cardData.guts.length}`; slot.appendChild(g);
     }
     if (cardData.count > 1) {
@@ -2042,23 +2057,30 @@ async function placeCard(handIdx, zoneName) {
   const card = allCards[img];
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
 
-  if (zoneName === 'block') {
+  const baseZone = zoneName.split(':')[0];
+  if (baseZone === 'block') {
     const b = normaliseBlock(zones.block);
-    const i = b.findIndex(x => !x);
-    if (i === -1) { toast('攔網區已滿（3人上限）'); return; }
-    b[i] = { img, guts: [] };
+    if (zoneName.includes(':')) {
+      const i = parseInt(zoneName.split(':')[1]);
+      if (b[i]) { toast('此格已有角色，請先移開'); return; }
+      b[i] = { img, guts: [] };
+    } else {
+      const i = b.findIndex(x => !x);
+      if (i === -1) { toast('攔網區已滿（3人上限）'); return; }
+      b[i] = { img, guts: [] };
+    }
     zones.block = b;
-  } else if (zoneName === 'event') {
+  } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
     zones.event.push(img);
   } else {
-    if (zones[zoneName]?.img) { toast(`${ZONE_LABEL[zoneName]}已有角色，請先移開`); return; }
-    zones[zoneName] = { img, guts: [] };
+    if (zones[baseZone]?.img) { toast(`${ZONE_LABEL[baseZone]}已有角色，請先移開`); return; }
+    zones[baseZone] = { img, guts: [] };
   }
 
   L.hand.splice(handIdx, 1);
   await pushZones(zones);
-  addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[zoneName]}`);
+  addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}`);
   renderHand();
 }
 
