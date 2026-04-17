@@ -1755,7 +1755,8 @@ function applyFilters() {
     if (searchText) {
       const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity]
         .filter(Boolean).join(' ').toLowerCase();
-      if (!haystack.includes(searchText)) return false;
+      const terms = searchText.split(/\s+/).filter(Boolean);
+      if (!terms.every(t => haystack.includes(t))) return false;
     }
     return true;
   });
