@@ -523,7 +523,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .area-name.self { color: var(--accent); border-color: rgba(108,99,255,.4); }
 
-.side-col { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; width: 58px; }
+/* ── Board layout ── */
+.board-side { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; width: 58px; }
 .info-tile {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -542,11 +543,32 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .info-tile .t-label { font-size: 9px; color: var(--text-dim); line-height: 1; margin-bottom: 3px; font-weight: 500; }
 .info-tile .t-val { font-size: 20px; font-weight: 800; line-height: 1; }
 
-.zones-row { flex: 1; display: flex; align-items: stretch; gap: 4px; min-width: 0; }
+.board-court { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
+.opp-court { flex-direction: column-reverse; }
+.court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
+.court-row.back-row { flex: 0.72; }
+.zone-spacer { flex: 1; min-width: 0; }
 
 .zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 3px; }
-.zone-w.wide { flex: 2.2; }
 .z-label { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+.z-label.lbl-rcv { color: #60a5fa; }
+.z-label.lbl-tos { color: #4ade80; }
+.z-label.lbl-atk { color: #f87171; }
+.z-label.lbl-srv { color: #fbbf24; }
+
+/* Zone type colors */
+.z-slot.z-blk { border-color: #374151; background: #0c1018; }
+.z-slot.z-rcv { border-color: rgba(29,78,216,.45); background: rgba(29,78,216,.05); }
+.z-slot.z-tos { border-color: rgba(21,128,61,.45); background: rgba(21,128,61,.05); }
+.z-slot.z-atk { border-color: rgba(220,38,38,.45); background: rgba(220,38,38,.05); }
+.z-slot.z-srv { border-color: rgba(217,119,6,.45); background: rgba(217,119,6,.05); }
+.z-slot.z-evt { border-color: rgba(100,116,139,.35); background: rgba(100,116,139,.03); }
+.z-slot.z-blk:not(.filled):not(.opp):hover { border-color: #6b7280; background: rgba(107,114,128,.1); }
+.z-slot.z-rcv:not(.filled):not(.opp):hover { border-color: #2563eb; background: rgba(37,99,235,.14); }
+.z-slot.z-tos:not(.filled):not(.opp):hover { border-color: #16a34a; background: rgba(22,163,74,.14); }
+.z-slot.z-atk:not(.filled):not(.opp):hover { border-color: #dc2626; background: rgba(220,38,38,.14); }
+.z-slot.z-srv:not(.filled):not(.opp):hover { border-color: #d97706; background: rgba(217,119,6,.14); }
+.z-slot.z-evt:not(.filled):not(.opp):hover { border-color: #94a3b8; background: rgba(148,163,184,.1); }
 
 /* Zone slots */
 .z-slot {
@@ -610,10 +632,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-weight: 700;
 }
 .z-empty { font-size: 10px; color: var(--border); }
-
-/* Block row */
-.block-row { display: flex; gap: 3px; width: 100%; flex: 1; }
-.block-row .z-slot { flex: 1; }
 
 /* Net */
 .net-div { flex-shrink: 0; height: 20px; display: flex; align-items: center; gap: 8px; }
@@ -1129,13 +1147,32 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <!-- Opponent -->
       <div class="player-area" id="opp-area">
         <span class="area-name" id="opp-lbl">對手</span>
-        <div class="side-col">
-          <div class="info-tile"><div class="t-label">牌庫</div><div class="t-val" id="opp-deck">?</div></div>
+        <!-- Left: Set -->
+        <div class="board-side">
           <div class="info-tile"><div class="t-label">セット</div><div class="t-val" id="opp-set">?</div></div>
         </div>
-        <div class="zones-row" id="opp-zones"></div>
-        <div class="info-tile clickable" style="width:54px;flex-shrink:0" onclick="openDropViewer('opp')">
-          <div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div>
+        <!-- Court (reversed: block near net = bottom of opp area) -->
+        <div class="board-court opp-court">
+          <div class="court-row">
+            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">センターブロッカー</div><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk opp" id="opp-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
+          </div>
+          <div class="court-row">
+            <div class="zone-w"><div class="z-label lbl-rcv">レシーブ</div><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-tos">トス</div><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-atk">アタック</div><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+          </div>
+          <div class="court-row back-row">
+            <div class="zone-spacer"></div>
+            <div class="zone-w"><div class="z-label lbl-srv">サーブ</div><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">イベント</div><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
+          </div>
+        </div>
+        <!-- Right: Deck + Drop -->
+        <div class="board-side">
+          <div class="info-tile"><div class="t-label">デッキ</div><div class="t-val" id="opp-deck">?</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('opp')"><div class="t-label">ドロップ</div><div class="t-val" id="opp-drop">0</div></div>
         </div>
       </div>
 
@@ -1145,17 +1182,32 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <!-- Self -->
       <div class="player-area my-turn-glow" id="self-area">
         <span class="area-name self" id="self-lbl">自己</span>
-        <div class="side-col">
-          <div class="info-tile clickable" onclick="showDeckInfo()">
-            <div class="t-label">牌庫</div><div class="t-val" id="self-deck">40</div>
+        <!-- Left: Set -->
+        <div class="board-side">
+          <div class="info-tile clickable" onclick="adjustSet()"><div class="t-label">セット</div><div class="t-val" id="self-set">5</div></div>
+        </div>
+        <!-- Court (block on top = near net) -->
+        <div class="board-court" id="self-court">
+          <div class="court-row">
+            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">センターブロッカー</div><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk" id="self-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
           </div>
-          <div class="info-tile clickable" onclick="adjustSet()">
-            <div class="t-label">セット</div><div class="t-val" id="self-set">5</div>
+          <div class="court-row">
+            <div class="zone-w"><div class="z-label lbl-rcv">レシーブ</div><div class="z-slot z-rcv" id="self-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-tos">トス</div><div class="z-slot z-tos" id="self-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-atk">アタック</div><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+          </div>
+          <div class="court-row back-row">
+            <div class="zone-spacer"></div>
+            <div class="zone-w"><div class="z-label lbl-srv">サーブ</div><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">イベント</div><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
-        <div class="zones-row" id="self-zones"></div>
-        <div class="info-tile clickable" style="width:54px;flex-shrink:0" onclick="openDropViewer('self')">
-          <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
+        <!-- Right: Deck + Drop -->
+        <div class="board-side">
+          <div class="info-tile clickable" onclick="showDeckInfo()"><div class="t-label">デッキ</div><div class="t-val" id="self-deck">40</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('self')"><div class="t-label">ドロップ</div><div class="t-val" id="self-drop">0</div></div>
         </div>
       </div>
     </div>
@@ -1766,11 +1818,11 @@ function renderBoard(data) {
   document.getElementById('self-lbl').textContent = L.name;
   document.getElementById('opp-lbl').textContent  = opp?.name || '對手';
 
-  renderZones('opp-zones', opp?.zones, true);
+  renderZones('opp', opp?.zones, true);
   document.getElementById('opp-set').textContent  = opp?.setCardsLeft ?? '?';
   document.getElementById('opp-drop').textContent = countDrop(opp?.zones);
 
-  renderZones('self-zones', self?.zones, false);
+  renderZones('self', self?.zones, false);
   document.getElementById('self-deck').textContent = L.pile.length;
   document.getElementById('self-set').textContent  = L.setCards;
   document.getElementById('self-drop').textContent = countDrop(self?.zones);
@@ -1783,49 +1835,35 @@ function renderBoard(data) {
 
 function countDrop(zones) { return zones?.drop?.length ?? 0; }
 
-function renderZones(containerId, zones, isOpp) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = '';
-  ZONE_NAMES.forEach(zn => {
-    const w = document.createElement('div');
-    w.className = 'zone-w' + (zn === 'block' ? ' wide' : '');
-    const lbl = document.createElement('div');
-    lbl.className = 'z-label';
-    lbl.textContent = ZONE_LABEL[zn];
-    w.appendChild(lbl);
-    if (zn === 'block') {
-      const row = document.createElement('div');
-      row.className = 'block-row';
-      const blocks = normaliseBlock(zones?.block);
-      for (let i = 0; i < 3; i++) row.appendChild(buildSlot(blocks[i] || null, isOpp, `block:${i}`));
-      w.appendChild(row);
-    } else if (zn === 'event') {
-      const evts = zones?.event || [];
-      const cd = evts.length ? { img: evts[evts.length-1], guts:[], count: evts.length } : null;
-      w.appendChild(buildSlot(cd, isOpp, 'event'));
-    } else {
-      w.appendChild(buildSlot(zones?.[zn] || null, isOpp, zn));
-    }
-    el.appendChild(w);
+function renderZones(prefix, zones, isOpp) {
+  // Block slots
+  const blocks = normaliseBlock(zones?.block);
+  for (let i = 0; i < 3; i++) {
+    const slot = document.getElementById(`${prefix}-slot-block-${i}`);
+    if (slot) fillSlot(slot, blocks[i] || null, isOpp, `block:${i}`);
+  }
+  // Single-card zones
+  ['receive','toss','attack','serve'].forEach(zn => {
+    const slot = document.getElementById(`${prefix}-slot-${zn}`);
+    if (slot) fillSlot(slot, zones?.[zn] || null, isOpp, zn);
   });
+  // Event (stack)
+  const evtSlot = document.getElementById(`${prefix}-slot-event`);
+  if (evtSlot) {
+    const evts = zones?.event || [];
+    const cd = evts.length ? { img: evts[evts.length-1], guts:[], count: evts.length } : null;
+    fillSlot(evtSlot, cd, isOpp, 'event');
+  }
 }
 
-function normaliseBlock(raw) {
-  const arr = Array.isArray(raw) ? [...raw] : [null, null, null];
-  while (arr.length < 3) arr.push(null);
-  return arr.map(x => (x === false ? null : x));
-}
-
-function buildSlot(cardData, isOpp, zoneName) {
-  const slot = document.createElement('div');
-  slot.className = 'z-slot' + (cardData?.img ? ' filled' : '') + (isOpp ? ' opp' : '');
-  slot.dataset.zone = zoneName;
-
+function fillSlot(slot, cardData, isOpp, zoneName) {
+  slot.classList.remove('filled','opp','target','guts-target');
+  if (isOpp) slot.classList.add('opp');
+  slot.innerHTML = '';
   if (cardData?.img) {
+    slot.classList.add('filled');
     const img = document.createElement('img');
-    img.className = 'z-img';
-    img.src = `images/${cardData.img}`;
-    img.loading = 'lazy';
+    img.className = 'z-img'; img.src = `images/${cardData.img}`; img.loading = 'lazy';
     slot.appendChild(img);
     if (cardData.guts?.length) {
       const g = document.createElement('div'); g.className = 'z-guts'; g.textContent = `G:${cardData.guts.length}`; slot.appendChild(g);
@@ -1833,22 +1871,25 @@ function buildSlot(cardData, isOpp, zoneName) {
     if (cardData.count > 1) {
       const c = document.createElement('div'); c.className = 'z-count'; c.textContent = `×${cardData.count}`; slot.appendChild(c);
     }
-    slot.addEventListener('click', e => {
+    slot.onclick = e => {
       e.stopPropagation();
       if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
       isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
-    });
+    };
   } else {
     const e = document.createElement('div'); e.className = 'z-empty'; e.textContent = '—'; slot.appendChild(e);
-    if (!isOpp) {
-      slot.addEventListener('click', ev => {
-        ev.stopPropagation();
-        if (gutsHandIdx !== null) { toast('請點擊有角色的區域疊 Guts'); return; }
-        onEmptyZoneClick(zoneName);
-      });
-    }
+    slot.onclick = isOpp ? null : ev => {
+      ev.stopPropagation();
+      if (gutsHandIdx !== null) { toast('請點擊有角色的區域疊 Guts'); return; }
+      onEmptyZoneClick(zoneName);
+    };
   }
-  return slot;
+}
+
+function normaliseBlock(raw) {
+  const arr = Array.isArray(raw) ? [...raw] : [null, null, null];
+  while (arr.length < 3) arr.push(null);
+  return arr.map(x => (x === false ? null : x));
 }
 
 // ══════════════════════════════════════════════════════
@@ -1905,7 +1946,7 @@ function highlightTargetZones(category) {
   const validZones = category === 'EVENT'
     ? ['event']
     : ['serve','receive','toss','attack','block:0','block:1','block:2'];
-  document.querySelectorAll('#self-zones .z-slot:not(.filled)').forEach(slot => {
+  document.querySelectorAll('#self-court .z-slot:not(.filled)').forEach(slot => {
     const zn = slot.dataset.zone || '';
     const base = zn.split(':')[0];
     if (validZones.includes(zn) || validZones.includes(base)) slot.classList.add('target');
@@ -1917,7 +1958,7 @@ function clearZoneHighlights() {
 }
 function highlightGutsTargets() {
   clearZoneHighlights();
-  document.querySelectorAll('#self-zones .z-slot.filled:not(.opp)').forEach(slot => {
+  document.querySelectorAll('#self-court .z-slot.filled').forEach(slot => {
     const zn = slot.dataset.zone || '';
     if (!zn.startsWith('block')) slot.classList.add('guts-target');
   });
