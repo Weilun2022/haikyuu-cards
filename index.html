@@ -597,8 +597,9 @@
     #filter-toggle-compact { display: flex; }
     .grid-container { padding: 14px 16px; }
 
-    /* Show toggle button on mobile */
+    /* Show toggle button on mobile (compact only; hide header's) */
     .filter-toggle-btn { display: flex; }
+    #filter-toggle { display: none; }
 
     /* Filter panel: collapsed by default on mobile */
     .filter-panel {
@@ -1101,7 +1102,7 @@
 <div id="search-row">
   <input type="text" class="search-box" id="search" placeholder="卡名 / 卡號 / 技能關鍵字...">
   <button class="filter-toggle-btn" id="filter-toggle-compact" aria-label="篩選">
-    ☰<span class="filter-badge" id="filter-badge-compact" style="display:none">0</span>
+    ☰ 篩選<span class="filter-badge" id="filter-badge-compact" style="display:none">0</span>
   </button>
 </div>
 
