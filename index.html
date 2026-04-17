@@ -349,7 +349,46 @@
     max-height: 80vh;
   }
 
-  .modal-no { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
+  .modal-no { font-size: 12px; color: var(--text-dim); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .copy-no-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: var(--text-dim);
+    font-size: 13px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+  }
+  .copy-no-btn:hover { color: var(--text); background: var(--surface2); }
+  .copy-no-btn.copied { color: #4ade80; }
+
+  /* Lightbox */
+  .modal-img img { width: 100%; object-fit: cover; cursor: pointer; }
+  .modal-img img:hover { opacity: 0.9; }
+  #lightbox-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    background: rgba(0,0,0,0.92);
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+  #lightbox-overlay.open { display: flex; }
+  #lightbox-img {
+    max-height: 90vh;
+    max-width: 90vw;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    cursor: default;
+    pointer-events: none;
+  }
   .modal-name { font-size: 22px; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
 
   .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
@@ -1178,6 +1217,11 @@
   </div>
 </div>
 
+<!-- Lightbox -->
+<div id="lightbox-overlay">
+  <img id="lightbox-img" src="" alt="">
+</div>
+
 <!-- Modal -->
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal" id="modal">
@@ -1578,7 +1622,21 @@ function bindEvents() {
     if (e.target === document.getElementById('modal-overlay')) closeModal();
   });
   document.getElementById('modal-close').addEventListener('click', closeModal);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      const lb = document.getElementById('lightbox-overlay');
+      if (lb.classList.contains('open')) {
+        lb.classList.remove('open');
+      } else {
+        closeModal();
+      }
+    }
+  });
+
+  // Lightbox close on background click
+  document.getElementById('lightbox-overlay').addEventListener('click', () => {
+    document.getElementById('lightbox-overlay').classList.remove('open');
+  });
 
   document.getElementById('filter-toggle').addEventListener('click', () => {
     const panel = document.getElementById('filter-panel');
@@ -1754,9 +1812,40 @@ function openModal(card) {
   const rarityColor = RARITY_COLOR[card.rarity] || '#888';
   const schoolColor = SCHOOL_COLOR[card.school] || '#64748b';
 
-  document.getElementById('modal-no').textContent = card.card_no || '';
+  const cardNo = card.card_no || '';
+  const noEl = document.getElementById('modal-no');
+  noEl.innerHTML = '';
+  const noText = document.createTextNode(cardNo);
+  noEl.appendChild(noText);
+  if (cardNo) {
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-no-btn';
+    copyBtn.title = '複製卡號';
+    copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(cardNo).then(() => {
+        copyBtn.classList.add('copied');
+        copyBtn.innerHTML = '已複製';
+        copyBtn.style.fontSize = '11px';
+        setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          copyBtn.style.fontSize = '';
+          copyBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+        }, 1500);
+      });
+    });
+    noEl.appendChild(copyBtn);
+  }
+
   document.getElementById('modal-name').textContent = card.name || '（無名稱）';
-  document.getElementById('modal-img').src = card.image_file ? `images/${card.image_file}` : '';
+  const modalImg = document.getElementById('modal-img');
+  modalImg.src = card.image_file ? `images/${card.image_file}` : '';
+  modalImg.onclick = () => {
+    if (modalImg.src) {
+      document.getElementById('lightbox-img').src = modalImg.src;
+      document.getElementById('lightbox-overlay').classList.add('open');
+    }
+  };
 
   // Tags
   const tags = [];
