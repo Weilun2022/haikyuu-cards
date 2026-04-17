@@ -1734,8 +1734,8 @@ function buildCardEl(card) {
   let statsHtml = '';
   if (card.category === 'CHARACTER') {
     const statPairs = [
-      ['atk', card.atk], ['blk', card.blk], ['rcv', card.rcv],
-      ['tos', card.tos], ['srv', card.srv]
+      ['srv', card.srv], ['blk', card.blk], ['rcv', card.rcv],
+      ['tos', card.tos], ['atk', card.atk]
     ].filter(([,v]) => v !== null && v !== undefined && v !== '' && v != 0);
     if (statPairs.length) {
       statsHtml = `<div class="card-stats">${statPairs.map(([k,v]) =>
@@ -1899,11 +1899,11 @@ function openModal(card) {
     const toggleId = 'modal-qa-toggle';
     const listId = 'modal-qa-list';
     qaEl.innerHTML = `
-      <button class="modal-qa-toggle" id="${toggleId}" aria-expanded="false">
+      <button class="modal-qa-toggle open" id="${toggleId}" aria-expanded="true">
         <span class="modal-qa-arrow">▶</span> Q&amp;A（${qa.length} 件）
       </button>
-      <div class="modal-qa-inner" style="display:none" id="${listId}">
-        <div class="modal-qa-list" id="${listId}-inner">
+      <div class="modal-qa-inner" id="${listId}">
+        <div class="modal-qa-list open" id="${listId}-inner">
           ${qa.map(item => `
             <div class="qa-item">
               <div class="qa-date">${item.date || ''}</div>
