@@ -511,6 +511,25 @@
     color: var(--text-dim);
     margin-right: 4px;
   }
+
+  /* ── Modal Feedback Button ── */
+  .modal-feedback-btn {
+    display: block;
+    text-align: center;
+    margin-top: 14px;
+    padding: 9px 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 12px;
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .modal-feedback-btn:hover {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
   .modal-qa-inner {
     background: var(--surface2);
     border-radius: 0 0 8px 8px;
@@ -1263,6 +1282,9 @@
       <div class="modal-skill-title">技能文字</div>
       <div class="modal-skill" id="modal-skill"></div>
       <div class="modal-qa-section" id="modal-qa"></div>
+      <a class="modal-feedback-btn" id="modal-feedback-btn" href="#" target="_blank" rel="noopener">
+        🚩 回報翻譯問題
+      </a>
     </div>
   </div>
 </div>
@@ -1952,6 +1974,13 @@ function openModal(card) {
       }
     });
   }
+
+  // Feedback button
+  const fbBtn = document.getElementById('modal-feedback-btn');
+  const feedbackTitle = `[翻譯] ${card.card_no || ''} ${card.name || ''}`.trim();
+  const currentSkill = card.skill_zh || card.skill || '（無）';
+  const feedbackBody = `## 卡號\n${card.card_no || ''}\n\n## 卡名\n${card.name || ''}\n\n## 當前技能文字\n${currentSkill}\n\n## 建議翻譯\n<!-- 請填寫您建議的翻譯 -->\n\n\n## 補充說明\n<!-- 選填 -->\n`;
+  fbBtn.href = `https://github.com/Weilun2022/haikyuu-cards/issues/new?labels=translation&title=${encodeURIComponent(feedbackTitle)}&body=${encodeURIComponent(feedbackBody)}`;
 
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
