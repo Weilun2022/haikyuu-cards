@@ -1137,11 +1137,11 @@
   <!-- 類型 -->
   <div class="filter-group">
     <label>類型</label>
-    <div class="toggle-group" id="filter-category">
-      <button class="toggle-btn active" data-val="">全部</button>
-      <button class="toggle-btn" data-val="CHARACTER">角色</button>
-      <button class="toggle-btn" data-val="EVENT">事件</button>
-    </div>
+    <select id="filter-category">
+      <option value="">全部</option>
+      <option value="CHARACTER">角色</option>
+      <option value="EVENT">事件</option>
+    </select>
   </div>
 
   <!-- 位置 -->
@@ -1708,12 +1708,8 @@ function bindEvents() {
     applyFilters();
   });
 
-  document.getElementById('filter-category').addEventListener('click', e => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    activeCategory = btn.dataset.val;
+  document.getElementById('filter-category').addEventListener('change', e => {
+    activeCategory = e.target.value;
     applyFilters();
   });
 
@@ -1722,9 +1718,8 @@ function bindEvents() {
     document.getElementById('filter-series').value = '';
     document.getElementById('filter-school').value = '';
     document.getElementById('filter-rarity').value = '';
+    document.getElementById('filter-category').value = '';
     document.getElementById('filter-position').value = '';
-    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.toggle-btn[data-val=""]').classList.add('active');
     searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = ''; activePosition = '';
     applyFilters();
   });
