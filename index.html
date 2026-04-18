@@ -54,6 +54,19 @@
     z-index: 100;
   }
 
+  /* Desktop: search-row 並排進 filter 列 */
+  @media (min-width: 601px) {
+    #sticky-wrapper { display: flex; flex-wrap: wrap; }
+    #sticky-wrapper > header { width: 100%; }
+    #search-row {
+      flex: 0 0 280px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+    }
+    .filter-panel { flex: 1; min-width: 0; }
+  }
+
   /* ── Search Row ── */
   #search-row {
     display: flex;
