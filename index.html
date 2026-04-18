@@ -1734,7 +1734,7 @@ function bindEvents() {
       if (panel.classList.contains('open')) return;
       const y = window.scrollY;
       const delta = y - lastY;
-      if (Math.abs(delta) < 8) return;
+      if (Math.abs(delta) < 16) return;
       if (delta > 0 && y > 60) {
         wrapper.classList.add('header-hidden');
         document.querySelector('.deck-tray').classList.add('tray-scroll-hidden');
