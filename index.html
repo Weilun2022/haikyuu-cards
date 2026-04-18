@@ -1759,7 +1759,8 @@ function applyFilters() {
         c.atk && `攻擊${c.atk}`, c.rcv && `接球${c.rcv}`,
         c.tos && `舉球${c.tos}`, c.blk && `攔網${c.blk}`, c.srv && `發球${c.srv}`
       ].filter(Boolean).join(' ');
-      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity, stats]
+      const typeZh = ({CHARACTER:'角色',EVENT:'事件',SERVE:'發球'})[c.category] || '';
+      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity, stats, typeZh]
         .filter(Boolean).join(' ').toLowerCase();
       const terms = searchText.split(/\s+/).filter(Boolean);
       if (!terms.every(t => haystack.includes(t))) return false;
