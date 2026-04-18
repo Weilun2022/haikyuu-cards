@@ -667,7 +667,7 @@
     flex-wrap: nowrap;
   }
   .deck-tray.visible { transform: translateY(0); }
-  .deck-tray.visible.tray-scroll-hidden { transform: translateY(100%); }
+  .deck-tray.visible.tray-scroll-hidden { transform: translateY(100%); transition: none; }
   body.deck-active .grid-container { padding-bottom: 72px; }
 
   /* 收合狀態：只剩一條細帶 */
@@ -1739,8 +1739,10 @@ function bindEvents() {
       if (Math.abs(delta) < window.innerHeight / 3) return;
       if (delta > 0 && y > 60) {
         wrapper.classList.add('header-hidden');
+        document.querySelector('.deck-tray').classList.add('tray-scroll-hidden');
       } else {
         wrapper.classList.remove('header-hidden');
+        document.querySelector('.deck-tray').classList.remove('tray-scroll-hidden');
       }
       lastY = y;
     }, { passive: true });
