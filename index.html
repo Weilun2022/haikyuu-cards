@@ -1144,6 +1144,20 @@
     </div>
   </div>
 
+  <!-- 位置 -->
+  <div class="filter-group">
+    <label>位置</label>
+    <select id="filter-position">
+      <option value="">全部</option>
+      <option value="WS">WS 側翼</option>
+      <option value="S">S 舉球</option>
+      <option value="MB">MB 中間</option>
+      <option value="Li">Li 自由</option>
+      <option value="OP">OP 對角</option>
+      <option value="監督">監督</option>
+    </select>
+  </div>
+
   <!-- 稀有度 -->
   <div class="filter-group">
     <label>稀有度</label>
@@ -1510,6 +1524,7 @@ let activeCategory = '';
 let activeSeries = '';
 let activeSchool = '';
 let activeRarity = '';
+let activePosition = '';
 let searchText = '';
 
 // ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
@@ -1684,6 +1699,11 @@ function bindEvents() {
     applyFilters();
   });
 
+  document.getElementById('filter-position').addEventListener('change', e => {
+    activePosition = e.target.value;
+    applyFilters();
+  });
+
   document.getElementById('filter-category').addEventListener('click', e => {
     const btn = e.target.closest('.toggle-btn');
     if (!btn) return;
@@ -1698,9 +1718,10 @@ function bindEvents() {
     document.getElementById('filter-series').value = '';
     document.getElementById('filter-school').value = '';
     document.getElementById('filter-rarity').value = '';
+    document.getElementById('filter-position').value = '';
     document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
     document.querySelector('.toggle-btn[data-val=""]').classList.add('active');
-    searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = '';
+    searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = ''; activePosition = '';
     applyFilters();
   });
 
@@ -1764,13 +1785,15 @@ function applyFilters() {
     if (activeSchool && c.school !== activeSchool) return false;
     if (activeCategory && c.category !== activeCategory) return false;
     if (activeRarity && c.rarity !== activeRarity && c.rarity !== activeRarity + 'P') return false;
+    if (activePosition && !c.position?.includes(activePosition)) return false;
     if (searchText) {
       const stats = [
         c.atk && `攻擊${c.atk}`, c.rcv && `接球${c.rcv}`,
         c.tos && `舉球${c.tos}`, c.blk && `攔網${c.blk}`, c.srv && `發球${c.srv}`
       ].filter(Boolean).join(' ');
       const typeZh = ({CHARACTER:'角色',EVENT:'事件',SERVE:'發球'})[c.category] || '';
-      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity, stats, typeZh]
+      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity, stats, typeZh,
+        c.position, c.position_zh]
         .filter(Boolean).join(' ').toLowerCase();
       const terms = searchText.split(/\s+/).filter(Boolean);
       if (!terms.every(t => haystack.includes(t))) return false;
@@ -1784,7 +1807,7 @@ function applyFilters() {
 }
 
 function updateFilterBadge() {
-  const count = [activeSeries, activeSchool, activeCategory, activeRarity, searchText]
+  const count = [activeSeries, activeSchool, activeCategory, activeRarity, activePosition, searchText]
     .filter(Boolean).length;
   const badge = document.getElementById('filter-badge');
   const badgeC = document.getElementById('filter-badge-compact');
