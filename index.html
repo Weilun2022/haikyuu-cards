@@ -1739,10 +1739,8 @@ function bindEvents() {
       if (Math.abs(delta) < window.innerHeight / 3) return;
       if (delta > 0 && y > 60) {
         wrapper.classList.add('header-hidden');
-        document.querySelector('.deck-tray').classList.add('tray-scroll-hidden');
       } else {
         wrapper.classList.remove('header-hidden');
-        document.querySelector('.deck-tray').classList.remove('tray-scroll-hidden');
       }
       lastY = y;
     }, { passive: true });
