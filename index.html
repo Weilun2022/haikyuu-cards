@@ -1157,7 +1157,7 @@
       <option value="監督">監督</option>
       <option value="コーチ">教練</option>
       <option value="元監督">前任監督</option>
-      <option value="マネージャー">經理人</option>
+      <option value="マネージャー">球隊經理</option>
       <option value="応援団長">啦啦隊長</option>
     </select>
   </div>
@@ -1499,6 +1499,7 @@ const RARITY_COLOR = {
   'P': '#f87171', 'K': '#e879f9', 'KP': '#f0abfc'
 };
 const RARITY_ORDER = ['秘','頂','S','R','N','D','P','K'];
+const RARITY_LABEL = { 'K': '極' };
 
 const SCHOOL_COLOR = {
   '烏野': '#f97316', '音駒': '#ef4444', '稲荷崎': '#a855f7',
@@ -1676,7 +1677,7 @@ function buildFilters() {
   RARITY_ORDER.filter(r => raritySet.includes(r)).forEach(r => {
     const opt = document.createElement('option');
     opt.value = r;
-    opt.textContent = r;
+    opt.textContent = RARITY_LABEL[r] || r;
     raritySel.appendChild(opt);
   });
 }
