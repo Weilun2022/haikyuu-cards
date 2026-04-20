@@ -2608,7 +2608,7 @@ function showDeckPreview(imageFile) {
       `<span class="deck-preview-stat-chip" style="color:${EVENT_COLOR_HEX}">事件牌</span>`;
   } else {
     document.getElementById('deck-preview-stats').innerHTML =
-      ['atk','rcv','tos','blk','srv'].map(k =>
+      ['srv','blk','rcv','tos','atk'].map(k =>
         card[k] != null
           ? `<span class="deck-preview-stat-chip">${STAT_LABELS[k]} <span>${card[k]}</span></span>`
           : ''
