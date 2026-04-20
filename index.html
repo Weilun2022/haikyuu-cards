@@ -1592,7 +1592,7 @@ const RARITY_COLOR = {
   'P': '#f87171', 'K': '#e879f9', 'KP': '#f0abfc'
 };
 const RARITY_ORDER = ['秘','頂','S','R','N','D','P','K'];
-const RARITY_LABEL = { 'K': '極' };
+const RARITY_LABEL = { 'K': '極', 'KP': '極P' };
 
 const SCHOOL_COLOR = {
   '烏野': '#f97316', '音駒': '#ef4444', '稲荷崎': '#a855f7',
@@ -1962,7 +1962,7 @@ function buildCardEl(card) {
     <div class="card-img-wrap">
       <img src="${imgSrc}" alt="${card.name || ''}" loading="lazy" onerror="this.classList.add('error')">
       <div class="img-placeholder" style="display:none"></div>
-      <div class="rarity-badge" style="color:${rarityColor}">${card.rarity || ''}</div>
+      <div class="rarity-badge" style="color:${rarityColor}">${RARITY_LABEL[card.rarity] || card.rarity || ''}</div>
       <input type="number" class="card-count-input${deckCount > 0 ? ' has-count' : ''}"
         id="input-${card.image_file}"
         data-img="${card.image_file}"
@@ -2064,7 +2064,7 @@ function openModal(card) {
 
   // Tags
   const tags = [];
-  if (card.rarity) tags.push(`<span class="tag" style="color:${rarityColor};border-color:${rarityColor}">${card.rarity}</span>`);
+  if (card.rarity) tags.push(`<span class="tag" style="color:${rarityColor};border-color:${rarityColor}">${RARITY_LABEL[card.rarity] || card.rarity}</span>`);
   if (card.school) tags.push(`<span class="tag" style="color:${schoolColor};border-color:${schoolColor}">${card.school}</span>`);
   if (card.category) tags.push(`<span class="tag">${CATEGORY_ZH[card.category] || card.category}</span>`);
   if (card.affiliation) tags.push(`<span class="tag">${card.affiliation}</span>`);
@@ -2600,7 +2600,7 @@ function showDeckPreview(imageFile) {
   document.getElementById('deck-preview-img').src = `images/${imageFile}`;
   document.getElementById('deck-preview-name').textContent = card.name || '（無名稱）';
   const rc = RARITY_COLOR[card.rarity] || '#888';
-  document.getElementById('deck-preview-sub').textContent = `${card.rarity || ''} · ${card.card_no || ''}`;
+  document.getElementById('deck-preview-sub').textContent = `${RARITY_LABEL[card.rarity] || card.rarity || ''} · ${card.card_no || ''}`;
   document.getElementById('deck-preview-sub').style.color = rc;
 
   const STAT_LABELS = { atk:'攻', blk:'攔', rcv:'接', tos:'舉', srv:'發' };
