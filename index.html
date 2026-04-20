@@ -65,7 +65,7 @@
       padding: 0 16px;
     }
     .filter-panel { flex: 1; min-width: 0; flex-wrap: nowrap; font-size: clamp(11px, 0.85vw, 13px); }
-    .deck-panel { height: 86vh; }
+    .deck-panel { max-height: 60vh; }
   }
 
   /* ── Search Row ── */
@@ -745,20 +745,87 @@
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.55);
     z-index: 160;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-end;
   }
-  .deck-panel-overlay.open { display: block; }
+  .deck-panel-overlay.open { display: flex; }
+
+  /* ── DECK PREVIEW FLOAT（在 DECK PANEL 外）── */
+  .deck-preview-float {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin: 0 0 8px;
+    padding: 12px;
+    gap: 12px;
+    align-items: flex-start;
+    position: relative;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    animation: fadeUp 0.18s ease;
+    flex-shrink: 0;
+  }
+  .deck-preview-float.show { display: flex; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .deck-preview-close {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-dim); border-radius: 50%;
+    width: 22px; height: 22px; font-size: 11px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .deck-preview-close:hover { border-color: var(--accent2); color: var(--accent2); }
+  .deck-preview-img {
+    width: clamp(64px, 18vw, 96px); flex-shrink: 0;
+    aspect-ratio: 63/88; object-fit: cover;
+    border-radius: 7px; background: var(--border);
+  }
+  .deck-preview-info {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column;
+    gap: clamp(3px, 0.8vw, 6px);
+  }
+  .deck-preview-name {
+    font-size: clamp(13px, 3.2vw, 17px); font-weight: 700;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding-right: 22px;
+  }
+  .deck-preview-sub { font-size: clamp(10px, 2.4vw, 13px); color: var(--text-dim); }
+  .deck-preview-stats { display: flex; gap: 4px; flex-wrap: wrap; }
+  .deck-preview-stat-chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 4px; padding: clamp(1px,0.3vw,2px) clamp(5px,1.2vw,8px);
+    font-size: clamp(10px, 2.4vw, 13px); color: var(--text-dim);
+  }
+  .deck-preview-stat-chip span { color: var(--text); font-weight: 700; }
+  .deck-preview-skill {
+    font-size: clamp(11px, 2.6vw, 14px); color: var(--text-dim);
+    line-height: 1.6; max-height: clamp(52px, 12vw, 72px); overflow-y: auto;
+  }
+  .deck-preview-skill::-webkit-scrollbar { width: 3px; }
+  .deck-preview-skill::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .deck-preview-count-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .deck-preview-count-label { font-size: clamp(10px, 2.4vw, 13px); color: var(--text-dim); }
+  .deck-preview-remove-btn {
+    margin-left: auto; background: none; border: 1px solid #444;
+    color: var(--text-dim); border-radius: 6px;
+    padding: 3px 8px; font-size: 10px; cursor: pointer; white-space: nowrap;
+  }
+  .deck-preview-remove-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 
   .deck-panel {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
     background: var(--surface);
     border-top: 1px solid var(--border);
     border-radius: 16px 16px 0 0;
-    max-height: 86vh;
+    max-height: 60vh;
     display: flex;
     flex-direction: column;
-    z-index: 161;
     animation: slideUp 0.25s ease;
+    flex-shrink: 0;
   }
   @keyframes slideUp {
     from { transform: translateY(100%); }
@@ -795,9 +862,31 @@
   .deck-panel-info { font-size: 11px; color: var(--text-dim); }
   .deck-panel-info .warn-orange { color: #fb923c; font-weight: 600; }
 
-  .deck-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 16px; }
-  .deck-card-list { display: flex; flex-direction: column; gap: 6px; }
-  .deck-empty { text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
+  .deck-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; }
+  .deck-card-list {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 5px;
+  }
+  .deck-empty { grid-column: 1 / -1; text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
+  .deck-thumb-item {
+    position: relative; cursor: pointer;
+    border-radius: 5px; overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.1s;
+    aspect-ratio: 63/88;
+    background: var(--surface2);
+  }
+  .deck-thumb-item:hover { transform: scale(1.05); }
+  .deck-thumb-item.selected { border-color: var(--accent) !important; }
+  .deck-thumb-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .deck-thumb-badge {
+    position: absolute; bottom: 2px; right: 2px;
+    background: rgba(0,0,0,0.82); border-radius: 3px;
+    padding: 0 3px; font-size: 8px; font-weight: 700; color: #fff;
+    display: flex; align-items: center; gap: 2px;
+  }
+  .deck-thumb-dot { width: 4px; height: 4px; border-radius: 50%; flex-shrink: 0; }
 
   .deck-card-item {
     display: flex; align-items: center; gap: 8px;
@@ -1176,6 +1265,25 @@
 
 <!-- ── Deck Panel ── -->
 <div class="deck-panel-overlay" id="deck-panel-overlay">
+  <!-- PREVIEW：浮在 DECK PANEL 外 -->
+  <div class="deck-preview-float" id="deck-preview-float">
+    <button class="deck-preview-close" id="deck-preview-close">✕</button>
+    <img class="deck-preview-img" id="deck-preview-img" src="" alt=""
+      onerror="this.style.background='var(--border)';this.removeAttribute('src')">
+    <div class="deck-preview-info">
+      <div class="deck-preview-name" id="deck-preview-name"></div>
+      <div class="deck-preview-sub" id="deck-preview-sub"></div>
+      <div class="deck-preview-stats" id="deck-preview-stats"></div>
+      <div class="deck-preview-skill" id="deck-preview-skill"></div>
+      <div class="deck-preview-count-row">
+        <span class="deck-preview-count-label">張數</span>
+        <button class="count-btn" id="deck-preview-dec">−</button>
+        <span class="count-num" id="deck-preview-count">1</span>
+        <button class="count-btn" id="deck-preview-inc">＋</button>
+        <button class="deck-preview-remove-btn" id="deck-preview-remove">從牌組移除</button>
+      </div>
+    </div>
+  </div>
   <div class="deck-panel" id="deck-panel">
     <div class="deck-panel-header">
       <div class="deck-panel-titlerow">
@@ -2365,6 +2473,8 @@ function openDeckPanel() {
 }
 function closeDeckPanel() {
   document.getElementById('deck-panel-overlay').classList.remove('open');
+  deckPreviewSelectedImg = null;
+  document.getElementById('deck-preview-float').classList.remove('show');
   if (colorModeActive) {
     colorModeActive = false;
     colorModeSlots = [];
@@ -2403,9 +2513,10 @@ function renderDeckPanel() {
   }
 
   const total = getTotalCount(deck);
-  document.getElementById('deck-panel-info-text').innerHTML = total > 40
-    ? `<span class="warn-orange">⚠ ${total} / 40</span>`
-    : `${total} / 40`;
+  const evCntInfo = getEventCount(deck);
+  const infoHtml = (total > 40 ? `<span class="warn-orange">⚠ ${total} / 40</span>` : `${total} / 40`)
+    + `　事件 ${evCntInfo} / 8`;
+  document.getElementById('deck-panel-info-text').innerHTML = infoHtml;
 
   // ── Color stats row ─────────────────────────────────────────────────
   const stats = getColorStats(deck);
@@ -2434,111 +2545,101 @@ function renderDeckPanel() {
     return;
   }
 
-  // ── Card list ────────────────────────────────────────────────────────
+  // ── 縮圖格 ──────────────────────────────────────────────────────────
   const existingGrid = document.getElementById('deck-color-grid');
   if (existingGrid) existingGrid.remove();
   list.style.display = '';
   list.innerHTML = '';
 
-  // Helper: build a single full card row element
-  function makeCardRow({ imageFile, card, displayName, rc, countContent, borderHex }) {
-    const imgSrc = card.image_file ? `images/${card.image_file}` : '';
-    const row = document.createElement('div');
-    row.className = 'deck-card-item';
-    if (borderHex) {
-      row.style.border = `2px solid ${borderHex}`;
-      row.style.background = hexToRgba(borderHex, 0.08);
-      row.style.borderRadius = '6px';
-      row.style.margin = '3px 6px';
-    }
-    row.innerHTML = `
-      <img class="deck-card-item-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--border)'">
-      <div class="deck-card-item-info">
-        <div class="deck-card-item-name">${displayName}</div>
-        <div class="deck-card-item-sub" style="color:${rc}">${card.rarity || ''} · ${card.card_no}</div>
-      </div>
-      ${countContent}`;
-    return row;
-  }
-
   deck.cards.forEach(entry => {
     const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
     const isEvent = card.category === 'EVENT';
-
     const colorMap = isEvent ? null : getCardColorMap(deck.id, entry.image_file);
 
-    const rc = RARITY_COLOR[card.rarity] || '#888';
-    const variant = getVariantCode(entry.image_file);
-    const displayName = (card.name || '（無名稱）') + (variant ? ` (${variant})` : '');
-
-    // ── 單列顯示（含事件卡、已上色卡片）帶 +/- 控制 ────────────────
-    let borderHex = null;
-    let colorDots = '';
-    if (isEvent) {
-      borderHex = EVENT_COLOR_HEX;
-    } else if (colorMap) {
+    let borderHex = isEvent ? EVENT_COLOR_HEX : null;
+    let dotHtml = '';
+    if (!isEvent && colorMap) {
       for (const { key, hex } of COLOR_TAGS) {
         if ((colorMap[key] || 0) > 0) { borderHex = hex; break; }
       }
-      colorDots = COLOR_TAGS
-        .filter(({ key }) => (colorMap[key] || 0) > 0)
-        .map(({ hex, key }) => `<span style="width:7px;height:7px;border-radius:50%;background:${hex};flex-shrink:0" title="${colorMap[key]}張"></span>`)
-        .join('');
+      const firstColor = COLOR_TAGS.find(({ key }) => (colorMap[key] || 0) > 0);
+      if (firstColor) dotHtml = `<span class="deck-thumb-dot" style="background:${firstColor.hex}"></span>`;
     }
-    const dotsHtml = colorDots
-      ? `<div style="display:flex;gap:3px;align-items:center;flex-shrink:0">${colorDots}</div>` : '';
-    const countContent = `
-      ${dotsHtml}
-      <div class="deck-card-item-count">
-        <button class="count-btn" data-action="dec" data-img="${entry.image_file}">−</button>
-        <input type="number" class="deck-count-input" data-img="${entry.image_file}" value="${entry.count}" min="1">
-        <button class="count-btn" data-action="inc" data-img="${entry.image_file}">＋</button>
-      </div>`;
-    list.appendChild(makeCardRow({ imageFile: entry.image_file, card, displayName, rc, countContent, borderHex: null }));
+
+    const thumb = document.createElement('div');
+    thumb.className = 'deck-thumb-item' + (entry.image_file === deckPreviewSelectedImg ? ' selected' : '');
+    if (borderHex && entry.image_file !== deckPreviewSelectedImg) thumb.style.borderColor = borderHex;
+    thumb.innerHTML = `
+      <img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">
+      <div class="deck-thumb-badge">${dotHtml}×${entry.count}</div>`;
+    thumb.addEventListener('click', () => showDeckPreview(entry.image_file));
+    list.appendChild(thumb);
   });
 
-  // ── 事件委派：+/- 按鈕 ───────────────────────────────────────────────
-  list.querySelectorAll('.count-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      const img = btn.dataset.img;
-      if (btn.dataset.action === 'inc') addCardToDeck(img, 1);
-      else removeCardFromDeck(img);
-      renderDeckPanel();
-    });
-  });
-
-  // ── 事件委派：數字輸入 ──────────────────────────────────────────────
-  list.querySelectorAll('.deck-count-input').forEach(input => {
-    input.addEventListener('change', e => {
-      const img = input.dataset.img;
-      const newCount = parseInt(input.value, 10);
-      if (isNaN(newCount) || newCount < 1) { input.value = 1; return; }
-      const d = getCurrentDeck();
-      if (!d) return;
-      const entry = d.cards.find(c => c.image_file === img);
-      if (!entry) return;
-      const otherTotal = getTotalCount(d) - entry.count;
-      if (newCount < entry.count) trimCardColorMap(d.id, img, newCount);
-      entry.count = newCount;
-      input.value = entry.count;
-      saveDecks();
-      refreshCardBadge(img);
-      updateTray();
-      const total2 = getTotalCount(d);
-      document.getElementById('deck-panel-info-text').innerHTML = total2 > 40
-        ? `<span class="warn-orange">⚠ ${total2} / 40</span>`
-        : `${total2} / 40`;
-      renderDeckPanel();
-    });
-  });
-
+  // 若 preview 選中的卡已不在牌組，隱藏 preview
+  if (deckPreviewSelectedImg && !deck.cards.find(c => c.image_file === deckPreviewSelectedImg)) {
+    hideDeckPreview();
+  }
 }
 
 let colorModeActive = false;
 let colorModeSlots = []; // { imageFile, slotIndex, color: key|null, isEvent }
 let colorModeSelectedIndices = new Set();
+
+// ── Deck Preview ───────────────────────────────────────
+let deckPreviewSelectedImg = null;
+
+function showDeckPreview(imageFile) {
+  deckPreviewSelectedImg = imageFile;
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  const entry = deck.cards.find(c => c.image_file === imageFile);
+  const card  = cards.find(c => c.image_file === imageFile);
+  if (!entry || !card) return;
+
+  const isEvent = card.category === 'EVENT';
+  document.getElementById('deck-preview-img').src = `images/${imageFile}`;
+  document.getElementById('deck-preview-name').textContent = card.name || '（無名稱）';
+  const rc = RARITY_COLOR[card.rarity] || '#888';
+  document.getElementById('deck-preview-sub').textContent = `${card.rarity || ''} · ${card.card_no || ''}`;
+  document.getElementById('deck-preview-sub').style.color = rc;
+
+  const STAT_LABELS = { atk:'攻', blk:'攔', rcv:'接', tos:'舉', srv:'發' };
+  if (isEvent) {
+    document.getElementById('deck-preview-stats').innerHTML =
+      `<span class="deck-preview-stat-chip" style="color:${EVENT_COLOR_HEX}">事件牌</span>`;
+  } else {
+    document.getElementById('deck-preview-stats').innerHTML =
+      ['atk','rcv','tos','blk','srv'].map(k =>
+        card[k] != null
+          ? `<span class="deck-preview-stat-chip">${STAT_LABELS[k]} <span>${card[k]}</span></span>`
+          : ''
+      ).join('');
+  }
+
+  const skillText = card.skill_zh || card.skill || '';
+  document.getElementById('deck-preview-skill').textContent = skillText;
+  document.getElementById('deck-preview-count').textContent = entry.count;
+  document.getElementById('deck-preview-float').classList.add('show');
+  renderDeckPanel();
+}
+
+function hideDeckPreview() {
+  deckPreviewSelectedImg = null;
+  document.getElementById('deck-preview-float').classList.remove('show');
+  renderDeckPanel();
+}
+
+function updateDeckInfoText() {
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  const total = getTotalCount(deck);
+  const evCnt = getEventCount(deck);
+  const infoHtml = (total > 40 ? `<span class="warn-orange">⚠ ${total} / 40</span>` : `${total} / 40`)
+    + `　事件 ${evCnt} / 8`;
+  document.getElementById('deck-panel-info-text').innerHTML = infoHtml;
+}
 
 
 // ── Export / Import ────────────────────────────────────
@@ -3244,6 +3345,41 @@ function bindDeckEvents() {
   document.getElementById('deck-panel-close').addEventListener('click', closeDeckPanel);
   document.getElementById('deck-panel-overlay').addEventListener('click', e => {
     if (e.target === document.getElementById('deck-panel-overlay')) closeDeckPanel();
+  });
+
+  // ── PREVIEW 按鈕 ──────────────────────────────────────
+  document.getElementById('deck-preview-close').addEventListener('click', hideDeckPreview);
+  document.getElementById('deck-preview-inc').addEventListener('click', () => {
+    if (!deckPreviewSelectedImg) return;
+    addCardToDeck(deckPreviewSelectedImg, 1);
+    updateDeckInfoText(); updateTray(); renderDeckPanel();
+    document.getElementById('deck-preview-count').textContent =
+      getCurrentDeck()?.cards.find(c => c.image_file === deckPreviewSelectedImg)?.count ?? '';
+  });
+  document.getElementById('deck-preview-dec').addEventListener('click', () => {
+    if (!deckPreviewSelectedImg) return;
+    const deck = getCurrentDeck();
+    const entry = deck?.cards.find(c => c.image_file === deckPreviewSelectedImg);
+    if (!entry) return;
+    if (entry.count > 1) {
+      removeCardFromDeck(deckPreviewSelectedImg);
+      updateDeckInfoText(); updateTray(); renderDeckPanel();
+      document.getElementById('deck-preview-count').textContent =
+        getCurrentDeck()?.cards.find(c => c.image_file === deckPreviewSelectedImg)?.count ?? '';
+    }
+  });
+  document.getElementById('deck-preview-remove').addEventListener('click', () => {
+    if (!deckPreviewSelectedImg) return;
+    const deck = getCurrentDeck();
+    if (!deck) return;
+    const entry = deck.cards.find(c => c.image_file === deckPreviewSelectedImg);
+    if (!entry) return;
+    deck.cards = deck.cards.filter(c => c.image_file !== deckPreviewSelectedImg);
+    trimCardColorMap(deck.id, deckPreviewSelectedImg, 0);
+    saveDecks();
+    refreshCardBadge(deckPreviewSelectedImg);
+    hideDeckPreview();
+    updateTray(); renderGrid();
   });
 
   document.getElementById('tray-deck-select').addEventListener('change', e => {
