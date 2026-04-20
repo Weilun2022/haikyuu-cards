@@ -2569,7 +2569,6 @@ function renderDeckPanel() {
 
     const thumb = document.createElement('div');
     thumb.className = 'deck-thumb-item' + (entry.image_file === deckPreviewSelectedImg ? ' selected' : '');
-    if (borderHex && entry.image_file !== deckPreviewSelectedImg) thumb.style.borderColor = borderHex;
     thumb.innerHTML = `
       <img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">
       <div class="deck-thumb-badge">${dotHtml}×${entry.count}</div>`;
