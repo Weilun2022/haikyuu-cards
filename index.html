@@ -3282,10 +3282,11 @@ function bindDeckEvents() {
     const deck = getCurrentDeck(); if (!deck) return;
     if (deck.id === QUICK_DECK_ID) { showToast('快速查詢牌組不可刪除'); return; }
     if (decks.length <= 1) {
-      deck.cards = []; saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
+      deck.cards = []; delete deckColorState[deck.id]; saveColorState(); saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
       showToast('牌組已清空'); return;
     }
     const idx = decks.findIndex(d => d.id === currentDeckId);
+    delete deckColorState[deck.id]; saveColorState();
     decks.splice(idx, 1);
     currentDeckId = decks[Math.max(0, idx - 1)].id;
     saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
@@ -3302,6 +3303,7 @@ function bindDeckEvents() {
     if (!confirm(`確定要清空「${deck.name}」的所有卡片嗎？此動作無法復原。`)) return;
     deck.cards = [];
     deck.owned = {};
+    delete deckColorState[deck.id]; saveColorState();
     saveDecks();
     renderDeckPanel(); updateTray(); renderGrid();
     showToast('已清空牌組');
