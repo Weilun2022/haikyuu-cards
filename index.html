@@ -1300,7 +1300,15 @@
       <div class="deck-panel-info" id="deck-panel-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span id="deck-panel-info-text"></span>
         <div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="tray-btn" id="deck-reorganize-btn" style="font-size:11px;padding:2px 8px">🔀 整理</button>
+          <select class="tray-btn" id="deck-reorganize-select" style="font-size:11px;padding:2px 6px;cursor:pointer">
+            <option value="color">🔀 顏色</option>
+            <option value="srv">發球↓</option>
+            <option value="blk">攔網↓</option>
+            <option value="tos">舉球↓</option>
+            <option value="atk">攻擊↓</option>
+            <option value="card_no">卡號</option>
+            <option value="rarity">稀有度</option>
+          </select>
           <button class="tray-btn" id="deck-color-mode-btn" style="font-size:11px;padding:2px 8px">🎨 上色</button>
         </div>
       </div>
@@ -3292,18 +3300,20 @@ function applyBatchColor(colorKey) {
 }
 
 // ── Reorganize Deck ─────────────────────────────────────
-function reorganizeDeck() {
+const RARITY_SORT_ORDER = { '秘':0, '頂P':1, '頂':2, 'S':3, 'R':4, 'N':5, 'D':6, 'P':7 };
+
+function reorganizeDeck(mode) {
   const deck = getCurrentDeck();
   if (!deck || deck.cards.length === 0) return;
 
-  // 決定每張卡的「主要顏色排序鍵」
-  // 順序：free(0) → receive(1) → set(2) → attack(3) → event(4) → 無色(5)
+  function getCard(entry) { return cards.find(c => c.image_file === entry.image_file); }
+
   function getColorOrder(entry) {
-    const card = cards.find(c => c.image_file === entry.image_file);
+    const card = getCard(entry);
     if (!card) return 99;
-    if (card.category === 'EVENT') return COLOR_TAGS.length; // 事件牌排在一般顏色後
+    if (card.category === 'EVENT') return COLOR_TAGS.length;
     const colorMap = getCardColorMap(deck.id, entry.image_file);
-    if (!colorMap) return COLOR_TAGS.length + 1; // 無顏色標籤排最後
+    if (!colorMap) return COLOR_TAGS.length + 1;
     let maxCnt = 0, maxIdx = COLOR_TAGS.length + 1;
     for (let i = 0; i < COLOR_TAGS.length; i++) {
       const cnt = colorMap[COLOR_TAGS[i].key] || 0;
@@ -3312,18 +3322,35 @@ function reorganizeDeck() {
     return maxIdx;
   }
 
+  const TOAST = { color:'已依顏色整理', srv:'已依發球值整理', blk:'已依攔網值整理',
+                  tos:'已依舉球值整理', atk:'已依攻擊值整理', card_no:'已依卡號整理', rarity:'已依稀有度整理' };
+
   deck.cards.sort((a, b) => {
-    const aOrd = getColorOrder(a);
-    const bOrd = getColorOrder(b);
-    if (aOrd !== bOrd) return aOrd - bOrd;
-    const ca = cards.find(x => x.image_file === a.image_file);
-    const cb = cards.find(x => x.image_file === b.image_file);
+    const ca = getCard(a), cb = getCard(b);
+    if (mode === 'color') {
+      const diff = getColorOrder(a) - getColorOrder(b);
+      if (diff !== 0) return diff;
+      return ((ca && ca.card_no) || '').localeCompare((cb && cb.card_no) || '');
+    }
+    if (mode === 'card_no') {
+      return ((ca && ca.card_no) || '').localeCompare((cb && cb.card_no) || '');
+    }
+    if (mode === 'rarity') {
+      const ra = RARITY_SORT_ORDER[ca && ca.rarity] ?? 99;
+      const rb = RARITY_SORT_ORDER[cb && cb.rarity] ?? 99;
+      if (ra !== rb) return ra - rb;
+      return ((ca && ca.card_no) || '').localeCompare((cb && cb.card_no) || '');
+    }
+    // 數值排序：srv / blk / tos / atk — 事件牌沒有數值排最後
+    const av = (ca && ca[mode]) ?? -1;
+    const bv = (cb && cb[mode]) ?? -1;
+    if (av !== bv) return bv - av;
     return ((ca && ca.card_no) || '').localeCompare((cb && cb.card_no) || '');
   });
 
   saveDecks();
   renderDeckPanel();
-  showToast('已依顏色整理！');
+  showToast(TOAST[mode] || '已整理');
 }
 
 // ── Bind Deck Events ────────────────────────────────────
@@ -3444,7 +3471,10 @@ function bindDeckEvents() {
       .catch(() => showToast('複製失敗，請手動複製'));
   });
 
-  document.getElementById('deck-reorganize-btn').addEventListener('click', reorganizeDeck);
+  document.getElementById('deck-reorganize-select').addEventListener('change', e => {
+    reorganizeDeck(e.target.value);
+    e.target.value = e.target.options[0].value; // 執行後重置回第一項
+  });
   document.getElementById('deck-color-mode-btn').addEventListener('click', toggleColorMode);
   document.getElementById('deck-color-picker-bar').querySelectorAll('.color-pick-btn').forEach(btn => {
     btn.addEventListener('click', () => applyBatchColor(btn.dataset.colorkey));
