@@ -1304,6 +1304,7 @@
             <option value="color">🔀 顏色</option>
             <option value="srv">發球↓</option>
             <option value="blk">攔網↓</option>
+            <option value="rcv">接球↓</option>
             <option value="tos">舉球↓</option>
             <option value="atk">攻擊↓</option>
             <option value="card_no">卡號</option>
@@ -3323,7 +3324,8 @@ function reorganizeDeck(mode) {
   }
 
   const TOAST = { color:'已依顏色整理', srv:'已依發球值整理', blk:'已依攔網值整理',
-                  tos:'已依舉球值整理', atk:'已依攻擊值整理', card_no:'已依卡號整理', rarity:'已依稀有度整理' };
+                  rcv:'已依接球值整理', tos:'已依舉球值整理', atk:'已依攻擊值整理',
+                  card_no:'已依卡號整理', rarity:'已依稀有度整理' };
 
   deck.cards.sort((a, b) => {
     const ca = getCard(a), cb = getCard(b);
