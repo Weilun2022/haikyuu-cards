@@ -2662,10 +2662,18 @@ function doImport(mode) {
     currentDeckId = decks.length ? decks[0].id : null;
     deckColorState = importedColors;
   } else {
-    iDecks.forEach(d => { if (!decks.find(x => x.id === d.id)) decks.push(d); });
+    iDecks.forEach(d => {
+      const existing = decks.find(x => x.id === d.id);
+      if (!existing) {
+        decks.push(d);
+      } else {
+        // 更新 owned 資料（保留本地有而匯入沒有的）
+        Object.assign(existing.owned, d.owned || {});
+      }
+    });
     if (!currentDeckId && decks.length) currentDeckId = decks[0].id;
     Object.keys(importedColors).forEach(id => {
-      if (!deckColorState[id]) deckColorState[id] = importedColors[id];
+      deckColorState[id] = importedColors[id];
     });
   }
   saveColorState();
@@ -2729,7 +2737,13 @@ function renderAnalysis() {
     const saveAnCount = e => {
       e.stopPropagation();
       const img = e.target.dataset.img;
-      const val = parseInt(e.target.value, 10);
+      const valStr = e.target.value.trim();
+      if (valStr === '') {
+        // focus 清空後未輸入就離開，還原原本持有數，不存 0
+        e.target.value = deck.owned[img] || 0;
+        return;
+      }
+      const val = parseInt(valStr, 10);
       deck.owned[img] = isNaN(val) || val < 0 ? 0 : val;
       e.target.value = deck.owned[img];   // 修正顯示（如輸入負數）
       saveDecks();
