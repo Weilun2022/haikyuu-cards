@@ -2557,21 +2557,11 @@ function renderDeckPanel() {
     const isEvent = card.category === 'EVENT';
     const colorMap = isEvent ? null : getCardColorMap(deck.id, entry.image_file);
 
-    let borderHex = isEvent ? EVENT_COLOR_HEX : null;
-    let dotHtml = '';
-    if (!isEvent && colorMap) {
-      for (const { key, hex } of COLOR_TAGS) {
-        if ((colorMap[key] || 0) > 0) { borderHex = hex; break; }
-      }
-      const firstColor = COLOR_TAGS.find(({ key }) => (colorMap[key] || 0) > 0);
-      if (firstColor) dotHtml = `<span class="deck-thumb-dot" style="background:${firstColor.hex}"></span>`;
-    }
-
     const thumb = document.createElement('div');
     thumb.className = 'deck-thumb-item' + (entry.image_file === deckPreviewSelectedImg ? ' selected' : '');
     thumb.innerHTML = `
       <img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">
-      <div class="deck-thumb-badge">${dotHtml}×${entry.count}</div>`;
+      <div class="deck-thumb-badge">×${entry.count}</div>`;
     thumb.addEventListener('click', () => showDeckPreview(entry.image_file));
     list.appendChild(thumb);
   });
