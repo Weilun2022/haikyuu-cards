@@ -2452,6 +2452,20 @@ function drawFromPile() {
   return img;
 }
 
+async function returnToPile(fromZone, cardData, position) {
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  removeFromZone(zones, fromZone, cardData.img);
+  if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
+  if (position === 'top') {
+    L.pile.push(cardData.img);
+  } else {
+    L.pile.unshift(cardData.img);
+  }
+  await pushZones(zones);
+  document.getElementById('self-deck').textContent = L.pile.length;
+  addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
+}
+
 function showDeckInfo() {
   toast(`牌庫剩 ${L.pile.length} 張 · 手牌 ${L.hand.length} 張`);
 }
@@ -2765,13 +2779,15 @@ function showZoneAction(zoneName, cardData) {
     openStack(zoneName, zones);
   });
   addBtn('收回手牌', () => moveCardFromStack(zoneName, cardData.img, 'hand'));
+  addBtn('放回牌堆（上方）', () => returnToPile(zoneName, cardData, 'top'));
+  addBtn('放回牌堆（下方）', () => returnToPile(zoneName, cardData, 'bottom'));
   addSep();
   ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
     addBtn(`→ ${ZONE_LABEL[z]}`, () => moveCard(zoneName, z, cardData));
   });
+  addBtn('→ 棄牌區', () => discardFromZone(zoneName, cardData));
 
-  document.getElementById('ha-discard-btn').textContent = '送至棄牌區';
-  document.getElementById('ha-discard-btn').onclick = () => { closeHandAction(); discardFromZone(zoneName, cardData); };
+  document.getElementById('ha-discard-btn').style.display = 'none';
   document.getElementById('hand-action-overlay').classList.add('open');
 }
 
