@@ -610,31 +610,58 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .z-slot.guts-target { animation: gutsTarget 1.1s ease-in-out infinite; }
 
-.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; position: relative; z-index: 10; }
-.z-peek {
-  position: absolute;
-  left: 0; right: 0;
+/* Horizontal card stack in zones */
+.z-hstack {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 5px;
-  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 6px;
 }
-.z-peek img {
+.z-hstack-card {
+  position: relative;
+  min-width: 22px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: flex .12s;
+}
+.z-hstack-card:not(:first-child) {
+  margin-left: -8px;
+  box-shadow: -2px 0 6px rgba(0,0,0,.6);
+}
+.z-hstack-card img {
   width: 100%; height: 100%;
   object-fit: cover;
-  object-position: bottom;
+  display: block;
 }
-.z-peek-name {
+.z-hstack-name {
   position: absolute;
-  bottom: 2px; left: 50%;
-  transform: translateX(-50%);
+  top: 3px; left: 0; right: 0;
   writing-mode: vertical-rl;
-  font-size: 9px;
+  font-size: 8px;
   color: #fff;
   text-shadow: 0 1px 3px #000;
   white-space: nowrap;
-  max-height: 90%;
   overflow: hidden;
+  text-align: center;
+  pointer-events: none;
+  z-index: 2;
+  height: calc(100% - 6px);
+}
+.z-hstack-tag {
+  position: absolute;
+  bottom: 2px; right: 2px;
+  font-size: 7px;
+  font-weight: 700;
+  background: rgba(0,0,0,.8);
+  color: var(--orange);
+  border-radius: 3px;
+  padding: 1px 3px;
+  z-index: 3;
   pointer-events: none;
 }
 .z-count {
@@ -1475,8 +1502,8 @@ const AVATAR_KEY = 'hv_avatar';
 
 const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
 
-const ZONE_NAMES  = ['serve','block','receive','toss','attack','event'];
-const ZONE_LABEL  = { serve:'發球區', block:'攔網區', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區' };
+const ZONE_NAMES  = ['serve','block','receive','toss','attack','event','set'];
+const ZONE_LABEL  = { serve:'發球區', block:'攔網區', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區', set:'氣牌區' };
 
 const PHASE_META = {
   serve:   { label:'發球階段', icon:'🏐', color:'#fb923c', bg:'rgba(251,146,60,.08)'  },
@@ -2008,38 +2035,74 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   slot.classList.remove('filled','opp','target','guts-target');
   if (isOpp) slot.classList.add('opp');
   slot.innerHTML = '';
+  slot.ondragover = null; slot.ondragleave = null; slot.ondrop = null;
+
   if (cardData?.img) {
     slot.classList.add('filled');
-    // Render guts peeks (bottom to top, so index 0 is deepest)
     const guts = cardData.guts || [];
-    guts.forEach((gutsImg, i) => {
-      const peek = document.createElement('div');
-      peek.className = 'z-peek';
-      peek.style.bottom = `calc(-${(guts.length - i) * 20}%)`;
-      peek.style.zIndex = i;
-      const pi = document.createElement('img');
-      pi.src = `images/${gutsImg}`; pi.loading = 'lazy';
-      peek.appendChild(pi);
+    // left→right: guts[0] (deepest) … guts[n-1] … top card
+    const allImgs = [...guts, cardData.img];
+
+    const hstack = document.createElement('div');
+    hstack.className = 'z-hstack';
+
+    allImgs.forEach((img, i) => {
+      const isTop = i === allImgs.length - 1;
+      const cardEl = document.createElement('div');
+      cardEl.className = 'z-hstack-card';
+
+      const cardImg = document.createElement('img');
+      cardImg.src = `images/${img}`; cardImg.loading = 'lazy';
+      cardEl.appendChild(cardImg);
+
       const nm = document.createElement('span');
-      nm.className = 'z-peek-name';
-      nm.textContent = allCards[gutsImg]?.name || gutsImg;
-      peek.appendChild(nm);
-      slot.appendChild(peek);
+      nm.className = 'z-hstack-name';
+      nm.textContent = allCards[img]?.name || img;
+      cardEl.appendChild(nm);
+
+      if (!isTop) {
+        const tag = document.createElement('span');
+        tag.className = 'z-hstack-tag';
+        tag.textContent = 'G';
+        cardEl.appendChild(tag);
+      }
+
+      cardEl.onclick = e => {
+        e.stopPropagation();
+        if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+        if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
+        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+      };
+
+      if (!isOpp) {
+        cardEl.draggable = true;
+        cardEl.addEventListener('dragstart', e => {
+          e.dataTransfer.effectAllowed = 'move';
+          dragData = { src: 'zone', zoneName, cardData };
+          e.dataTransfer.setData('text/plain', 'card');
+        });
+      }
+
+      hstack.appendChild(cardEl);
     });
-    // Top card
-    const img = document.createElement('img');
-    img.className = 'z-img'; img.src = `images/${cardData.img}`; img.loading = 'lazy';
-    img.style.position = 'relative'; img.style.zIndex = guts.length + 1;
-    slot.appendChild(img);
-    if (cardData.count > 1) {
-      const c = document.createElement('div'); c.className = 'z-count'; c.textContent = `×${cardData.count}`; slot.appendChild(c);
-    }
+
+    slot.appendChild(hstack);
+
+    // Slot-level click fallback (clicking slot border area)
     slot.onclick = e => {
-      e.stopPropagation();
-      if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
-      if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-      isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+      if (e.target === slot) {
+        e.stopPropagation();
+        if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+        if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
+        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+      }
     };
+
+    if (!isOpp) {
+      slot.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; slot.classList.add('guts-target'); };
+      slot.ondragleave = () => slot.classList.remove('guts-target');
+      slot.ondrop = e => { e.preventDefault(); slot.classList.remove('guts-target'); handleDrop(zoneName, true); };
+    }
   } else {
     const e = document.createElement('div'); e.className = 'z-empty'; e.textContent = '—'; slot.appendChild(e);
     slot.onclick = isOpp ? null : ev => {
@@ -2047,6 +2110,11 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       if (gutsHandIdx !== null) { toast('請點擊有角色的區域疊 Guts'); return; }
       onEmptyZoneClick(zoneName);
     };
+    if (!isOpp) {
+      slot.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; slot.classList.add('target'); };
+      slot.ondragleave = () => slot.classList.remove('target');
+      slot.ondrop = e => { e.preventDefault(); slot.classList.remove('target'); handleDrop(zoneName, false); };
+    }
   }
 }
 
@@ -2073,6 +2141,14 @@ function renderHand() {
       div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div); });
       div.addEventListener('mouseenter', () => schedulePreview(img));
       div.addEventListener('mouseleave', cancelPreview);
+      div.draggable = true;
+      div.addEventListener('dragstart', e => {
+        e.dataTransfer.effectAllowed = 'move';
+        dragData = { src: 'hand', idx, img };
+        e.dataTransfer.setData('text/plain', 'card');
+        setTimeout(() => div.style.opacity = '.4', 0);
+      });
+      div.addEventListener('dragend', () => { div.style.opacity = ''; });
       wrap.appendChild(div);
     });
   }
@@ -2132,6 +2208,20 @@ function highlightGutsTargets() {
 // CARD INTERACTION
 // ══════════════════════════════════════════════════════
 let selectedHandIdx = null;
+let dragData = null; // { src:'hand', idx, img } | { src:'zone', zoneName, cardData }
+
+async function handleDrop(targetZone, hasCards) {
+  if (!dragData) return;
+  const dd = dragData; dragData = null;
+  if (dd.src === 'hand') {
+    placeCard(dd.idx, targetZone);
+  } else if (dd.src === 'zone') {
+    if (dd.zoneName === targetZone) return;
+    const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+    const cardData = getZoneCard(zones, dd.zoneName);
+    if (cardData) moveCard(dd.zoneName, targetZone, cardData);
+  }
+}
 
 function onHandClick(idx, el) {
   if (selectedHandIdx === idx) {
@@ -2153,6 +2243,8 @@ function onHandClick(idx, el) {
   highlightTargetZones(cat);
 
   const items = [];
+  items.push({ icon:'🔍', label:'卡片詳細', fn: () => showDetail(img) });
+  items.push('sep');
   if (cat === 'CHARACTER') {
     items.push({ icon:'🏐', label:'→ 發球區',   fn: () => placeCard(idx,'serve') });
     items.push({ icon:'🛡', label:'→ 攔網區',  fn: () => placeCard(idx,'block') });
@@ -2169,7 +2261,6 @@ function onHandClick(idx, el) {
   }
   items.push('sep');
   items.push({ icon:'🗑', label:'棄牌',    fn: () => discardFromHand(idx), red: true });
-  items.push({ icon:'🔍', label:'卡片詳細', fn: () => showDetail(img) });
   showCtx(el, card?.name || img, items);
 }
 
@@ -2258,6 +2349,9 @@ async function moveCard(fromZone, toZone, cardData) {
   } else if (toZone === 'event') {
     if (!zones.event) zones.event = [];
     zones.event.push(cardData.img);
+  } else if (toZone === 'set') {
+    if (!zones.set) zones.set = [];
+    zones.set.push(cardData.img);
   } else {
     const old = zones[toZone];
     if (old?.img) {
@@ -2464,10 +2558,11 @@ function openStack(zoneName, zonesData) {
     handBtn.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, 'hand'); };
     btns.appendChild(handBtn);
     // Move to zone
-    ['serve','block','receive','toss','attack','event'].forEach(tz => {
+    ['serve','block','receive','toss','attack','event','drop'].forEach(tz => {
       if (tz === zoneName.split(':')[0] && i === 0) return;
       const b = document.createElement('button');
       b.className = 'btn xs';
+      if (tz === 'drop') b.style.color = 'var(--accent2)';
       b.textContent = `→${ZONE_LABEL[tz]}`;
       b.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, tz); };
       btns.appendChild(b);
@@ -2519,6 +2614,12 @@ async function moveCardFromStack(fromZone, img, toTarget) {
     } else if (toTarget === 'event') {
       if (!zones.event) zones.event = [];
       zones.event.push(img);
+    } else if (toTarget === 'set') {
+      if (!zones.set) zones.set = [];
+      zones.set.push(img);
+    } else if (toTarget === 'drop') {
+      if (!zones.drop) zones.drop = [];
+      zones.drop.push(img);
     } else {
       const old = zones[toTarget];
       if (old?.img) {
@@ -2608,7 +2709,7 @@ function closeCtx() { document.getElementById('ctx').classList.remove('open'); }
 // HELPERS
 // ══════════════════════════════════════════════════════
 function emptyZones() {
-  return { serve:null, block:[null,null,null], receive:null, toss:null, attack:null, event:[], drop:[] };
+  return { serve:null, block:[null,null,null], receive:null, toss:null, attack:null, event:[], drop:[], set:[] };
 }
 
 function sanitise(zones) {
