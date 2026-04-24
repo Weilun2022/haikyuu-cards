@@ -911,9 +911,24 @@
   .count-btn:hover { background: var(--accent); }
   .count-num { font-size: 13px; font-weight: 700; min-width: 18px; text-align: center; }
 
+  .deck-panel-footer-toggle {
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px 16px; border-top: 1px solid var(--border);
+    cursor: pointer; font-size: 11px; color: rgba(255,255,255,0.45);
+    gap: 5px; flex-shrink: 0; user-select: none;
+    transition: color 0.15s;
+  }
+  .deck-panel-footer-toggle:hover { color: rgba(255,255,255,0.75); }
+  .deck-panel-footer-toggle .toggle-arrow { transition: transform 0.2s; }
+  .deck-panel-footer-toggle.open .toggle-arrow { transform: rotate(180deg); }
   .deck-panel-footer {
-    padding: 10px 16px; border-top: 1px solid var(--border);
+    padding: 0 16px; border-top: none;
     display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+    max-height: 0; overflow: hidden;
+    transition: max-height 0.25s ease, padding 0.25s ease;
+  }
+  .deck-panel-footer.open {
+    max-height: 200px; padding: 10px 16px;
   }
 
   /* ── Analysis Overlay ── */
@@ -1340,7 +1355,10 @@
       <button class="color-pick-btn color-pick-clear" data-colorkey="" title="清除顏色">✕</button>
       <span class="color-pick-count" id="color-pick-count">已選 0 張</span>
     </div>
-    <div class="deck-panel-footer">
+    <div class="deck-panel-footer-toggle" id="deck-footer-toggle">
+      <span class="toggle-arrow">▲</span><span>工具</span>
+    </div>
+    <div class="deck-panel-footer" id="deck-panel-footer">
       <button class="tray-btn" id="deck-share-btn" style="width:100%">📲 QR Code 快速分享</button>
       <div style="display:flex;gap:8px;width:100%">
         <button class="tray-btn" id="deck-export-img-btn" style="flex:1">🖼️ 牌組轉圖片</button>
@@ -3415,6 +3433,13 @@ function reorganizeDeck(mode) {
 function bindDeckEvents() {
   document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
   document.getElementById('tray-analysis-btn').addEventListener('click', openAnalysis);
+
+  document.getElementById('deck-footer-toggle').addEventListener('click', () => {
+    const toggle = document.getElementById('deck-footer-toggle');
+    const footer = document.getElementById('deck-panel-footer');
+    const open = toggle.classList.toggle('open');
+    footer.classList.toggle('open', open);
+  });
 
   document.getElementById('deck-panel-close').addEventListener('click', closeDeckPanel);
   document.getElementById('deck-panel-overlay').addEventListener('click', e => {
