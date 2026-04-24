@@ -66,6 +66,7 @@
     }
     .filter-panel { flex: 1; min-width: 0; flex-wrap: nowrap; font-size: clamp(11px, 0.85vw, 13px); }
     .deck-panel { max-height: 60vh; max-width: 540px; width: 100%; align-self: center; }
+    .deck-panel.color-mode-open { max-height: 85vh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
   }
 
@@ -1084,6 +1085,7 @@
     outline: 2px solid var(--accent); border-radius: 6px;
     background: rgba(108,99,255,0.12) !important;
   }
+  .deck-panel.color-mode-open { max-height: 85vh; }
   .deck-color-picker-bar {
     display: none; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 10px 14px; background: var(--surface2);
@@ -3295,6 +3297,7 @@ function toggleColorMode() {
   btn.textContent = colorModeActive ? '✕ 結束上色' : '🎨 上色';
   btn.classList.toggle('active', colorModeActive);
   document.getElementById('deck-color-picker-bar').classList.toggle('show', colorModeActive);
+  document.getElementById('deck-panel').classList.toggle('color-mode-open', colorModeActive);
   document.getElementById('color-pick-count').textContent = '已選 0 張';
   renderDeckPanel();
 }
