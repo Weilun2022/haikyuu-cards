@@ -784,6 +784,7 @@
     width: clamp(64px, 18vw, 96px); flex-shrink: 0;
     aspect-ratio: 63/88; object-fit: cover;
     border-radius: 7px; background: var(--border);
+    cursor: zoom-in;
   }
   .deck-preview-info {
     flex: 1; min-width: 0;
@@ -3421,6 +3422,11 @@ function bindDeckEvents() {
   });
 
   // ── PREVIEW 按鈕 ──────────────────────────────────────
+  document.getElementById('deck-preview-img').addEventListener('click', () => {
+    if (!deckPreviewSelectedImg) return;
+    const card = cards.find(c => c.image_file === deckPreviewSelectedImg);
+    if (card) openModal(card);
+  });
   document.getElementById('deck-preview-close').addEventListener('click', hideDeckPreview);
   document.getElementById('deck-preview-inc').addEventListener('click', () => {
     if (!deckPreviewSelectedImg) return;
