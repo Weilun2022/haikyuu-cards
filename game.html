@@ -2096,16 +2096,17 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   if (cardData?.img) {
     slot.classList.add('filled');
     const guts = cardData.guts || [];
-    // left→right: guts[0] (deepest) … guts[n-1] … top card
-    const allImgs = [...guts, cardData.img];
+    // left→right: top card first, then guts from newest to oldest
+    const allImgs = [cardData.img, ...guts.slice().reverse()];
 
     const hstack = document.createElement('div');
     hstack.className = 'z-hstack';
 
     allImgs.forEach((img, i) => {
-      const isTop = i === allImgs.length - 1;
+      const isTop = i === 0;
       const cardEl = document.createElement('div');
       cardEl.className = 'z-hstack-card';
+      cardEl.style.zIndex = allImgs.length - i;
 
       const cardImg = document.createElement('img');
       cardImg.src = `images/${img}`; cardImg.loading = 'lazy';
@@ -2723,7 +2724,9 @@ function showHandAction(idx) {
     actions.appendChild(b);
   });
 
-  document.getElementById('ha-discard-btn').onclick = () => { closeHandAction(); discardFromHand(idx); };
+  const discardBtn = document.getElementById('ha-discard-btn');
+  discardBtn.style.display = '';
+  discardBtn.onclick = () => { closeHandAction(); discardFromHand(idx); };
   highlightTargetZones(cat);
   document.getElementById('hand-action-overlay').classList.add('open');
 }
