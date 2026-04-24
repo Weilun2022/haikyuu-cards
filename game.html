@@ -463,17 +463,30 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .phase-icon { font-size: 14px; }
 
-/* Turn badge */
-.turn-badge {
-  font-size: 11px;
+/* Turn badge (header, kept for layout) */
+.turn-badge { display: none; }
+
+/* Top-left turn indicator */
+#turn-indicator {
+  position: fixed;
+  top: 54px;
+  left: 8px;
+  z-index: 500;
+  font-size: 13px;
   font-weight: 700;
-  border-radius: 6px;
-  padding: 4px 10px;
+  padding: 5px 14px;
+  border-radius: 8px;
   background: var(--surface2);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   color: var(--text-dim);
+  pointer-events: none;
+  transition: background .2s, border-color .2s, color .2s;
 }
-.turn-badge.my { background: rgba(108,99,255,.12); border-color: var(--accent); color: var(--accent); }
+#turn-indicator.my {
+  background: rgba(108,99,255,.15);
+  border-color: var(--accent);
+  color: var(--accent);
+}
 
 .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 
@@ -582,7 +595,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s;
   min-height: 0;
@@ -617,13 +630,13 @@ input[type=text]::placeholder { color: var(--text-dim); }
   align-items: center;
   width: 100%;
   height: 100%;
-  overflow: visible;
+  overflow: hidden;
   padding: 2px 4px;
 }
 .z-hstack-card {
   position: relative;
   flex: 0 0 auto;
-  height: 120%;
+  height: 90%;
   aspect-ratio: 5 / 7;
   overflow: hidden;
   border-radius: 5px;
@@ -636,7 +649,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   margin-left: -32%;
 }
 .z-hstack-card:hover {
-  transform: translateY(-12px) scale(1.08);
+  transform: scale(1.08);
   z-index: 20;
 }
 .z-hstack-card img {
@@ -1314,6 +1327,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 <!-- ══════════════════════ SCREEN: GAME ══════════════════════ -->
 <div id="screen-game" class="screen">
+<div id="turn-indicator">—</div>
   <!-- Header -->
   <div id="game-header">
     <div class="game-score">
@@ -1948,24 +1962,23 @@ function updatePhaseUI(phase, turn) {
   document.getElementById('h-phase').textContent = meta.label;
 
   const isMyTurn = turn === myRole;
-  const turnBadge = document.getElementById('turn-badge');
   const endBtn = document.getElementById('end-turn-btn');
   const selfArea = document.getElementById('self-area');
+  const turnIndicator = document.getElementById('turn-indicator');
 
   if (isMyTurn) {
-    const phaseLabelNext = phase === 'receive' ? '結束回合' : (PHASE_META[phase === 'serve' ? 'block' : 'receive']?.label || '');
-    endBtn.textContent = phase === 'receive' ? '結束回合 ▶' : `→ ${phaseLabelNext}`;
+    endBtn.textContent = '結束回合 ▶';
     endBtn.classList.remove('opp-turn');
-    turnBadge.textContent = '我的手番';
-    turnBadge.className = 'turn-badge my';
     selfArea.classList.add('my-turn-glow');
+    turnIndicator.textContent = '我的回合';
+    turnIndicator.className = 'my';
   } else {
-    endBtn.textContent = '對手手番中...';
+    endBtn.textContent = '對手回合中...';
     endBtn.classList.add('opp-turn');
     const oppRole = myRole === 'host' ? 'guest' : 'host';
     const oppName = gameState?.players?.[oppRole]?.name || '對手';
-    turnBadge.textContent = oppName + ' 的手番';
-    turnBadge.className = 'turn-badge';
+    turnIndicator.textContent = oppName + ' 的回合';
+    turnIndicator.className = '';
     selfArea.classList.remove('my-turn-glow');
   }
 
@@ -1978,29 +1991,12 @@ function updatePhaseUI(phase, turn) {
 // END TURN
 // ══════════════════════════════════════════════════════
 async function endTurn() {
-  if (gameState?.turn !== myRole) { toast('現在是對手的手番'); return; }
-  const phases = ['serve', 'block', 'receive'];
-  const cur = phases.indexOf(gameState?.phase || 'serve');
-  if (cur < 2) {
-    const next = phases[cur + 1];
-    await db.ref(`games/${roomId}/phase`).set(next);
-    if (next === 'receive') {
-      drawFromPile();
-      document.getElementById('self-deck').textContent = L.pile.length;
-      renderHand();
-      addLog(L.name, `接球階段開始 — 自動抽1張（手牌 ${L.hand.length} 張）`);
-    } else {
-      addLog(L.name, `階段推進 → ${PHASE_META[next].label}`);
-    }
-    flashPhase(next);
-  } else {
-    const oppRole = myRole === 'host' ? 'guest' : 'host';
-    await db.ref(`games/${roomId}/turn`).set(oppRole);
-    await db.ref(`games/${roomId}/phase`).set('serve');
-    const oppName = gameState?.players?.[oppRole]?.name || '對手';
-    addLog(L.name, `🔄 回合結束 → ${oppName} 的發球階段`);
-    flashPhase('serve');
-  }
+  if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
+  const oppRole = myRole === 'host' ? 'guest' : 'host';
+  await db.ref(`games/${roomId}/turn`).set(oppRole);
+  await db.ref(`games/${roomId}/phase`).set('serve');
+  const oppName = gameState?.players?.[oppRole]?.name || '對手';
+  addLog(L.name, `🔄 回合結束 → ${oppName} 的回合`);
 }
 
 function flashPhase(phase) {
@@ -2128,7 +2124,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         e.stopPropagation();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+        isOpp ? openOppStack(zoneName) : onZoneClick(zoneName, cardData, slot);
       };
 
       if (!isOpp) {
@@ -2151,7 +2147,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         e.stopPropagation();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+        isOpp ? openOppStack(zoneName) : onZoneClick(zoneName, cardData, slot);
       }
     };
 
@@ -2453,6 +2449,19 @@ function drawFromPile() {
   return img;
 }
 
+function returnHandToPile(idx, position) {
+  const img = L.hand.splice(idx, 1)[0];
+  if (!img) return;
+  if (position === 'top') {
+    L.pile.push(img);
+  } else {
+    L.pile.unshift(img);
+  }
+  document.getElementById('self-deck').textContent = L.pile.length;
+  addLog(L.name, `${allCards[img]?.name || img} 從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
+  renderHand();
+}
+
 async function returnToPile(fromZone, cardData, position) {
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   removeFromZone(zones, fromZone, cardData.img);
@@ -2539,13 +2548,13 @@ function renderLog(log) {
 // ══════════════════════════════════════════════════════
 // STACK VIEWER
 // ══════════════════════════════════════════════════════
-function openStack(zoneName, zonesData) {
+function openStack(zoneName, zonesData, readOnly = false) {
   const zoneCard = getZoneCard(zonesData, zoneName);
   if (!zoneCard) return;
   const all = [zoneCard.img, ...(zoneCard.guts || []).slice().reverse()];
   // all[0] = top card, all[last] = bottom
   document.getElementById('stack-title').textContent =
-    `${ZONE_LABEL[zoneName.split(':')[0]]} 牌堆（${all.length}張）`;
+    `${ZONE_LABEL[zoneName.split(':')[0]]} 牌堆（${all.length}張）` + (readOnly ? '　【對手】' : '');
   const wrap = document.getElementById('stack-list');
   wrap.innerHTML = '';
   all.forEach((img, i) => {
@@ -2559,31 +2568,38 @@ function openStack(zoneName, zonesData) {
     lbl.className = 'stack-lbl';
     lbl.textContent = (i === 0 ? '【頂牌】' : `【Guts ${i}】`) + (allCards[img]?.name || img);
     info.appendChild(lbl);
-    // Move buttons
-    const btns = document.createElement('div');
-    btns.className = 'stack-btns';
-    // Return to hand
-    const handBtn = document.createElement('button');
-    handBtn.className = 'btn xs';
-    handBtn.textContent = '收回手牌';
-    handBtn.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, 'hand'); };
-    btns.appendChild(handBtn);
-    // Move to zone
-    ['serve','block','receive','toss','attack','event','drop'].forEach(tz => {
-      if (tz === zoneName.split(':')[0] && i === 0) return;
-      const b = document.createElement('button');
-      b.className = 'btn xs';
-      if (tz === 'drop') b.style.color = 'var(--accent2)';
-      b.textContent = `→${ZONE_LABEL[tz]}`;
-      b.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, tz); };
-      btns.appendChild(b);
-    });
-    info.appendChild(btns);
+    if (!readOnly) {
+      // Move buttons (own cards only)
+      const btns = document.createElement('div');
+      btns.className = 'stack-btns';
+      const handBtn = document.createElement('button');
+      handBtn.className = 'btn xs';
+      handBtn.textContent = '收回手牌';
+      handBtn.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, 'hand'); };
+      btns.appendChild(handBtn);
+      ['serve','block','receive','toss','attack','event','drop'].forEach(tz => {
+        if (tz === zoneName.split(':')[0] && i === 0) return;
+        const b = document.createElement('button');
+        b.className = 'btn xs';
+        if (tz === 'drop') b.style.color = 'var(--accent2)';
+        b.textContent = `→${ZONE_LABEL[tz]}`;
+        b.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, tz); };
+        btns.appendChild(b);
+      });
+      info.appendChild(btns);
+    }
     row.appendChild(thumb);
     row.appendChild(info);
     wrap.appendChild(row);
   });
   document.getElementById('stack-overlay').classList.add('open');
+}
+
+function openOppStack(zoneName) {
+  const oppRole = myRole === 'host' ? 'guest' : 'host';
+  const oppZones = gameState?.players?.[oppRole]?.zones;
+  if (!oppZones) return;
+  openStack(zoneName, oppZones, true);
 }
 
 function closeStack() {
@@ -2721,6 +2737,18 @@ function showHandAction(idx) {
     b.className = 'btn sm';
     b.textContent = def.label;
     b.onclick = () => { closeHandAction(); def.fn(); };
+    actions.appendChild(b);
+  });
+
+  // 放回牌堆按鈕
+  const sep2 = document.createElement('div');
+  sep2.style.cssText = 'width:100%;border-top:1px solid var(--border);margin:2px 0';
+  actions.appendChild(sep2);
+  ['top','bottom'].forEach(pos => {
+    const b = document.createElement('button');
+    b.className = 'btn sm';
+    b.textContent = pos === 'top' ? '放回牌堆（上方）' : '放回牌堆（下方）';
+    b.onclick = () => { closeHandAction(); returnHandToPile(idx, pos); };
     actions.appendChild(b);
   });
 
