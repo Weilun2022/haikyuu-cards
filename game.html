@@ -7,6 +7,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="cards_data.js"></script>
 <style>
 /* ── Base ── */
 :root {
@@ -581,7 +582,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s;
   min-height: 0;
@@ -609,29 +610,32 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .z-slot.guts-target { animation: gutsTarget 1.1s ease-in-out infinite; }
 
-.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; position: relative; z-index: 1; }
-.z-guts-peek {
+.z-img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; display: block; position: relative; z-index: 10; }
+.z-peek {
   position: absolute;
-  inset: 3px;
-  border-radius: 5px;
+  left: 0; right: 0;
+  height: 100%;
   overflow: hidden;
-  transform: translate(-4px, 4px) rotate(-4deg);
-  z-index: 0;
-  opacity: .75;
-  border: 1px solid var(--orange);
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,.15);
 }
-.z-guts-peek img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.z-guts {
+.z-peek img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: bottom;
+}
+.z-peek-name {
   position: absolute;
-  bottom: 2px; right: 2px;
-  background: rgba(0,0,0,.8);
-  border-radius: 4px;
-  padding: 1px 5px;
+  bottom: 2px; left: 50%;
+  transform: translateX(-50%);
+  writing-mode: vertical-rl;
   font-size: 9px;
-  color: var(--orange);
-  font-weight: 800;
-  backdrop-filter: blur(4px);
-  z-index: 2;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
+  white-space: nowrap;
+  max-height: 90%;
+  overflow: hidden;
+  pointer-events: none;
 }
 .z-count {
   position: absolute;
@@ -644,6 +648,111 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-weight: 700;
 }
 .z-empty { font-size: 10px; color: var(--border); }
+
+/* Stack overlay */
+#stack-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(3px);
+}
+#stack-overlay.open { display: flex; }
+#stack-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 280px;
+  max-width: 360px;
+  max-height: 80vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#stack-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+#stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stack-row { display: flex; gap: 10px; align-items: flex-start; background: var(--surface2); border-radius: 8px; padding: 8px; }
+.stack-row img { width: 48px; height: 67px; object-fit: cover; border-radius: 5px; flex-shrink: 0; }
+.stack-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.stack-lbl { font-size: 12px; color: var(--text); }
+.stack-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.stack-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  background: var(--zone-bg);
+  border: 1px solid var(--border);
+}
+.stack-card-row img {
+  width: 40px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.stack-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.stack-card-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stack-card-tag {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent);
+  background: rgba(255,255,255,.07);
+  padding: 1px 6px;
+  border-radius: 3px;
+  display: inline-block;
+  width: fit-content;
+}
+.stack-card-tag.guts { color: var(--orange); }
+.stack-move-btn {
+  font-size: 10px;
+  padding: 3px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stack-move-btn:hover { border-color: var(--accent); color: var(--accent); }
+.stack-move-select {
+  font-size: 10px;
+  padding: 3px 6px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  color: var(--text);
+  margin-top: 4px;
+}
 
 /* Net */
 .net-div { flex-shrink: 0; height: 20px; display: flex; align-items: center; gap: 8px; }
@@ -659,10 +768,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: flex;
   align-items: center;
   gap: 6px;
-  overflow-x: auto;
+  overflow: visible;
   min-height: 100px;
-  max-height: 114px;
+  max-height: 120px;
   position: relative;
+}
+#hand-cards {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: visible;
+  flex: 1;
+  align-items: flex-end;
+  padding-bottom: 4px;
+  padding-top: 12px;
 }
 .hand-lbl {
   font-size: 9px;
@@ -1137,16 +1257,16 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
     <div class="phase-pill" id="phase-pill">
       <span class="phase-icon" id="phase-icon">🏐</span>
-      <span id="h-phase">サーブターン</span>
+      <span id="h-phase">發球階段</span>
     </div>
 
     <div class="turn-badge" id="turn-badge">—</div>
 
     <div class="header-right">
       <button class="btn sm" onclick="drawCard()" title="抽牌 (D)">抽牌</button>
-      <button class="btn sm end-turn" id="end-turn-btn" onclick="endTurn()" title="結束回合 / 下一フェイズ">結束フェイズ ▶</button>
+      <button class="btn sm end-turn" id="end-turn-btn" onclick="endTurn()" title="結束回合 / 下一階段">結束階段 ▶</button>
       <button class="btn sm" onclick="openDropViewer('self')">棄牌區</button>
-      <button class="btn sm danger" onclick="declareLost()" title="ロスト宣告">ロスト</button>
+      <button class="btn sm danger" onclick="declareLost()" title="宣告失敗">失敗宣告</button>
     </div>
   </div>
 
@@ -1161,30 +1281,30 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <span class="area-name" id="opp-lbl">對手</span>
         <!-- Left: Set -->
         <div class="board-side">
-          <div class="info-tile"><div class="t-label">セット</div><div class="t-val" id="opp-set">?</div></div>
+          <div class="info-tile"><div class="t-label">組數</div><div class="t-val" id="opp-set">?</div></div>
         </div>
         <!-- Court (reversed: block near net = bottom of opp area) -->
         <div class="board-court opp-court">
           <div class="court-row">
-            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">センターブロッカー</div><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk opp" id="opp-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row">
-            <div class="zone-w"><div class="z-label lbl-rcv">レシーブ</div><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-tos">トス</div><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-atk">アタック</div><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-rcv">接球</div><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-tos">舉球</div><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
             <div class="zone-spacer"></div>
-            <div class="zone-w"><div class="z-label lbl-srv">サーブ</div><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">イベント</div><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
         <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile"><div class="t-label">デッキ</div><div class="t-val" id="opp-deck">?</div></div>
-          <div class="info-tile clickable" onclick="openDropViewer('opp')"><div class="t-label">ドロップ</div><div class="t-val" id="opp-drop">0</div></div>
+          <div class="info-tile"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('opp')"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
         </div>
       </div>
 
@@ -1196,30 +1316,30 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <span class="area-name self" id="self-lbl">自己</span>
         <!-- Left: Set -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="adjustSet()"><div class="t-label">セット</div><div class="t-val" id="self-set">5</div></div>
+          <div class="info-tile clickable" onclick="adjustSet()"><div class="t-label">組數</div><div class="t-val" id="self-set">5</div></div>
         </div>
         <!-- Court (block on top = near net) -->
         <div class="board-court" id="self-court">
           <div class="court-row">
-            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">センターブロッカー</div><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">サイドブロッカー</div><div class="z-slot z-blk" id="self-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk" id="self-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row">
-            <div class="zone-w"><div class="z-label lbl-rcv">レシーブ</div><div class="z-slot z-rcv" id="self-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-tos">トス</div><div class="z-slot z-tos" id="self-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-atk">アタック</div><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-rcv">接球</div><div class="z-slot z-rcv" id="self-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-tos">舉球</div><div class="z-slot z-tos" id="self-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
             <div class="zone-spacer"></div>
-            <div class="zone-w"><div class="z-label lbl-srv">サーブ</div><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">イベント</div><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
         <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="showDeckInfo()"><div class="t-label">デッキ</div><div class="t-val" id="self-deck">40</div></div>
-          <div class="info-tile clickable" onclick="openDropViewer('self')"><div class="t-label">ドロップ</div><div class="t-val" id="self-drop">0</div></div>
+          <div class="info-tile clickable" onclick="showDeckInfo()"><div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('self')"><div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div></div>
         </div>
       </div>
     </div>
@@ -1227,7 +1347,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <!-- Sidebar -->
     <div id="sidebar">
       <div class="sb-section">
-        <div class="sb-title">セット戦績</div>
+        <div class="sb-title">局數戰績</div>
         <div class="sets-grid">
           <div class="set-box" id="sb-box-host">
             <div class="sb-av" id="sb-host-av">🏐</div>
@@ -1261,9 +1381,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <div class="phase-row">
           <select id="phase-sel">
-            <option value="serve">サーブターン</option>
-            <option value="block">ブロックターン</option>
-            <option value="receive">レシーブターン</option>
+            <option value="serve">發球階段</option>
+            <option value="block">攔網階段</option>
+            <option value="receive">接球階段</option>
           </select>
           <button class="btn xs" onclick="setPhase()">設定</button>
         </div>
@@ -1309,6 +1429,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
   </div>
 </div>
 
+<!-- Stack viewer -->
+<div id="stack-overlay" onclick="closeStack()">
+  <div id="stack-modal" onclick="event.stopPropagation()">
+    <div id="stack-title"></div>
+    <div id="stack-list"></div>
+    <button class="btn sm" onclick="closeStack()" style="align-self:flex-end">關閉</button>
+  </div>
+</div>
+
 <!-- Drop viewer -->
 <div id="drop-overlay" onclick="closeDropViewer()">
   <div id="drop-box" onclick="event.stopPropagation()">
@@ -1347,12 +1476,12 @@ const AVATAR_KEY = 'hv_avatar';
 const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
 
 const ZONE_NAMES  = ['serve','block','receive','toss','attack','event'];
-const ZONE_LABEL  = { serve:'サーブ', block:'ブロック', receive:'レシーブ', toss:'トス', attack:'アタック', event:'イベント', drop:'棄牌' };
+const ZONE_LABEL  = { serve:'發球區', block:'攔網區', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區' };
 
 const PHASE_META = {
-  serve:   { label:'サーブターン',   icon:'🏐', color:'#fb923c', bg:'rgba(251,146,60,.08)'  },
-  block:   { label:'ブロックターン', icon:'🛡️', color:'#60a5fa', bg:'rgba(96,165,250,.08)' },
-  receive: { label:'レシーブターン', icon:'🤝', color:'#4ade80', bg:'rgba(74,222,128,.08)'  },
+  serve:   { label:'發球階段', icon:'🏐', color:'#fb923c', bg:'rgba(251,146,60,.08)'  },
+  block:   { label:'攔網階段', icon:'🛡️', color:'#60a5fa', bg:'rgba(96,165,250,.08)' },
+  receive: { label:'接球階段', icon:'🤝', color:'#4ade80', bg:'rgba(74,222,128,.08)'  },
 };
 
 // ══════════════════════════════════════════════════════
@@ -1384,10 +1513,10 @@ async function init() {
   buildAvatarPicker();
 
   try {
-    const res = await fetch('./cards_zh.json');
-    const data = await res.json();
-    data.cards.forEach(c => { allCards[c.image_file] = c; });
-  } catch (e) { console.warn('cards_zh.json not found – card details unavailable'); }
+    if (typeof CARDS_DATA !== 'undefined') {
+      CARDS_DATA.cards.forEach(c => { allCards[c.image_file] = c; });
+    }
+  } catch (e) { console.warn('CARDS_DATA not available'); }
 
   const saved = localStorage.getItem(CONFIG_KEY);
   if (saved) {
@@ -1681,7 +1810,7 @@ function showOppNotification(player, action) {
   const n = document.createElement('div');
   n.className = 'notif';
 
-  const icon = action.includes('ロスト') ? '⚡' : action.includes('抽牌') ? '🃏' : action.includes('棄') ? '🗑' : '📋';
+  const icon = action.includes('失敗宣告') ? '⚡' : action.includes('抽牌') ? '🃏' : action.includes('棄') ? '🗑' : '📋';
   n.innerHTML = `<span class="notif-icon">${icon}</span><span class="notif-text"><span class="notif-player">${esc(player)}</span> ${esc(action)}</span>`;
   wrap.appendChild(n);
   requestAnimationFrame(() => n.classList.add('show'));
@@ -1696,7 +1825,7 @@ function showOppNotification(player, action) {
 // ══════════════════════════════════════════════════════
 function startGame() {
   if (!gameState?.players?.guest) { toast('等待對手加入'); return; }
-  db.ref(`games/${roomId}/started`).set(true);
+  db.ref(`games/${roomId}`).update({ started: true, turn: 'host', phase: 'serve' });
   enterGame();
 }
 
@@ -1772,14 +1901,21 @@ async function endTurn() {
   if (cur < 2) {
     const next = phases[cur + 1];
     await db.ref(`games/${roomId}/phase`).set(next);
-    addLog(L.name, `フェイズ進行 → ${PHASE_META[next].label}`);
+    if (next === 'receive') {
+      drawFromPile();
+      document.getElementById('self-deck').textContent = L.pile.length;
+      renderHand();
+      addLog(L.name, `接球階段開始 — 自動抽1張（手牌 ${L.hand.length} 張）`);
+    } else {
+      addLog(L.name, `階段推進 → ${PHASE_META[next].label}`);
+    }
     flashPhase(next);
   } else {
     const oppRole = myRole === 'host' ? 'guest' : 'host';
     await db.ref(`games/${roomId}/turn`).set(oppRole);
     await db.ref(`games/${roomId}/phase`).set('serve');
     const oppName = gameState?.players?.[oppRole]?.name || '對手';
-    addLog(L.name, `🔄 回合結束 → ${oppName} 的サーブターン`);
+    addLog(L.name, `🔄 回合結束 → ${oppName} 的發球階段`);
     flashPhase('serve');
   }
 }
@@ -1874,21 +2010,34 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   slot.innerHTML = '';
   if (cardData?.img) {
     slot.classList.add('filled');
+    // Render guts peeks (bottom to top, so index 0 is deepest)
+    const guts = cardData.guts || [];
+    guts.forEach((gutsImg, i) => {
+      const peek = document.createElement('div');
+      peek.className = 'z-peek';
+      peek.style.bottom = `calc(-${(guts.length - i) * 20}%)`;
+      peek.style.zIndex = i;
+      const pi = document.createElement('img');
+      pi.src = `images/${gutsImg}`; pi.loading = 'lazy';
+      peek.appendChild(pi);
+      const nm = document.createElement('span');
+      nm.className = 'z-peek-name';
+      nm.textContent = allCards[gutsImg]?.name || gutsImg;
+      peek.appendChild(nm);
+      slot.appendChild(peek);
+    });
+    // Top card
     const img = document.createElement('img');
     img.className = 'z-img'; img.src = `images/${cardData.img}`; img.loading = 'lazy';
+    img.style.position = 'relative'; img.style.zIndex = guts.length + 1;
     slot.appendChild(img);
-    if (cardData.guts?.length) {
-      const peek = document.createElement('div'); peek.className = 'z-guts-peek';
-      const pi = document.createElement('img'); pi.src = `images/${cardData.guts[cardData.guts.length-1]}`; pi.loading = 'lazy';
-      peek.appendChild(pi); slot.appendChild(peek);
-      const g = document.createElement('div'); g.className = 'z-guts'; g.textContent = `G:${cardData.guts.length}`; slot.appendChild(g);
-    }
     if (cardData.count > 1) {
       const c = document.createElement('div'); c.className = 'z-count'; c.textContent = `×${cardData.count}`; slot.appendChild(c);
     }
     slot.onclick = e => {
       e.stopPropagation();
       if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+      if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
       isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
     };
   } else {
@@ -1961,7 +2110,7 @@ function highlightTargetZones(category) {
   const validZones = category === 'EVENT'
     ? ['event']
     : ['serve','receive','toss','attack','block:0','block:1','block:2'];
-  document.querySelectorAll('#self-court .z-slot:not(.filled)').forEach(slot => {
+  document.querySelectorAll('#self-court .z-slot').forEach(slot => {
     const zn = slot.dataset.zone || '';
     const base = zn.split(':')[0];
     if (validZones.includes(zn) || validZones.includes(base)) slot.classList.add('target');
@@ -2005,18 +2154,18 @@ function onHandClick(idx, el) {
 
   const items = [];
   if (cat === 'CHARACTER') {
-    items.push({ icon:'🏐', label:'→ サーブエリア',   fn: () => placeCard(idx,'serve') });
-    items.push({ icon:'🛡', label:'→ ブロックエリア',  fn: () => placeCard(idx,'block') });
-    items.push({ icon:'🤝', label:'→ レシーブエリア',  fn: () => placeCard(idx,'receive') });
-    items.push({ icon:'✋', label:'→ トスエリア',      fn: () => placeCard(idx,'toss') });
-    items.push({ icon:'⚡', label:'→ アタックエリア',  fn: () => placeCard(idx,'attack') });
+    items.push({ icon:'🏐', label:'→ 發球區',   fn: () => placeCard(idx,'serve') });
+    items.push({ icon:'🛡', label:'→ 攔網區',  fn: () => placeCard(idx,'block') });
+    items.push({ icon:'🤝', label:'→ 接球區',  fn: () => placeCard(idx,'receive') });
+    items.push({ icon:'✋', label:'→ 舉球區',      fn: () => placeCard(idx,'toss') });
+    items.push({ icon:'⚡', label:'→ 攻擊區',  fn: () => placeCard(idx,'attack') });
     items.push('sep');
-    items.push({ icon:'📥', label:'ガッツとして積む…', fn: () => enterGutsMode(idx) });
+    items.push({ icon:'📥', label:'疊放 Guts…', fn: () => enterGutsMode(idx) });
   } else if (cat === 'EVENT') {
-    items.push({ icon:'📋', label:'→ イベントエリア',  fn: () => placeCard(idx,'event') });
+    items.push({ icon:'📋', label:'→ 事件區',  fn: () => placeCard(idx,'event') });
   } else {
-    items.push({ icon:'📋', label:'→ イベントエリア',  fn: () => placeCard(idx,'event') });
-    items.push({ icon:'🛡', label:'→ ブロックエリア',  fn: () => placeCard(idx,'block') });
+    items.push({ icon:'📋', label:'→ 事件區',  fn: () => placeCard(idx,'event') });
+    items.push({ icon:'🛡', label:'→ 攔網區',  fn: () => placeCard(idx,'block') });
   }
   items.push('sep');
   items.push({ icon:'🗑', label:'棄牌',    fn: () => discardFromHand(idx), red: true });
@@ -2034,17 +2183,20 @@ function onEmptyZoneClick(zoneName) {
 
 function onZoneClick(zoneName, cardData, slotEl) {
   const card  = allCards[cardData.img];
+  const stackSize = 1 + (cardData.guts?.length || 0);
   const items = [];
   items.push({ icon:'🔍', label:'卡片詳細', fn: () => showDetail(cardData.img) });
+  items.push({ icon:'📚', label:`查看牌堆（${stackSize}張）`, fn: () => {
+    const zones = gameState?.players?.[myRole]?.zones || emptyZones();
+    openStack(zoneName, zones);
+  }});
+  items.push({ icon:'🤲', label:'收回手牌', fn: () => moveCardFromStack(zoneName, cardData.img, 'hand') });
   items.push('sep');
   ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
     items.push({ icon:'➡', label:`移至 ${ZONE_LABEL[z]}`, fn: () => moveCard(zoneName, z, cardData) });
   });
   items.push('sep');
   items.push({ icon:'🗑', label:'送至棄牌區', fn: () => discardFromZone(zoneName, cardData), red: true });
-  if (zoneName.split(':')[0] !== 'block') {
-    items.push({ icon:'📥', label:'疊上 Guts…', fn: () => enterGutsStackMode(zoneName) });
-  }
   showCtx(slotEl || document.body, card?.name || cardData.img, items);
 }
 
@@ -2062,8 +2214,12 @@ async function placeCard(handIdx, zoneName) {
     const b = normaliseBlock(zones.block);
     if (zoneName.includes(':')) {
       const i = parseInt(zoneName.split(':')[1]);
-      if (b[i]) { toast('此格已有角色，請先移開'); return; }
-      b[i] = { img, guts: [] };
+      const old = b[i];
+      if (old) {
+        b[i] = { img, guts: [...(old.guts || []), old.img] };
+      } else {
+        b[i] = { img, guts: [] };
+      }
     } else {
       const i = b.findIndex(x => !x);
       if (i === -1) { toast('攔網區已滿（3人上限）'); return; }
@@ -2074,8 +2230,12 @@ async function placeCard(handIdx, zoneName) {
     if (!zones.event) zones.event = [];
     zones.event.push(img);
   } else {
-    if (zones[baseZone]?.img) { toast(`${ZONE_LABEL[baseZone]}已有角色，請先移開`); return; }
-    zones[baseZone] = { img, guts: [] };
+    const old = zones[baseZone];
+    if (old?.img) {
+      zones[baseZone] = { img, guts: [...(old.guts || []), old.img] };
+    } else {
+      zones[baseZone] = { img, guts: [] };
+    }
   }
 
   L.hand.splice(handIdx, 1);
@@ -2099,8 +2259,12 @@ async function moveCard(fromZone, toZone, cardData) {
     if (!zones.event) zones.event = [];
     zones.event.push(cardData.img);
   } else {
-    if (zones[toZone]?.img) { toast(`${ZONE_LABEL[toZone]}已有角色`); return; }
-    zones[toZone] = { img: cardData.img, guts: cardData.guts || [] };
+    const old = zones[toZone];
+    if (old?.img) {
+      zones[toZone] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
+    } else {
+      zones[toZone] = { img: cardData.img, guts: cardData.guts || [] };
+    }
   }
   const card = allCards[cardData.img];
   await pushZones(zones);
@@ -2195,18 +2359,18 @@ function showDeckInfo() {
 }
 
 function adjustSet() {
-  const n = prompt(`調整 セットエリア 牌數（現在：${L.setCards}）`, String(L.setCards));
+  const n = prompt(`調整組合區牌數（現在：${L.setCards}）`, String(L.setCards));
   if (n === null) return;
   const v = parseInt(n);
   if (isNaN(v) || v < 0) return;
   L.setCards = v;
   document.getElementById('self-set').textContent = v;
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(v);
-  addLog(L.name, `セット枚数 → ${v}`);
+  addLog(L.name, `組合區牌數 → ${v}`);
 }
 
 async function declareLost() {
-  if (!confirm('宣告 ロスト？本 セット 結束，對手獲得 1 セット。')) return;
+  if (!confirm('宣告失敗？本局結束，對手獲得 1 局。')) return;
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const cur = gameState?.setScore?.[oppRole] ?? 0;
   await db.ref(`games/${roomId}/setScore/${oppRole}`).set(cur + 1);
@@ -2214,8 +2378,8 @@ async function declareLost() {
   document.getElementById('self-set').textContent = L.setCards;
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(L.setCards);
   await pushZones(emptyZones());
-  addLog(L.name, `⚡ ロスト宣告！${gameState?.players?.[oppRole]?.name || '對手'} 獲得 1 セット`);
-  toast(`ロスト！セット牌剩 ${L.setCards} 張`);
+  addLog(L.name, `⚡ 失敗宣告！${gameState?.players?.[oppRole]?.name || '對手'} 獲得 1 局`);
+  toast(`失敗！組合區牌剩 ${L.setCards} 張`);
 }
 
 async function adjustSets(role, delta) {
@@ -2233,7 +2397,7 @@ function setTurn() {
 function setPhase() {
   const v = document.getElementById('phase-sel').value;
   db.ref(`games/${roomId}/phase`).set(v);
-  addLog(L.name, `フェイズ → ${PHASE_META[v]?.label || v}`);
+  addLog(L.name, `階段 → ${PHASE_META[v]?.label || v}`);
   flashPhase(v);
 }
 
@@ -2265,6 +2429,107 @@ function renderLog(log) {
     d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
     el.appendChild(d);
   });
+}
+
+// ══════════════════════════════════════════════════════
+// STACK VIEWER
+// ══════════════════════════════════════════════════════
+function openStack(zoneName, zonesData) {
+  const zoneCard = getZoneCard(zonesData, zoneName);
+  if (!zoneCard) return;
+  const all = [zoneCard.img, ...(zoneCard.guts || []).slice().reverse()];
+  // all[0] = top card, all[last] = bottom
+  document.getElementById('stack-title').textContent =
+    `${ZONE_LABEL[zoneName.split(':')[0]]} 牌堆（${all.length}張）`;
+  const wrap = document.getElementById('stack-list');
+  wrap.innerHTML = '';
+  all.forEach((img, i) => {
+    const row = document.createElement('div');
+    row.className = 'stack-row';
+    const thumb = document.createElement('img');
+    thumb.src = `images/${img}`; thumb.loading = 'lazy';
+    const info = document.createElement('div');
+    info.className = 'stack-info';
+    const lbl = document.createElement('div');
+    lbl.className = 'stack-lbl';
+    lbl.textContent = (i === 0 ? '【頂牌】' : `【Guts ${i}】`) + (allCards[img]?.name || img);
+    info.appendChild(lbl);
+    // Move buttons
+    const btns = document.createElement('div');
+    btns.className = 'stack-btns';
+    // Return to hand
+    const handBtn = document.createElement('button');
+    handBtn.className = 'btn xs';
+    handBtn.textContent = '收回手牌';
+    handBtn.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, 'hand'); };
+    btns.appendChild(handBtn);
+    // Move to zone
+    ['serve','block','receive','toss','attack','event'].forEach(tz => {
+      if (tz === zoneName.split(':')[0] && i === 0) return;
+      const b = document.createElement('button');
+      b.className = 'btn xs';
+      b.textContent = `→${ZONE_LABEL[tz]}`;
+      b.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, tz); };
+      btns.appendChild(b);
+    });
+    info.appendChild(btns);
+    row.appendChild(thumb);
+    row.appendChild(info);
+    wrap.appendChild(row);
+  });
+  document.getElementById('stack-overlay').classList.add('open');
+}
+
+function closeStack() {
+  document.getElementById('stack-overlay').classList.remove('open');
+}
+
+async function moveCardFromStack(fromZone, img, toTarget) {
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  // Remove img from fromZone stack
+  const zc = getZoneCard(zones, fromZone);
+  if (!zc) return;
+  if (zc.img === img) {
+    // Removing top card: promote last guts
+    const newGuts = [...(zc.guts || [])];
+    const newTop = newGuts.pop();
+    if (newTop) {
+      setZoneCard(zones, fromZone, { img: newTop, guts: newGuts });
+    } else {
+      // Zone becomes empty
+      removeFromZone(zones, fromZone, img);
+    }
+  } else {
+    // Remove from guts
+    zc.guts = (zc.guts || []).filter(g => g !== img);
+    setZoneCard(zones, fromZone, zc);
+  }
+  // Place in target
+  if (toTarget === 'hand') {
+    L.hand.push(img);
+    renderHand();
+  } else {
+    // Use stacking logic
+    if (toTarget === 'block') {
+      const b = normaliseBlock(zones.block);
+      const idx = b.findIndex(x => !x);
+      if (idx === -1) { toast('攔網區已滿'); return; }
+      b[idx] = { img, guts: [] };
+      zones.block = b;
+    } else if (toTarget === 'event') {
+      if (!zones.event) zones.event = [];
+      zones.event.push(img);
+    } else {
+      const old = zones[toTarget];
+      if (old?.img) {
+        zones[toTarget] = { img, guts: [...(old.guts || []), old.img] };
+      } else {
+        zones[toTarget] = { img, guts: [] };
+      }
+    }
+  }
+  await pushZones(zones);
+  addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}`);
 }
 
 // ══════════════════════════════════════════════════════
