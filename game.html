@@ -502,6 +502,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
   gap: 10px;
   overflow: hidden;
   min-width: 0;
+  max-width: 1100px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
 .player-area {
@@ -939,37 +943,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .log-line .lp.opp { color: var(--accent2); }
 .log-line .lt { color: var(--border); float: right; }
 
-/* ══════════════════════════════════════
-   CARD PREVIEW POPUP
-══════════════════════════════════════ */
-#card-preview {
-  position: fixed;
-  bottom: 124px;
-  right: 226px;
-  width: 140px;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0,0,0,.85);
-  border: 2px solid var(--accent);
-  z-index: 800;
-  opacity: 0;
-  transform: scale(.92) translateY(8px);
-  transition: opacity .2s, transform .2s;
-  pointer-events: none;
-}
-#card-preview.show { opacity: 1; transform: scale(1) translateY(0); }
-#card-preview img { width: 100%; display: block; }
-#card-preview-name {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: linear-gradient(transparent, rgba(0,0,0,.85));
-  padding: 14px 6px 6px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #fff;
-  text-align: center;
-  line-height: 1.3;
-}
+/* card-preview removed */
 
 /* ══════════════════════════════════════
    OPPONENT NOTIFICATIONS
@@ -1551,11 +1525,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
   </div>
 </div>
 
-<!-- Card hover preview -->
-<div id="card-preview">
-  <img id="card-preview-img" src="" alt="">
-  <div id="card-preview-name"></div>
-</div>
 
 <!-- Opponent notifications -->
 <div id="notif-wrap"></div>
@@ -1579,8 +1548,8 @@ const AVATAR_KEY = 'hv_avatar';
 
 const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
 
-const ZONE_NAMES  = ['serve','block','receive','toss','attack','event','set'];
-const ZONE_LABEL  = { serve:'發球區', block:'攔網區', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區', set:'氣牌區' };
+const ZONE_NAMES  = ['serve','block','receive','toss','attack','event'];
+const ZONE_LABEL  = { serve:'發球區', block:'攔網區', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區' };
 
 const PHASE_META = {
   serve:   { label:'發球階段', icon:'🏐', color:'#fb923c', bg:'rgba(251,146,60,.08)'  },
@@ -2202,8 +2171,6 @@ function renderHand() {
       div.dataset.idx = idx;
       div.innerHTML = `<img src="images/${img}" loading="lazy" alt="">`;
       div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div); });
-      div.addEventListener('mouseenter', () => schedulePreview(img));
-      div.addEventListener('mouseleave', cancelPreview);
       div.draggable = true;
       div.addEventListener('dragstart', e => {
         e.dataTransfer.effectAllowed = 'move';
@@ -2218,28 +2185,6 @@ function renderHand() {
   document.getElementById('hand-meta').textContent = `${L.hand.length} 張`;
 }
 
-// ══════════════════════════════════════════════════════
-// CARD HOVER PREVIEW
-// ══════════════════════════════════════════════════════
-let _previewTimer = null;
-function schedulePreview(img) {
-  _previewTimer = setTimeout(() => showPreview(img), 500);
-}
-function cancelPreview() {
-  clearTimeout(_previewTimer);
-  hidePreview();
-}
-function showPreview(img) {
-  const el = document.getElementById('card-preview');
-  const i  = document.getElementById('card-preview-img');
-  const n  = document.getElementById('card-preview-name');
-  i.src = `images/${img}`;
-  n.textContent = allCards[img]?.name || '';
-  el.classList.add('show');
-}
-function hidePreview() {
-  document.getElementById('card-preview').classList.remove('show');
-}
 
 // ══════════════════════════════════════════════════════
 // ZONE TARGETING
