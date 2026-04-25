@@ -809,9 +809,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 
 /* Net */
-.net-div { flex-shrink: 0; height: 20px; display: flex; align-items: center; gap: 8px; }
+.net-div { flex-shrink: 0; height: auto; display: flex; align-items: center; gap: 8px; padding: 6px 0; }
 .net-line { flex: 1; height: 2px; background: var(--net-color); border-radius: 1px; }
-.net-text { font-size: 9px; color: var(--net-color); font-weight: 800; letter-spacing: 2px; }
+.net-text { font-size: 9px; color: var(--net-color); font-weight: 800; letter-spacing: 2px; flex-shrink: 0; }
 
 /* ── Hand ── */
 #hand-area {
@@ -947,42 +947,19 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* card-preview removed */
 
 /* Point counter */
-#pt-counter {
-  position: fixed;
-  bottom: 12px;
-  right: 12px;
-  z-index: 600;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 8px 10px;
-  display: none;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  box-shadow: 0 4px 20px rgba(0,0,0,.5);
-  min-width: 110px;
-}
-#screen-game.active #pt-counter { display: flex; }
-#pt-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .4px; }
-#pt-row { display: flex; align-items: center; gap: 4px; }
-#pt-val {
-  width: 54px; text-align: center;
+/* net score (replaces old #pt-counter) */
+.net-score { display: flex; flex-direction: column; align-items: center; gap: 2px; flex-shrink: 0; }
+.net-score-name { font-size: 10px; color: var(--text-dim); white-space: nowrap; max-width: 72px; overflow: hidden; text-overflow: ellipsis; font-weight: 600; letter-spacing: .3px; }
+.net-score-row { display: flex; align-items: center; gap: 3px; }
+.net-score-val { font-size: 24px; font-weight: 800; color: var(--text); min-width: 34px; text-align: center; line-height: 1; }
+.net-pt-btn {
+  width: 22px; height: 22px; border-radius: 6px;
   background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 6px; color: var(--text); font-size: 20px;
-  font-weight: 800; padding: 2px 4px;
-  -moz-appearance: textfield;
-}
-#pt-val::-webkit-outer-spin-button,
-#pt-val::-webkit-inner-spin-button { -webkit-appearance: none; }
-.pt-btn {
-  width: 28px; height: 28px; border-radius: 7px;
-  background: var(--surface2); border: 1px solid var(--border);
-  color: var(--text); font-size: 16px; cursor: pointer;
+  color: var(--text); font-size: 14px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background .12s, border-color .12s;
 }
-.pt-btn:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
+.net-pt-btn:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
 
 /* ══════════════════════════════════════
    OPPONENT NOTIFICATIONS
@@ -1411,7 +1388,27 @@ input[type=text]::placeholder { color: var(--text-dim); }
       </div>
 
       <!-- Net -->
-      <div class="net-div"><div class="net-line"></div><div class="net-text">NET</div><div class="net-line"></div></div>
+      <div class="net-div">
+        <div class="net-score" id="net-score-host">
+          <div class="net-score-name" id="net-score-host-name">—</div>
+          <div class="net-score-row">
+            <button class="net-pt-btn" id="btn-score-host-minus" onclick="adjustScore('host',-1)">−</button>
+            <span class="net-score-val" id="net-score-host-val">0</span>
+            <button class="net-pt-btn" id="btn-score-host-plus" onclick="adjustScore('host',1)">＋</button>
+          </div>
+        </div>
+        <div class="net-line"></div>
+        <div class="net-text">NET</div>
+        <div class="net-line"></div>
+        <div class="net-score" id="net-score-guest">
+          <div class="net-score-name" id="net-score-guest-name">—</div>
+          <div class="net-score-row">
+            <button class="net-pt-btn" id="btn-score-guest-minus" onclick="adjustScore('guest',-1)">−</button>
+            <span class="net-score-val" id="net-score-guest-val">0</span>
+            <button class="net-pt-btn" id="btn-score-guest-plus" onclick="adjustScore('guest',1)">＋</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Self -->
       <div class="player-area my-turn-glow" id="self-area">
@@ -1506,15 +1503,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <div id="hand-meta"></div>
   </div>
 
-  <!-- Point counter -->
-  <div id="pt-counter">
-    <div id="pt-label">點數</div>
-    <div id="pt-row">
-      <button class="pt-btn" onclick="adjustPt(-1)">−</button>
-      <input id="pt-val" type="number" value="0" onchange="setPt(+this.value)">
-      <button class="pt-btn" onclick="adjustPt(1)">＋</button>
-    </div>
-  </div>
 </div>
 
 <!-- Context menu -->
@@ -2082,6 +2070,18 @@ function renderBoard(data) {
   document.getElementById('self-set').textContent  = (L.setPool || []).length;
   document.getElementById('self-drop').textContent = countDrop(self?.zones);
 
+  // Score panels on NET bar
+  const scores = data.scores || {};
+  document.getElementById('net-score-host-val').textContent  = scores.host  ?? 0;
+  document.getElementById('net-score-guest-val').textContent = scores.guest ?? 0;
+  document.getElementById('net-score-host-name').textContent  = data.players?.host?.name  || 'Host';
+  document.getElementById('net-score-guest-name').textContent = data.players?.guest?.name || 'Guest';
+  ['host','guest'].forEach(role => {
+    const mine = role === myRole;
+    document.getElementById(`btn-score-${role}-minus`).style.display = mine ? '' : 'none';
+    document.getElementById(`btn-score-${role}-plus`).style.display  = mine ? '' : 'none';
+  });
+
   updatePhaseUI(data.phase || 'serve', data.turn);
 
   if (data.log) renderLog(data.log);
@@ -2493,12 +2493,11 @@ function shufflePile() {
   addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
 }
 
-function adjustPt(delta) {
-  const el = document.getElementById('pt-val');
-  setPt((+el.value || 0) + delta);
-}
-function setPt(v) {
-  document.getElementById('pt-val').value = v;
+async function adjustScore(role, delta) {
+  if (role !== myRole) return;
+  const cur = gameState?.scores?.[role] ?? 0;
+  const next = Math.max(0, cur + delta);
+  await db.ref(`games/${roomId}/scores/${role}`).set(next);
 }
 
 function adjustSet() {
