@@ -945,6 +945,44 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 /* card-preview removed */
 
+/* Point counter */
+#pt-counter {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  z-index: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+  min-width: 110px;
+}
+#screen-game.active #pt-counter { display: flex; }
+#pt-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .4px; }
+#pt-row { display: flex; align-items: center; gap: 4px; }
+#pt-val {
+  width: 54px; text-align: center;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); font-size: 20px;
+  font-weight: 800; padding: 2px 4px;
+  -moz-appearance: textfield;
+}
+#pt-val::-webkit-outer-spin-button,
+#pt-val::-webkit-inner-spin-button { -webkit-appearance: none; }
+.pt-btn {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, border-color .12s;
+}
+.pt-btn:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
+
 /* ══════════════════════════════════════
    OPPONENT NOTIFICATIONS
 ══════════════════════════════════════ */
@@ -1464,6 +1502,16 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <div class="hand-lbl">手牌</div>
     <div id="hand-cards"></div>
     <div id="hand-meta"></div>
+  </div>
+
+  <!-- Point counter -->
+  <div id="pt-counter">
+    <div id="pt-label">點數</div>
+    <div id="pt-row">
+      <button class="pt-btn" onclick="adjustPt(-1)">−</button>
+      <input id="pt-val" type="number" value="0" onchange="setPt(+this.value)">
+      <button class="pt-btn" onclick="adjustPt(1)">＋</button>
+    </div>
   </div>
 </div>
 
@@ -2102,7 +2150,8 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         e.stopPropagation();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        isOpp ? openOppStack(zoneName) : onZoneClick(zoneName, cardData, slot);
+        if (isOpp) { openOppStack(zoneName); return; }
+        isTop ? onZoneClick(zoneName, cardData, slot) : showGutsAction(zoneName, cardData, img);
       };
 
       if (!isOpp) {
@@ -2433,6 +2482,14 @@ async function returnToPile(fromZone, cardData, position) {
 
 function showDeckInfo() {
   toast(`牌庫剩 ${L.pile.length} 張 · 手牌 ${L.hand.length} 張`);
+}
+
+function adjustPt(delta) {
+  const el = document.getElementById('pt-val');
+  setPt((+el.value || 0) + delta);
+}
+function setPt(v) {
+  document.getElementById('pt-val').value = v;
 }
 
 function adjustSet() {
@@ -2808,6 +2865,85 @@ function _fillModalCardInfo(img) {
   });
   document.getElementById('ha-skill').textContent = c.skill_zh || c.skill_jp || '（無技能）';
   return true;
+}
+
+function showGutsAction(zoneName, cardData, gutsImg) {
+  if (!_fillModalCardInfo(gutsImg)) return;
+  const actions = document.getElementById('ha-actions');
+  actions.innerHTML = '';
+  const addBtn = (label, fn) => {
+    const b = document.createElement('button');
+    b.className = 'btn sm'; b.textContent = label;
+    b.onclick = () => { closeHandAction(); fn(); };
+    actions.appendChild(b);
+  };
+  const addSep = () => {
+    const s = document.createElement('div');
+    s.style.cssText = 'width:100%;border-top:1px solid var(--border);margin:2px 0';
+    actions.appendChild(s);
+  };
+  addBtn('收回手牌', () => moveGutsCard(zoneName, cardData, gutsImg, 'hand'));
+  addSep();
+  addBtn('放回牌堆（上方）', () => moveGutsCard(zoneName, cardData, gutsImg, 'pile-top'));
+  addBtn('放回牌堆（下方）', () => moveGutsCard(zoneName, cardData, gutsImg, 'pile-bottom'));
+  addSep();
+  ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
+    addBtn(`→ ${ZONE_LABEL[z]}`, () => moveGutsCard(zoneName, cardData, gutsImg, z));
+  });
+  addBtn('→ 棄牌區', () => moveGutsCard(zoneName, cardData, gutsImg, 'drop'));
+  document.getElementById('ha-discard-btn').style.display = 'none';
+  document.getElementById('hand-action-overlay').classList.add('open');
+}
+
+async function moveGutsCard(zoneName, cardData, gutsImg, target) {
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  const zc = getZoneCard(zones, zoneName);
+  if (!zc) return;
+  zc.guts = (zc.guts || []).filter(g => g !== gutsImg);
+  setZoneCard(zones, zoneName, zc);
+
+  let logTarget = target;
+  if (target === 'hand') {
+    L.hand.push(gutsImg);
+    await pushZones(zones);
+    renderHand();
+  } else if (target === 'pile-top') {
+    L.pile.push(gutsImg);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    await pushZones(zones);
+    logTarget = '牌庫頂';
+  } else if (target === 'pile-bottom') {
+    L.pile.unshift(gutsImg);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    await pushZones(zones);
+    logTarget = '牌庫底';
+  } else if (target === 'drop') {
+    zones.drop = zones.drop || [];
+    zones.drop.push(gutsImg);
+    await pushZones(zones);
+    logTarget = '棄牌區';
+  } else {
+    const baseZone = target.split(':')[0];
+    if (baseZone === 'block') {
+      const b = normaliseBlock(zones.block);
+      const slotIdx = target.includes(':') ? parseInt(target.split(':')[1]) : b.findIndex(x => !x);
+      if (slotIdx === -1) { toast('攔網區已滿'); return; }
+      if (b[slotIdx]?.img) { toast('攔網位已有牌'); return; }
+      b[slotIdx] = { img: gutsImg, guts: [] };
+      zones.block = b;
+    } else if (baseZone === 'event') {
+      zones.event = zones.event || [];
+      zones.event.push(gutsImg);
+    } else {
+      const old = zones[baseZone];
+      zones[baseZone] = old?.img
+        ? { img: gutsImg, guts: [...(old.guts || []), old.img] }
+        : { img: gutsImg, guts: [] };
+    }
+    await pushZones(zones);
+    logTarget = ZONE_LABEL[baseZone] || baseZone;
+  }
+  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}`);
 }
 
 function showZoneAction(zoneName, cardData) {
