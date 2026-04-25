@@ -2052,11 +2052,11 @@ function renderZones(prefix, zones, isOpp) {
     const slot = document.getElementById(`${prefix}-slot-${zn}`);
     if (slot) fillSlot(slot, zones?.[zn] || null, isOpp, zn);
   });
-  // Event (stack)
+  // Event (stack) — pass all cards as guts so they fan correctly
   const evtSlot = document.getElementById(`${prefix}-slot-event`);
   if (evtSlot) {
     const evts = zones?.event || [];
-    const cd = evts.length ? { img: evts[evts.length-1], guts:[], count: evts.length } : null;
+    const cd = evts.length ? { img: evts[evts.length-1], guts: evts.slice(0, -1) } : null;
     fillSlot(evtSlot, cd, isOpp, 'event');
   }
 }
@@ -2905,6 +2905,11 @@ function getZoneCard(zones, zoneName) {
     const i = parseInt(zoneName.split(':')[1]);
     return normaliseBlock(zones.block)[i];
   }
+  if (zoneName === 'event') {
+    const evts = zones.event || [];
+    if (!evts.length) return null;
+    return { img: evts[evts.length - 1], guts: evts.slice(0, -1) };
+  }
   return zones[zoneName] || null;
 }
 
@@ -2914,6 +2919,9 @@ function setZoneCard(zones, zoneName, val) {
     const b = normaliseBlock(zones.block);
     b[i] = val;
     zones.block = b;
+  } else if (zoneName === 'event') {
+    // event zone stores a flat array, reconstruct from {img, guts}
+    zones.event = [...(val.guts || []), val.img];
   } else {
     zones[zoneName] = val;
   }
