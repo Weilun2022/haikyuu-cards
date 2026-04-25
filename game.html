@@ -2609,6 +2609,8 @@ function openStack(zoneName, zonesData, readOnly = false) {
     row.className = 'stack-row';
     const thumb = document.createElement('img');
     thumb.src = `images/${img}`; thumb.loading = 'lazy';
+    thumb.style.cursor = 'pointer';
+    thumb.onclick = () => showDetail(img);
     const info = document.createElement('div');
     info.className = 'stack-info';
     const lbl = document.createElement('div');
