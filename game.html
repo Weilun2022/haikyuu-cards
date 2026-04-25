@@ -419,15 +419,16 @@ input[type=text]::placeholder { color: var(--text-dim); }
    SCREEN: GAME
 ══════════════════════════════════════ */
 /* Header */
-#game-header {
+#game-topbar {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   padding: 0 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
   flex-shrink: 0;
-  height: 50px;
+  height: 34px;
+  gap: 10px;
 }
 /* Phase strip */
 #phase-strip {
@@ -491,7 +492,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 
 /* Body */
-#game-body { flex: 1; display: flex; overflow: hidden; min-height: 0; position: relative; }
+#game-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+#game-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
 
 /* Board */
 #game-board {
@@ -500,8 +502,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex-direction: column;
   padding: 10px 12px;
   gap: 10px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   min-width: 0;
   max-width: 1100px;
   margin-left: auto;
@@ -514,7 +515,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: flex;
   align-items: stretch;
   gap: 10px;
-  min-height: 300px;
+  min-height: 0;
   position: relative;
   border-radius: 14px;
   padding: 6px;
@@ -569,8 +570,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 .board-court { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
 .opp-court { flex-direction: column-reverse; }
-.court-row { display: flex; gap: 8px; flex: 1; min-height: 120px; }
-.court-row.back-row { flex: 0.8; min-height: 100px; }
+.court-row { display: flex; gap: 8px; flex: 1; min-height: 0; }
+.court-row.back-row { flex: 0.8; }
 .zone-spacer { flex: 1; min-width: 0; }
 
 .zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 5px; }
@@ -1323,39 +1324,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <!-- ══════════════════════ SCREEN: GAME ══════════════════════ -->
 <div id="screen-game" class="screen">
 <div id="turn-indicator">—</div>
-  <!-- Header -->
-  <div id="game-header">
-    <div class="game-score">
-      <div class="score-block" id="score-host">
-        <span class="score-avatar" id="h-host-av">🏐</span>
-        <span class="score-name" id="h-host-name">—</span>
-        <span class="score-val" id="h-host-sets">0</span>
-      </div>
-      <span class="score-sep">—</span>
-      <div class="score-block" id="score-guest">
-        <span class="score-val" id="h-guest-sets">0</span>
-        <span class="score-name" id="h-guest-name">—</span>
-        <span class="score-avatar" id="h-guest-av">🏐</span>
-      </div>
-    </div>
-
+  <!-- Compact top bar -->
+  <div id="game-topbar">
     <div class="phase-pill" id="phase-pill">
       <span class="phase-icon" id="phase-icon">🏐</span>
       <span id="h-phase">發球階段</span>
     </div>
-
-    <div class="turn-badge" id="turn-badge">—</div>
-
-    <div class="header-right">
-      <button class="btn sm danger" onclick="declareLost()" title="宣告失敗">失敗宣告</button>
-    </div>
+    <button class="btn sm danger" onclick="declareLost()" title="宣告失敗">失敗宣告</button>
   </div>
 
   <!-- Phase strip -->
   <div id="phase-strip"></div>
 
   <!-- Body -->
-  <div id="game-body" style="position:relative">
+  <div id="game-body">
+    <div id="game-main">
     <div id="game-board">
       <!-- Opponent -->
       <div class="player-area" id="opp-area">
@@ -1494,23 +1477,25 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
       <div id="log-wrap"></div>
     </div>
-  </div>
 
-  <!-- Guts mode banner -->
-  <div id="guts-banner">
-    <span class="guts-text">🔶 Guts 模式</span>
-    <span class="guts-hint">點擊場上角色牌以疊放 Guts</span>
-    <button class="btn xs" onclick="cancelGuts()">取消</button>
-  </div>
+    <!-- Guts mode banner -->
+    <div id="guts-banner">
+      <span class="guts-text">🔶 Guts 模式</span>
+      <span class="guts-hint">點擊場上角色牌以疊放 Guts</span>
+      <button class="btn xs" onclick="cancelGuts()">取消</button>
+    </div>
 
-  <!-- Hand -->
-  <div id="hand-area">
-    <div class="hand-lbl">手牌</div>
-    <div id="hand-cards"></div>
-    <div id="hand-meta"></div>
-  </div>
+    <!-- Hand -->
+    <div id="hand-area">
+      <div class="hand-lbl">手牌</div>
+      <div id="hand-cards"></div>
+      <div id="hand-meta"></div>
+    </div>
 
-</div>
+  </div><!-- /game-main -->
+  </div><!-- /game-body -->
+
+</div><!-- /screen-game -->
 
 <!-- Context menu -->
 <div id="ctx">
@@ -2046,13 +2031,6 @@ function renderBoard(data) {
   const gn = data.players.guest?.name || '挑戰者';
   const hav = data.players.host?.avatar || '🏐';
   const gav = data.players.guest?.avatar || '🏐';
-
-  document.getElementById('h-host-name').textContent  = hn;
-  document.getElementById('h-guest-name').textContent = gn;
-  document.getElementById('h-host-av').textContent    = hav;
-  document.getElementById('h-guest-av').textContent   = gav;
-  document.getElementById('h-host-sets').textContent  = data.setScore?.host  ?? 0;
-  document.getElementById('h-guest-sets').textContent = data.setScore?.guest ?? 0;
 
   document.getElementById('sb-host-name').textContent  = hn;
   document.getElementById('sb-guest-name').textContent = gn;
