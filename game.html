@@ -543,6 +543,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 /* ── Board layout ── */
 .board-side { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; width: 72px; }
+.shuffle-btn { width: 100%; font-size: 11px; padding: 4px 2px; }
 .info-tile {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -1444,6 +1445,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <!-- Right: Deck + Drop -->
         <div class="board-side">
           <div class="info-tile clickable" onclick="drawCard()" title="點擊抽一張牌"><div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div></div>
+          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
           <div class="info-tile clickable" onclick="openDropViewer('self')"><div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div></div>
         </div>
       </div>
@@ -2484,6 +2486,13 @@ function showDeckInfo() {
   toast(`牌庫剩 ${L.pile.length} 張 · 手牌 ${L.hand.length} 張`);
 }
 
+function shufflePile() {
+  if (!L.pile.length) { toast('牌庫已空'); return; }
+  shuffle(L.pile);
+  toast(`牌庫已洗牌（${L.pile.length} 張）`);
+  addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
+}
+
 function adjustPt(delta) {
   const el = document.getElementById('pt-val');
   setPt((+el.value || 0) + delta);
@@ -2890,6 +2899,7 @@ function showGutsAction(zoneName, cardData, gutsImg) {
   ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
     addBtn(`→ ${ZONE_LABEL[z]}`, () => moveGutsCard(zoneName, cardData, gutsImg, z));
   });
+  addSep();
   addBtn('→ 棄牌區', () => moveGutsCard(zoneName, cardData, gutsImg, 'drop'));
   document.getElementById('ha-discard-btn').style.display = 'none';
   document.getElementById('hand-action-overlay').classList.add('open');
@@ -2977,6 +2987,7 @@ function showZoneAction(zoneName, cardData) {
   ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
     addBtn(`→ ${ZONE_LABEL[z]}`, () => moveCard(zoneName, z, cardData));
   });
+  addSep();
   addBtn('→ 棄牌區', () => discardFromZone(zoneName, cardData));
 
   document.getElementById('ha-discard-btn').style.display = 'none';
