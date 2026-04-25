@@ -2668,19 +2668,44 @@ function openDropViewer(side) {
   const role    = side === 'self' ? myRole : oppRole;
   const zones   = gameState?.players?.[role]?.zones;
   const drop    = zones?.drop || [];
+  const isSelf  = side === 'self';
   document.getElementById('drop-title').textContent = `棄牌區 — ${gameState?.players?.[role]?.name || side} (${drop.length}張)`;
   const wrap = document.getElementById('drop-cards');
   wrap.innerHTML = '';
   if (!drop.length) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px">棄牌區為空</div>'; }
   drop.slice().reverse().forEach(img => {
-    const i = document.createElement('img');
-    i.src = `images/${img}`; i.loading = 'lazy';
-    i.title = allCards[img]?.name || img;
-    i.addEventListener('click', () => showDetail(img));
-    wrap.appendChild(i);
+    const cell = document.createElement('div');
+    cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px';
+    const imgEl = document.createElement('img');
+    imgEl.src = `images/${img}`; imgEl.loading = 'lazy';
+    imgEl.title = allCards[img]?.name || img;
+    imgEl.addEventListener('click', () => showDetail(img));
+    cell.appendChild(imgEl);
+    if (isSelf) {
+      const btn = document.createElement('button');
+      btn.className = 'btn xs';
+      btn.textContent = '收回手牌';
+      btn.onclick = () => returnFromDrop(img);
+      cell.appendChild(btn);
+    }
+    wrap.appendChild(cell);
   });
   document.getElementById('drop-overlay').classList.add('open');
 }
+
+async function returnFromDrop(img) {
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  const idx = zones.drop.indexOf(img);
+  if (idx === -1) { toast('找不到此牌'); return; }
+  zones.drop.splice(idx, 1);
+  L.hand.push(img);
+  await pushZones(zones);
+  document.getElementById('self-drop').textContent = countDrop(zones);
+  renderHand();
+  addLog(L.name, `${allCards[img]?.name || img} 從棄牌區收回手牌`);
+  openDropViewer('self'); // refresh
+}
+
 function closeDropViewer() { document.getElementById('drop-overlay').classList.remove('open'); }
 
 // ══════════════════════════════════════════════════════
