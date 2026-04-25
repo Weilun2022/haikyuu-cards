@@ -498,8 +498,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 6px;
-  gap: 4px;
+  padding: 10px 12px;
+  gap: 10px;
   overflow: hidden;
   min-width: 0;
 }
@@ -508,11 +508,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex: 1;
   display: flex;
   align-items: stretch;
-  gap: 5px;
+  gap: 10px;
   min-height: 0;
   position: relative;
-  border-radius: 10px;
-  padding: 2px;
+  border-radius: 14px;
+  padding: 6px;
   border: 1px solid transparent;
   transition: border-color .4s, box-shadow .4s;
 }
@@ -538,7 +538,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .area-name.self { color: var(--accent); border-color: rgba(108,99,255,.4); }
 
 /* ── Board layout ── */
-.board-side { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; width: 58px; }
+.board-side { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; width: 72px; }
 .info-tile {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -556,15 +556,19 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .info-tile.clickable:hover { border-color: var(--accent); background: var(--surface3); }
 .info-tile .t-label { font-size: 9px; color: var(--text-dim); line-height: 1; margin-bottom: 3px; font-weight: 500; }
 .info-tile .t-val { font-size: 20px; font-weight: 800; line-height: 1; }
+.set-pool-tile { gap: 4px; padding: 6px 4px; }
+.set-pool-val { cursor: pointer; color: var(--accent); transition: transform .12s; }
+.set-pool-val:hover { transform: scale(1.12); }
+.set-pool-loss-btn { font-size: 9px !important; padding: 2px 6px !important; background: rgba(220,38,38,.15) !important; border-color: rgba(220,38,38,.4) !important; color: #f87171 !important; width: 100%; }
 
-.board-court { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
+.board-court { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
 .opp-court { flex-direction: column-reverse; }
-.court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
-.court-row.back-row { flex: 0.72; }
+.court-row { display: flex; gap: 8px; flex: 1; min-height: 0; }
+.court-row.back-row { flex: 0.8; }
 .zone-spacer { flex: 1; min-width: 0; }
 
-.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 3px; }
-.z-label { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
+.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 5px; }
+.z-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
 .z-label.lbl-rcv { color: #60a5fa; }
 .z-label.lbl-tos { color: #4ade80; }
 .z-label.lbl-atk { color: #f87171; }
@@ -637,7 +641,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-hstack-card {
   position: relative;
   flex: 0 0 auto;
-  height: 90%;
+  height: 93%;
   aspect-ratio: 5 / 7;
   overflow: hidden;
   border-radius: 5px;
@@ -646,9 +650,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   transition: transform .15s, z-index 0s;
   z-index: 1;
 }
-.z-hstack-card:not(:first-child) {
-  margin-left: -32%;
-}
+/* margin-left for stacking is computed in JS (layoutHstack) based on actual card width */
 .z-hstack-card:hover {
   transform: scale(1.08);
   z-index: 20;
@@ -811,25 +813,25 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex-shrink: 0;
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: 8px 12px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   overflow: visible;
-  min-height: 100px;
-  max-height: 120px;
+  min-height: 150px;
+  max-height: 180px;
   position: relative;
 }
 #hand-cards {
   display: flex;
   flex-direction: row;
-  gap: 6px;
+  gap: 10px;
   overflow-x: auto;
   overflow-y: visible;
   flex: 1;
   align-items: flex-end;
   padding-bottom: 4px;
-  padding-top: 12px;
+  padding-top: 16px;
 }
 .hand-lbl {
   font-size: 9px;
@@ -840,9 +842,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   letter-spacing: .3px;
 }
 .hand-card {
-  height: 104px;
+  height: 140px;
   aspect-ratio: 2/2.8;
-  border-radius: 7px;
+  border-radius: 10px;
   overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
@@ -1403,7 +1405,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <span class="area-name self" id="self-lbl">自己</span>
         <!-- Left: Set -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="adjustSet()"><div class="t-label">組數</div><div class="t-val" id="self-set">5</div></div>
+          <div class="info-tile set-pool-tile">
+            <div class="t-label">組數</div>
+            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊從牌庫頂取2張">0</div>
+            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球">輸一球</button>
+          </div>
         </div>
         <!-- Court (block on top = near net) -->
         <div class="board-court" id="self-court">
@@ -1601,7 +1607,8 @@ const L = {
   deckId:  '',
   hand:    [],
   pile:    [],
-  setCards: 5,
+  setCards: 0,
+  setPool: [],
 };
 
 // ══════════════════════════════════════════════════════
@@ -1936,7 +1943,8 @@ function enterGame() {
   deck.cards.forEach(e => { for (let i = 0; i < (e.count||1); i++) L.pile.push(e.image_file); });
   shuffle(L.pile);
   L.hand = [];
-  L.setCards = 5;
+  L.setPool = [];
+  L.setCards = 0;
 
   for (let i = 0; i < 6; i++) drawFromPile();
 
@@ -2052,7 +2060,7 @@ function renderBoard(data) {
 
   renderZones('self', self?.zones, false);
   document.getElementById('self-deck').textContent = L.pile.length;
-  document.getElementById('self-set').textContent  = L.setCards;
+  document.getElementById('self-set').textContent  = (L.setPool || []).length;
   document.getElementById('self-drop').textContent = countDrop(self?.zones);
 
   updatePhaseUI(data.phase || 'serve', data.turn);
@@ -2141,6 +2149,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
     });
 
     slot.appendChild(hstack);
+    layoutHstack(hstack);
 
     // Slot-level click fallback (clicking slot border area)
     slot.onclick = e => {
@@ -2594,6 +2603,51 @@ function openStack(zoneName, zonesData, readOnly = false) {
     wrap.appendChild(row);
   });
   document.getElementById('stack-overlay').classList.add('open');
+}
+
+// Compute card overlap based on actual rendered card width so stacks never overflow
+function layoutHstack(hstack) {
+  requestAnimationFrame(() => {
+    const cards = [...hstack.querySelectorAll('.z-hstack-card')];
+    if (cards.length < 2) return;
+    const cardW = cards[0].offsetWidth;
+    if (!cardW) return;
+    const zoneW = hstack.offsetWidth - 8;
+    const idealOverlap = Math.floor(cardW * 0.52);
+    const totalAtIdeal = cardW + (cards.length - 1) * (cardW - idealOverlap);
+    let overlap;
+    if (totalAtIdeal <= zoneW) {
+      overlap = idealOverlap;
+    } else {
+      const minShow = Math.max(Math.floor(cardW * 0.22), 10);
+      overlap = cardW - Math.max(Math.floor((zoneW - cardW) / (cards.length - 1)), minShow);
+    }
+    cards.forEach((c, i) => { if (i > 0) c.style.marginLeft = `-${Math.max(0, overlap)}px`; });
+  });
+}
+
+// ── 組數池 ──────────────────────────────────────────
+function addToSetPool() {
+  if (L.pile.length < 2) { toast('牌庫不足 2 張'); return; }
+  L.setPool = L.setPool || [];
+  L.setPool.push(L.pile.pop(), L.pile.pop());
+  const cnt = L.setPool.length;
+  document.getElementById('self-set').textContent = cnt;
+  document.getElementById('self-deck').textContent = L.pile.length;
+  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
+  addLog(L.name, `組數補牌 +2（組數：${cnt}，牌庫剩 ${L.pile.length}）`);
+}
+
+function loseRallySetPool() {
+  L.setPool = L.setPool || [];
+  if (!L.setPool.length) { toast('組數池已空'); return; }
+  const card = L.setPool.pop();
+  L.hand.push(card);
+  const cnt = L.setPool.length;
+  document.getElementById('self-set').textContent = cnt;
+  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
+  renderHand();
+  addLog(L.name, `輸一球 — 組數 -1（組數：${cnt}）`);
 }
 
 function openOppStack(zoneName) {
