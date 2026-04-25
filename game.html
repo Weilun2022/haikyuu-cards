@@ -628,6 +628,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -2092,17 +2093,17 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   if (cardData?.img) {
     slot.classList.add('filled');
     const guts = cardData.guts || [];
-    // left→right: top card first, then guts from newest to oldest
-    const allImgs = [cardData.img, ...guts.slice().reverse()];
+    // left→right: guts at left (bottom), top card at rightmost (highest z-index)
+    const allImgs = [...guts.slice().reverse(), cardData.img];
 
     const hstack = document.createElement('div');
     hstack.className = 'z-hstack';
 
     allImgs.forEach((img, i) => {
-      const isTop = i === 0;
+      const isTop = i === allImgs.length - 1;
       const cardEl = document.createElement('div');
       cardEl.className = 'z-hstack-card';
-      cardEl.style.zIndex = allImgs.length - i;
+      cardEl.style.zIndex = i + 1;
 
       const cardImg = document.createElement('img');
       cardImg.src = `images/${img}`; cardImg.loading = 'lazy';
