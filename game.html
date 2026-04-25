@@ -2296,29 +2296,29 @@ async function moveCard(fromZone, toZone, cardData) {
   closeCtx();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   removeFromZone(zones, fromZone, cardData.img);
-  if (toZone === 'block') {
+  const baseZone = toZone.split(':')[0];
+  if (baseZone === 'block') {
     const b = normaliseBlock(zones.block);
-    const i = b.findIndex(x => !x);
-    if (i === -1) { toast('攔網區已滿'); return; }
-    b[i] = { img: cardData.img, guts: cardData.guts || [] };
+    // Use specific slot if provided (block:0/1/2), else first empty
+    const slotIdx = toZone.includes(':') ? parseInt(toZone.split(':')[1]) : b.findIndex(x => !x);
+    if (slotIdx === -1) { toast('攔網區已滿'); return; }
+    if (b[slotIdx]?.img) { toast('攔網位已有牌'); return; }
+    b[slotIdx] = { img: cardData.img, guts: cardData.guts || [] };
     zones.block = b;
-  } else if (toZone === 'event') {
+  } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
     zones.event.push(cardData.img);
-  } else if (toZone === 'set') {
-    if (!zones.set) zones.set = [];
-    zones.set.push(cardData.img);
   } else {
-    const old = zones[toZone];
+    const old = zones[baseZone];
     if (old?.img) {
-      zones[toZone] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
+      zones[baseZone] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
     } else {
-      zones[toZone] = { img: cardData.img, guts: cardData.guts || [] };
+      zones[baseZone] = { img: cardData.img, guts: cardData.guts || [] };
     }
   }
   const card = allCards[cardData.img];
   await pushZones(zones);
-  addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[toZone]}`);
+  addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}`);
 }
 
 // ── Discard from zone ────────────────────────────────
