@@ -491,7 +491,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 
 /* Body */
-#game-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+#game-body { flex: 1; display: flex; overflow: hidden; min-height: 0; position: relative; }
 
 /* Board */
 #game-board {
@@ -500,7 +500,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex-direction: column;
   padding: 10px 12px;
   gap: 10px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   min-width: 0;
   max-width: 1100px;
   margin-left: auto;
@@ -513,7 +514,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: flex;
   align-items: stretch;
   gap: 10px;
-  min-height: 0;
+  min-height: 300px;
   position: relative;
   border-radius: 14px;
   padding: 6px;
@@ -568,8 +569,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 .board-court { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
 .opp-court { flex-direction: column-reverse; }
-.court-row { display: flex; gap: 8px; flex: 1; min-height: 0; }
-.court-row.back-row { flex: 0.8; }
+.court-row { display: flex; gap: 8px; flex: 1; min-height: 120px; }
+.court-row.back-row { flex: 0.8; min-height: 100px; }
 .zone-spacer { flex: 1; min-width: 0; }
 
 .zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 5px; }
@@ -2366,7 +2367,7 @@ async function placeCard(handIdx, zoneName) {
 
   L.hand.splice(handIdx, 1);
   await pushZones(zones);
-  if (baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones);
+  if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
   addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}`);
   renderHand();
 }
@@ -2399,8 +2400,9 @@ async function moveCard(fromZone, toZone, cardData) {
   const card = allCards[cardData.img];
   await pushZones(zones);
   const fromBase = fromZone.split(':')[0];
-  if (fromBase === 'toss' || fromBase === 'attack' || baseZone === 'toss' || baseZone === 'attack') {
-    await syncScoreToBase(zones);
+  const _rel = ['serve','toss','attack'];
+  if (_rel.includes(fromBase) || _rel.includes(baseZone)) {
+    await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null);
   }
   addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}`);
 }
@@ -2416,7 +2418,7 @@ async function discardFromZone(zoneName, cardData) {
   const card = allCards[cardData.img];
   await pushZones(zones);
   const _dz = zoneName.split(':')[0];
-  if (_dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones);
+  if (_dz === 'serve' || _dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones, null);
   addLog(L.name, `${card?.name || cardData.img} 送至棄牌區`);
 }
 
@@ -2514,7 +2516,7 @@ async function returnToPile(fromZone, cardData, position) {
   }
   await pushZones(zones);
   const _rz = fromZone.split(':')[0];
-  if (_rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones);
+  if (_rz === 'serve' || _rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones, null);
   document.getElementById('self-deck').textContent = L.pile.length;
   addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
 }
@@ -2538,11 +2540,37 @@ function calcBaseScoreFromZones(zones) {
   return tos + atk;
 }
 function calcBaseScore(role, data) {
-  return calcBaseScoreFromZones(data?.players?.[role]?.zones);
+  const mode  = data?.scoreModes?.[role] || 'attack';
+  const zones = data?.players?.[role]?.zones;
+  if (mode === 'serve') {
+    const serveImg = zones?.serve?.img;
+    return serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
+  }
+  return calcBaseScoreFromZones(zones);
 }
-async function syncScoreToBase(zones) {
-  const base = calcBaseScoreFromZones(zones);
-  await db.ref(`games/${roomId}/scores/${myRole}`).set(base);
+// changedZone: 'serve'|'toss'|'attack' → sets mode; null → keep stored mode (removal)
+async function syncScoreToBase(zones, changedZone) {
+  let mode, base;
+  if (changedZone === 'serve') {
+    mode = 'serve';
+    const serveImg = zones?.serve?.img;
+    base = serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
+  } else if (changedZone === 'toss' || changedZone === 'attack') {
+    mode = 'attack';
+    base = calcBaseScoreFromZones(zones);
+  } else {
+    mode = gameState?.scoreModes?.[myRole] || 'attack';
+    if (mode === 'serve') {
+      const serveImg = zones?.serve?.img;
+      base = serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
+    } else {
+      base = calcBaseScoreFromZones(zones);
+    }
+  }
+  const updates = {};
+  updates[`games/${roomId}/scores/${myRole}`] = base;
+  if (changedZone != null) updates[`games/${roomId}/scoreModes/${myRole}`] = mode;
+  await db.ref().update(updates);
 }
 
 async function adjustScore(role, delta) {
@@ -2777,8 +2805,9 @@ async function moveCardFromStack(fromZone, img, toTarget) {
   }
   await pushZones(zones);
   const _sfrom = fromZone.split(':')[0], _sto = toTarget.split(':')[0];
-  if (_sfrom === 'toss' || _sfrom === 'attack' || _sto === 'toss' || _sto === 'attack') {
-    await syncScoreToBase(zones);
+  const _srel = ['serve','toss','attack'];
+  if (_srel.includes(_sfrom) || _srel.includes(_sto)) {
+    await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null);
   }
   addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}`);
 }
@@ -2970,32 +2999,34 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
   setZoneCard(zones, zoneName, zc);
 
   const _gfrom = zoneName.split(':')[0];
-  const _gto   = target.split(':')[0];
-  const _needsSync = _gfrom === 'toss' || _gfrom === 'attack' || _gto === 'toss' || _gto === 'attack';
+  const _gto   = ['hand','pile-top','pile-bottom','drop'].includes(target) ? '' : target.split(':')[0];
+  const _grel  = ['serve','toss','attack'];
+  const _needsSync = _grel.includes(_gfrom) || _grel.includes(_gto);
+  const _modeZone  = _grel.includes(_gto) ? _gto : null;
 
   let logTarget = target;
   if (target === 'hand') {
     L.hand.push(gutsImg);
     await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone);
     renderHand();
   } else if (target === 'pile-top') {
     L.pile.push(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
     await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = '牌庫頂';
   } else if (target === 'pile-bottom') {
     L.pile.unshift(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
     await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = '牌庫底';
   } else if (target === 'drop') {
     zones.drop = zones.drop || [];
     zones.drop.push(gutsImg);
     await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = '棄牌區';
   } else {
     const baseZone = target.split(':')[0];
@@ -3016,7 +3047,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
         : { img: gutsImg, guts: [] };
     }
     await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
   addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}`);
