@@ -1137,9 +1137,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
   box-shadow: 0 20px 60px rgba(0,0,0,.7);
 }
 #drop-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
-#drop-cards { display: flex; flex-wrap: wrap; gap: 6px; overflow-y: auto; flex: 1; }
-#drop-cards img { width: 62px; border-radius: 5px; cursor: pointer; transition: transform .15s, opacity .15s; }
-#drop-cards img:hover { transform: scale(1.05); opacity: .85; }
+#drop-cards { display: flex; flex-wrap: wrap; gap: 8px; overflow-y: auto; flex: 1; align-content: flex-start; }
+#drop-cards .drop-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#drop-cards .drop-cell img { width: 80px; border-radius: 6px; cursor: pointer; transition: transform .15s, opacity .15s; }
+#drop-cards .drop-cell img:hover { transform: scale(1.06); opacity: .85; }
 
 /* ══════════════════════════════════════
    TOAST
@@ -1443,7 +1444,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <div class="board-side">
           <div class="info-tile clickable" onclick="drawCard()" title="點擊抽一張牌"><div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div></div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
-          <div class="info-tile clickable" onclick="openDropViewer('self')"><div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('self')"
+               ondragover="event.preventDefault(); this.classList.add('target')"
+               ondragleave="this.classList.remove('target')"
+               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
+            <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
+          </div>
         </div>
       </div>
     </div>
@@ -2163,7 +2169,9 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         cardEl.draggable = true;
         cardEl.addEventListener('dragstart', e => {
           e.dataTransfer.effectAllowed = 'move';
-          dragData = { src: 'zone', zoneName, cardData };
+          dragData = isTop
+            ? { src: 'zone', zoneName, cardData }
+            : { src: 'guts', zoneName, cardData, gutsImg: img };
           e.dataTransfer.setData('text/plain', 'card');
         });
       }
@@ -2275,6 +2283,20 @@ let dragData = null; // { src:'hand', idx, img } | { src:'zone', zoneName, cardD
 async function handleDrop(targetZone, hasCards) {
   if (!dragData) return;
   const dd = dragData; dragData = null;
+
+  if (targetZone === 'drop') {
+    if (dd.src === 'hand') {
+      discardFromHand(dd.idx);
+    } else if (dd.src === 'zone') {
+      const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+      const cd = getZoneCard(zones, dd.zoneName);
+      if (cd) discardFromZone(dd.zoneName, cd);
+    } else if (dd.src === 'guts') {
+      moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
+    }
+    return;
+  }
+
   if (dd.src === 'hand') {
     placeCard(dd.idx, targetZone);
   } else if (dd.src === 'zone') {
@@ -2282,6 +2304,9 @@ async function handleDrop(targetZone, hasCards) {
     const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
     const cardData = getZoneCard(zones, dd.zoneName);
     if (cardData) moveCard(dd.zoneName, targetZone, cardData);
+  } else if (dd.src === 'guts') {
+    // guts to zone
+    moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, targetZone.split(':')[0]);
   }
 }
 
@@ -2773,7 +2798,7 @@ function openDropViewer(side) {
   if (!drop.length) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px">棄牌區為空</div>'; }
   drop.slice().reverse().forEach(img => {
     const cell = document.createElement('div');
-    cell.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px';
+    cell.className = 'drop-cell';
     const imgEl = document.createElement('img');
     imgEl.src = `images/${img}`; imgEl.loading = 'lazy';
     imgEl.title = allCards[img]?.name || img;
