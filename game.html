@@ -2072,11 +2072,14 @@ function renderBoard(data) {
 
   // Score panels on NET bar
   const scores = data.scores || {};
-  document.getElementById('net-score-host-val').textContent  = scores.host  ?? 0;
-  document.getElementById('net-score-guest-val').textContent = scores.guest ?? 0;
   document.getElementById('net-score-host-name').textContent  = data.players?.host?.name  || 'Host';
   document.getElementById('net-score-guest-name').textContent = data.players?.guest?.name || 'Guest';
   ['host','guest'].forEach(role => {
+    const base  = calcBaseScore(role, data);
+    const cur   = scores[role] ?? base;
+    const valEl = document.getElementById(`net-score-${role}-val`);
+    valEl.textContent  = cur;
+    valEl.style.color  = cur !== base ? '#f87171' : '';
     const mine = role === myRole;
     document.getElementById(`btn-score-${role}-minus`).style.display = mine ? '' : 'none';
     document.getElementById(`btn-score-${role}-plus`).style.display  = mine ? '' : 'none';
@@ -2338,6 +2341,7 @@ async function placeCard(handIdx, zoneName) {
 
   L.hand.splice(handIdx, 1);
   await pushZones(zones);
+  if (baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones);
   addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}`);
   renderHand();
 }
@@ -2369,6 +2373,10 @@ async function moveCard(fromZone, toZone, cardData) {
   }
   const card = allCards[cardData.img];
   await pushZones(zones);
+  const fromBase = fromZone.split(':')[0];
+  if (fromBase === 'toss' || fromBase === 'attack' || baseZone === 'toss' || baseZone === 'attack') {
+    await syncScoreToBase(zones);
+  }
   addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}`);
 }
 
@@ -2382,6 +2390,8 @@ async function discardFromZone(zoneName, cardData) {
   if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
   const card = allCards[cardData.img];
   await pushZones(zones);
+  const _dz = zoneName.split(':')[0];
+  if (_dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones);
   addLog(L.name, `${card?.name || cardData.img} 送至棄牌區`);
 }
 
@@ -2478,6 +2488,8 @@ async function returnToPile(fromZone, cardData, position) {
     L.pile.unshift(cardData.img);
   }
   await pushZones(zones);
+  const _rz = fromZone.split(':')[0];
+  if (_rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones);
   document.getElementById('self-deck').textContent = L.pile.length;
   addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
 }
@@ -2493,9 +2505,24 @@ function shufflePile() {
   addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
 }
 
+function calcBaseScoreFromZones(zones) {
+  const tossImg   = zones?.toss?.img;
+  const attackImg = zones?.attack?.img;
+  const tos = tossImg   ? (+(allCards[tossImg]?.tos)   || 0) : 0;
+  const atk = attackImg ? (+(allCards[attackImg]?.atk) || 0) : 0;
+  return tos + atk;
+}
+function calcBaseScore(role, data) {
+  return calcBaseScoreFromZones(data?.players?.[role]?.zones);
+}
+async function syncScoreToBase(zones) {
+  const base = calcBaseScoreFromZones(zones);
+  await db.ref(`games/${roomId}/scores/${myRole}`).set(base);
+}
+
 async function adjustScore(role, delta) {
   if (role !== myRole) return;
-  const cur = gameState?.scores?.[role] ?? 0;
+  const cur = gameState?.scores?.[role] ?? calcBaseScore(role, gameState);
   const next = Math.max(0, cur + delta);
   await db.ref(`games/${roomId}/scores/${role}`).set(next);
 }
@@ -2722,6 +2749,10 @@ async function moveCardFromStack(fromZone, img, toTarget) {
     }
   }
   await pushZones(zones);
+  const _sfrom = fromZone.split(':')[0], _sto = toTarget.split(':')[0];
+  if (_sfrom === 'toss' || _sfrom === 'attack' || _sto === 'toss' || _sto === 'attack') {
+    await syncScoreToBase(zones);
+  }
   addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}`);
 }
 
@@ -2911,25 +2942,33 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
   zc.guts = (zc.guts || []).filter(g => g !== gutsImg);
   setZoneCard(zones, zoneName, zc);
 
+  const _gfrom = zoneName.split(':')[0];
+  const _gto   = target.split(':')[0];
+  const _needsSync = _gfrom === 'toss' || _gfrom === 'attack' || _gto === 'toss' || _gto === 'attack';
+
   let logTarget = target;
   if (target === 'hand') {
     L.hand.push(gutsImg);
     await pushZones(zones);
+    if (_needsSync) await syncScoreToBase(zones);
     renderHand();
   } else if (target === 'pile-top') {
     L.pile.push(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
     await pushZones(zones);
+    if (_needsSync) await syncScoreToBase(zones);
     logTarget = '牌庫頂';
   } else if (target === 'pile-bottom') {
     L.pile.unshift(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
     await pushZones(zones);
+    if (_needsSync) await syncScoreToBase(zones);
     logTarget = '牌庫底';
   } else if (target === 'drop') {
     zones.drop = zones.drop || [];
     zones.drop.push(gutsImg);
     await pushZones(zones);
+    if (_needsSync) await syncScoreToBase(zones);
     logTarget = '棄牌區';
   } else {
     const baseZone = target.split(':')[0];
@@ -2950,6 +2989,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
         : { img: gutsImg, guts: [] };
     }
     await pushZones(zones);
+    if (_needsSync) await syncScoreToBase(zones);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
   addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}`);
