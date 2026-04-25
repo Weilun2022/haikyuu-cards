@@ -493,7 +493,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 /* Body */
 #game-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
-#game-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; min-height: 0; }
 
 /* Board */
 #game-board {
@@ -1338,7 +1337,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   <!-- Body -->
   <div id="game-body">
-    <div id="game-main">
     <div id="game-board">
       <!-- Opponent -->
       <div class="player-area" id="opp-area">
@@ -1477,23 +1475,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
       <div id="log-wrap"></div>
     </div>
-
-    <!-- Guts mode banner -->
-    <div id="guts-banner">
-      <span class="guts-text">🔶 Guts 模式</span>
-      <span class="guts-hint">點擊場上角色牌以疊放 Guts</span>
-      <button class="btn xs" onclick="cancelGuts()">取消</button>
-    </div>
-
-    <!-- Hand -->
-    <div id="hand-area">
-      <div class="hand-lbl">手牌</div>
-      <div id="hand-cards"></div>
-      <div id="hand-meta"></div>
-    </div>
-
-  </div><!-- /game-main -->
   </div><!-- /game-body -->
+
+  <!-- Guts mode banner -->
+  <div id="guts-banner">
+    <span class="guts-text">🔶 Guts 模式</span>
+    <span class="guts-hint">點擊場上角色牌以疊放 Guts</span>
+    <button class="btn xs" onclick="cancelGuts()">取消</button>
+  </div>
+
+  <!-- Hand -->
+  <div id="hand-area">
+    <div class="hand-lbl">手牌</div>
+    <div id="hand-cards"></div>
+    <div id="hand-meta"></div>
+  </div>
 
 </div><!-- /screen-game -->
 
