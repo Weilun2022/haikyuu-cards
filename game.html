@@ -2543,6 +2543,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   L.hand.splice(handIdx, 1);
   await pushZones(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
+  await resetCounterDelta(baseZone);
   addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}`);
   renderHand();
 }
@@ -2618,6 +2619,7 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   if (_rel.includes(fromBase) || _rel.includes(baseZone)) {
     await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null);
   }
+  await resetCounterDelta(baseZone);
   addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}`);
 }
 
@@ -2839,6 +2841,22 @@ async function adjustScore(role, delta) {
 }
 
 // ── Counter cells (接球 / 舉球 / 攻擊) ─────────────────
+const ZONE_TO_STAT = { receive: 'rcv', toss: 'tos', attack: 'atk' };
+
+async function resetCounterDelta(zoneName) {
+  const stat = ZONE_TO_STAT[zoneName];
+  if (!stat) return;
+  await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(0);
+  // Recalc NET score with reset delta
+  const zones  = gameState?.players?.[myRole]?.zones;
+  const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: 0 };
+  const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
+  const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
+  await db.ref(`games/${roomId}/scores/${myRole}`).set(
+    Math.max(0, auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0))
+  );
+}
+
 async function adjustCounter(stat, delta) {
   const cur = gameState?.counterDelta?.[myRole]?.[stat] ?? 0;
   const next = cur + delta;
@@ -3148,6 +3166,7 @@ async function moveCardFromStack(fromZone, img, toTarget) {
   if (_srel.includes(_sfrom) || _srel.includes(_sto)) {
     await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null);
   }
+  await resetCounterDelta(_sto);
   addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}`);
 }
 
