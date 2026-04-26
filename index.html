@@ -1677,7 +1677,7 @@ let deckColorState = {};
 function encodeDeck(deck) {
   const payload = {
     n: deck.name,
-    c: deck.cards.map(c => [c.card_no, c.count])
+    c: deck.cards.map(c => [c.image_file, c.count])
   };
   return LZString.compressToEncodedURIComponent(JSON.stringify(payload));
 }
@@ -1688,9 +1688,20 @@ function decodeDeck(str) {
     const payload = JSON.parse(json);
     return {
       name: payload.n,
-      cards: payload.c.map(([card_no, count]) => {
-        const cardObj = cards.find(c => c.card_no === card_no);
-        return { image_file: cardObj?.image_file || card_no, card_no, count };
+      cards: payload.c.map(([identifier, count]) => {
+        // New format: identifier is image_file (ends with .webp)
+        // Old format: identifier is card_no (no extension) — fallback for old links
+        let cardObj;
+        if (identifier.endsWith('.webp')) {
+          cardObj = cards.find(c => c.image_file === identifier);
+        } else {
+          cardObj = cards.find(c => c.card_no === identifier);
+        }
+        return {
+          image_file: cardObj?.image_file || identifier,
+          card_no: cardObj?.card_no || identifier,
+          count
+        };
       })
     };
   } catch { return null; }
