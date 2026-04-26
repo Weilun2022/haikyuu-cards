@@ -2957,8 +2957,13 @@ async function moveCardFromStack(fromZone, img, toTarget) {
       removeFromZone(zones, fromZone, img);
     }
   } else {
-    // Remove from guts
-    zc.guts = (zc.guts || []).filter(g => g !== img);
+    // Remove ONE occurrence from guts (lastIndexOf = closest to top)
+    // filter() would remove all duplicates if the same card appears multiple times
+    const gutsArr = zc.guts || [];
+    const removeIdx = gutsArr.lastIndexOf(img);
+    if (removeIdx !== -1) {
+      zc.guts = [...gutsArr.slice(0, removeIdx), ...gutsArr.slice(removeIdx + 1)];
+    }
     setZoneCard(zones, fromZone, zc);
   }
   // Place in target
@@ -3411,10 +3416,17 @@ function checkUrlJoin() {
 // ══════════════════════════════════════════════════════
 const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
 
-function openDiceModal() {
-  // Reset state: clear any leftover diceRoll in Firebase for a fresh start
-  db.ref(`games/${roomId}/diceRoll`).remove();
+async function openDiceModal() {
   document.getElementById('dice-overlay').classList.add('open');
+  // If there's an active roll in progress, restore state instead of wiping it
+  const snap = await db.ref(`games/${roomId}/diceRoll`).once('value');
+  const existing = snap.val();
+  if (existing && existing.phase !== 'done') {
+    handleDiceRollUpdate({ diceRoll: existing });
+    return;
+  }
+  // Fresh start — clear any stale done state
+  await db.ref(`games/${roomId}/diceRoll`).remove();
   _showDiceStep('pick');
 }
 
@@ -3479,12 +3491,14 @@ async function pickDiceSide(pick) {
 }
 
 async function chooseTurn(choice) {
-  // choice = '先攻' | '後攻'
+  const firstRole = choice === '先攻' ? myRole : (myRole === 'host' ? 'guest' : 'host');
   await db.ref(`games/${roomId}/diceRoll`).update({
-    firstTurn: choice === '先攻' ? myRole : (myRole === 'host' ? 'guest' : 'host'),
+    firstTurn: firstRole,
     choiceLabel: choice,
     phase: 'done'
   });
+  // Actually apply the result to the game turn
+  await db.ref(`games/${roomId}/turn`).set(firstRole);
 }
 
 function handleDiceRollUpdate(data) {
@@ -3492,7 +3506,14 @@ function handleDiceRollUpdate(data) {
   if (!dr) return;
 
   const overlay = document.getElementById('dice-overlay');
-  if (!overlay.classList.contains('open')) return; // only update if modal is open
+  // Auto-open for non-initiator when a roll is in progress
+  if (!overlay.classList.contains('open') && dr.initiator && myRole !== dr.initiator) {
+    overlay.classList.add('open');
+    _showDiceStep('roll');
+    document.getElementById('dice-face').textContent = '🎲';
+    document.getElementById('dice-result-text').textContent = '對手正在擲骰...';
+  }
+  if (!overlay.classList.contains('open')) return;
 
   if (dr.phase === 'choosing') {
     // Show roll result to non-initiator (they see result screen)
