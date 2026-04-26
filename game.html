@@ -2235,10 +2235,6 @@ function renderBoard(data) {
   renderCounters(data);
 
   // Hand counts in sidebar
-  const hn = data.players?.host?.name  || 'Host';
-  const gn = data.players?.guest?.name || 'Guest';
-  const hav = data.players?.host?.avatar  || '🏐';
-  const gav = data.players?.guest?.avatar || '🏐';
   document.getElementById('sb-hand-host-name').textContent  = hn;
   document.getElementById('sb-hand-guest-name').textContent = gn;
   document.getElementById('sb-hand-host-av').textContent    = hav;
