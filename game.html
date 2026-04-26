@@ -1131,6 +1131,42 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #drop-cards .drop-cell img:hover { transform: scale(1.06); opacity: .85; }
 
 /* ══════════════════════════════════════
+   DICE ROLL MODAL
+══════════════════════════════════════ */
+#dice-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.82);
+  z-index: 960;
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(5px);
+}
+#dice-overlay.open { display: flex; }
+#dice-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 32px 36px;
+  width: 320px;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.8);
+  text-align: center;
+}
+.dice-title { font-size: 17px; font-weight: 800; }
+.dice-sub { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.dice-pick-row { display: flex; gap: 14px; width: 100%; }
+.dice-pick-btn {
+  flex: 1; padding: 14px 0; font-size: 22px; font-weight: 800;
+  border-radius: 14px; cursor: pointer;
+  border: 2px solid var(--border); background: var(--surface2); color: var(--text);
+  transition: border-color .15s, background .15s;
+}
+.dice-pick-btn:hover { border-color: var(--accent); background: rgba(108,99,255,.12); }
+#dice-face { font-size: 80px; line-height: 1; user-select: none; }
+#dice-result-text { font-size: 14px; color: var(--text-dim); min-height: 20px; }
+#dice-winner-text { font-size: 15px; font-weight: 700; }
+#dice-wait-text { font-size: 14px; color: var(--text-dim); }
+
+/* ══════════════════════════════════════
    TOAST
 ══════════════════════════════════════ */
 #toast {
@@ -1450,6 +1486,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
           <button class="btn xs" onclick="forcePhase('block')">🛡️ 攔網</button>
           <button class="btn xs" onclick="forcePhase('receive')">🤝 接球</button>
           <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()">結束回合 ▶</button>
+          <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
           <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">失敗宣告</button>
         </div>
       </div>
@@ -1533,6 +1570,49 @@ input[type=text]::placeholder { color: var(--text-dim); }
   </div>
 </div>
 
+
+<!-- Dice roll overlay -->
+<div id="dice-overlay" onclick="closeDiceModal()">
+  <div id="dice-modal" onclick="event.stopPropagation()">
+    <div class="dice-title">先攻後攻決定</div>
+
+    <!-- Step 1: pick 單/雙 -->
+    <div id="dice-step-pick">
+      <div class="dice-sub">選擇單或雙</div>
+      <div class="dice-pick-row" style="margin-top:10px">
+        <button class="dice-pick-btn" onclick="pickDiceSide('單')">單</button>
+        <button class="dice-pick-btn" onclick="pickDiceSide('雙')">雙</button>
+      </div>
+    </div>
+
+    <!-- Step 2: rolling / result -->
+    <div id="dice-step-roll" style="display:none;flex-direction:column;align-items:center;gap:12px">
+      <div id="dice-face">⚄</div>
+      <div id="dice-result-text"></div>
+    </div>
+
+    <!-- Step 3: winner chooses turn -->
+    <div id="dice-step-choose" style="display:none;flex-direction:column;align-items:center;gap:12px">
+      <div id="dice-winner-text"></div>
+      <div class="dice-pick-row">
+        <button class="dice-pick-btn" onclick="chooseTurn('先攻')">先攻</button>
+        <button class="dice-pick-btn" onclick="chooseTurn('後攻')">後攻</button>
+      </div>
+    </div>
+
+    <!-- Step 4: waiting for opponent -->
+    <div id="dice-step-wait" style="display:none;flex-direction:column;align-items:center;gap:12px">
+      <div id="dice-wait-text">等待對手選擇...</div>
+    </div>
+
+    <!-- Step 5: result announced -->
+    <div id="dice-step-done" style="display:none;flex-direction:column;align-items:center;gap:12px">
+      <div id="dice-done-text"></div>
+    </div>
+
+    <button class="btn sm" id="dice-close-btn" onclick="closeDiceModal()" style="display:none;width:100%;margin-top:4px">關閉</button>
+  </div>
+</div>
 
 <!-- Opponent notifications -->
 <div id="notif-wrap"></div>
@@ -1836,6 +1916,7 @@ function syncUI(data, prev) {
   if (document.getElementById('screen-game').classList.contains('active')) {
     renderBoard(data);
     detectOppActions(data, prev);
+    handleDiceRollUpdate(data);
   }
 }
 
@@ -3165,6 +3246,136 @@ function checkUrlJoin() {
   const p = new URLSearchParams(location.search);
   const code = p.get('join');
   if (code) document.getElementById('join-code').value = code.toUpperCase();
+}
+
+// ══════════════════════════════════════════════════════
+// DICE ROLL — 先攻後攻
+// ══════════════════════════════════════════════════════
+const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
+
+function openDiceModal() {
+  // Reset state: clear any leftover diceRoll in Firebase for a fresh start
+  db.ref(`games/${roomId}/diceRoll`).remove();
+  document.getElementById('dice-overlay').classList.add('open');
+  _showDiceStep('pick');
+}
+
+function closeDiceModal() {
+  document.getElementById('dice-overlay').classList.remove('open');
+}
+
+function _showDiceStep(step) {
+  ['pick','roll','choose','wait','done'].forEach(s => {
+    const el = document.getElementById(`dice-step-${s}`);
+    if (el) el.style.display = s === step ? (s === 'pick' ? 'block' : 'flex') : 'none';
+  });
+  const closeBtn = document.getElementById('dice-close-btn');
+  closeBtn.style.display = step === 'done' ? '' : 'none';
+}
+
+async function pickDiceSide(pick) {
+  // I am the initiator
+  _showDiceStep('roll');
+  document.getElementById('dice-result-text').textContent = `你選了「${pick}」，擲骰中...`;
+
+  // Animate dice for 1 second
+  let frames = 0;
+  const anim = setInterval(() => {
+    document.getElementById('dice-face').textContent = DICE_FACES[Math.floor(Math.random()*6)];
+    frames++;
+    if (frames >= 10) clearInterval(anim);
+  }, 100);
+
+  await new Promise(r => setTimeout(r, 1100));
+
+  const roll = Math.floor(Math.random() * 6) + 1; // 1-6
+  const rollType = roll % 2 === 1 ? '單' : '雙';
+  const faceIdx = roll - 1;
+  document.getElementById('dice-face').textContent = DICE_FACES[faceIdx];
+
+  const winner = pick === rollType ? myRole : (myRole === 'host' ? 'guest' : 'host');
+  const oppPick = pick === '單' ? '雙' : '單';
+
+  document.getElementById('dice-result-text').textContent =
+    `骰子：${roll}（${rollType}）— 你選「${pick}」，對手選「${oppPick}」`;
+
+  // Write to Firebase
+  await db.ref(`games/${roomId}/diceRoll`).set({
+    initiator: myRole,
+    initiatorPick: pick,
+    roll,
+    rollType,
+    winner,
+    phase: 'choosing'
+  });
+
+  // Now show choose or wait step
+  if (winner === myRole) {
+    const oppName = gameState?.players?.[myRole === 'host' ? 'guest' : 'host']?.name || '對手';
+    document.getElementById('dice-winner-text').textContent = `🎉 你贏了！選擇先攻或後攻`;
+    _showDiceStep('choose');
+  } else {
+    document.getElementById('dice-wait-text').textContent = '對手贏了骰子，等待對手選擇先攻後攻...';
+    _showDiceStep('wait');
+  }
+}
+
+async function chooseTurn(choice) {
+  // choice = '先攻' | '後攻'
+  await db.ref(`games/${roomId}/diceRoll`).update({
+    firstTurn: choice === '先攻' ? myRole : (myRole === 'host' ? 'guest' : 'host'),
+    choiceLabel: choice,
+    phase: 'done'
+  });
+}
+
+function handleDiceRollUpdate(data) {
+  const dr = data?.diceRoll;
+  if (!dr) return;
+
+  const overlay = document.getElementById('dice-overlay');
+  if (!overlay.classList.contains('open')) return; // only update if modal is open
+
+  if (dr.phase === 'choosing') {
+    // Show roll result to non-initiator (they see result screen)
+    const roll = dr.roll;
+    const rollType = dr.rollType;
+    const initiatorPick = dr.initiatorPick;
+    const oppPick = initiatorPick === '單' ? '雙' : '單';
+    const myPick = myRole === dr.initiator ? initiatorPick : oppPick;
+
+    if (myRole !== dr.initiator) {
+      // Non-initiator: show roll result
+      _showDiceStep('roll');
+      document.getElementById('dice-face').textContent = DICE_FACES[roll - 1];
+      document.getElementById('dice-result-text').textContent =
+        `骰子：${roll}（${rollType}）— 你選「${myPick}」，對手選「${myRole === dr.initiator ? oppPick : initiatorPick}」`;
+    }
+
+    if (dr.winner === myRole) {
+      document.getElementById('dice-winner-text').textContent = `🎉 你贏了！選擇先攻或後攻`;
+      _showDiceStep('choose');
+    } else if (dr.winner !== myRole && myRole !== dr.initiator) {
+      document.getElementById('dice-wait-text').textContent = '對手贏了骰子，等待對手選擇先攻後攻...';
+      _showDiceStep('wait');
+    }
+  }
+
+  if (dr.phase === 'done') {
+    const firstTurn = dr.firstTurn;
+    const myName = gameState?.players?.[myRole]?.name || myRole;
+    const hostName = gameState?.players?.host?.name || 'Host';
+    const guestName = gameState?.players?.guest?.name || 'Guest';
+    const firstName = firstTurn === 'host' ? hostName : guestName;
+    const isMe = firstTurn === myRole;
+    const doneMsg = isMe
+      ? `🏐 你選擇了${dr.choiceLabel}！你將先攻！`
+      : `🏐 ${firstName} 選擇先攻！`;
+    document.getElementById('dice-done-text').textContent = doneMsg;
+    // Show in log
+    addLog('系統', `🎲 先攻後攻結果：${firstName} 先攻`);
+    _showDiceStep('done');
+  }
 }
 
 // ══════════════════════════════════════════════════════
