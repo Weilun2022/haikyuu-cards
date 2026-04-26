@@ -1666,7 +1666,7 @@ const AVATAR_KEY = 'hv_avatar';
 const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
 
 const ZONE_NAMES  = ['serve','block','receive','toss','attack','event'];
-const ZONE_LABEL  = { serve:'發球區', block:'攔網區', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區' };
+const ZONE_LABEL  = { serve:'發球區', block:'攔網區', 'block:0':'側攔(左)', 'block:1':'中攔位', 'block:2':'側攔(右)', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區' };
 
 const PHASE_META = {
   serve:   { label:'發球階段', icon:'🏐', color:'#fb923c', bg:'rgba(251,146,60,.08)'  },
@@ -2374,35 +2374,15 @@ async function handleDrop(targetZone, hasCards) {
   }
 
   const baseTarget = targetZone.split(':')[0];
-  // Only ask when dropping onto a filled non-block, non-event zone
-  const needConfirm = hasCards && baseTarget !== 'block' && baseTarget !== 'event';
 
   if (dd.src === 'hand') {
-    if (needConfirm) {
-      const cardName = allCards[dd.img]?.name || dd.img;
-      showPlaceConfirm(
-        `「${cardName}」→ ${ZONE_LABEL[baseTarget] || baseTarget}`,
-        () => placeCard(dd.idx, targetZone, false),   // 最上方
-        () => placeCard(dd.idx, targetZone, true)     // 當 Guts
-      );
-    } else {
-      placeCard(dd.idx, targetZone);
-    }
+    placeCard(dd.idx, targetZone);
   } else if (dd.src === 'zone') {
     if (dd.zoneName === targetZone) return;
     const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
     const cardData = getZoneCard(zones, dd.zoneName);
     if (!cardData) return;
-    if (needConfirm) {
-      const cardName = allCards[cardData.img]?.name || cardData.img;
-      showPlaceConfirm(
-        `「${cardName}」→ ${ZONE_LABEL[baseTarget] || baseTarget}`,
-        () => moveCard(dd.zoneName, targetZone, cardData, false),  // 最上方
-        () => moveCard(dd.zoneName, targetZone, cardData, true)    // 當 Guts
-      );
-    } else {
-      moveCard(dd.zoneName, targetZone, cardData, false);
-    }
+    moveCard(dd.zoneName, targetZone, cardData, false);
   } else if (dd.src === 'guts') {
     moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, baseTarget);
   }
@@ -2866,8 +2846,27 @@ function openStack(zoneName, zonesData, readOnly = false) {
       handBtn.textContent = '收回手牌';
       handBtn.onclick = () => { closeStack(); moveCardFromStack(zoneName, img, 'hand'); };
       btns.appendChild(handBtn);
-      ['serve','block','receive','toss','attack','event','drop'].forEach(tz => {
-        if (tz === zoneName.split(':')[0] && i === 0) return;
+      // Reorder buttons (↑/↓ within same zone)
+      if (i > 0) {
+        const upBtn = document.createElement('button');
+        upBtn.className = 'btn xs';
+        upBtn.textContent = '↑ 上移';
+        upBtn.onclick = () => reorderStack(zoneName, all, i, i - 1);
+        btns.appendChild(upBtn);
+      }
+      if (i < all.length - 1) {
+        const downBtn = document.createElement('button');
+        downBtn.className = 'btn xs';
+        downBtn.textContent = '↓ 下移';
+        downBtn.onclick = () => reorderStack(zoneName, all, i, i + 1);
+        btns.appendChild(downBtn);
+      }
+      // Move-to-zone buttons (block expands to 3 slots)
+      ['serve','block:0','block:1','block:2','receive','toss','attack','event','drop'].forEach(tz => {
+        // Skip same block slot when this is the top card
+        if (tz === zoneName && i === 0) return;
+        // Also skip the parent 'block' zone if we're in any block slot and it's the top card
+        if (tz.startsWith('block:') && tz === zoneName && i === 0) return;
         const b = document.createElement('button');
         b.className = 'btn xs';
         if (tz === 'drop') b.style.color = 'var(--accent2)';
@@ -2978,6 +2977,16 @@ async function moveCardFromStack(fromZone, img, toTarget) {
       if (idx === -1) { toast('攔網區已滿'); return; }
       b[idx] = { img, guts: [] };
       zones.block = b;
+    } else if (toTarget.startsWith('block:')) {
+      const slotIdx = parseInt(toTarget.split(':')[1]);
+      const b = normaliseBlock(zones.block);
+      const old = b[slotIdx];
+      if (old?.img) {
+        b[slotIdx] = { img, guts: [...(old.guts || []), old.img] };
+      } else {
+        b[slotIdx] = { img, guts: [] };
+      }
+      zones.block = b;
     } else if (toTarget === 'event') {
       if (!zones.event) zones.event = [];
       zones.event.push(img);
@@ -3003,6 +3012,15 @@ async function moveCardFromStack(fromZone, img, toTarget) {
     await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null);
   }
   addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}`);
+}
+
+async function reorderStack(zoneName, all, fromIdx, toIdx) {
+  const newAll = [...all];
+  [newAll[fromIdx], newAll[toIdx]] = [newAll[toIdx], newAll[fromIdx]];
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  setZoneCard(zones, zoneName, { img: newAll[0], guts: newAll.slice(1).reverse() });
+  await pushZones(zones);
+  openStack(zoneName, zones);
 }
 
 // ══════════════════════════════════════════════════════
