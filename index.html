@@ -3151,7 +3151,7 @@ async function exportDeckAsImage() {
     const safe = deck.name.replace(/[^\w\u4e00-\u9fff\-]/g, '_');
     Object.assign(document.createElement('a'), {
       href: url,
-      download: `HVBreak-${safe}-${new Date().toISOString().slice(0,10)}.png`
+      download: `HVBreak-${safe}-${new Date().toISOString().slice(0,19).replace('T','-').replace(/:/g,'')}.png`
     }).click();
     URL.revokeObjectURL(url);
     showToast('圖片已下載！');
