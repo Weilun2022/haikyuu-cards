@@ -2544,7 +2544,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   await pushZones(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
   await resetCounterDelta(baseZone);
-  addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}`);
+  addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}${cardState()}`);
   renderHand();
 }
 
@@ -2620,7 +2620,7 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
     await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null);
   }
   await resetCounterDelta(baseZone);
-  addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}`);
+  addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}${cardState()}`);
 }
 
 // ── Discard only the TOP card from zone (guts remain) ─ used by drag ──
@@ -2655,7 +2655,7 @@ async function discardTopFromZone(zoneName, cardData) {
   const card = allCards[cardData.img];
   await pushZones(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, null);
-  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區`);
+  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`);
 }
 
 // ── Discard from zone (all cards incl. guts) — used by context menu ──
@@ -2670,7 +2670,7 @@ async function discardFromZone(zoneName, cardData) {
   await pushZones(zones);
   const _dz = zoneName.split(':')[0];
   if (_dz === 'serve' || _dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones, null);
-  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區`);
+  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`);
 }
 
 // ── Discard from hand ────────────────────────────────
@@ -2684,7 +2684,7 @@ async function discardFromHand(idx) {
   if (!zones.drop) zones.drop = [];
   zones.drop.push(img);
   await pushZones(zones);
-  addLog(L.name, `棄置 ${card?.name || img}`);
+  addLog(L.name, `棄置 ${card?.name || img}${cardState()}`);
   renderHand();
 }
 
@@ -2721,7 +2721,7 @@ async function applyGuts(handIdx, zoneName) {
   target.guts.push(img);
   setZoneCard(zones, zoneName, target);
   await pushZones(zones);
-  addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）`);
+  addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）${cardState()}`);
   cancelGuts();
   renderHand();
 }
@@ -2754,7 +2754,7 @@ function returnHandToPile(idx, position) {
   }
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  addLog(L.name, `${allCards[img]?.name || img} 從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
+  addLog(L.name, `${allCards[img]?.name || img} 從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`);
   renderHand();
 }
 
@@ -2772,7 +2772,7 @@ async function returnToPile(fromZone, cardData, position) {
   if (_rz === 'serve' || _rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones, null);
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
+  addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`);
 }
 
 function showDeckInfo() {
@@ -2942,6 +2942,10 @@ async function syncPileCount() {
 
 async function syncHandCount() {
   await db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+}
+
+function cardState() {
+  return `（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`;
 }
 
 async function addLog(player, action) {
@@ -3167,7 +3171,7 @@ async function moveCardFromStack(fromZone, img, toTarget) {
     await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null);
   }
   await resetCounterDelta(_sto);
-  addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}`);
+  addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}${cardState()}`);
 }
 
 async function reorderStack(zoneName, all, fromIdx, toIdx) {
@@ -3221,7 +3225,7 @@ async function returnFromDrop(img) {
   await pushZones(zones);
   document.getElementById('self-drop').textContent = countDrop(zones);
   renderHand();
-  addLog(L.name, `${allCards[img]?.name || img} 從棄牌區收回手牌`);
+  addLog(L.name, `${allCards[img]?.name || img} 從棄牌區收回手牌${cardState()}`);
   openDropViewer('self'); // refresh
 }
 
@@ -3419,7 +3423,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
     if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
-  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}`);
+  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}${cardState()}`);
 }
 
 function showZoneAction(zoneName, cardData) {
