@@ -562,6 +562,25 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .court-row.back-row { flex: 0.8; }
 .zone-spacer { flex: 1; min-width: 0; }
 
+/* ── Counter row (between NET and block zone) ── */
+.counter-row { flex: 0 0 auto !important; gap: 8px; }
+.counter-cell {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 2px; min-width: 0;
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 4px 2px;
+}
+.cnt-label { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: .5px; }
+.cnt-val { font-size: 20px; font-weight: 800; line-height: 1; transition: color .2s; }
+.cnt-btns { display: flex; gap: 3px; }
+.cnt-btn {
+  font-size: 10px; padding: 1px 7px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text-dim); cursor: pointer;
+}
+.cnt-btn:hover { border-color: var(--accent); color: var(--accent); }
+
 .zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 5px; }
 .z-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
 .z-label.lbl-rcv { color: #60a5fa; }
@@ -1375,6 +1394,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Court (reversed: block near net = bottom of opp area) -->
         <div class="board-court opp-court">
+          <!-- Counter row: first in HTML → last visually (bottom = near NET) -->
+          <div class="court-row counter-row">
+            <div class="counter-cell">
+              <div class="cnt-label">接球</div>
+              <div class="cnt-val" id="opp-cnt-rcv">0</div>
+            </div>
+            <div class="counter-cell">
+              <div class="cnt-label">舉球</div>
+              <div class="cnt-val" id="opp-cnt-tos">0</div>
+            </div>
+            <div class="counter-cell">
+              <div class="cnt-label">攻擊</div>
+              <div class="cnt-val" id="opp-cnt-atk">0</div>
+            </div>
+          </div>
           <div class="court-row">
             <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
@@ -1434,6 +1468,33 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Court (block on top = near net) -->
         <div class="board-court" id="self-court">
+          <!-- Counter row: first in HTML → top visually (near NET above self-area) -->
+          <div class="court-row counter-row">
+            <div class="counter-cell">
+              <div class="cnt-label">接球</div>
+              <div class="cnt-val" id="self-cnt-rcv">0</div>
+              <div class="cnt-btns">
+                <button class="cnt-btn" onclick="adjustCounter('rcv',-1)">−</button>
+                <button class="cnt-btn" onclick="adjustCounter('rcv',1)">＋</button>
+              </div>
+            </div>
+            <div class="counter-cell">
+              <div class="cnt-label">舉球</div>
+              <div class="cnt-val" id="self-cnt-tos">0</div>
+              <div class="cnt-btns">
+                <button class="cnt-btn" onclick="adjustCounter('tos',-1)">−</button>
+                <button class="cnt-btn" onclick="adjustCounter('tos',1)">＋</button>
+              </div>
+            </div>
+            <div class="counter-cell">
+              <div class="cnt-label">攻擊</div>
+              <div class="cnt-val" id="self-cnt-atk">0</div>
+              <div class="cnt-btns">
+                <button class="cnt-btn" onclick="adjustCounter('atk',-1)">−</button>
+                <button class="cnt-btn" onclick="adjustCounter('atk',1)">＋</button>
+              </div>
+            </div>
+          </div>
           <div class="court-row">
             <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
@@ -2150,12 +2211,12 @@ function renderBoard(data) {
     const valEl = document.getElementById(`net-score-${role}-val`);
     valEl.textContent  = cur;
     valEl.style.color  = cur !== base ? '#f87171' : '';
-    const mine = role === myRole;
-    document.getElementById(`btn-score-${role}-minus`).style.display = mine ? '' : 'none';
-    document.getElementById(`btn-score-${role}-plus`).style.display  = mine ? '' : 'none';
+    document.getElementById(`btn-score-${role}-minus`).style.display = 'none';
+    document.getElementById(`btn-score-${role}-plus`).style.display  = 'none';
   });
 
   updatePhaseUI(data.phase || 'serve', data.turn);
+  renderCounters(data);
 
   if (data.log) renderLog(data.log);
   renderHand();
@@ -2713,21 +2774,26 @@ function calcBaseScore(role, data) {
 }
 // changedZone: 'serve'|'toss'|'attack' → sets mode; null → keep stored mode (removal)
 async function syncScoreToBase(zones, changedZone) {
+  const delta = gameState?.counterDelta?.[myRole] || {};
   let mode, base;
   if (changedZone === 'serve') {
     mode = 'serve';
     const serveImg = zones?.serve?.img;
     base = serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
-  } else if (changedZone === 'toss' || changedZone === 'attack') {
+  } else if (changedZone === 'toss' || changedZone === 'attack' || changedZone === 'receive') {
     mode = 'attack';
-    base = calcBaseScoreFromZones(zones);
+    const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
+    const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
+    base = auto_tos + (delta.tos || 0) + auto_atk + (delta.atk || 0);
   } else {
     mode = gameState?.scoreModes?.[myRole] || 'attack';
     if (mode === 'serve') {
       const serveImg = zones?.serve?.img;
       base = serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
     } else {
-      base = calcBaseScoreFromZones(zones);
+      const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
+      const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
+      base = auto_tos + (delta.tos || 0) + auto_atk + (delta.atk || 0);
     }
   }
   const updates = {};
@@ -2741,6 +2807,44 @@ async function adjustScore(role, delta) {
   const cur = gameState?.scores?.[role] ?? calcBaseScore(role, gameState);
   const next = Math.max(0, cur + delta);
   await db.ref(`games/${roomId}/scores/${role}`).set(next);
+}
+
+// ── Counter cells (接球 / 舉球 / 攻擊) ─────────────────
+async function adjustCounter(stat, delta) {
+  const cur = gameState?.counterDelta?.[myRole]?.[stat] ?? 0;
+  const next = cur + delta;
+  await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(next);
+  // Recalc NET score = tos_total + atk_total
+  const zones  = gameState?.players?.[myRole]?.zones;
+  const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: next };
+  const auto_tos = +(allCards[zones?.toss?.img]?.tos)    || 0;
+  const auto_atk = +(allCards[zones?.attack?.img]?.atk)  || 0;
+  const total = auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0);
+  await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, total));
+}
+
+function renderCounters(data) {
+  const oppRole = myRole === 'host' ? 'guest' : 'host';
+  [myRole, oppRole].forEach(role => {
+    const prefix = role === myRole ? 'self' : 'opp';
+    const zones  = data?.players?.[role]?.zones;
+    const delta  = data?.counterDelta?.[role] || {};
+    const auto_rcv = +(allCards[zones?.receive?.img]?.rcv) || 0;
+    const auto_tos = +(allCards[zones?.toss?.img]?.tos)    || 0;
+    const auto_atk = +(allCards[zones?.attack?.img]?.atk)  || 0;
+    const tot_rcv = auto_rcv + (delta.rcv || 0);
+    const tot_tos = auto_tos + (delta.tos || 0);
+    const tot_atk = auto_atk + (delta.atk || 0);
+    const set = (id, val, hasOffset) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent  = val;
+      el.style.color  = hasOffset ? 'var(--accent)' : '';
+    };
+    set(`${prefix}-cnt-rcv`, tot_rcv, !!delta.rcv);
+    set(`${prefix}-cnt-tos`, tot_tos, !!delta.tos);
+    set(`${prefix}-cnt-atk`, tot_atk, !!delta.atk);
+  });
 }
 
 function adjustSet() {
