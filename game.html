@@ -1133,6 +1133,23 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* ══════════════════════════════════════
    DICE ROLL MODAL
 ══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   PLACE CONFIRM MODAL
+══════════════════════════════════════ */
+#place-confirm-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 970;
+  display: none; align-items: center; justify-content: center; backdrop-filter: blur(4px);
+}
+#place-confirm-overlay.open { display: flex; }
+#place-confirm-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  padding: 24px 28px; width: 300px; display: flex; flex-direction: column;
+  align-items: center; gap: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.8); text-align: center;
+}
+#place-confirm-title { font-size: 14px; font-weight: 700; }
+.place-confirm-row { display: flex; gap: 10px; width: 100%; }
+.place-confirm-row .btn { flex: 1; padding: 12px 0; font-size: 13px; }
+
 #dice-overlay {
   position: fixed; inset: 0;
   background: rgba(0,0,0,.82);
@@ -1571,6 +1588,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
 </div>
 
 
+<!-- Place confirm modal -->
+<div id="place-confirm-overlay">
+  <div id="place-confirm-box">
+    <div id="place-confirm-title">選擇放置方式</div>
+    <div class="place-confirm-row">
+      <button class="btn sm" id="place-confirm-top-btn">最上方</button>
+      <button class="btn sm" id="place-confirm-guts-btn">當 Guts</button>
+    </div>
+    <button class="btn xs" onclick="closePlaceConfirm()">取消</button>
+  </div>
+</div>
+
 <!-- Dice roll overlay -->
 <div id="dice-overlay" onclick="closeDiceModal()">
   <div id="dice-modal" onclick="event.stopPropagation()">
@@ -2008,6 +2037,7 @@ function enterGame() {
 
   showScreen('game');
   renderBoard(gameState);
+  syncPileCount();
   addLog('system', '對戰開始！每人抽 6 張手牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
 }
@@ -2103,6 +2133,7 @@ function renderBoard(data) {
   renderZones('opp', opp?.zones, true);
   document.getElementById('opp-set').textContent  = opp?.setCardsLeft ?? '?';
   document.getElementById('opp-drop').textContent = countDrop(opp?.zones);
+  document.getElementById('opp-deck').textContent = opp?.pileCount ?? '?';
 
   renderZones('self', self?.zones, false);
   document.getElementById('self-deck').textContent = L.pile.length;
@@ -2311,35 +2342,69 @@ function highlightGutsTargets() {
 // CARD INTERACTION
 // ══════════════════════════════════════════════════════
 let selectedHandIdx = null;
-let dragData = null; // { src:'hand', idx, img } | { src:'zone', zoneName, cardData }
+let dragData = null; // { src:'hand', idx, img } | { src:'zone', zoneName, cardData } | { src:'guts', ... }
+
+// ── Place-confirm helpers ─────────────────────────────
+function showPlaceConfirm(title, onTop, onGuts) {
+  document.getElementById('place-confirm-title').textContent = title;
+  document.getElementById('place-confirm-top-btn').onclick  = () => { closePlaceConfirm(); onTop(); };
+  document.getElementById('place-confirm-guts-btn').onclick = () => { closePlaceConfirm(); onGuts(); };
+  document.getElementById('place-confirm-overlay').classList.add('open');
+}
+function closePlaceConfirm() {
+  document.getElementById('place-confirm-overlay').classList.remove('open');
+}
 
 async function handleDrop(targetZone, hasCards) {
   if (!dragData) return;
   const dd = dragData; dragData = null;
 
+  // ── Drag to discard zone: only move the TOP card ──
   if (targetZone === 'drop') {
     if (dd.src === 'hand') {
       discardFromHand(dd.idx);
     } else if (dd.src === 'zone') {
       const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
       const cd = getZoneCard(zones, dd.zoneName);
-      if (cd) discardFromZone(dd.zoneName, cd);
+      if (cd) discardTopFromZone(dd.zoneName, cd);
     } else if (dd.src === 'guts') {
       moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
     }
     return;
   }
 
+  const baseTarget = targetZone.split(':')[0];
+  // Only ask when dropping onto a filled non-block, non-event zone
+  const needConfirm = hasCards && baseTarget !== 'block' && baseTarget !== 'event';
+
   if (dd.src === 'hand') {
-    placeCard(dd.idx, targetZone);
+    if (needConfirm) {
+      const cardName = allCards[dd.img]?.name || dd.img;
+      showPlaceConfirm(
+        `「${cardName}」→ ${ZONE_LABEL[baseTarget] || baseTarget}`,
+        () => placeCard(dd.idx, targetZone, false),   // 最上方
+        () => placeCard(dd.idx, targetZone, true)     // 當 Guts
+      );
+    } else {
+      placeCard(dd.idx, targetZone);
+    }
   } else if (dd.src === 'zone') {
     if (dd.zoneName === targetZone) return;
     const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
     const cardData = getZoneCard(zones, dd.zoneName);
-    if (cardData) moveCard(dd.zoneName, targetZone, cardData);
+    if (!cardData) return;
+    if (needConfirm) {
+      const cardName = allCards[cardData.img]?.name || cardData.img;
+      showPlaceConfirm(
+        `「${cardName}」→ ${ZONE_LABEL[baseTarget] || baseTarget}`,
+        () => moveCard(dd.zoneName, targetZone, cardData, false),  // 最上方
+        () => moveCard(dd.zoneName, targetZone, cardData, true)    // 當 Guts
+      );
+    } else {
+      moveCard(dd.zoneName, targetZone, cardData, false);
+    }
   } else if (dd.src === 'guts') {
-    // guts to zone
-    moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, targetZone.split(':')[0]);
+    moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, baseTarget);
   }
 }
 
@@ -2360,7 +2425,7 @@ function onZoneClick(zoneName, cardData, slotEl) {
 }
 
 // ── Place card from hand ─────────────────────────────
-async function placeCard(handIdx, zoneName) {
+async function placeCard(handIdx, zoneName, asGuts = false) {
   closeCtx();
   clearSelection();
   clearZoneHighlights();
@@ -2375,7 +2440,11 @@ async function placeCard(handIdx, zoneName) {
       const i = parseInt(zoneName.split(':')[1]);
       const old = b[i];
       if (old) {
-        b[i] = { img, guts: [...(old.guts || []), old.img] };
+        if (asGuts) {
+          b[i] = { img: old.img, guts: [...(old.guts || []), img] };
+        } else {
+          b[i] = { img, guts: [...(old.guts || []), old.img] };
+        }
       } else {
         b[i] = { img, guts: [] };
       }
@@ -2391,7 +2460,11 @@ async function placeCard(handIdx, zoneName) {
   } else {
     const old = zones[baseZone];
     if (old?.img) {
-      zones[baseZone] = { img, guts: [...(old.guts || []), old.img] };
+      if (asGuts) {
+        zones[baseZone] = { img: old.img, guts: [...(old.guts || []), img] };
+      } else {
+        zones[baseZone] = { img, guts: [...(old.guts || []), old.img] };
+      }
     } else {
       zones[baseZone] = { img, guts: [] };
     }
@@ -2405,18 +2478,53 @@ async function placeCard(handIdx, zoneName) {
 }
 
 // ── Move card between zones ──────────────────────────
-async function moveCard(fromZone, toZone, cardData) {
+// Only moves the TOP card; guts remain in the source zone.
+// asGuts=true → dragged card slides under the existing top at destination.
+async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   closeCtx();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
-  removeFromZone(zones, fromZone, cardData.img);
+  const fromBase = fromZone.split(':')[0];
+
+  // ── Remove only the top card; leave guts behind in source ──
+  if (fromBase === 'block') {
+    const fi = parseInt(fromZone.split(':')[1]);
+    const fb = normaliseBlock(zones.block);
+    if (cardData.guts?.length) {
+      const rem = [...cardData.guts];
+      const newTop = rem.pop();
+      fb[fi] = { img: newTop, guts: rem };
+    } else {
+      fb[fi] = null;
+    }
+    zones.block = fb;
+  } else if (fromBase === 'event') {
+    zones.event = (zones.event || []).filter(f => f !== cardData.img);
+  } else {
+    if (cardData.guts?.length) {
+      const rem = [...cardData.guts];
+      const newTop = rem.pop();
+      zones[fromBase] = { img: newTop, guts: rem };
+    } else {
+      zones[fromBase] = null;
+    }
+  }
+
+  // ── Place only the top card at destination ──
   const baseZone = toZone.split(':')[0];
   if (baseZone === 'block') {
     const b = normaliseBlock(zones.block);
-    // Use specific slot if provided (block:0/1/2), else first empty
     const slotIdx = toZone.includes(':') ? parseInt(toZone.split(':')[1]) : b.findIndex(x => !x);
     if (slotIdx === -1) { toast('攔網區已滿'); return; }
-    if (b[slotIdx]?.img) { toast('攔網位已有牌'); return; }
-    b[slotIdx] = { img: cardData.img, guts: cardData.guts || [] };
+    const old = b[slotIdx];
+    if (old?.img) {
+      if (asGuts) {
+        b[slotIdx] = { img: old.img, guts: [...(old.guts || []), cardData.img] };
+      } else {
+        b[slotIdx] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
+      }
+    } else {
+      b[slotIdx] = { img: cardData.img, guts: [] };
+    }
     zones.block = b;
   } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
@@ -2424,14 +2532,18 @@ async function moveCard(fromZone, toZone, cardData) {
   } else {
     const old = zones[baseZone];
     if (old?.img) {
-      zones[baseZone] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
+      if (asGuts) {
+        zones[baseZone] = { img: old.img, guts: [...(old.guts || []), cardData.img] };
+      } else {
+        zones[baseZone] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
+      }
     } else {
-      zones[baseZone] = { img: cardData.img, guts: cardData.guts || [] };
+      zones[baseZone] = { img: cardData.img, guts: [] };
     }
   }
+
   const card = allCards[cardData.img];
   await pushZones(zones);
-  const fromBase = fromZone.split(':')[0];
   const _rel = ['serve','toss','attack'];
   if (_rel.includes(fromBase) || _rel.includes(baseZone)) {
     await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null);
@@ -2439,7 +2551,42 @@ async function moveCard(fromZone, toZone, cardData) {
   addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}`);
 }
 
-// ── Discard from zone ────────────────────────────────
+// ── Discard only the TOP card from zone (guts remain) ─ used by drag ──
+async function discardTopFromZone(zoneName, cardData) {
+  closeCtx();
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  const baseZone = zoneName.split(':')[0];
+
+  if (baseZone === 'block') {
+    const fi = parseInt(zoneName.split(':')[1]);
+    const fb = normaliseBlock(zones.block);
+    if (cardData.guts?.length) {
+      const rem = [...cardData.guts];
+      const newTop = rem.pop();
+      fb[fi] = { img: newTop, guts: rem };
+    } else {
+      fb[fi] = null;
+    }
+    zones.block = fb;
+  } else if (baseZone !== 'event') {
+    if (cardData.guts?.length) {
+      const rem = [...cardData.guts];
+      const newTop = rem.pop();
+      zones[baseZone] = { img: newTop, guts: rem };
+    } else {
+      zones[baseZone] = null;
+    }
+  }
+
+  if (!zones.drop) zones.drop = [];
+  zones.drop.push(cardData.img);
+  const card = allCards[cardData.img];
+  await pushZones(zones);
+  if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, null);
+  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區`);
+}
+
+// ── Discard from zone (all cards incl. guts) — used by context menu ──
 async function discardFromZone(zoneName, cardData) {
   closeCtx();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
@@ -2515,6 +2662,7 @@ function drawCard() {
   drawFromPile();
   addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
   document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
   renderHand();
 }
 
@@ -2533,6 +2681,7 @@ function returnHandToPile(idx, position) {
     L.pile.unshift(img);
   }
   document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
   addLog(L.name, `${allCards[img]?.name || img} 從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
   renderHand();
 }
@@ -2550,6 +2699,7 @@ async function returnToPile(fromZone, cardData, position) {
   const _rz = fromZone.split(':')[0];
   if (_rz === 'serve' || _rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones, null);
   document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
   addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}`);
 }
 
@@ -2560,6 +2710,7 @@ function showDeckInfo() {
 function shufflePile() {
   if (!L.pile.length) { toast('牌庫已空'); return; }
   shuffle(L.pile);
+  syncPileCount();
   toast(`牌庫已洗牌（${L.pile.length} 張）`);
   addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
 }
@@ -2652,6 +2803,10 @@ function forcePhase(v) {
 // ══════════════════════════════════════════════════════
 async function pushZones(zones) {
   await db.ref(`games/${roomId}/players/${myRole}/zones`).set(sanitise(zones));
+}
+
+async function syncPileCount() {
+  await db.ref(`games/${roomId}/players/${myRole}/pileCount`).set(L.pile.length);
 }
 
 async function addLog(player, action) {
@@ -2758,6 +2913,7 @@ function addToSetPool() {
   const cnt = L.setPool.length;
   document.getElementById('self-set').textContent = cnt;
   document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
   addLog(L.name, `組數補牌 +2（組數：${cnt}，牌庫剩 ${L.pile.length}）`);
 }
@@ -3045,12 +3201,14 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
   } else if (target === 'pile-top') {
     L.pile.push(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
     await pushZones(zones);
     if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = '牌庫頂';
   } else if (target === 'pile-bottom') {
     L.pile.unshift(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
     await pushZones(zones);
     if (_needsSync) await syncScoreToBase(zones, _modeZone);
     logTarget = '牌庫底';
