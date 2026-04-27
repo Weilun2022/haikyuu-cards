@@ -2468,7 +2468,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        if (isOpp) { openOppStack(zoneName); return; }
+        if (isOpp) { showDetail(img); return; }
         isTop ? onZoneClick(zoneName, cardData, slot) : showGutsAction(zoneName, cardData, img);
       };
 
@@ -2496,7 +2496,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        isOpp ? openOppStack(zoneName) : onZoneClick(zoneName, cardData, slot);
+        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
       }
     };
 
