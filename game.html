@@ -1094,29 +1094,93 @@ input[type=text]::placeholder { color: var(--text-dim); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 20px;
-  max-width: 420px;
-  width: 92%;
+  max-width: 680px;
+  width: 95%;
+  max-height: 88vh;
   box-shadow: 0 20px 60px rgba(0,0,0,.7);
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  overflow: hidden;
+  position: relative;
+  animation: haModalIn .18s ease;
 }
-.ha-card-row { display: flex; gap: 16px; }
-#ha-img { width: 110px; border-radius: 10px; flex-shrink: 0; object-fit: cover; box-shadow: 0 8px 24px rgba(0,0,0,.5); cursor: pointer; }
-#ha-img:hover { opacity: .85; }
-.ha-info { flex: 1; min-width: 0; }
-.ha-name { font-size: 15px; font-weight: 800; margin-bottom: 4px; line-height: 1.3; }
-.ha-sub { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
-.ha-skill { font-size: 11px; color: var(--text-dim); line-height: 1.6; max-height: 90px; overflow-y: auto; }
+@keyframes haModalIn {
+  from { opacity: 0; transform: scale(.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
+}
+.ha-close-btn {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); width: 28px; height: 28px; border-radius: 50%;
+  font-size: 14px; cursor: pointer; display: flex; align-items: center;
+  justify-content: center; z-index: 2; transition: background .15s;
+}
+.ha-close-btn:hover { background: var(--border); }
+.ha-modal-img {
+  width: 200px; flex-shrink: 0; background: var(--surface2);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.ha-modal-img img {
+  width: 100%; object-fit: cover; cursor: zoom-in;
+  transition: opacity .15s;
+}
+.ha-modal-img img:hover { opacity: .88; }
+.ha-modal-body {
+  flex: 1; padding: 18px 18px 16px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 0; min-width: 0;
+}
+.ha-no { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.ha-name { font-size: 20px; font-weight: 800; margin-bottom: 8px; line-height: 1.25; }
+.ha-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.ha-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 12px;
+  border: 1px solid currentColor; background: rgba(255,255,255,.04);
+}
+/* Stat grid — mirrors index.html layout */
+.ha-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.ha-stats-grid .ha-stat-box:nth-child(-n+2) { grid-column: span 3; }
+.ha-stats-grid .ha-stat-box:nth-child(n+3)  { grid-column: span 2; }
+.ha-stat-box {
+  border-radius: 8px; padding: 8px 4px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.ha-stat-box .ha-sl { font-size: 10px; color: rgba(255,255,255,.7); font-weight: 600; }
+.ha-stat-box .ha-sv { font-size: 20px; font-weight: 800; color: #fff; line-height: 1; }
+.ha-skill-title { font-size: 11px; color: var(--text-dim); font-weight: 600; letter-spacing: .4px; margin-bottom: 5px; }
+.ha-skill {
+  font-size: 12px; color: var(--text); line-height: 1.75;
+  background: var(--surface2); border-radius: 8px; padding: 10px 12px;
+  margin-bottom: 12px; white-space: pre-wrap;
+}
+/* Q&A */
+.ha-qa-section { margin-bottom: 12px; }
+.ha-qa-toggle {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; background: none; border: 1px solid var(--border);
+  border-radius: 8px; padding: 7px 10px; color: var(--text-dim);
+  font-size: 12px; cursor: pointer; text-align: left;
+  font-family: inherit; transition: border-color .15s, color .15s;
+}
+.ha-qa-toggle:hover, .ha-qa-toggle.open { border-color: var(--accent); color: var(--text); }
+.ha-qa-arrow { transition: transform .2s; display: inline-block; }
+.ha-qa-toggle.open .ha-qa-arrow { transform: rotate(90deg); }
+.ha-qa-list { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+.ha-qa-list.open { max-height: 2000px; }
+.ha-qa-item { padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; line-height: 1.7; }
+.ha-qa-item:last-child { border-bottom: none; }
+.ha-qa-date { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+.ha-qa-q { color: var(--text); margin-bottom: 3px; }
+.ha-qa-a { color: var(--text-dim); }
+/* Actions */
 .ha-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 14px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  border-top: 1px solid var(--border); padding-top: 12px; margin-top: auto;
 }
-.ha-footer { display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 12px; }
+.ha-footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 10px; }
 
 /* ══════════════════════════════════════
    DROP VIEWER
@@ -1629,19 +1693,25 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <!-- Hand card action modal -->
 <div id="hand-action-overlay" onclick="closeHandAction()">
   <div id="hand-action-box" onclick="event.stopPropagation()">
-    <div class="ha-card-row">
+    <button class="ha-close-btn" onclick="closeHandAction()">✕</button>
+    <!-- Left: card image -->
+    <div class="ha-modal-img">
       <img id="ha-img" src="" alt="" onclick="showDetail(_haImg)">
-      <div class="ha-info">
-        <div class="ha-name" id="ha-name"></div>
-        <div class="ha-sub" id="ha-sub"></div>
-        <div class="detail-stats" id="ha-stats"></div>
-        <div class="ha-skill" id="ha-skill"></div>
-      </div>
     </div>
-    <div class="ha-actions" id="ha-actions"></div>
-    <div class="ha-footer">
-      <button class="btn sm danger" id="ha-discard-btn">棄牌</button>
-      <button class="btn sm" onclick="closeHandAction()">關閉</button>
+    <!-- Right: rich info + actions -->
+    <div class="ha-modal-body">
+      <div class="ha-no" id="ha-no"></div>
+      <div class="ha-name" id="ha-name"></div>
+      <div class="ha-tags" id="ha-tags"></div>
+      <div class="ha-stats-grid" id="ha-stats"></div>
+      <div class="ha-skill-title" id="ha-skill-title">技能文字</div>
+      <div class="ha-skill" id="ha-skill"></div>
+      <div class="ha-qa-section" id="ha-qa"></div>
+      <div class="ha-actions" id="ha-actions"></div>
+      <div class="ha-footer">
+        <button class="btn sm danger" id="ha-discard-btn">棄牌</button>
+        <button class="btn sm" onclick="closeHandAction()">關閉</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3256,6 +3326,26 @@ function closeDetail() { document.getElementById('detail-overlay').classList.rem
 // ══════════════════════════════════════════════════════
 // HAND ACTION MODAL
 // ══════════════════════════════════════════════════════
+const HA_RARITY_COLOR = {
+  '秘':'#f0c040','頂':'#c084fc','頂P':'#d8b4fe',
+  'S':'#60a5fa','SP':'#93c5fd','R':'#4ade80','RP':'#86efac',
+  'N':'#94a3b8','NP':'#cbd5e1','D':'#fb923c','DP':'#fdba74',
+  'P':'#f87171','K':'#e879f9','KP':'#f0abfc'
+};
+const HA_SCHOOL_COLOR = {
+  '烏野':'#f97316','音駒':'#ef4444','稲荷崎':'#a855f7',
+  '白鳥沢':'#3b82f6','伊達工業':'#22c55e','青葉城西':'#06b6d4',
+  '梟谷':'#a16207','鴎台':'#8b5cf6'
+};
+const HA_CATEGORY_ZH = { 'CHARACTER':'角色','EVENT':'事件','SERVE':'發球' };
+const HA_STAT_DEFS = [
+  ['srv','發球','#EAB308','#1a1600'],
+  ['blk','攔網','#e8e8f2','#1C1C1C'],
+  ['rcv','接球','#60a5fa','#0a1929'],
+  ['tos','舉球','#4ade80','#071a0e'],
+  ['atk','攻擊','#f87171','#1a0707'],
+];
+
 let _haImg = null;
 
 function showHandAction(idx) {
@@ -3314,22 +3404,96 @@ function closeHandAction() {
   _haImg = null;
 }
 
+function _escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function _fillModalCardInfo(img) {
   const c = allCards[img];
   if (!c) return false;
   _haImg = img;
+
+  // Image
   document.getElementById('ha-img').src = `images/${img}`;
+
+  // Card no
+  document.getElementById('ha-no').textContent = c.card_no || '';
+
+  // Name
   document.getElementById('ha-name').textContent = c.name || img;
-  document.getElementById('ha-sub').textContent = [c.affiliation, c.position_zh || c.category_zh].filter(Boolean).join(' · ');
-  const stats = document.getElementById('ha-stats');
-  stats.innerHTML = '';
-  [['srv','發球'],['blk','攔網'],['rcv','接球'],['tos','舉球'],['atk','攻擊']].forEach(([k,l]) => {
-    const v = c[k];
-    const d = document.createElement('div'); d.className = 'd-stat';
-    d.innerHTML = `<div class="dl">${l}</div><div class="dv">${(v==='-'||v===null||v===undefined)?'—':v}</div>`;
-    stats.appendChild(d);
-  });
-  document.getElementById('ha-skill').textContent = c.skill_zh || c.skill_jp || '（無技能）';
+
+  // Tags
+  const tagsEl = document.getElementById('ha-tags');
+  tagsEl.innerHTML = '';
+  const addTag = (label, color) => {
+    const t = document.createElement('span');
+    t.className = 'ha-tag';
+    t.textContent = label;
+    t.style.color = color;
+    t.style.borderColor = color;
+    tagsEl.appendChild(t);
+  };
+  if (c.rarity)    addTag(c.rarity, HA_RARITY_COLOR[c.rarity] || '#888');
+  if (c.school)    addTag(c.school, HA_SCHOOL_COLOR[c.school] || '#64748b');
+  if (c.category)  addTag(HA_CATEGORY_ZH[c.category] || c.category, '#6868a0');
+  if (c.affiliation && c.affiliation !== c.school) addTag(c.affiliation, '#6868a0');
+  if (c.product_label) addTag(c.product_label, '#6868a0');
+
+  // Stats (only for CHARACTER)
+  const statsEl = document.getElementById('ha-stats');
+  statsEl.innerHTML = '';
+  if (c.category === 'CHARACTER') {
+    statsEl.style.display = 'grid';
+    HA_STAT_DEFS.forEach(([k, label, fgColor, bgColor]) => {
+      const v = c[k];
+      const val = (v !== null && v !== undefined && v !== '' && v !== '-') ? v : '—';
+      const box = document.createElement('div');
+      box.className = 'ha-stat-box';
+      box.style.background = bgColor;
+      box.innerHTML = `<div class="ha-sl">${label}</div><div class="ha-sv" style="color:${fgColor}">${val}</div>`;
+      statsEl.appendChild(box);
+    });
+  } else {
+    statsEl.style.display = 'none';
+  }
+
+  // Skill
+  const skill = c.skill_zh || c.skill_jp || '';
+  const skillEl = document.getElementById('ha-skill');
+  const skillTitle = document.getElementById('ha-skill-title');
+  if (skill && skill !== '—') {
+    skillEl.textContent = skill;
+    skillEl.style.display = '';
+    skillTitle.style.display = '';
+  } else {
+    skillEl.style.display = 'none';
+    skillTitle.style.display = 'none';
+  }
+
+  // Q&A
+  const qaEl = document.getElementById('ha-qa');
+  const qa = Array.isArray(c.qa) ? c.qa : [];
+  if (qa.length === 0) {
+    qaEl.innerHTML = '';
+  } else {
+    qaEl.innerHTML = `
+      <button class="ha-qa-toggle" id="ha-qa-toggle">
+        <span class="ha-qa-arrow">▶</span> Q&amp;A（${qa.length} 件）
+      </button>
+      <div class="ha-qa-list" id="ha-qa-list">
+        ${qa.map(item => `
+          <div class="ha-qa-item">
+            <div class="ha-qa-date">${item.date || ''}</div>
+            <div class="ha-qa-q"><strong style="color:var(--accent)">Q</strong> ${_escHtml(item.question || '')}</div>
+            <div class="ha-qa-a"><strong>A</strong> ${_escHtml(item.answer || '').replace(/\n/g,'<br>')}</div>
+          </div>`).join('')}
+      </div>`;
+    document.getElementById('ha-qa-toggle').addEventListener('click', function() {
+      this.classList.toggle('open');
+      document.getElementById('ha-qa-list').classList.toggle('open');
+    });
+  }
+
   return true;
 }
 
