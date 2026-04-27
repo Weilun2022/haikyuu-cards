@@ -2755,7 +2755,8 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
     }
     zones.block = fb;
   } else if (fromBase === 'event') {
-    zones.event = (zones.event || []).filter(f => f !== cardData.img);
+    const _ei = (zones.event || []).lastIndexOf(cardData.img);
+    if (_ei !== -1) zones.event = [...zones.event.slice(0, _ei), ...zones.event.slice(_ei + 1)];
   } else {
     if (cardData.guts?.length) {
       const rem = [...cardData.guts];
@@ -3714,7 +3715,9 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const zc = getZoneCard(zones, zoneName);
   if (!zc) return;
-  zc.guts = (zc.guts || []).filter(g => g !== gutsImg);
+  const _gi = (zc.guts || []).lastIndexOf(gutsImg);
+  if (_gi !== -1) zc.guts = [...zc.guts.slice(0, _gi), ...zc.guts.slice(_gi + 1)];
+  else zc.guts = zc.guts || [];
   setZoneCard(zones, zoneName, zc);
 
   const _gfrom = zoneName.split(':')[0];
@@ -3845,7 +3848,8 @@ function removeFromZone(zones, zoneName, img) {
     b[i] = null;
     zones.block = b;
   } else if (zoneName === 'event') {
-    zones.event = (zones.event || []).filter(f => f !== img);
+    const _ei = (zones.event || []).lastIndexOf(img);
+    if (_ei !== -1) zones.event = [...zones.event.slice(0, _ei), ...zones.event.slice(_ei + 1)];
   } else {
     zones[zoneName] = null;
   }
