@@ -1614,7 +1614,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽一張牌"><div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div></div>
+          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽一張牌"
+               ondragover="event.preventDefault(); this.classList.add('target')"
+               ondragleave="this.classList.remove('target')"
+               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
+            <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
+          </div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
           <div class="info-tile clickable" onclick="openDropViewer('self')"
                ondragover="event.preventDefault(); this.classList.add('target')"
@@ -2577,6 +2582,24 @@ function closePlaceConfirm() {
 async function handleDrop(targetZone, hasCards) {
   if (!dragData) return;
   const dd = dragData; dragData = null;
+
+  // ── Drag to pile: ask top or bottom ──
+  if (targetZone === 'pile') {
+    const doReturn = pos => {
+      if (dd.src === 'hand') returnHandToPile(dd.idx, pos);
+      else if (dd.src === 'zone') {
+        const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+        const cd = getZoneCard(zones, dd.zoneName);
+        if (cd) returnToPile(dd.zoneName, cd, pos);
+      } else if (dd.src === 'guts') {
+        moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, pos === 'top' ? 'pile-top' : 'pile-bottom');
+      }
+    };
+    document.getElementById('place-confirm-top-btn').textContent = '上方';
+    document.getElementById('place-confirm-guts-btn').textContent = '下方';
+    showPlaceConfirm('放回牌堆', () => doReturn('top'), () => doReturn('bottom'));
+    return;
+  }
 
   // ── Drag to discard zone: only move the TOP card ──
   if (targetZone === 'drop') {
