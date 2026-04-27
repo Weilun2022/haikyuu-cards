@@ -1206,6 +1206,31 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 #ha-action-bar .btn { min-width: 88px; padding: 9px 18px; font-size: 13px; }
 
+/* Card hover preview */
+#card-hover {
+  position: fixed; z-index: 1200; pointer-events: none;
+  display: none; flex-direction: row; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 10px; box-shadow: 0 12px 40px rgba(0,0,0,.75);
+  max-width: 300px; width: 300px;
+}
+#card-hover.open { display: flex; }
+#card-hover #ch-img { width: 90px; height: 126px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+#card-hover #ch-body { display: flex; flex-direction: column; gap: 5px; overflow: hidden; flex: 1; }
+#card-hover #ch-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+#card-hover #ch-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+#card-hover #ch-tags .ch-tag {
+  font-size: 9px; padding: 1px 5px; border-radius: 20px; font-weight: 600; white-space: nowrap;
+}
+#card-hover #ch-stats { display: flex; flex-wrap: wrap; gap: 3px; }
+#card-hover .ch-stat {
+  font-size: 10px; padding: 2px 5px; border-radius: 5px; font-weight: 700;
+}
+#card-hover #ch-skill {
+  font-size: 10px; color: var(--text-dim); line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+}
+
 /* Move-mode target highlights */
 .info-tile.move-target-tile {
   border-color: var(--accent) !important;
@@ -1832,6 +1857,17 @@ input[type=text]::placeholder { color: var(--text-dim); }
     </div>
 
     <button class="btn sm" id="dice-close-btn" onclick="closeDiceModal()" style="display:none;width:100%;margin-top:4px">關閉</button>
+  </div>
+</div>
+
+<!-- Card hover preview -->
+<div id="card-hover">
+  <img id="ch-img" src="" alt="">
+  <div id="ch-body">
+    <div id="ch-name"></div>
+    <div id="ch-tags"></div>
+    <div id="ch-stats"></div>
+    <div id="ch-skill"></div>
   </div>
 </div>
 
@@ -2463,8 +2499,12 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         cardEl.appendChild(tag);
       }
 
+      cardEl.addEventListener('mouseenter', e => showCardHover(img, e));
+      cardEl.addEventListener('mousemove',  e => _posCardHover(e));
+      cardEl.addEventListener('mouseleave', hideCardHover);
       cardEl.onclick = e => {
         e.stopPropagation();
+        hideCardHover();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
@@ -2541,6 +2581,9 @@ function renderHand() {
       div.dataset.idx = idx;
       div.innerHTML = `<img src="images/${img}" loading="lazy" alt="">`;
       div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div); });
+      div.addEventListener('mouseenter', e => showCardHover(img, e));
+      div.addEventListener('mousemove',  e => _posCardHover(e));
+      div.addEventListener('mouseleave', hideCardHover);
       div.draggable = true;
       div.addEventListener('dragstart', e => {
         e.dataTransfer.effectAllowed = 'move';
@@ -3468,6 +3511,64 @@ function showDetail(img) {
   document.getElementById('detail-overlay').classList.add('open');
 }
 function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
+
+// ── Card hover preview ────────────────────────────────
+let _hoverTimer = null;
+
+function showCardHover(img, e) {
+  clearTimeout(_hoverTimer);
+  _hoverTimer = setTimeout(() => {
+    const c = allCards[img];
+    if (!c) return;
+    document.getElementById('ch-img').src = `images/${img}`;
+    document.getElementById('ch-name').textContent = c.name || img;
+
+    const tagsEl = document.getElementById('ch-tags');
+    tagsEl.innerHTML = '';
+    const addTag = (txt, bg, fg = '#fff') => {
+      const s = document.createElement('span');
+      s.className = 'ch-tag';
+      s.style.background = bg; s.style.color = fg;
+      s.textContent = txt; tagsEl.appendChild(s);
+    };
+    if (c.rarity)     addTag(c.rarity, HA_RARITY_COLOR[c.rarity] || '#555');
+    if (c.school)     addTag(c.school, HA_SCHOOL_COLOR[c.school]  || '#555');
+    if (c.affiliation && c.affiliation !== c.school) addTag(c.affiliation, '#444');
+
+    const statsEl = document.getElementById('ch-stats');
+    statsEl.innerHTML = '';
+    if (c.category === 'CHARACTER') {
+      HA_STAT_DEFS.forEach(([key, label, bg, fg]) => {
+        const v = c[key];
+        if (v && v !== '-') {
+          const s = document.createElement('span');
+          s.className = 'ch-stat'; s.style.background = bg; s.style.color = fg;
+          s.textContent = `${label} ${v}`; statsEl.appendChild(s);
+        }
+      });
+    }
+    document.getElementById('ch-skill').textContent = c.skill_zh || c.skill_jp || '';
+
+    const el = document.getElementById('card-hover');
+    el.classList.add('open');
+    _posCardHover(e);
+  }, 280);
+}
+
+function hideCardHover() {
+  clearTimeout(_hoverTimer);
+  document.getElementById('card-hover').classList.remove('open');
+}
+
+function _posCardHover(e) {
+  const el = document.getElementById('card-hover');
+  const pad = 14, w = 300, h = el.offsetHeight || 160;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > window.innerWidth  - 4) x = e.clientX - w - pad;
+  if (y + h > window.innerHeight - 4) y = window.innerHeight - h - 4;
+  el.style.left = Math.max(4, x) + 'px';
+  el.style.top  = Math.max(4, y) + 'px';
+}
 
 // ══════════════════════════════════════════════════════
 // HAND ACTION MODAL
