@@ -3973,7 +3973,15 @@ function handleDiceRollUpdate(data) {
   if (_diceDoneHandled) return;
 
   const overlay = document.getElementById('dice-overlay');
-  if (!overlay.classList.contains('open')) return;
+  if (!overlay.classList.contains('open')) {
+    // Auto-open for the non-initiator when the roll result arrives
+    if (dr.phase === 'choosing' && myRole !== dr.initiator) {
+      _showDiceStep('roll'); // hide pick step before opening
+      overlay.classList.add('open');
+    } else {
+      return;
+    }
+  }
 
   if (dr.phase === 'choosing') {
     // Show roll result to non-initiator (they see result screen)
