@@ -462,7 +462,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   top: 54px;
   left: 8px;
   z-index: 500;
-  font-size: 13px;
+  font-size: 12px;
+  max-width: 160px;
+  white-space: nowrap;
   font-weight: 700;
   padding: 5px 14px;
   border-radius: 8px;
@@ -476,6 +478,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
   background: rgba(108,99,255,.15);
   border-color: var(--accent);
   color: var(--accent);
+}
+#turn-indicator.opp-acting {
+  background: rgba(251,146,60,.12);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+/* Phase radio buttons */
+.phase-select-btn.selected {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
 }
 
 .header-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
@@ -1660,15 +1674,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
       </div>
 
       <div class="sb-section">
-        <div class="sb-title">階段控制</div>
-        <div class="phase-row" style="flex-wrap:wrap;gap:6px">
-          <button class="btn xs" onclick="forcePhase('serve')">🏐 發球</button>
-          <button class="btn xs" onclick="forcePhase('block')">🛡️ 攔網</button>
-          <button class="btn xs" onclick="forcePhase('receive')">🤝 接球</button>
-          <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()">結束回合 ▶</button>
-          <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
-          <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">失敗宣告</button>
+        <div class="sb-title">本回合動作</div>
+        <div class="phase-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+          <button class="btn xs phase-select-btn" id="phase-btn-serve"   data-phase="serve"   onclick="selectAction('serve')">🏐 發球</button>
+          <button class="btn xs phase-select-btn" id="phase-btn-receive" data-phase="receive" onclick="selectAction('receive')">🤝 接球</button>
+          <button class="btn xs phase-select-btn" id="phase-btn-block"   data-phase="block"   onclick="selectAction('block')">🛡️ 攔網</button>
         </div>
+        <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()" style="width:100%">結束回合 ▶</button>
+        <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
+        <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">失敗宣告</button>
       </div>
 
       <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
@@ -2215,7 +2229,10 @@ function enterGame() {
 // PHASE UI
 // ══════════════════════════════════════════════════════
 function updatePhaseUI(phase, turn) {
-  const meta = PHASE_META[phase] || PHASE_META.serve;
+  // Phase pill — show currently-selected action when it's my turn
+  const currentAction = gameState?.currentAction || null;
+  const displayPhase = (turn === myRole && currentAction) ? currentAction : (phase || 'serve');
+  const meta = PHASE_META[displayPhase] || PHASE_META.serve;
   document.documentElement.style.setProperty('--pc', meta.color);
   document.documentElement.style.setProperty('--pc-bg', meta.bg);
   const pill = document.getElementById('phase-pill');
@@ -2223,12 +2240,17 @@ function updatePhaseUI(phase, turn) {
   pill.style.borderColor = meta.color + '66';
   pill.style.background = meta.bg;
   document.getElementById('phase-icon').textContent = meta.icon;
-  document.getElementById('h-phase').textContent = meta.label;
+  document.getElementById('h-phase').textContent = currentAction ? meta.label : '（未選擇）';
 
   const isMyTurn = turn === myRole;
   const endBtn = document.getElementById('end-turn-btn');
   const selfArea = document.getElementById('self-area');
   const turnIndicator = document.getElementById('turn-indicator');
+
+  // Update radio button highlights
+  document.querySelectorAll('.phase-select-btn').forEach(btn => {
+    btn.classList.toggle('selected', isMyTurn && btn.dataset.phase === currentAction);
+  });
 
   if (isMyTurn) {
     endBtn.textContent = '結束回合 ▶';
@@ -2241,11 +2263,16 @@ function updatePhaseUI(phase, turn) {
     endBtn.classList.add('opp-turn');
     const oppRole = myRole === 'host' ? 'guest' : 'host';
     const oppName = gameState?.players?.[oppRole]?.name || '對手';
-    turnIndicator.textContent = oppName + ' 的回合';
-    turnIndicator.className = '';
     selfArea.classList.remove('my-turn-glow');
+    if (currentAction) {
+      const actionMeta = PHASE_META[currentAction] || {};
+      turnIndicator.textContent = `${oppName} ${actionMeta.label || currentAction}`;
+      turnIndicator.className = 'opp-acting';
+    } else {
+      turnIndicator.textContent = `${oppName} 思考中...`;
+      turnIndicator.className = '';
+    }
   }
-
 }
 
 // ══════════════════════════════════════════════════════
@@ -2254,10 +2281,18 @@ function updatePhaseUI(phase, turn) {
 async function endTurn() {
   if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
   const oppRole = myRole === 'host' ? 'guest' : 'host';
-  await db.ref(`games/${roomId}/turn`).set(oppRole);
-  await db.ref(`games/${roomId}/phase`).set('serve');
-  const oppName = gameState?.players?.[oppRole]?.name || '對手';
-  addLog(L.name, `🔄 回合結束 → ${oppName} 的回合`);
+  const action = gameState?.currentAction || null;
+  const actionLabel = action ? (PHASE_META[action]?.label || action) : '（無動作）';
+  await db.ref(`games/${roomId}`).update({ turn: oppRole, currentAction: null });
+  addLog(L.name, `回合結束 — ${actionLabel}`);
+}
+
+function selectAction(action) {
+  if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
+  const current = gameState?.currentAction;
+  // Toggle off if clicking the same action again
+  const next = current === action ? null : action;
+  db.ref(`games/${roomId}/currentAction`).set(next);
 }
 
 function flashPhase(phase) {
@@ -3863,9 +3898,11 @@ async function chooseTurn(choice) {
   await db.ref(`games/${roomId}/turn`).set(firstRole);
 }
 
+let _diceResultLogged = null;
+
 function handleDiceRollUpdate(data) {
   const dr = data?.diceRoll;
-  if (!dr) return;
+  if (!dr) { _diceResultLogged = null; return; }
 
   const overlay = document.getElementById('dice-overlay');
   // Auto-open for non-initiator when a roll is in progress
@@ -3913,8 +3950,12 @@ function handleDiceRollUpdate(data) {
       ? `🏐 你選擇了${dr.choiceLabel}！你將先攻！`
       : `🏐 ${firstName} 選擇先攻！`;
     document.getElementById('dice-done-text').textContent = doneMsg;
-    // Show in log
-    addLog('系統', `🎲 先攻後攻結果：${firstName} 先攻`);
+    // Show in log — only once per result
+    const logKey = `${firstName}-${dr.firstRole}`;
+    if (_diceResultLogged !== logKey) {
+      _diceResultLogged = logKey;
+      addLog('系統', `🎲 先攻後攻結果：${firstName} 先攻`);
+    }
     _showDiceStep('done');
   }
 }
