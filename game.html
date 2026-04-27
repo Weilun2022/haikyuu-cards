@@ -1704,7 +1704,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
   </div>
 
   <!-- Hand -->
-  <div id="hand-area">
+  <div id="hand-area"
+       ondragover="event.preventDefault(); this.classList.add('move-target-hand')"
+       ondragleave="this.classList.remove('move-target-hand')"
+       ondrop="event.preventDefault(); this.classList.remove('move-target-hand'); handleDrop('hand',false)">
     <div class="hand-lbl">手牌</div>
     <div id="hand-cards"></div>
     <div id="hand-meta"></div>
@@ -2583,6 +2586,18 @@ function closePlaceConfirm() {
 async function handleDrop(targetZone, hasCards) {
   if (!dragData) return;
   const dd = dragData; dragData = null;
+
+  // ── Drag to hand ──
+  if (targetZone === 'hand') {
+    if (dd.src === 'zone') {
+      const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+      const cd = getZoneCard(zones, dd.zoneName);
+      if (cd) moveCardFromStack(dd.zoneName, cd.img, 'hand');
+    } else if (dd.src === 'guts') {
+      moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'hand');
+    }
+    return;
+  }
 
   // ── Drag to pile: ask top or bottom ──
   if (targetZone === 'pile') {
