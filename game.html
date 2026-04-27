@@ -1621,6 +1621,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
           </div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
+          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="手牌洗入牌庫">↩ 手牌入庫</button>
           <div class="info-tile clickable" onclick="openDropViewer('self')"
                ondragover="event.preventDefault(); this.classList.add('target')"
                ondragleave="this.classList.remove('target')"
@@ -2939,6 +2940,18 @@ function shufflePile() {
   syncPileCount();
   toast(`牌庫已洗牌（${L.pile.length} 張）`);
   addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
+}
+
+function shuffleHandToPile() {
+  if (!L.hand.length) { toast('手牌已空'); return; }
+  const count = L.hand.length;
+  L.pile.push(...L.hand.splice(0));
+  shuffle(L.pile);
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+  renderHand();
+  toast(`${count} 張手牌洗入牌庫`);
+  addLog(L.name, `↩ ${count} 張手牌洗入牌庫（牌庫 ${L.pile.length} 張）`);
 }
 
 function calcBaseScoreFromZones(zones) {
