@@ -3823,6 +3823,8 @@ async function openDiceModal() {
     return;
   }
   // Fresh start — clear any stale done state
+  _diceResultLogged = null;
+  _diceDoneHandled = false;
   await db.ref(`games/${roomId}/diceRoll`).remove();
   _showDiceStep('pick');
 }
@@ -3894,24 +3896,25 @@ async function chooseTurn(choice) {
     choiceLabel: choice,
     phase: 'done'
   });
-  // Actually apply the result to the game turn
   await db.ref(`games/${roomId}/turn`).set(firstRole);
+  // Auto-close the dice modal after showing result, then clear Firebase diceRoll
+  setTimeout(async () => {
+    closeDiceModal();
+    await db.ref(`games/${roomId}/diceRoll`).remove();
+  }, 2500);
 }
 
 let _diceResultLogged = null;
+let _diceDoneHandled = false;
 
 function handleDiceRollUpdate(data) {
   const dr = data?.diceRoll;
-  if (!dr) { _diceResultLogged = null; return; }
+  if (!dr) { _diceResultLogged = null; _diceDoneHandled = false; return; }
+
+  // Once done is fully handled, ignore all further updates
+  if (_diceDoneHandled) return;
 
   const overlay = document.getElementById('dice-overlay');
-  // Auto-open for non-initiator when a roll is in progress
-  if (!overlay.classList.contains('open') && dr.initiator && myRole !== dr.initiator) {
-    overlay.classList.add('open');
-    _showDiceStep('roll');
-    document.getElementById('dice-face').textContent = '🎲';
-    document.getElementById('dice-result-text').textContent = '對手正在擲骰...';
-  }
   if (!overlay.classList.contains('open')) return;
 
   if (dr.phase === 'choosing') {
@@ -3951,12 +3954,13 @@ function handleDiceRollUpdate(data) {
       : `🏐 ${firstName} 選擇先攻！`;
     document.getElementById('dice-done-text').textContent = doneMsg;
     // Show in log — only once per result
-    const logKey = `${firstName}-${dr.firstRole}`;
+    const logKey = `${firstName}-${dr.firstTurn}`;
     if (_diceResultLogged !== logKey) {
       _diceResultLogged = logKey;
       addLog('系統', `🎲 先攻後攻結果：${firstName} 先攻`);
     }
     _showDiceStep('done');
+    _diceDoneHandled = true;
   }
 }
 
