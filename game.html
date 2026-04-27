@@ -1085,8 +1085,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
   background: rgba(0,0,0,.75);
   z-index: 3500;
   display: none;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
+  padding: 40px 16px;
+  overflow-y: auto;
   backdrop-filter: blur(3px);
 }
 #hand-action-overlay.open { display: flex; }
@@ -1096,7 +1100,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   border-radius: 16px;
   max-width: 680px;
   width: 95%;
-  max-height: 88vh;
+  max-height: 72vh;
   box-shadow: 0 20px 60px rgba(0,0,0,.7);
   display: flex;
   overflow: hidden;
@@ -1175,12 +1179,30 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .ha-qa-date { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
 .ha-qa-q { color: var(--text); margin-bottom: 3px; }
 .ha-qa-a { color: var(--text-dim); }
-/* Actions */
-.ha-actions {
-  display: flex; flex-wrap: wrap; gap: 6px;
-  border-top: 1px solid var(--border); padding-top: 12px; margin-top: auto;
+/* Action bar (separate box below card detail) */
+#ha-action-bar {
+  display: flex;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  animation: haModalIn .2s ease .06s both;
 }
-.ha-footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 10px; }
+#ha-action-bar .btn { min-width: 88px; padding: 9px 18px; font-size: 13px; }
+
+/* Move-mode target highlights */
+.info-tile.move-target-tile {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(108,99,255,.45);
+  cursor: pointer;
+}
+#hand-area.move-target-hand {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+  cursor: pointer;
+}
 
 /* ══════════════════════════════════════
    DROP VIEWER
@@ -1698,7 +1720,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <div class="ha-modal-img">
       <img id="ha-img" src="" alt="" onclick="showDetail(_haImg)">
     </div>
-    <!-- Right: rich info + actions -->
+    <!-- Right: rich info only -->
     <div class="ha-modal-body">
       <div class="ha-no" id="ha-no"></div>
       <div class="ha-name" id="ha-name"></div>
@@ -1707,12 +1729,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <div class="ha-skill-title" id="ha-skill-title">技能文字</div>
       <div class="ha-skill" id="ha-skill"></div>
       <div class="ha-qa-section" id="ha-qa"></div>
-      <div class="ha-actions" id="ha-actions"></div>
-      <div class="ha-footer">
-        <button class="btn sm danger" id="ha-discard-btn">棄牌</button>
-        <button class="btn sm" onclick="closeHandAction()">關閉</button>
-      </div>
     </div>
+  </div>
+  <!-- Separate action bar -->
+  <div id="ha-action-bar" onclick="event.stopPropagation()">
+    <button class="btn primary" id="ha-move-btn">移動</button>
+    <button class="btn" onclick="closeHandAction()">關閉</button>
   </div>
 </div>
 
@@ -2383,6 +2405,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       cardEl.onclick = e => {
         e.stopPropagation();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+        if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
         if (isOpp) { openOppStack(zoneName); return; }
         isTop ? onZoneClick(zoneName, cardData, slot) : showGutsAction(zoneName, cardData, img);
@@ -2410,6 +2433,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       if (e.target === slot) {
         e.stopPropagation();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+        if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
         isOpp ? openOppStack(zoneName) : onZoneClick(zoneName, cardData, slot);
       }
@@ -2553,6 +2577,7 @@ function onHandClick(idx, el) {
 }
 
 function onEmptyZoneClick(zoneName) {
+  if (moveMode) { executeMoveToZone(zoneName); return; }
   if (selectedHandIdx !== null) {
     placeCard(selectedHandIdx, zoneName);
     clearSelection();
@@ -2800,6 +2825,7 @@ async function applyGuts(handIdx, zoneName) {
 // GAME CONTROLS
 // ══════════════════════════════════════════════════════
 function drawCard() {
+  if (moveMode) { showPileReturnChoice(); return; }
   if (!L.pile.length) { toast('牌庫已空！'); return; }
   drawFromPile();
   addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
@@ -3257,6 +3283,7 @@ async function reorderStack(zoneName, all, fromIdx, toIdx) {
 // DROP VIEWER
 // ══════════════════════════════════════════════════════
 function openDropViewer(side) {
+  if (moveMode && side === 'self') { executeMoveDiscard(); return; }
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const role    = side === 'self' ? myRole : oppRole;
   const zones   = gameState?.players?.[role]?.zones;
@@ -3352,56 +3379,93 @@ function showHandAction(idx) {
   const img = L.hand[idx];
   if (!_fillModalCardInfo(img)) return;
   const c = allCards[img];
-
-  const actions = document.getElementById('ha-actions');
-  actions.innerHTML = '';
-  const cat = c.category;
-  const defs = cat === 'CHARACTER'
-    ? [
-        { label:'→ 發球區', fn: () => placeCard(idx,'serve') },
-        { label:'→ 攔網區', fn: () => placeCard(idx,'block') },
-        { label:'→ 接球區', fn: () => placeCard(idx,'receive') },
-        { label:'→ 舉球區', fn: () => placeCard(idx,'toss') },
-        { label:'→ 攻擊區', fn: () => placeCard(idx,'attack') },
-        { label:'疊放 Guts…', fn: () => enterGutsMode(idx), sep: true },
-      ]
-    : cat === 'EVENT'
-      ? [{ label:'→ 事件區', fn: () => placeCard(idx,'event') }]
-      : [{ label:'→ 事件區', fn: () => placeCard(idx,'event') }, { label:'→ 攔網區', fn: () => placeCard(idx,'block') }];
-
-  defs.forEach(def => {
-    if (def.sep) { const s = document.createElement('div'); s.style.cssText='width:100%;border-top:1px solid var(--border);margin:2px 0'; actions.appendChild(s); }
-    const b = document.createElement('button');
-    b.className = 'btn sm';
-    b.textContent = def.label;
-    b.onclick = () => { closeHandAction(); def.fn(); };
-    actions.appendChild(b);
-  });
-
-  // 放回牌堆按鈕
-  const sep2 = document.createElement('div');
-  sep2.style.cssText = 'width:100%;border-top:1px solid var(--border);margin:2px 0';
-  actions.appendChild(sep2);
-  ['top','bottom'].forEach(pos => {
-    const b = document.createElement('button');
-    b.className = 'btn sm';
-    b.textContent = pos === 'top' ? '放回牌堆（上方）' : '放回牌堆（下方）';
-    b.onclick = () => { closeHandAction(); returnHandToPile(idx, pos); };
-    actions.appendChild(b);
-  });
-
-  const discardBtn = document.getElementById('ha-discard-btn');
-  discardBtn.style.display = '';
-  discardBtn.onclick = () => { closeHandAction(); discardFromHand(idx); };
-  highlightTargetZones(cat);
+  document.getElementById('ha-move-btn').onclick = () => {
+    closeHandAction();
+    enterMoveMode({ type: 'hand', idx, cat: c.category });
+  };
   document.getElementById('hand-action-overlay').classList.add('open');
 }
 
 function closeHandAction() {
   document.getElementById('hand-action-overlay').classList.remove('open');
+  document.getElementById('ha-move-btn').textContent = '移動';
   clearSelection();
   clearZoneHighlights();
   _haImg = null;
+}
+
+// ── Move Mode ─────────────────────────────────────────
+let moveMode = null;
+
+function enterMoveMode(mode) {
+  moveMode = mode;
+  if (mode.type === 'hand') {
+    highlightTargetZones(mode.cat);
+  } else {
+    // zone / guts: all self zones are valid targets
+    document.querySelectorAll('#self-court .z-slot').forEach(s => s.classList.add('target'));
+    // also highlight hand area so user can return to hand
+    document.getElementById('hand-area').classList.add('move-target-hand');
+    document.getElementById('hand-area').onclick = () => { executeMoveToHand(); };
+  }
+  // deck tile → pile placement; drop tile → discard
+  document.querySelectorAll('.board-side .info-tile').forEach(t => {
+    if (t.getAttribute('onclick')?.includes('drawCard') ||
+        t.getAttribute('onclick')?.includes("openDropViewer('self'")) {
+      t.classList.add('move-target-tile');
+    }
+  });
+  toast('點擊目標區域放置牌');
+}
+
+function exitMoveMode() {
+  moveMode = null;
+  clearZoneHighlights();
+  const ha = document.getElementById('hand-area');
+  ha.classList.remove('move-target-hand');
+  ha.onclick = null;
+  document.querySelectorAll('.info-tile.move-target-tile').forEach(t => t.classList.remove('move-target-tile'));
+}
+
+function executeMoveToZone(targetZone) {
+  const m = moveMode;
+  exitMoveMode();
+  if (m.type === 'hand')  placeCard(m.idx, targetZone);
+  else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
+  else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+}
+
+function executeMoveDiscard() {
+  const m = moveMode;
+  exitMoveMode();
+  if (m.type === 'hand')  discardFromHand(m.idx);
+  else if (m.type === 'zone') discardFromZone(m.zoneName, m.cardData);
+  else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, 'drop');
+}
+
+function executeMoveToHand() {
+  const m = moveMode;
+  if (!m || m.type === 'hand') return;
+  exitMoveMode();
+  if (m.type === 'zone') moveCardFromStack(m.zoneName, m.cardData.img, 'hand');
+  else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, 'hand');
+}
+
+function showPileReturnChoice() {
+  const m = moveMode;
+  document.getElementById('place-confirm-title').textContent = '放回牌堆';
+  document.getElementById('place-confirm-top-btn').textContent = '上方';
+  document.getElementById('place-confirm-guts-btn').textContent = '下方';
+  showPlaceConfirm('放回牌堆',
+    () => { exitMoveMode(); _executePileReturn(m, 'top'); },
+    () => { exitMoveMode(); _executePileReturn(m, 'bottom'); }
+  );
+}
+
+function _executePileReturn(m, pos) {
+  if (m.type === 'hand')  returnHandToPile(m.idx, pos);
+  else if (m.type === 'zone') returnToPile(m.zoneName, m.cardData, pos);
+  else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, pos === 'top' ? 'pile-top' : 'pile-bottom');
 }
 
 function _escHtml(s) {
@@ -3499,30 +3563,10 @@ function _fillModalCardInfo(img) {
 
 function showGutsAction(zoneName, cardData, gutsImg) {
   if (!_fillModalCardInfo(gutsImg)) return;
-  const actions = document.getElementById('ha-actions');
-  actions.innerHTML = '';
-  const addBtn = (label, fn) => {
-    const b = document.createElement('button');
-    b.className = 'btn sm'; b.textContent = label;
-    b.onclick = () => { closeHandAction(); fn(); };
-    actions.appendChild(b);
+  document.getElementById('ha-move-btn').onclick = () => {
+    closeHandAction();
+    enterMoveMode({ type: 'guts', zoneName, cardData, gutsImg });
   };
-  const addSep = () => {
-    const s = document.createElement('div');
-    s.style.cssText = 'width:100%;border-top:1px solid var(--border);margin:2px 0';
-    actions.appendChild(s);
-  };
-  addBtn('收回手牌', () => moveGutsCard(zoneName, cardData, gutsImg, 'hand'));
-  addSep();
-  addBtn('放回牌堆（上方）', () => moveGutsCard(zoneName, cardData, gutsImg, 'pile-top'));
-  addBtn('放回牌堆（下方）', () => moveGutsCard(zoneName, cardData, gutsImg, 'pile-bottom'));
-  addSep();
-  ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
-    addBtn(`→ ${ZONE_LABEL[z]}`, () => moveGutsCard(zoneName, cardData, gutsImg, z));
-  });
-  addSep();
-  addBtn('→ 棄牌區', () => moveGutsCard(zoneName, cardData, gutsImg, 'drop'));
-  document.getElementById('ha-discard-btn').style.display = 'none';
   document.getElementById('hand-action-overlay').classList.add('open');
 }
 
@@ -3592,39 +3636,14 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
 
 function showZoneAction(zoneName, cardData) {
   if (!_fillModalCardInfo(cardData.img)) return;
-  const actions = document.getElementById('ha-actions');
-  actions.innerHTML = '';
-
   const stackSize = 1 + (cardData.guts?.length || 0);
-
-  const addBtn = (label, fn, danger) => {
-    const b = document.createElement('button');
-    b.className = 'btn sm' + (danger ? ' danger' : '');
-    b.textContent = label;
-    b.onclick = () => { closeHandAction(); fn(); };
-    actions.appendChild(b);
+  const moveBtn = document.getElementById('ha-move-btn');
+  // If there are guts, keep a view-stack button text; otherwise just 移動
+  moveBtn.textContent = stackSize > 1 ? `移動（堆 ${stackSize}張）` : '移動';
+  moveBtn.onclick = () => {
+    closeHandAction();
+    enterMoveMode({ type: 'zone', zoneName, cardData });
   };
-  const addSep = () => {
-    const s = document.createElement('div');
-    s.style.cssText = 'width:100%;border-top:1px solid var(--border);margin:2px 0';
-    actions.appendChild(s);
-  };
-
-  addBtn(`查看牌堆（${stackSize}張）`, () => {
-    const zones = gameState?.players?.[myRole]?.zones || emptyZones();
-    openStack(zoneName, zones);
-  });
-  addBtn('收回手牌', () => moveCardFromStack(zoneName, cardData.img, 'hand'));
-  addBtn('放回牌堆（上方）', () => returnToPile(zoneName, cardData, 'top'));
-  addBtn('放回牌堆（下方）', () => returnToPile(zoneName, cardData, 'bottom'));
-  addSep();
-  ZONE_NAMES.filter(z => z !== zoneName.split(':')[0]).forEach(z => {
-    addBtn(`→ ${ZONE_LABEL[z]}`, () => moveCard(zoneName, z, cardData));
-  });
-  addSep();
-  addBtn('→ 棄牌區', () => discardFromZone(zoneName, cardData));
-
-  document.getElementById('ha-discard-btn').style.display = 'none';
   document.getElementById('hand-action-overlay').classList.add('open');
 }
 
@@ -3739,6 +3758,7 @@ document.addEventListener('keydown', e => {
     closeDetail();
     closeDropViewer();
     clearSelection();
+    exitMoveMode();
     cancelGuts();
   }
   if (e.key === 'Enter') { e.preventDefault(); endTurn(); }
