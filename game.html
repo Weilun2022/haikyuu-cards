@@ -3464,10 +3464,32 @@ function exitMoveMode() {
 
 function executeMoveToZone(targetZone) {
   const m = moveMode;
-  exitMoveMode();
-  if (m.type === 'hand')  placeCard(m.idx, targetZone);
-  else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
-  else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  const existing = getZoneCard(zones, targetZone);
+
+  if (existing?.img) {
+    document.getElementById('place-confirm-top-btn').textContent = '最上方';
+    document.getElementById('place-confirm-guts-btn').textContent = '當 Guts';
+    showPlaceConfirm('選擇放置方式',
+      () => {
+        exitMoveMode();
+        if (m.type === 'hand') placeCard(m.idx, targetZone, false);
+        else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, false);
+        else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+      },
+      () => {
+        exitMoveMode();
+        if (m.type === 'hand') placeCard(m.idx, targetZone, true);
+        else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, true);
+        else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+      }
+    );
+  } else {
+    exitMoveMode();
+    if (m.type === 'hand')  placeCard(m.idx, targetZone);
+    else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
+    else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+  }
 }
 
 function executeMoveDiscard() {
