@@ -2132,13 +2132,32 @@ function listenGame() {
   });
 }
 
+let _processedRoundReset = 0;
+
 function syncUI(data, prev) {
   updateWaitingScreen(data);
   if (document.getElementById('screen-game').classList.contains('active')) {
     renderBoard(data);
     detectOppActions(data, prev);
     handleDiceRollUpdate(data);
+    handleRoundReset(data);
   }
+}
+
+function handleRoundReset(data) {
+  const rv = data?.roundReset;
+  if (!rv || rv === _processedRoundReset) return;
+  _processedRoundReset = rv;
+  // Collect all own cards back into pile and shuffle
+  const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  L.pile.push(...L.hand, ...collectCardsFromZones(myZones));
+  L.hand = [];
+  shuffle(L.pile);
+  pushZones(emptyZones());
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+  renderHand();
+  toast(`本局結束，牌庫已重置（${L.pile.length} 張），請手動抽牌`);
 }
 
 function updateWaitingScreen(data) {
@@ -2225,12 +2244,10 @@ function enterGame() {
   L.setPool = [];
   L.setCards = 0;
 
-  for (let i = 0; i < 6; i++) drawFromPile();
-
   showScreen('game');
   renderBoard(gameState);
   syncPileCount();
-  addLog('system', '對戰開始！每人抽 6 張手牌。');
+  addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
 }
 
@@ -3095,9 +3112,24 @@ async function declareLost() {
   L.setCards = Math.max(0, L.setCards - 1);
   document.getElementById('self-set').textContent = L.setCards;
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(L.setCards);
+
+  // Collect all own cards back into pile and shuffle
+  const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  L.pile.push(...L.hand, ...collectCardsFromZones(myZones));
+  L.hand = [];
+  shuffle(L.pile);
   await pushZones(emptyZones());
-  addLog(L.name, `⚡ 失敗宣告！${gameState?.players?.[oppRole]?.name || '對手'} 獲得 1 局`);
-  toast(`失敗！組合區牌剩 ${L.setCards} 張`);
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+  renderHand();
+
+  // Signal opponent to do the same
+  const resetVal = Date.now();
+  _processedRoundReset = resetVal;
+  await db.ref(`games/${roomId}/roundReset`).set(resetVal);
+
+  addLog(L.name, `⚡ 失敗宣告！${gameState?.players?.[oppRole]?.name || '對手'} 獲得 1 局 — 雙方牌庫重置`);
+  toast(`失敗！牌庫已重置（${L.pile.length} 張），請手動抽牌`);
 }
 
 async function adjustSets(role, delta) {
@@ -3787,6 +3819,17 @@ function closeCtx() { document.getElementById('ctx').classList.remove('open'); }
 // ══════════════════════════════════════════════════════
 function emptyZones() {
   return { serve:null, block:[null,null,null], receive:null, toss:null, attack:null, event:[], drop:[], set:[] };
+}
+
+function collectCardsFromZones(zones) {
+  const cards = [];
+  const pushZC = zc => { if (!zc?.img) return; cards.push(zc.img); (zc.guts||[]).forEach(g=>cards.push(g)); };
+  pushZC(zones.serve); pushZC(zones.receive); pushZC(zones.toss); pushZC(zones.attack);
+  normaliseBlock(zones.block).forEach(pushZC);
+  (zones.event||[]).forEach(img=>cards.push(img));
+  (zones.drop||[]).forEach(img=>cards.push(img));
+  (zones.set||[]).forEach(img=>cards.push(img));
+  return cards;
 }
 
 function sanitise(zones) {
