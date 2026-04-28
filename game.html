@@ -1221,7 +1221,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   padding: 14px 14px; overflow: hidden;
 }
-#ch-name { font-size: 18px; font-weight: 700; line-height: 1.3; }
+#ch-name { font-size: 18px; font-weight: 700; line-height: 1.3; color: #fff; }
 #ch-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 #ch-tags .ch-tag {
   font-size: 12px; padding: 3px 9px; border-radius: 20px; font-weight: 600; white-space: nowrap;
@@ -1229,7 +1229,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #ch-stats { display: flex; flex-wrap: wrap; gap: 5px; }
 #ch-stats .ch-stat { font-size: 13px; padding: 4px 9px; border-radius: 6px; font-weight: 700; }
 #ch-skill {
-  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+  font-size: 12px; color: rgba(255,255,255,.8); line-height: 1.5;
   display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
 }
 
@@ -2706,6 +2706,7 @@ async function handleDrop(targetZone, hasCards) {
     if (!cardData) return;
     moveCard(dd.zoneName, targetZone, cardData, false);
   } else if (dd.src === 'guts') {
+    if (dd.zoneName === baseTarget) return;
     moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, baseTarget);
   }
 }
@@ -3653,6 +3654,7 @@ function exitMoveMode() {
 
 function executeMoveToZone(targetZone) {
   const m = moveMode;
+  if ((m.type === 'zone' || m.type === 'guts') && m.zoneName === targetZone) { exitMoveMode(); return; }
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const existing = getZoneCard(zones, targetZone);
 
