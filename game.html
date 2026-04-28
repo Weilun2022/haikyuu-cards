@@ -573,7 +573,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .board-court { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
 .opp-court { flex-direction: column-reverse; }
 .court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
-.court-row.back-row { flex: 0.6; }
+.court-row.back-row { flex: 1; }
 .zone-spacer { flex: 1; min-width: 0; }
 
 /* ── Counter row (between NET and block zone) ── */
@@ -839,7 +839,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 /* ── Hand ── */
 #hand-area {
-  flex: 0 0 110px;
+  flex: 0 0 85px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 6px 12px;
@@ -869,7 +869,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   letter-spacing: .3px;
 }
 .hand-card {
-  height: 90px;
+  height: 68px;
   aspect-ratio: 2/2.8;
   border-radius: 7px;
   overflow: hidden;
@@ -1708,11 +1708,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
       <div class="sb-section">
         <div class="sb-title">本回合動作</div>
-        <div class="phase-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">
-          <button class="btn xs phase-select-btn" id="phase-btn-serve"   data-phase="serve"   onclick="selectAction('serve')">🏐 發球</button>
-          <button class="btn xs phase-select-btn" id="phase-btn-receive" data-phase="receive" onclick="selectAction('receive')">🤝 接球</button>
-          <button class="btn xs phase-select-btn" id="phase-btn-block"   data-phase="block"   onclick="selectAction('block')">🛡️ 攔網</button>
-        </div>
         <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()" style="width:100%">結束回合 ▶</button>
         <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">失敗宣告</button>
@@ -3313,7 +3308,7 @@ function layoutHstack(hstack) {
     const cardW = cards[0].offsetWidth;
     if (!cardW) return;
     const zoneW = hstack.offsetWidth - 8;
-    const idealOverlap = Math.floor(cardW * 0.52);
+    const idealOverlap = Math.floor(cardW * 0.40);
     const totalAtIdeal = cardW + (cards.length - 1) * (cardW - idealOverlap);
     let overlap;
     if (totalAtIdeal <= zoneW) {
