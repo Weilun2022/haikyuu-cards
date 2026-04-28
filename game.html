@@ -680,6 +680,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   z-index: 1;
 }
 /* margin-left for stacking is computed in JS (layoutHstack) based on actual card width */
+.z-hstack-card.reorder-before { box-shadow: -4px 0 0 2px var(--accent), 3px 4px 14px rgba(0,0,0,.85); z-index: 20; }
+.z-hstack-card.reorder-after  { box-shadow:  4px 0 0 2px var(--accent), 3px 4px 14px rgba(0,0,0,.85); z-index: 20; }
 .z-hstack-card:hover {
   transform: scale(1.08);
   z-index: 20;
@@ -2468,8 +2470,8 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   if (cardData?.img) {
     slot.classList.add('filled');
     const guts = cardData.guts || [];
-    // left→right: guts at left (bottom), top card at rightmost (highest z-index)
-    const allImgs = [...guts.slice().reverse(), cardData.img];
+    // left→right: guts[0]=bottom … guts[last]=just-below-top, cardData.img=top
+    const allImgs = [...guts, cardData.img];
 
     const hstack = document.createElement('div');
     hstack.className = 'z-hstack';
@@ -2518,6 +2520,35 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
             ? { src: 'zone', zoneName, cardData }
             : { src: 'guts', zoneName, cardData, gutsImg: img };
           e.dataTransfer.setData('text/plain', 'card');
+        });
+        cardEl.addEventListener('dragover', e => {
+          if (!dragData) return;
+          e.preventDefault(); e.stopPropagation();
+          if (dragData.zoneName === zoneName) {
+            const rect = cardEl.getBoundingClientRect();
+            cardEl.classList.toggle('reorder-before', e.clientX <= rect.left + rect.width / 2);
+            cardEl.classList.toggle('reorder-after',  e.clientX >  rect.left + rect.width / 2);
+          } else {
+            slot.classList.add('guts-target');
+          }
+        });
+        cardEl.addEventListener('dragleave', () => {
+          cardEl.classList.remove('reorder-before', 'reorder-after');
+        });
+        cardEl.addEventListener('drop', e => {
+          e.preventDefault(); e.stopPropagation();
+          cardEl.classList.remove('reorder-before', 'reorder-after');
+          slot.classList.remove('guts-target');
+          const dd = dragData; dragData = null;
+          if (!dd) return;
+          const movedImg = dd.src === 'guts' ? dd.gutsImg : dd.src === 'zone' ? dd.cardData.img : null;
+          if (movedImg && dd.zoneName === zoneName && movedImg !== img) {
+            const rect = cardEl.getBoundingClientRect();
+            reorderStack(zoneName, movedImg, img, e.clientX > rect.left + rect.width / 2);
+          } else {
+            dragData = dd;
+            handleDrop(zoneName, true);
+          }
         });
       }
 
@@ -3811,6 +3842,24 @@ function showGutsAction(zoneName, cardData, gutsImg) {
     enterMoveMode({ type: 'guts', zoneName, cardData, gutsImg });
   };
   document.getElementById('hand-action-overlay').classList.add('open');
+}
+
+async function reorderStack(zoneName, movedImg, targetImg, insertAfter) {
+  const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+  const zc = getZoneCard(zones, zoneName);
+  if (!zc) return;
+  const all = [...(zc.guts || []), zc.img];
+  const fromIdx = all.lastIndexOf(movedImg);
+  if (fromIdx === -1) return;
+  all.splice(fromIdx, 1);
+  let toIdx = all.lastIndexOf(targetImg);
+  if (toIdx === -1) return;
+  if (insertAfter) toIdx++;
+  all.splice(toIdx, 0, movedImg);
+  zc.img = all[all.length - 1];
+  zc.guts = all.slice(0, -1);
+  setZoneCard(zones, zoneName, zc);
+  await pushZones(zones);
 }
 
 async function moveGutsCard(zoneName, cardData, gutsImg, target) {
