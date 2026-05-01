@@ -717,6 +717,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
   z-index: 3;
   pointer-events: none;
 }
+.z-srv-badge {
+  position: absolute;
+  bottom: 4px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(234,179,8,.92);
+  color: #1a1200;
+  font-size: 14px; font-weight: 900;
+  border-radius: 6px;
+  padding: 2px 8px;
+  z-index: 4;
+  pointer-events: none;
+  letter-spacing: .5px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.6);
+  white-space: nowrap;
+}
 .z-count {
   position: absolute;
   top: 2px; right: 2px;
@@ -1673,7 +1688,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽一張牌"
+          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽牌 / 拖曳直接放場上"
+               draggable="true"
+               ondragstart="startDragPile(event)"
                ondragover="event.preventDefault(); this.classList.add('target')"
                ondragleave="this.classList.remove('target')"
                ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
@@ -2550,6 +2567,14 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         cardEl.appendChild(tag);
       }
 
+      if (isTop && zoneName === 'serve') {
+        const srvVal = +(allCards[img]?.srv) || 0;
+        const badge = document.createElement('span');
+        badge.className = 'z-srv-badge';
+        badge.textContent = srvVal;
+        cardEl.appendChild(badge);
+      }
+
       cardEl.addEventListener('mouseenter', e => showCardHover(img, e));
       cardEl.addEventListener('mousemove',  e => _posCardHover(e));
       cardEl.addEventListener('mouseleave', hideCardHover);
@@ -2774,6 +2799,31 @@ async function handleDrop(targetZone, hasCards) {
   }
 
   const baseTarget = targetZone.split(':')[0];
+
+  if (dd.src === 'pile') {
+    if (!L.pile.length) { toast('牌庫已空'); return; }
+    if (targetZone === 'pile') return;
+    if (targetZone === 'hand') { drawCard(); return; }
+    if (targetZone === 'drop') {
+      const img = L.pile.pop();
+      const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+      zones.drop = zones.drop || [];
+      zones.drop.push(img);
+      document.getElementById('self-deck').textContent = L.pile.length;
+      syncPileCount();
+      await pushZones(zones);
+      addLog(L.name, `${allCards[img]?.name || img} 從牌庫送至棄牌區${cardState()}`);
+      return;
+    }
+    // Direct pile-to-zone: reuse placeCard by temporarily pushing to hand
+    const img = L.pile.pop();
+    document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
+    const tempIdx = L.hand.length;
+    L.hand.push(img);
+    await placeCard(tempIdx, targetZone);
+    return;
+  }
 
   if (dd.src === 'hand') {
     placeCard(dd.idx, targetZone);
@@ -3046,6 +3096,13 @@ async function applyGuts(handIdx, zoneName) {
 // ══════════════════════════════════════════════════════
 // GAME CONTROLS
 // ══════════════════════════════════════════════════════
+function startDragPile(e) {
+  if (!L.pile.length) { e.preventDefault(); return; }
+  dragData = { src: 'pile' };
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'pile');
+}
+
 function drawCard() {
   if (moveMode) { showPileReturnChoice(); return; }
   if (!L.pile.length) { toast('牌庫已空！'); return; }
