@@ -321,6 +321,16 @@ input[type=text]::placeholder { color: var(--text-dim); }
   padding: 2px 8px;
   flex-shrink: 0;
 }
+.room-status.playing {
+  color: #f59e0b;
+  border-color: #f59e0b;
+}
+.spectate-btn {
+  background: rgba(124,58,237,.15);
+  border: 1px solid #7c3aed;
+  color: #a78bfa;
+}
+.spectate-btn:hover { background: rgba(124,58,237,.3); }
 .room-empty { text-align: center; padding: 36px; color: var(--text-dim); font-size: 13px; }
 
 /* Lobby footer */
@@ -897,6 +907,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   transition: transform .18s cubic-bezier(.34,1.56,.64,1), border-color .15s, box-shadow .15s;
 }
 .hand-card:hover { transform: translateY(-6px); border-color: var(--accent); box-shadow: 0 6px 16px rgba(0,0,0,.5); }
+.hand-card.hand-reorder-before { box-shadow: -4px 0 0 2px var(--accent), 0 6px 16px rgba(0,0,0,.5); border-color: var(--accent); }
+.hand-card.hand-reorder-after  { box-shadow:  4px 0 0 2px var(--accent), 0 6px 16px rgba(0,0,0,.5); border-color: var(--accent); }
 .hand-card.selected { transform: translateY(-9px); border-color: var(--accent2); box-shadow: 0 8px 20px rgba(255,101,132,.3); }
 .hand-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .hand-empty { font-size: 12px; color: var(--text-dim); padding: 0 10px; }
@@ -1507,6 +1519,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
       &nbsp;·&nbsp;
       <a href="#" onclick="clearConfig()" style="color:var(--text-dim)">重設 Firebase 設定</a>
     </div>
+    <div style="text-align:center;font-size:11px;color:var(--text-dim);padding:8px 16px 16px;line-height:1.6;opacity:.7">
+      本作僅供同好交流，版權歸原作者及 TAKARA TOMY 所有，請支持正版。<br>
+      ハイキュー!! &copy; 古舘春一／集英社
+    </div>
   </div>
 </div>
 
@@ -1556,6 +1572,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 <!-- ══════════════════════ SCREEN: GAME ══════════════════════ -->
 <div id="screen-game" class="screen">
+<!-- Spectator banner -->
+<div id="spectator-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:4000;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:6px 16px;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+  <span>👁 觀戰模式 — 無法看到雙方手牌</span>
+  <button class="btn xs" onclick="leaveRoom()" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.4);color:#fff;padding:2px 10px">離開</button>
+</div>
 <div id="turn-indicator">—</div>
   <!-- Body -->
   <div id="game-body">
@@ -1595,7 +1616,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="zone-spacer"></div>
+            <div class="counter-cell">
+              <div class="cnt-label lbl-srv">發球</div>
+              <div class="cnt-val" id="opp-cnt-srv">0</div>
+            </div>
             <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
@@ -1681,7 +1705,14 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="zone-spacer"></div>
+            <div class="counter-cell">
+              <div class="cnt-label lbl-srv">發球</div>
+              <div class="cnt-val" id="self-cnt-srv">0</div>
+              <div class="cnt-btns">
+                <button class="cnt-btn" onclick="adjustCounter('srv',1)">＋</button>
+                <button class="cnt-btn" onclick="adjustCounter('srv',-1)">−</button>
+              </div>
+            </div>
             <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
@@ -1703,6 +1734,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
                ondragleave="this.classList.remove('target')"
                ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
             <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
+            <img id="self-drop-img" src="" alt="" style="width:100%;border-radius:5px;margin-top:4px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.6)">
           </div>
         </div>
       </div>
@@ -1755,11 +1787,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
       </div>
 
-      <div class="sb-section">
+      <div class="sb-section" id="sb-actions">
         <div class="sb-title">本回合動作</div>
         <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()" style="width:100%">結束回合 ▶</button>
         <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
-        <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">失敗宣告</button>
+        <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">🔄 重置本局</button>
       </div>
 
       <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
@@ -1859,7 +1891,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <button class="btn sm" id="place-confirm-top-btn">最上方</button>
       <button class="btn sm" id="place-confirm-guts-btn">當 Guts</button>
     </div>
-    <button class="btn xs" onclick="closePlaceConfirm()">取消</button>
+    <button class="btn xs" onclick="cancelPlaceConfirm()">取消</button>
   </div>
 </div>
 
@@ -1962,6 +1994,7 @@ let allCards   = {};
 let myDecks    = [];
 let myRole     = null;
 let roomId     = null;
+let isSpectator = false;
 let gameState  = null;
 let gameRef    = null;
 let lastLogKey = null;
@@ -2073,13 +2106,15 @@ function showScreen(name) {
 function listenRooms() {
   db.ref('rooms').on('value', snap => {
     const rooms = snap.val() || {};
-    const waiting = Object.values(rooms).filter(r => r.status === 'waiting');
+    const allRooms = Object.values(rooms).filter(r => r.status === 'waiting' || r.status === 'playing');
+    const waiting = allRooms.filter(r => r.status === 'waiting');
     const cntEl = document.getElementById('room-count');
     if (cntEl) cntEl.textContent = waiting.length ? `${waiting.length} 間等待中` : '目前無房間';
     const el = document.getElementById('room-list');
-    if (!waiting.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間<br>建立一個吧！</div>'; return; }
+    if (!allRooms.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間<br>建立一個吧！</div>'; return; }
     el.innerHTML = '';
-    waiting.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).forEach(r => {
+    allRooms.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).forEach(r => {
+      const isPlaying = r.status === 'playing';
       const row = document.createElement('div');
       row.className = 'room-item';
       row.innerHTML = `
@@ -2089,9 +2124,17 @@ function listenRooms() {
           <div class="room-host">${esc(r.hostName)}</div>
           <div class="room-deck">${esc(r.deckName || '未知牌組')}</div>
         </div>
-        <span class="room-status">等待中</span>
-        <button class="btn sm primary">加入</button>`;
-      row.querySelector('button').addEventListener('click', e => { e.stopPropagation(); joinRoom(r.id); });
+        <span class="room-status${isPlaying ? ' playing' : ''}">
+          ${isPlaying ? '對戰中' : '等待中'}
+        </span>
+        ${isPlaying
+          ? `<button class="btn sm spectate-btn">👁 觀戰</button>`
+          : `<button class="btn sm primary">加入</button>`}`;
+      if (isPlaying) {
+        row.querySelector('.spectate-btn').addEventListener('click', e => { e.stopPropagation(); spectateRoom(r.id); });
+      } else {
+        row.querySelector('button').addEventListener('click', e => { e.stopPropagation(); joinRoom(r.id); });
+      }
       el.appendChild(row);
     });
   });
@@ -2176,14 +2219,43 @@ async function joinRoom(id) {
   showWaitingScreen(id);
 }
 
+async function spectateRoom(id) {
+  const snap = await db.ref(`games/${id}`).once('value');
+  if (!snap.exists()) { toast('找不到該對局'); return; }
+  const data = snap.val();
+  if (!data.started) { toast('對局尚未開始'); return; }
+
+  isSpectator = true;
+  roomId = id;
+  myRole = 'host'; // used only for opp calculation; spectator sees both sides as read-only
+
+  gameRef = db.ref(`games/${id}`);
+  listenGame();
+
+  // Jump straight to game screen
+  L.hand = []; L.pile = []; L.setPool = []; L.setCards = 0;
+  L.name = '觀戰者';
+  showScreen('game');
+  renderBoard(data);
+  document.getElementById('spectator-banner').style.display = 'flex';
+  document.getElementById('hand-area').style.display = 'none';
+  document.getElementById('sb-actions').style.display = 'none';
+  toast('👁 觀戰模式 — 無法看到雙方手牌');
+}
+
 async function leaveRoom() {
   if (!roomId) return;
-  if (myRole === 'host') {
-    await db.ref(`rooms/${roomId}`).remove();
-    await db.ref(`games/${roomId}`).remove();
+  if (!isSpectator) {
+    if (myRole === 'host') {
+      await db.ref(`rooms/${roomId}`).remove();
+      await db.ref(`games/${roomId}`).remove();
+    }
   }
   if (gameRef) gameRef.off();
-  gameRef = null; roomId = null; myRole = null;
+  gameRef = null; roomId = null; myRole = null; isSpectator = false;
+  document.getElementById('spectator-banner').style.display = 'none';
+  document.getElementById('hand-area').style.display = '';
+  document.getElementById('sb-actions').style.display = '';
   showScreen('lobby');
 }
 
@@ -2223,12 +2295,14 @@ function listenGame() {
 let _processedRoundReset = 0;
 
 function syncUI(data, prev) {
-  updateWaitingScreen(data);
+  if (!isSpectator) updateWaitingScreen(data);
   if (document.getElementById('screen-game').classList.contains('active')) {
     renderBoard(data);
-    detectOppActions(data, prev);
-    handleDiceRollUpdate(data);
-    handleRoundReset(data);
+    if (!isSpectator) {
+      detectOppActions(data, prev);
+      handleDiceRollUpdate(data);
+      handleRoundReset(data);
+    }
   }
 }
 
@@ -2272,7 +2346,7 @@ function updateWaitingScreen(data) {
     btn.disabled = false;
   }
 
-  if (data.started && myRole === 'guest') {
+  if (data.started && myRole === 'guest' && !isSpectator) {
     enterGame();
   }
 }
@@ -2301,7 +2375,7 @@ function showOppNotification(player, action) {
   const n = document.createElement('div');
   n.className = 'notif';
 
-  const icon = action.includes('失敗宣告') ? '⚡' : action.includes('抽牌') ? '🃏' : action.includes('棄') ? '🗑' : '📋';
+  const icon = action.includes('重置本局') ? '🔄' : action.includes('抽牌') ? '🃏' : action.includes('棄') ? '🗑' : '📋';
   n.innerHTML = `<span class="notif-icon">${icon}</span><span class="notif-text"><span class="notif-player">${esc(player)}</span> ${esc(action)}</span>`;
   wrap.appendChild(n);
   requestAnimationFrame(() => n.classList.add('show'));
@@ -2366,7 +2440,16 @@ function updatePhaseUI(phase, turn) {
     btn.classList.toggle('selected', isMyTurn && btn.dataset.phase === currentAction);
   });
 
-  if (isMyTurn) {
+  if (isSpectator) {
+    const actingName = gameState?.players?.[turn]?.name || turn;
+    endBtn.textContent = '觀戰中';
+    endBtn.classList.add('opp-turn');
+    selfArea.classList.remove('my-turn-glow');
+    turnIndicator.textContent = currentAction
+      ? `${actingName} ${PHASE_META[currentAction]?.label || currentAction}`
+      : `${actingName} 思考中...`;
+    turnIndicator.className = '';
+  } else if (isMyTurn) {
     endBtn.textContent = '結束回合 ▶';
     endBtn.classList.remove('opp-turn');
     selfArea.classList.add('my-turn-glow');
@@ -2393,6 +2476,7 @@ function updatePhaseUI(phase, turn) {
 // END TURN
 // ══════════════════════════════════════════════════════
 async function endTurn() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
   if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const action = gameState?.currentAction || null;
@@ -2452,7 +2536,7 @@ function renderBoard(data) {
   document.getElementById('sb-box-host').classList.toggle('active', data.turn === 'host');
   document.getElementById('sb-box-guest').classList.toggle('active', data.turn === 'guest');
 
-  document.getElementById('self-lbl').textContent = L.name;
+  document.getElementById('self-lbl').textContent = isSpectator ? (self?.name || '房主') : L.name;
   document.getElementById('opp-lbl').textContent  = opp?.name || '對手';
 
   renderZones('opp', opp?.zones, true);
@@ -2460,10 +2544,16 @@ function renderBoard(data) {
   document.getElementById('opp-drop').textContent = countDrop(opp?.zones);
   document.getElementById('opp-deck').textContent = opp?.pileCount ?? '?';
 
-  renderZones('self', self?.zones, false);
-  document.getElementById('self-deck').textContent = L.pile.length;
-  document.getElementById('self-set').textContent  = (L.setPool || []).length;
+  renderZones('self', self?.zones, isSpectator ? true : false);
+  if (isSpectator) {
+    document.getElementById('self-deck').textContent = self?.pileCount ?? '?';
+    document.getElementById('self-set').textContent  = self?.setCardsLeft ?? '?';
+  } else {
+    document.getElementById('self-deck').textContent = L.pile.length;
+    document.getElementById('self-set').textContent  = (L.setPool || []).length;
+  }
   document.getElementById('self-drop').textContent = countDrop(self?.zones);
+  updateDropImg(self?.zones);
 
   // Score panels on NET bar
   const scores = data.scores || {};
@@ -2475,8 +2565,9 @@ function renderBoard(data) {
     const valEl = document.getElementById(`net-score-${role}-val`);
     valEl.textContent  = cur;
     valEl.style.color  = cur !== base ? '#f87171' : '';
-    document.getElementById(`btn-score-${role}-minus`).style.display = 'none';
-    document.getElementById(`btn-score-${role}-plus`).style.display  = 'none';
+    const showBtn = !isSpectator && (role === myRole);
+    document.getElementById(`btn-score-${role}-minus`).style.display = showBtn ? '' : 'none';
+    document.getElementById(`btn-score-${role}-plus`).style.display  = showBtn ? '' : 'none';
   });
 
   updatePhaseUI(data.phase || 'serve', data.turn);
@@ -2488,9 +2579,9 @@ function renderBoard(data) {
   document.getElementById('sb-hand-host-av').textContent    = hav;
   document.getElementById('sb-hand-guest-av').textContent   = gav;
   ['host','guest'].forEach(role => {
-    const cnt = role === myRole
-      ? L.hand.length
-      : (data?.players?.[role]?.handCount ?? '?');
+    const cnt = isSpectator
+      ? (data?.players?.[role]?.handCount ?? '?')
+      : (role === myRole ? L.hand.length : (data?.players?.[role]?.handCount ?? '?'));
     document.getElementById(`sb-hand-${role}-val`).textContent = cnt;
   });
 
@@ -2508,6 +2599,15 @@ function renderBoard(data) {
 }
 
 function countDrop(zones) { return zones?.drop?.length ?? 0; }
+
+function updateDropImg(zones) {
+  const drop = zones?.drop || [];
+  const img = document.getElementById('self-drop-img');
+  if (!img) return;
+  const top = drop[drop.length - 1];
+  if (top) { img.src = `images/${top}`; img.style.display = 'block'; }
+  else      { img.src = ''; img.style.display = 'none'; }
+}
 
 function renderZones(prefix, zones, isOpp) {
   // Block slots
@@ -2565,14 +2665,6 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         tag.className = 'z-hstack-tag';
         tag.textContent = 'G';
         cardEl.appendChild(tag);
-      }
-
-      if (isTop && zoneName === 'serve') {
-        const srvVal = +(allCards[img]?.srv) || 0;
-        const badge = document.createElement('span');
-        badge.className = 'z-srv-badge';
-        badge.textContent = srvVal;
-        cardEl.appendChild(badge);
       }
 
       cardEl.addEventListener('mouseenter', e => showCardHover(img, e));
@@ -2676,6 +2768,7 @@ function normaliseBlock(raw) {
 // HAND RENDER
 // ══════════════════════════════════════════════════════
 function renderHand() {
+  if (isSpectator) return;
   const wrap = document.getElementById('hand-cards');
   wrap.innerHTML = '';
   if (!L.hand.length) {
@@ -2699,6 +2792,33 @@ function renderHand() {
         setTimeout(() => div.style.opacity = '.4', 0);
       });
       div.addEventListener('dragend', () => { div.style.opacity = ''; });
+
+      // ── Same-hand reorder ──
+      div.addEventListener('dragover', e => {
+        if (!dragData || dragData.src !== 'hand') return;
+        e.preventDefault(); e.stopPropagation();
+        const rect = div.getBoundingClientRect();
+        div.classList.toggle('hand-reorder-before', e.clientX <= rect.left + rect.width / 2);
+        div.classList.toggle('hand-reorder-after',  e.clientX >  rect.left + rect.width / 2);
+      });
+      div.addEventListener('dragleave', () => {
+        div.classList.remove('hand-reorder-before', 'hand-reorder-after');
+      });
+      div.addEventListener('drop', e => {
+        div.classList.remove('hand-reorder-before', 'hand-reorder-after');
+        const dd = dragData;
+        if (!dd || dd.src !== 'hand') return;
+        e.preventDefault(); e.stopPropagation();
+        dragData = null;
+        if (dd.idx === idx) return;
+        const insertAfter = e.clientX > div.getBoundingClientRect().left + div.getBoundingClientRect().width / 2;
+        const moved = L.hand.splice(dd.idx, 1)[0];
+        let toIdx = idx;
+        if (dd.idx < idx) toIdx--;               // index shifted after splice
+        L.hand.splice(insertAfter ? toIdx + 1 : toIdx, 0, moved);
+        renderHand();
+      });
+
       wrap.appendChild(div);
     });
   }
@@ -2748,6 +2868,10 @@ function showPlaceConfirm(title, onTop, onGuts) {
 }
 function closePlaceConfirm() {
   document.getElementById('place-confirm-overlay').classList.remove('open');
+}
+function cancelPlaceConfirm() {
+  closePlaceConfirm();
+  if (moveMode) exitMoveMode();
 }
 
 async function handleDrop(targetZone, hasCards) {
@@ -3104,6 +3228,7 @@ function startDragPile(e) {
 }
 
 function drawCard() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
   if (moveMode) { showPileReturnChoice(); return; }
   if (!L.pile.length) { toast('牌庫已空！'); return; }
   drawFromPile();
@@ -3248,13 +3373,21 @@ async function adjustCounter(stat, delta) {
   const cur = gameState?.counterDelta?.[myRole]?.[stat] ?? 0;
   const next = cur + delta;
   await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(next);
-  // Recalc NET score = tos_total + atk_total
   const zones  = gameState?.players?.[myRole]?.zones;
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: next };
-  const auto_tos = +(allCards[zones?.toss?.img]?.tos)    || 0;
-  const auto_atk = +(allCards[zones?.attack?.img]?.atk)  || 0;
-  const total = auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0);
-  await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, total));
+  if (stat === 'srv') {
+    // Recalc serve score if currently in serve mode
+    if ((gameState?.scoreModes?.[myRole] || 'attack') === 'serve') {
+      const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
+      await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, auto_srv + (deltas.srv || 0)));
+    }
+  } else {
+    // Recalc NET score = tos_total + atk_total
+    const auto_tos = +(allCards[zones?.toss?.img]?.tos)    || 0;
+    const auto_atk = +(allCards[zones?.attack?.img]?.atk)  || 0;
+    const total = auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0);
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, total));
+  }
 }
 
 function renderCounters(data) {
@@ -3263,9 +3396,11 @@ function renderCounters(data) {
     const prefix = role === myRole ? 'self' : 'opp';
     const zones  = data?.players?.[role]?.zones;
     const delta  = data?.counterDelta?.[role] || {};
-    const auto_rcv = +(allCards[zones?.receive?.img]?.rcv) || 0;
-    const auto_tos = +(allCards[zones?.toss?.img]?.tos)    || 0;
-    const auto_atk = +(allCards[zones?.attack?.img]?.atk)  || 0;
+    const auto_srv = +(allCards[zones?.serve?.img]?.srv)    || 0;
+    const auto_rcv = +(allCards[zones?.receive?.img]?.rcv)  || 0;
+    const auto_tos = +(allCards[zones?.toss?.img]?.tos)     || 0;
+    const auto_atk = +(allCards[zones?.attack?.img]?.atk)   || 0;
+    const tot_srv = auto_srv + (delta.srv || 0);
     const tot_rcv = auto_rcv + (delta.rcv || 0);
     const tot_tos = auto_tos + (delta.tos || 0);
     const tot_atk = auto_atk + (delta.atk || 0);
@@ -3275,6 +3410,7 @@ function renderCounters(data) {
       el.textContent  = val;
       el.style.color  = hasOffset ? 'var(--accent)' : '';
     };
+    set(`${prefix}-cnt-srv`, tot_srv, !!delta.srv);
     set(`${prefix}-cnt-rcv`, tot_rcv, !!delta.rcv);
     set(`${prefix}-cnt-tos`, tot_tos, !!delta.tos);
     set(`${prefix}-cnt-atk`, tot_atk, !!delta.atk);
@@ -3293,13 +3429,8 @@ function adjustSet() {
 }
 
 async function declareLost() {
-  if (!confirm('宣告失敗？本局結束，對手獲得 1 局。')) return;
-  const oppRole = myRole === 'host' ? 'guest' : 'host';
-  const cur = gameState?.setScore?.[oppRole] ?? 0;
-  await db.ref(`games/${roomId}/setScore/${oppRole}`).set(cur + 1);
-  L.setCards = Math.max(0, L.setCards - 1);
-  document.getElementById('self-set').textContent = L.setCards;
-  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(L.setCards);
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!confirm('重置本局？雙方所有牌洗回牌庫，場面清空，請手動抽牌開始。')) return;
 
   // Collect all own cards back into pile and shuffle
   const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
@@ -3316,11 +3447,12 @@ async function declareLost() {
   _processedRoundReset = resetVal;
   await db.ref(`games/${roomId}/roundReset`).set(resetVal);
 
-  addLog(L.name, `⚡ 失敗宣告！${gameState?.players?.[oppRole]?.name || '對手'} 獲得 1 局 — 雙方牌庫重置`);
-  toast(`失敗！牌庫已重置（${L.pile.length} 張），請手動抽牌`);
+  addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`);
+  toast(`本局重置，牌庫 ${L.pile.length} 張，請手動抽牌`);
 }
 
 async function adjustSets(role, delta) {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
   const cur = gameState?.setScore?.[role] ?? 0;
   await db.ref(`games/${roomId}/setScore/${role}`).set(Math.max(0, cur + delta));
 }
