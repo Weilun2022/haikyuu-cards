@@ -84,6 +84,66 @@ body {
 .btn.end-turn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(108,99,255,.4); }
 .btn.end-turn.opp-turn { background: var(--surface2); color: var(--text-dim); transform: none; box-shadow: none; }
 
+/* ── Hand-area End Turn Button ── */
+@keyframes endTurnPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(108,99,255,.5), 0 4px 22px rgba(147,51,234,.35); }
+  50%       { box-shadow: 0 0 26px rgba(108,99,255,.9), 0 6px 36px rgba(147,51,234,.6); transform: translateY(-1px); }
+}
+@keyframes endTurnShimmer {
+  0%, 55%, 100% { left: -70%; opacity: 0; }
+  30%            { left: 110%; opacity: 1; }
+}
+#hand-area #end-turn-btn {
+  align-self: stretch;
+  flex-shrink: 0;
+  min-width: 96px;
+  padding: 0 18px;
+  border-radius: 14px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: linear-gradient(155deg, #6c63ff 0%, #9333ea 55%, #c026d3 100%);
+  color: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: opacity .15s, transform .15s, box-shadow .15s, background .3s;
+}
+#hand-area #end-turn-btn:not(.opp-turn):not(:disabled) {
+  animation: endTurnPulse 2s ease-in-out infinite;
+}
+#hand-area #end-turn-btn::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -70%;
+  width: 38%; height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+  transform: skewX(-18deg);
+  animation: endTurnShimmer 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+#hand-area #end-turn-btn:hover:not(:disabled):not(.opp-turn) {
+  animation: none;
+  opacity: .88;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 36px rgba(108,99,255,.65);
+}
+#hand-area #end-turn-btn.opp-turn {
+  background: var(--surface2);
+  color: var(--text-dim);
+  box-shadow: none;
+  animation: none;
+  cursor: default;
+}
+#hand-area #end-turn-btn.opp-turn::before { display: none; }
+#hand-end-icon  { font-size: 20px; line-height: 1; }
+#hand-end-label { font-size: 13px; font-weight: 800; letter-spacing: .4px; }
+#hand-end-sub   { font-size: 9px; opacity: .65; letter-spacing: 1.5px; }
+
 /* ── Inputs ── */
 input[type=text], select, textarea {
   background: var(--surface2);
@@ -1808,8 +1868,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <div class="sb-section" id="sb-actions">
         <div class="sb-title">本回合動作</div>
         <button class="btn xs" id="undo-btn" onclick="undoLastAction()" style="width:100%;margin-bottom:4px" disabled>↩ 復原</button>
-        <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()" style="width:100%">結束回合 ▶</button>
-        <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
+        <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:0">🎲 先攻後攻</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">🔄 重置本局</button>
       </div>
 
@@ -1833,6 +1892,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <div class="hand-lbl">手牌</div>
     <div id="hand-cards"></div>
     <div id="hand-meta"></div>
+    <button class="btn end-turn" id="end-turn-btn" onclick="endTurn()">
+      <span id="hand-end-icon">⚡</span>
+      <span id="hand-end-label">結束回合</span>
+      <span id="hand-end-sub">END TURN</span>
+    </button>
   </div>
 
 </div><!-- /screen-game -->
