@@ -2505,7 +2505,10 @@ function handlePresenceChange(data, prev) {
     showPresenceNotif(`${oppName} 重新連線`, '✅', '#4ade80');
   }
   // Both gone → cleanup
-  if (!presence.host && !presence.guest && roomId) {
+  // Guard: only trigger if presence was previously established (prevents false fire on game start
+  // when presence flags haven't been written yet)
+  const hadPresenceBefore = !!(prevPresence.host || prevPresence.guest);
+  if (hadPresenceBefore && !presence.host && !presence.guest && roomId) {
     const id = roomId;
     // Reset local first
     if (gameRef) gameRef.off();
