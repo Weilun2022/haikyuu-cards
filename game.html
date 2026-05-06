@@ -2482,8 +2482,13 @@ async function rejoinRoom() {
   L.deckId    = sess.deckId || L.deckId;
   L.avatar    = sess.avatar || L.avatar;
 
-  // Reconnect Firebase
+  // Reconnect Firebase — tear down any existing listener first to avoid duplicates
+  if (gameRef) gameRef.off();
   gameRef = db.ref(`games/${roomId}`);
+
+  // Sync _processedRoundReset from current Firebase data so handleRoundReset
+  // doesn't re-fire for a reset that already happened before this rejoin
+  _processedRoundReset = data?.roundReset || 0;
 
   // Re-register presence + onDisconnect
   db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
@@ -2562,11 +2567,14 @@ function handleRoundReset(data) {
 
   // Collect all own cards back into pile and shuffle
   const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
-  L.pile.push(...L.hand, ...collectCardsFromZones(myZones));
-  L.hand = [];
+  L.pile.push(...L.hand, ...(L.setPool || []), ...collectCardsFromZones(myZones));
+  L.hand    = [];
+  L.setPool = [];
   shuffle(L.pile);
   pushZones(emptyZones());
   document.getElementById('self-deck').textContent = L.pile.length;
+  document.getElementById('self-set').textContent  = 0;
+  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(0);
   syncPileCount();
   renderHand();
   toast(`本局結束，牌庫已重置（${L.pile.length} 張），請手動抽牌`);
@@ -3116,13 +3124,14 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
 
     // Slot-level click fallback (clicking slot border area)
     slot.onclick = e => {
-      if (e.target === slot) {
-        e.stopPropagation();
-        if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
-        if (moveMode && !isOpp) { executeMoveToZone(zoneName, null); return; }
-        if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot, e);
-      }
+      e.stopPropagation();
+      // 主動放置：slot 內任意位置點擊都生效（卡片/按鈕自己有 stopPropagation 不會誤觸）
+      if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+      if (moveMode && !isOpp) { executeMoveToZone(zoneName, null); return; }
+      if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
+      // 進入移動模式：只在直接點到 slot 背景時觸發
+      if (e.target !== slot) return;
+      isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot, e);
     };
 
     if (!isOpp) {
@@ -3927,11 +3936,14 @@ async function declareLost() {
 
   // Collect all own cards back into pile and shuffle
   const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
-  L.pile.push(...L.hand, ...collectCardsFromZones(myZones));
-  L.hand = [];
+  L.pile.push(...L.hand, ...(L.setPool || []), ...collectCardsFromZones(myZones));
+  L.hand    = [];
+  L.setPool = [];
   shuffle(L.pile);
   await pushZones(emptyZones());
   document.getElementById('self-deck').textContent = L.pile.length;
+  document.getElementById('self-set').textContent  = 0;
+  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(0);
   syncPileCount();
   renderHand();
 
