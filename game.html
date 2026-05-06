@@ -3369,20 +3369,26 @@ async function adjustScore(role, delta) {
 }
 
 // ── Counter cells (接球 / 舉球 / 攻擊) ─────────────────
-const ZONE_TO_STAT = { receive: 'rcv', toss: 'tos', attack: 'atk' };
+const ZONE_TO_STAT = { receive: 'rcv', toss: 'tos', attack: 'atk', serve: 'srv' };
 
 async function resetCounterDelta(zoneName) {
   const stat = ZONE_TO_STAT[zoneName];
   if (!stat) return;
   await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(0);
-  // Recalc NET score with reset delta
   const zones  = gameState?.players?.[myRole]?.zones;
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: 0 };
-  const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
-  const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
-  await db.ref(`games/${roomId}/scores/${myRole}`).set(
-    Math.max(0, auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0))
-  );
+  if (zoneName === 'serve') {
+    // Recalc serve score with new card's srv value (delta reset to 0)
+    const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, auto_srv));
+  } else {
+    // Recalc NET score with reset delta
+    const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
+    const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(
+      Math.max(0, auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0))
+    );
+  }
 }
 
 async function adjustCounter(stat, delta) {
