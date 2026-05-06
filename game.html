@@ -2988,7 +2988,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       cardEl.onclick = e => {
         e.stopPropagation();
         if (gutsHandIdx !== null) { hideCardHover(); applyGuts(gutsHandIdx, zoneName); return; }
-        if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
+        if (moveMode && !isOpp) { executeMoveToZone(zoneName, img); return; }
         if (!isOpp && selectedHandIdx !== null) { hideCardHover(); placeCard(selectedHandIdx, zoneName); return; }
         if (isOpp) { hideCardHover(); showDetail(img); return; }
         // Own card: enter move mode with pinned hover (no modal)
@@ -3048,7 +3048,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       if (e.target === slot) {
         e.stopPropagation();
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
-        if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
+        if (moveMode && !isOpp) { executeMoveToZone(zoneName, null); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
         isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot, e);
       }
@@ -4381,29 +4381,46 @@ function exitMoveMode() {
   document.querySelectorAll('.info-tile.move-target-tile').forEach(t => t.classList.remove('move-target-tile'));
 }
 
-function executeMoveToZone(targetZone) {
+function executeMoveToZone(targetZone, targetImg = null) {
   const m = moveMode;
-  if ((m.type === 'zone' || m.type === 'guts') && m.zoneName === targetZone) { exitMoveMode(); return; }
+
+  // Same-zone click: reorder if a different card was clicked, else cancel
+  if ((m.type === 'zone' || m.type === 'guts') && m.zoneName === targetZone) {
+    const movedImg = m.type === 'zone' ? m.cardData.img : m.gutsImg;
+    if (targetImg && targetImg !== movedImg) {
+      exitMoveMode();
+      reorderStack(targetZone, movedImg, targetImg, false);
+    } else {
+      exitMoveMode();
+    }
+    return;
+  }
+
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const existing = getZoneCard(zones, targetZone);
 
   if (existing?.img) {
-    document.getElementById('place-confirm-top-btn').textContent = '最上方';
-    document.getElementById('place-confirm-guts-btn').textContent = '當 Guts';
-    showPlaceConfirm('選擇放置方式',
-      () => {
-        exitMoveMode();
-        if (m.type === 'hand') placeCard(m.idx, targetZone, false);
-        else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, false);
-        else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
-      },
-      () => {
-        exitMoveMode();
-        if (m.type === 'hand') placeCard(m.idx, targetZone, true);
-        else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, true);
-        else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
-      }
-    );
+    if (m.type === 'hand') {
+      // Hand → occupied zone: always place on top, no modal
+      exitMoveMode();
+      placeCard(m.idx, targetZone, false);
+    } else {
+      // Zone/guts → occupied zone: ask top or guts
+      document.getElementById('place-confirm-top-btn').textContent = '最上方';
+      document.getElementById('place-confirm-guts-btn').textContent = '當 Guts';
+      showPlaceConfirm('選擇放置方式',
+        () => {
+          exitMoveMode();
+          if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, false);
+          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+        },
+        () => {
+          exitMoveMode();
+          if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, true);
+          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+        }
+      );
+    }
   } else {
     exitMoveMode();
     if (m.type === 'hand')  placeCard(m.idx, targetZone);
@@ -4416,7 +4433,8 @@ function executeMoveDiscard() {
   const m = moveMode;
   exitMoveMode();
   if (m.type === 'hand')  discardFromHand(m.idx);
-  else if (m.type === 'zone') discardFromZone(m.zoneName, m.cardData);
+  // Only move the top card to drop; guts stay in zone
+  else if (m.type === 'zone') moveCardFromStack(m.zoneName, m.cardData.img, 'drop');
   else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, 'drop');
 }
 
