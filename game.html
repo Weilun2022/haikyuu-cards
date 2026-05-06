@@ -4455,12 +4455,15 @@ function exitMoveMode() {
 function executeMoveToZone(targetZone, targetImg = null) {
   const m = moveMode;
 
-  // Same-zone click: reorder if a different card was clicked, else cancel
+  // Same-zone click: reorder if possible, else cancel
   if ((m.type === 'zone' || m.type === 'guts') && m.zoneName === targetZone) {
-    const movedImg = m.type === 'zone' ? m.cardData.img : m.gutsImg;
-    if (targetImg && targetImg !== movedImg) {
+    const isGutsMove = m.type === 'guts';
+    const movedImg = isGutsMove ? m.gutsImg : m.cardData.img;
+    // Guts card: always allow promote (even same-image); use indexOf + insertAfter=true
+    // Top card: only reorder when target has different image; use lastIndexOf + insertAfter=false
+    if (targetImg && (isGutsMove || targetImg !== movedImg)) {
       exitMoveMode();
-      reorderStack(targetZone, movedImg, targetImg, false);
+      reorderStack(targetZone, movedImg, targetImg, isGutsMove, isGutsMove);
     } else {
       exitMoveMode();
     }
@@ -4636,16 +4639,19 @@ function showGutsAction(zoneName, cardData, gutsImg) {
   document.getElementById('hand-action-overlay').classList.add('open');
 }
 
-async function reorderStack(zoneName, movedImg, targetImg, insertAfter) {
+// useFirstOccurrence=true → indexOf (for guts cards: find lowest position)
+// useFirstOccurrence=false → lastIndexOf (for top card: find highest position)
+async function reorderStack(zoneName, movedImg, targetImg, insertAfter, useFirstOccurrence = false) {
   saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const zc = getZoneCard(zones, zoneName);
   if (!zc) return;
   const all = [...(zc.guts || []), zc.img];
-  const fromIdx = all.lastIndexOf(movedImg);
+  const fromIdx = useFirstOccurrence ? all.indexOf(movedImg) : all.lastIndexOf(movedImg);
   if (fromIdx === -1) return;
   all.splice(fromIdx, 1);
   let toIdx = all.lastIndexOf(targetImg);
+  if (toIdx === -1) toIdx = all.indexOf(targetImg);
   if (toIdx === -1) return;
   if (insertAfter) toIdx++;
   all.splice(toIdx, 0, movedImg);
