@@ -2230,6 +2230,10 @@ async function joinRoom(id) {
   });
   await db.ref(`rooms/${id}/status`).set('playing');
 
+  // Auto-remove room & game if guest disconnects (browser close / network loss)
+  db.ref(`rooms/${id}`).onDisconnect().remove();
+  db.ref(`games/${id}`).onDisconnect().remove();
+
   gameRef = db.ref(`games/${id}`);
   listenGame();
   showWaitingScreen(id);
@@ -2262,10 +2266,9 @@ async function spectateRoom(id) {
 async function leaveRoom() {
   if (!roomId) return;
   if (!isSpectator) {
-    if (myRole === 'host') {
-      await db.ref(`rooms/${roomId}`).remove();
-      await db.ref(`games/${roomId}`).remove();
-    }
+    // Both host and guest clean up the room on leave
+    await db.ref(`rooms/${roomId}`).remove();
+    await db.ref(`games/${roomId}`).remove();
   }
   if (gameRef) gameRef.off();
   gameRef = null; roomId = null; myRole = null; isSpectator = false;
