@@ -603,20 +603,19 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 16px;
   font-weight: 900;
   line-height: 1.2;
-  min-width: 24px;
+  min-width: 22px;
   text-align: center;
   letter-spacing: .5px;
   display: inline-block;
 }
 .z-stat-adj {
-  font-size: 12px; padding: 1px 5px; line-height: 15px;
-  border: 1px solid;
-  border-radius: 4px;
+  font-size: 12px; padding: 1px 6px; line-height: 16px;
   cursor: pointer;
   flex-shrink: 0;
   transition: opacity .12s;
+  font-weight: 700;
 }
-.z-stat-adj:hover { opacity: .75; }
+.z-stat-adj:hover { opacity: .65; }
 
 .zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 2px; }
 .z-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
@@ -2653,15 +2652,27 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           const dVal = delta[si.stat] || 0;
           const total = baseVal + dVal;
 
+          // Unified badge: whole overlay gets zone color as background
+          const badgeBg  = dVal !== 0 ? '#6c63ff' : si.bg;
+          const textCol  = (dVal !== 0 || !si.textDark) ? '#fff' : '#1a1200';
+          const sepColor = si.textDark && dVal === 0 ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.25)';
+
           const overlay = document.createElement('div');
           overlay.className = 'z-stat-overlay' + (si.adj && !isOpp ? ' interactive' : '');
+          overlay.style.background = badgeBg;
+          overlay.style.borderRadius = '6px';
+          overlay.style.padding = '2px 0';
+          overlay.style.boxShadow = '0 2px 6px rgba(0,0,0,.7)';
+          overlay.style.overflow = 'hidden';
 
           if (si.adj && !isOpp) {
             const bm = document.createElement('button');
             bm.className = 'z-stat-adj'; bm.textContent = '−';
-            bm.style.color = si.textDark ? '#1a1200' : '#fff';
-            bm.style.borderColor = si.textDark ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.4)';
-            bm.style.background = si.textDark ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.2)';
+            bm.style.color = textCol;
+            bm.style.background = 'transparent';
+            bm.style.border = 'none';
+            bm.style.borderRight = `1px solid ${sepColor}`;
+            bm.style.borderRadius = '0';
             bm.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, -1); });
             overlay.appendChild(bm);
           }
@@ -2669,23 +2680,19 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           const valEl = document.createElement('span');
           valEl.className = 'z-stat-val';
           valEl.textContent = total;
-          // Badge background: use zone color; if delta applied, show accent tint
-          const badgeBg = dVal !== 0 ? '#6c63ff' : si.bg;
-          const textCol = (dVal !== 0 || !si.textDark) ? '#fff' : '#1a1200';
-          valEl.style.background = badgeBg;
           valEl.style.color = textCol;
-          valEl.style.borderRadius = '5px';
-          valEl.style.padding = '1px 7px';
-          valEl.style.boxShadow = `0 1px 6px rgba(0,0,0,.7)`;
-          valEl.style.textShadow = 'none';
+          valEl.style.background = 'transparent';
+          valEl.style.padding = '0 6px';
           overlay.appendChild(valEl);
 
           if (si.adj && !isOpp) {
             const bp = document.createElement('button');
             bp.className = 'z-stat-adj'; bp.textContent = '＋';
-            bp.style.color = si.textDark ? '#1a1200' : '#fff';
-            bp.style.borderColor = si.textDark ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.4)';
-            bp.style.background = si.textDark ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.2)';
+            bp.style.color = textCol;
+            bp.style.background = 'transparent';
+            bp.style.border = 'none';
+            bp.style.borderLeft = `1px solid ${sepColor}`;
+            bp.style.borderRadius = '0';
             bp.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, 1); });
             overlay.appendChild(bp);
           }
