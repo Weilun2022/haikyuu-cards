@@ -2927,7 +2927,14 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (si) {
           const role = isOpp ? (myRole === 'host' ? 'guest' : 'host') : myRole;
           const delta = gameState?.counterDelta?.[role] || {};
-          const baseVal = +(allCards[img]?.[si.stat]) || 0;
+          // Block: sum all 3 slots' blk stats as one total
+          let baseVal;
+          if (zoneName.startsWith('block')) {
+            const blocks = normaliseBlock(gameState?.players?.[role]?.zones?.block);
+            baseVal = blocks.reduce((sum, b) => sum + (+(allCards[b?.img]?.blk) || 0), 0);
+          } else {
+            baseVal = +(allCards[img]?.[si.stat]) || 0;
+          }
           const dVal = delta[si.stat] || 0;
           const total = baseVal + dVal;
 
@@ -4582,6 +4589,7 @@ async function reorderStack(zoneName, movedImg, targetImg, insertAfter) {
   zc.guts = all.slice(0, -1);
   setZoneCard(zones, zoneName, zc);
   await pushZones(zones);
+  await resetCounterDelta(zoneName);
 }
 
 async function moveGutsCard(zoneName, cardData, gutsImg, target) {
@@ -4646,6 +4654,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
     }
     await pushZones(zones);
     if (_needsSync) await syncScoreToBase(zones, _modeZone);
+    await resetCounterDelta(target);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
   addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}${cardState()}`);
