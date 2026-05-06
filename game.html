@@ -627,11 +627,13 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: inline-block;
 }
 .z-stat-adj {
-  font-size: 12px; padding: 1px 6px; line-height: 16px;
+  font-size: 12px; padding: 1px 4px; line-height: 16px;
   cursor: pointer;
   flex-shrink: 0;
   transition: opacity .12s;
   font-weight: 700;
+  min-width: 20px;
+  text-align: center;
 }
 .z-stat-adj:hover { opacity: .65; }
 
@@ -2944,16 +2946,17 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       }
 
       cardEl.addEventListener('mouseenter', e => showCardHover(img, e));
-      cardEl.addEventListener('mousemove',  e => _posCardHover(e));
+      cardEl.addEventListener('mousemove',  e => { if (!_hoverPinned) _posCardHover(e); });
       cardEl.addEventListener('mouseleave', hideCardHover);
       cardEl.onclick = e => {
         e.stopPropagation();
-        hideCardHover();
-        if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
+        if (gutsHandIdx !== null) { hideCardHover(); applyGuts(gutsHandIdx, zoneName); return; }
         if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
-        if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        if (isOpp) { showDetail(img); return; }
-        isTop ? onZoneClick(zoneName, cardData, slot) : showGutsAction(zoneName, cardData, img);
+        if (!isOpp && selectedHandIdx !== null) { hideCardHover(); placeCard(selectedHandIdx, zoneName); return; }
+        if (isOpp) { hideCardHover(); showDetail(img); return; }
+        // Own card: enter move mode with pinned hover (no modal)
+        if (isTop) { onZoneClick(zoneName, cardData, slot, e); }
+        else        { hideCardHover(); showGutsAction(zoneName, cardData, img); }
       };
 
       if (!isOpp) {
@@ -3010,7 +3013,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
         if (moveMode && !isOpp) { executeMoveToZone(zoneName); return; }
         if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
-        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot);
+        isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot, e);
       }
     };
 
@@ -3055,7 +3058,7 @@ function renderHand() {
       div.className = 'hand-card';
       div.dataset.idx = idx;
       div.innerHTML = `<img src="images/${img}" loading="lazy" alt="">`;
-      div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div); });
+      div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div, e); });
       div.addEventListener('mouseenter', e => showCardHover(img, e));
       div.addEventListener('mousemove',  e => _posCardHover(e));
       div.addEventListener('mouseleave', hideCardHover);
@@ -3240,8 +3243,14 @@ async function handleDrop(targetZone, hasCards) {
   }
 }
 
-function onHandClick(idx, el) {
-  showHandAction(idx);
+function onHandClick(idx, el, e) {
+  // If already in move mode for this same card → cancel
+  if (moveMode?.type === 'hand' && moveMode?.idx === idx) { exitMoveMode(); return; }
+  // Enter move mode and pin hover preview to follow mouse
+  const img = L.hand[idx];
+  const c   = allCards[img];
+  pinCardHover(img, e);
+  enterMoveMode({ type: 'hand', idx, cat: c?.category });
 }
 
 function onEmptyZoneClick(zoneName) {
@@ -3253,8 +3262,12 @@ function onEmptyZoneClick(zoneName) {
   }
 }
 
-function onZoneClick(zoneName, cardData, slotEl) {
-  showZoneAction(zoneName, cardData);
+function onZoneClick(zoneName, cardData, slotEl, e) {
+  // If already in move mode for this same zone → cancel (same as executeMoveToZone same-zone logic)
+  if (moveMode?.type === 'zone' && moveMode?.zoneName === zoneName) { exitMoveMode(); return; }
+  // Enter move mode and pin hover preview to follow mouse
+  pinCardHover(cardData.img, e);
+  enterMoveMode({ type: 'zone', zoneName, cardData });
 }
 
 // ── Place card from hand ─────────────────────────────
@@ -4161,51 +4174,75 @@ function showDetail(img) {
 function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
 
 // ── Card hover preview ────────────────────────────────
-let _hoverTimer = null;
+let _hoverTimer  = null;
+let _hoverPinned = false;  // true while in move mode — preview follows mouse even off the card
+
+function _fillHoverContent(img) {
+  const c = allCards[img];
+  document.getElementById('ch-img').src = `images/${img}`;
+  document.getElementById('ch-name').textContent = c?.name || img;
+
+  const tagsEl = document.getElementById('ch-tags');
+  tagsEl.innerHTML = '';
+  const addTag = (txt, bg, fg = '#fff') => {
+    const s = document.createElement('span');
+    s.className = 'ch-tag'; s.style.background = bg; s.style.color = fg;
+    s.textContent = txt; tagsEl.appendChild(s);
+  };
+  if (c?.rarity)   addTag(c.rarity, HA_RARITY_COLOR[c.rarity] || '#555');
+  if (c?.school)   addTag(c.school, HA_SCHOOL_COLOR[c.school]  || '#555');
+  if (c?.affiliation && c.affiliation !== c.school) addTag(c.affiliation, '#444');
+  if (c?.category) addTag(HA_CATEGORY_ZH[c.category] || c.category, '#334');
+
+  const statsEl = document.getElementById('ch-stats');
+  statsEl.innerHTML = '';
+  if (c?.category === 'CHARACTER') {
+    HA_STAT_DEFS.forEach(([key, label, bg, fg]) => {
+      const v = c[key];
+      if (v && v !== '-') {
+        const s = document.createElement('span');
+        s.className = 'ch-stat'; s.style.background = bg; s.style.color = fg;
+        s.textContent = `${label} ${v}`; statsEl.appendChild(s);
+      }
+    });
+  }
+  document.getElementById('ch-skill').textContent = c?.skill_zh || c?.skill_jp || '';
+}
 
 function showCardHover(img, e) {
+  if (_hoverPinned) return; // move mode owns the preview
   clearTimeout(_hoverTimer);
   _hoverTimer = setTimeout(() => {
-    const c = allCards[img];
-    document.getElementById('ch-img').src = `images/${img}`;
-    document.getElementById('ch-name').textContent = c?.name || img;
-
-    const tagsEl = document.getElementById('ch-tags');
-    tagsEl.innerHTML = '';
-    const addTag = (txt, bg, fg = '#fff') => {
-      const s = document.createElement('span');
-      s.className = 'ch-tag'; s.style.background = bg; s.style.color = fg;
-      s.textContent = txt; tagsEl.appendChild(s);
-    };
-    if (c?.rarity)   addTag(c.rarity, HA_RARITY_COLOR[c.rarity] || '#555');
-    if (c?.school)   addTag(c.school, HA_SCHOOL_COLOR[c.school]  || '#555');
-    if (c?.affiliation && c.affiliation !== c.school) addTag(c.affiliation, '#444');
-    if (c?.category) addTag(HA_CATEGORY_ZH[c.category] || c.category, '#334');
-
-    const statsEl = document.getElementById('ch-stats');
-    statsEl.innerHTML = '';
-    if (c?.category === 'CHARACTER') {
-      HA_STAT_DEFS.forEach(([key, label, bg, fg]) => {
-        const v = c[key];
-        if (v && v !== '-') {
-          const s = document.createElement('span');
-          s.className = 'ch-stat'; s.style.background = bg; s.style.color = fg;
-          s.textContent = `${label} ${v}`; statsEl.appendChild(s);
-        }
-      });
-    }
-    document.getElementById('ch-skill').textContent = c?.skill_zh || c?.skill_jp || '';
-
-    const el = document.getElementById('card-hover');
-    el.classList.add('open');
+    _fillHoverContent(img);
+    document.getElementById('card-hover').classList.add('open');
     _posCardHover(e);
   }, 200);
 }
 
 function hideCardHover() {
+  if (_hoverPinned) return; // move mode owns the preview — don't hide
   clearTimeout(_hoverTimer);
   document.getElementById('card-hover').classList.remove('open');
 }
+
+// Pin hover to follow mouse globally (used when entering move mode by click)
+function pinCardHover(img, e) {
+  clearTimeout(_hoverTimer);
+  _fillHoverContent(img);
+  _hoverPinned = true;
+  document.getElementById('card-hover').classList.add('open');
+  if (e) _posCardHover(e);
+  document.addEventListener('mousemove', _pinnedHoverMove);
+}
+
+function unpinCardHover() {
+  if (!_hoverPinned) return;
+  _hoverPinned = false;
+  document.removeEventListener('mousemove', _pinnedHoverMove);
+  document.getElementById('card-hover').classList.remove('open');
+}
+
+function _pinnedHoverMove(e) { _posCardHover(e); }
 
 function _posCardHover(e) {
   const el = document.getElementById('card-hover');
@@ -4288,6 +4325,7 @@ function enterMoveMode(mode) {
 
 function exitMoveMode() {
   moveMode = null;
+  unpinCardHover();
   clearZoneHighlights();
   const ha = document.getElementById('hand-area');
   ha.classList.remove('move-target-hand');
