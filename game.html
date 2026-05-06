@@ -1777,6 +1777,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
       <div class="sb-section" id="sb-actions">
         <div class="sb-title">本回合動作</div>
+        <button class="btn xs" id="undo-btn" onclick="undoLastAction()" style="width:100%;margin-bottom:4px" disabled>↩ 復原</button>
         <button class="btn xs end-turn" id="end-turn-btn" onclick="endTurn()" style="width:100%">結束回合 ▶</button>
         <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:4px">🎲 先攻後攻</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">🔄 重置本局</button>
@@ -1997,6 +1998,7 @@ const L = {
   pile:    [],
   setCards: 0,
   setPool: [],
+  undoStack: [],  // max 10, cleared on endTurn
 };
 
 // ══════════════════════════════════════════════════════
@@ -2396,9 +2398,11 @@ async function rejoinRoom() {
   listenGame();
 
   document.getElementById('rejoin-banner').style.display = 'none';
+  L.undoStack = [];
   showScreen('game');
   renderBoard(data);
   syncPileCount();
+  updateUndoBtn();
   renderHand();
   updatePhaseUI(data?.phase || 'serve', data?.turn);
   toast(`重新加入房間 #${roomId}`);
@@ -2604,6 +2608,7 @@ function enterGame() {
   L.hand = [];
   L.setPool = [];
   L.setCards = 0;
+  L.undoStack = [];
 
   // Cancel waiting-phase onDisconnects (presence system takes over from here)
   db.ref(`rooms/${roomId}`).onDisconnect().cancel();
@@ -2617,6 +2622,7 @@ function enterGame() {
   showScreen('game');
   renderBoard(gameState);
   syncPileCount();
+  updateUndoBtn();
   saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
@@ -2699,6 +2705,9 @@ async function endTurn() {
     atkAlert: atkTotal > 0 ? atkTotal : null
   });
   addLog(L.name, `回合結束 — ${actionLabel}`);
+  // Clear undo stack at end of turn (no going back across turns)
+  L.undoStack = [];
+  updateUndoBtn();
 }
 
 function selectAction(action) {
@@ -3253,6 +3262,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   closeCtx();
   clearSelection();
   clearZoneHighlights();
+  saveUndo();
   if (gameState?.atkAlert) db.ref(`games/${roomId}/atkAlert`).remove();
   const img  = L.hand[handIdx];
   const card = allCards[img];
@@ -3308,6 +3318,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
 // asGuts=true → dragged card slides under the existing top at destination.
 async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   closeCtx();
+  saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const fromBase = fromZone.split(':')[0];
 
@@ -3382,6 +3393,7 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
 // ── Discard only the TOP card from zone (guts remain) ─ used by drag ──
 async function discardTopFromZone(zoneName, cardData) {
   closeCtx();
+  saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const baseZone = zoneName.split(':')[0];
 
@@ -3420,6 +3432,7 @@ async function discardTopFromZone(zoneName, cardData) {
 // ── Discard from zone (all cards incl. guts) — used by context menu ──
 async function discardFromZone(zoneName, cardData) {
   closeCtx();
+  saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   removeFromZone(zones, zoneName, cardData.img);
   if (!zones.drop) zones.drop = [];
@@ -3437,6 +3450,7 @@ async function discardFromHand(idx) {
   closeCtx();
   clearSelection();
   clearZoneHighlights();
+  saveUndo();
   const img  = L.hand.splice(idx, 1)[0];
   const card = allCards[img];
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
@@ -3472,6 +3486,7 @@ function cancelGuts() {
 }
 
 async function applyGuts(handIdx, zoneName) {
+  saveUndo();
   const img   = L.hand.splice(handIdx, 1)[0];
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const target = getZoneCard(zones, zoneName);
@@ -3483,6 +3498,63 @@ async function applyGuts(handIdx, zoneName) {
   addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）${cardState()}`);
   cancelGuts();
   renderHand();
+}
+
+// ══════════════════════════════════════════════════════
+// UNDO SYSTEM — local only, max 10 steps, cleared on endTurn
+// ══════════════════════════════════════════════════════
+const UNDO_MAX = 10;
+
+function saveUndo() {
+  if (isSpectator || !roomId) return;
+  const snap = {
+    hand:        [...L.hand],
+    pile:        [...L.pile],
+    setPool:     [...(L.setPool || [])],
+    setCards:    L.setCards,
+    zones:       deepCopy(gameState?.players?.[myRole]?.zones || emptyZones()),
+    counterDelta:deepCopy(gameState?.counterDelta?.[myRole]  || {}),
+    score:       gameState?.scores?.[myRole]      ?? 0,
+    scoreMode:   gameState?.scoreModes?.[myRole]  || 'attack',
+  };
+  L.undoStack.push(snap);
+  if (L.undoStack.length > UNDO_MAX) L.undoStack.shift();
+  updateUndoBtn();
+}
+
+async function undoLastAction() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!L.undoStack.length) { toast('沒有可復原的操作'); return; }
+  const snap = L.undoStack.pop();
+  updateUndoBtn();
+
+  L.hand    = snap.hand;
+  L.pile    = snap.pile;
+  L.setPool = snap.setPool;
+  L.setCards = snap.setCards;
+
+  // Restore Firebase state atomically
+  const updates = {};
+  updates[`games/${roomId}/players/${myRole}/zones`] = sanitise(snap.zones);
+  updates[`games/${roomId}/counterDelta/${myRole}`]  = snap.counterDelta;
+  updates[`games/${roomId}/scores/${myRole}`]        = snap.score;
+  updates[`games/${roomId}/scoreModes/${myRole}`]    = snap.scoreMode;
+  await db.ref().update(updates);
+
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+  syncHandCount();
+  renderHand();
+  addLog(L.name, `↩ 復原了上一步`);
+  toast('已復原上一步');
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('undo-btn');
+  if (!btn) return;
+  const n = L.undoStack.length;
+  btn.textContent = n ? `↩ 復原 (${n})` : '↩ 復原';
+  btn.disabled    = (n === 0);
 }
 
 // ══════════════════════════════════════════════════════
@@ -3499,6 +3571,7 @@ function drawCard() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
   if (moveMode) { showPileReturnChoice(); return; }
   if (!L.pile.length) { toast('牌庫已空！'); return; }
+  saveUndo();
   drawFromPile();
   addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
   document.getElementById('self-deck').textContent = L.pile.length;
@@ -3513,6 +3586,7 @@ function drawFromPile() {
 }
 
 function returnHandToPile(idx, position) {
+  saveUndo();
   const img = L.hand.splice(idx, 1)[0];
   if (!img) return;
   if (position === 'top') {
@@ -3527,6 +3601,7 @@ function returnHandToPile(idx, position) {
 }
 
 async function returnToPile(fromZone, cardData, position) {
+  saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   removeFromZone(zones, fromZone, cardData.img);
   if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
@@ -3557,6 +3632,7 @@ function shufflePile() {
 
 function shuffleHandToPile() {
   if (!L.hand.length) { toast('手牌已空'); return; }
+  saveUndo();
   const count = L.hand.length;
   L.pile.push(...L.hand.splice(0));
   shuffle(L.pile);
@@ -3659,6 +3735,7 @@ async function resetCounterDelta(zoneName) {
 
 async function adjustCounter(stat, delta) {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  saveUndo();
   const cur = gameState?.counterDelta?.[myRole]?.[stat] ?? 0;
   const next = cur + delta;
   await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(next);
@@ -4385,6 +4462,7 @@ function showGutsAction(zoneName, cardData, gutsImg) {
 }
 
 async function reorderStack(zoneName, movedImg, targetImg, insertAfter) {
+  saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const zc = getZoneCard(zones, zoneName);
   if (!zc) return;
@@ -4403,6 +4481,7 @@ async function reorderStack(zoneName, movedImg, targetImg, insertAfter) {
 }
 
 async function moveGutsCard(zoneName, cardData, gutsImg, target) {
+  saveUndo();
   const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   const zc = getZoneCard(zones, zoneName);
   if (!zc) return;
