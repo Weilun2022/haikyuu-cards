@@ -2813,7 +2813,10 @@ function renderBoard(data) {
   });
 
   if (data.log) renderLog(data.log);
-  renderHand();
+  // NOTE: renderHand() intentionally NOT called here.
+  // L.hand is pure local state — every function that modifies it already calls renderHand() itself.
+  // Calling it here on every Firebase sync caused a race condition where hand cards were
+  // destroyed/recreated mid-click, making card play fail during atkAlert.
 
   // Atk alert: flash opponent's attack power until defender plays a card
   const alertEl = document.getElementById('atk-alert');
