@@ -653,6 +653,28 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-slot.z-atk { border-color: rgba(220,38,38,.45); background: rgba(220,38,38,.05); }
 .z-slot.z-srv { border-color: rgba(217,119,6,.45); background: rgba(217,119,6,.05); }
 .z-slot.z-evt { border-color: rgba(100,116,139,.35); background: rgba(100,116,139,.03); }
+
+/* Zone name watermark — inside slot, bottom-center, subtle */
+.z-slot::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: .28;
+  line-height: 1;
+}
+.z-slot.z-blk::after { content: 'BLOCK';   color: #9ca3af; }
+.z-slot.z-rcv::after { content: 'RECEIVE'; color: #60a5fa; }
+.z-slot.z-tos::after { content: 'TOSS';    color: #4ade80; }
+.z-slot.z-atk::after { content: 'ATTACK';  color: #f87171; }
+.z-slot.z-srv::after { content: 'SERVE';   color: #fbbf24; }
+.z-slot.z-evt::after { content: 'EVENT';   color: #94a3b8; }
 .z-slot.z-blk:not(.filled):not(.opp):hover { border-color: #6b7280; background: rgba(107,114,128,.1); }
 .z-slot.z-rcv:not(.filled):not(.opp):hover { border-color: #2563eb; background: rgba(37,99,235,.14); }
 .z-slot.z-tos:not(.filled):not(.opp):hover { border-color: #16a34a; background: rgba(22,163,74,.14); }
