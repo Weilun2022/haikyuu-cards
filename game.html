@@ -2222,17 +2222,36 @@ async function spectateRoom(id) {
 
 async function leaveRoom() {
   if (!roomId) return;
-  if (!isSpectator) {
-    // Both host and guest clean up the room on leave
-    await db.ref(`rooms/${roomId}`).remove();
-    await db.ref(`games/${roomId}`).remove();
-  }
+  const id = roomId;
+  const role = myRole;
+  const wasSpectator = isSpectator;
+
+  // Reset local state first (prevents re-entry from syncUI)
   if (gameRef) gameRef.off();
   gameRef = null; roomId = null; myRole = null; isSpectator = false;
   document.getElementById('spectator-banner').style.display = 'none';
   document.getElementById('hand-area').style.display = '';
   document.getElementById('sb-actions').style.display = '';
   showScreen('lobby');
+
+  if (!wasSpectator && role) {
+    const inGame = !!(await db.ref(`games/${id}/presence/${role}`).once('value')).val();
+    if (inGame) {
+      // Game already started — cancel onDisconnect and remove own presence
+      // The other player's syncUI will detect this and show offline notification
+      await db.ref(`games/${id}/presence/${role}`).onDisconnect().cancel();
+      await db.ref(`games/${id}/presence/${role}`).remove();
+    } else {
+      // Still in waiting phase — delete whole room
+      await db.ref(`rooms/${id}`).remove();
+      await db.ref(`games/${id}`).remove();
+    }
+  }
+}
+
+async function cleanupRoom(id) {
+  await db.ref(`rooms/${id}`).remove();
+  await db.ref(`games/${id}`).remove();
 }
 
 function showWaitingScreen(id) {
@@ -2278,6 +2297,7 @@ function syncUI(data, prev) {
       detectOppActions(data, prev);
       handleDiceRollUpdate(data);
       handleRoundReset(data);
+      handlePresenceChange(data, prev);
     }
   }
 }
@@ -2325,6 +2345,49 @@ function updateWaitingScreen(data) {
   if (data.started && myRole === 'guest' && !isSpectator) {
     enterGame();
   }
+}
+
+// ══════════════════════════════════════════════════════
+// PRESENCE — 在線偵測
+// ══════════════════════════════════════════════════════
+function handlePresenceChange(data, prev) {
+  if (!roomId || !myRole) return;
+  const presence     = data?.presence  || {};
+  const prevPresence = prev?.presence  || {};
+  const oppRole      = myRole === 'host' ? 'guest' : 'host';
+  const oppName      = data?.players?.[oppRole]?.name || '對手';
+
+  // Opponent just went offline
+  if (prevPresence[oppRole] && !presence[oppRole]) {
+    showPresenceNotif(`${oppName} 已離線，等待重新連接...`, '🔌', '#f59e0b');
+  }
+  // Opponent reconnected
+  if (!prevPresence[oppRole] && presence[oppRole]) {
+    showPresenceNotif(`${oppName} 重新連線`, '✅', '#4ade80');
+  }
+  // Both gone → cleanup
+  if (!presence.host && !presence.guest && roomId) {
+    const id = roomId;
+    // Reset local first
+    if (gameRef) gameRef.off();
+    gameRef = null; roomId = null; myRole = null;
+    document.getElementById('hand-area').style.display = '';
+    document.getElementById('sb-actions').style.display = '';
+    showScreen('lobby');
+    cleanupRoom(id);
+    toast('雙方都已離線，對局結束');
+  }
+}
+
+function showPresenceNotif(msg, icon, color) {
+  const wrap = document.getElementById('notif-wrap');
+  const n = document.createElement('div');
+  n.className = 'notif';
+  n.style.borderLeft = `3px solid ${color}`;
+  n.innerHTML = `<span class="notif-icon">${icon}</span><span class="notif-text" style="color:${color}">${esc(msg)}</span>`;
+  wrap.appendChild(n);
+  requestAnimationFrame(() => n.classList.add('show'));
+  setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 350); }, 5000);
 }
 
 // ══════════════════════════════════════════════════════
@@ -2381,6 +2444,13 @@ function enterGame() {
   L.hand = [];
   L.setPool = [];
   L.setCards = 0;
+
+  // Cancel waiting-phase onDisconnect (presence system takes over from here)
+  db.ref(`rooms/${roomId}`).onDisconnect().cancel();
+  db.ref(`games/${roomId}`).onDisconnect().cancel();
+  // Set own presence; auto-remove on disconnect
+  db.ref(`games/${roomId}/presence/${myRole}`).set(true);
+  db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
 
   showScreen('game');
   renderBoard(gameState);
