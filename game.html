@@ -1467,7 +1467,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
    ATK ALERT OVERLAY
 ══════════════════════════════════════ */
 #atk-alert {
-  position: fixed; inset: 0; z-index: 3500; pointer-events: none;
+  position: fixed; top: 0; left: 0; right: 0; height: 50vh;
+  z-index: 3500; pointer-events: none;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   opacity: 0; transition: opacity .3s;
 }
