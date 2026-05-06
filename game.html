@@ -2103,6 +2103,17 @@ function listenRooms() {
       if ((now - (r.createdAt || 0)) >= STALE_MS) {
         db.ref(`rooms/${r.id}`).remove();
         db.ref(`games/${r.id}`).remove();
+        return;
+      }
+      // For 'playing' rooms: check presence — if both absent, treat as abandoned
+      if (r.status === 'playing') {
+        db.ref(`games/${r.id}/presence`).once('value').then(pSnap => {
+          const p = pSnap.val() || {};
+          if (!p.host && !p.guest) {
+            db.ref(`rooms/${r.id}`).remove();
+            db.ref(`games/${r.id}`).remove();
+          }
+        });
       }
     });
     const allRooms = Object.values(rooms).filter(r =>
