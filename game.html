@@ -2711,10 +2711,8 @@ async function endTurn() {
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const action = gameState?.currentAction || null;
   const actionLabel = action ? (PHASE_META[action]?.label || action) : '（無動作）';
-  const zones = gameState?.players?.[myRole]?.zones;
-  const delta = gameState?.counterDelta?.[myRole] || {};
-  const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
-  const atkTotal = auto_atk + (delta.atk || 0);
+  // Use the already-synced score (accounts for scoreMode, toss+atk or srv, and manual adjustments)
+  const atkTotal = gameState?.scores?.[myRole] ?? calcBaseScore(myRole, gameState);
   await db.ref(`games/${roomId}`).update({
     turn: oppRole, currentAction: null,
     atkAlert: atkTotal > 0 ? atkTotal : null
