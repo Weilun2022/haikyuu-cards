@@ -331,6 +331,24 @@ input[type=text]::placeholder { color: var(--text-dim); }
   color: #a78bfa;
 }
 .spectate-btn:hover { background: rgba(124,58,237,.3); }
+
+/* Rejoin banner */
+#rejoin-banner {
+  margin-bottom: 12px;
+}
+.rejoin-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(99,102,241,.08));
+  border: 1px solid rgba(99,102,241,.4);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.rejoin-icon { font-size: 22px; flex-shrink: 0; }
+.rejoin-info { flex: 1; min-width: 0; }
+.rejoin-title { font-size: 13px; font-weight: 700; color: var(--text); }
+.rejoin-sub   { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 .room-empty { text-align: center; padding: 36px; color: var(--text-dim); font-size: 13px; }
 
 /* Lobby footer */
@@ -1516,6 +1534,19 @@ input[type=text]::placeholder { color: var(--text-dim); }
       </div>
     </div>
 
+    <!-- Rejoin banner (hidden until valid session found) -->
+    <div id="rejoin-banner" style="display:none">
+      <div class="rejoin-inner">
+        <span class="rejoin-icon">🔄</span>
+        <div class="rejoin-info">
+          <div class="rejoin-title">發現未完成的對局</div>
+          <div class="rejoin-sub" id="rejoin-sub">房間 #— · —</div>
+        </div>
+        <button class="btn primary" onclick="rejoinRoom()" style="flex-shrink:0">重新加入</button>
+        <button class="btn" onclick="dismissRejoin()" style="flex-shrink:0;padding:5px 8px">✕</button>
+      </div>
+    </div>
+
     <!-- Room list -->
     <div class="lobby-card" style="padding:0">
       <div class="room-list-header">
@@ -1927,10 +1958,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
 // ══════════════════════════════════════════════════════
 // CONSTANTS
 // ══════════════════════════════════════════════════════
-const CONFIG_KEY = 'hv_firebase_config';
-const DECK_KEY   = 'hv_decks';
-const NAME_KEY   = 'hv_player_name';
-const AVATAR_KEY = 'hv_avatar';
+const CONFIG_KEY   = 'hv_firebase_config';
+const DECK_KEY     = 'hv_decks';
+const NAME_KEY     = 'hv_player_name';
+const AVATAR_KEY   = 'hv_avatar';
+const SESSION_KEY  = 'hv_game_session';
 
 const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
 
@@ -2061,6 +2093,7 @@ function showScreen(name) {
 // LOBBY — ROOM LIST
 // ══════════════════════════════════════════════════════
 function listenRooms() {
+  checkRejoinSession();
   db.ref('rooms').on('value', snap => {
     const rooms = snap.val() || {};
     const STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -2229,6 +2262,7 @@ async function leaveRoom() {
   // Reset local state first (prevents re-entry from syncUI)
   if (gameRef) gameRef.off();
   gameRef = null; roomId = null; myRole = null; isSpectator = false;
+  clearSession();
   document.getElementById('spectator-banner').style.display = 'none';
   document.getElementById('hand-area').style.display = '';
   document.getElementById('sb-actions').style.display = '';
@@ -2250,8 +2284,102 @@ async function leaveRoom() {
 }
 
 async function cleanupRoom(id) {
+  clearSession();
   await db.ref(`rooms/${id}`).remove();
   await db.ref(`games/${id}`).remove();
+}
+
+// ══════════════════════════════════════════════════════
+// SESSION — 離開後重新加入
+// ══════════════════════════════════════════════════════
+function saveSession() {
+  if (!roomId || !myRole || isSpectator) return;
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      roomId, role: myRole,
+      hand: L.hand, pile: L.pile,
+      setPool: L.setPool, setCards: L.setCards,
+      name: L.name, deckId: L.deckId, avatar: L.avatar,
+      savedAt: Date.now(),
+    }));
+  } catch(e) {}
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+  document.getElementById('rejoin-banner').style.display = 'none';
+}
+
+function dismissRejoin() {
+  clearSession();
+}
+
+async function checkRejoinSession() {
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) return;
+  let sess;
+  try { sess = JSON.parse(raw); } catch { clearSession(); return; }
+
+  // Expire after 4 hours
+  if (!sess.roomId || Date.now() - (sess.savedAt || 0) > 4 * 60 * 60 * 1000) {
+    clearSession(); return;
+  }
+
+  // Check Firebase: game must exist, started, and at least one player online
+  try {
+    const snap = await db.ref(`games/${sess.roomId}`).once('value');
+    const data = snap.val();
+    if (!data?.started) { clearSession(); return; }
+    const presence = data?.presence || {};
+    if (!presence.host && !presence.guest) { clearSession(); return; }
+    // Valid — show banner
+    const oppRole  = sess.role === 'host' ? 'guest' : 'host';
+    const oppName  = data?.players?.[oppRole]?.name || '對手';
+    const roleLabel = sess.role === 'host' ? '房主' : '挑戰者';
+    document.getElementById('rejoin-sub').textContent =
+      `房間 #${sess.roomId} · ${oppName} 仍在線 · 你的身分：${roleLabel}`;
+    document.getElementById('rejoin-banner').style.display = '';
+  } catch { clearSession(); }
+}
+
+async function rejoinRoom() {
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) { toast('找不到對局紀錄'); return; }
+  let sess;
+  try { sess = JSON.parse(raw); } catch { clearSession(); return; }
+
+  // Verify room still alive
+  const snap = await db.ref(`games/${sess.roomId}`).once('value');
+  const data  = snap.val();
+  if (!data?.started) { toast('對局已結束'); clearSession(); return; }
+
+  // Restore local state
+  roomId      = sess.roomId;
+  myRole      = sess.role;
+  L.hand      = sess.hand   || [];
+  L.pile      = sess.pile   || [];
+  L.setPool   = sess.setPool || [];
+  L.setCards  = sess.setCards || 0;
+  L.name      = sess.name   || L.name;
+  L.deckId    = sess.deckId || L.deckId;
+  L.avatar    = sess.avatar || L.avatar;
+
+  // Reconnect Firebase
+  gameRef = db.ref(`games/${roomId}`);
+
+  // Re-register presence + onDisconnect
+  db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
+  await db.ref(`games/${roomId}/presence/${myRole}`).set(true);
+
+  listenGame();
+
+  document.getElementById('rejoin-banner').style.display = 'none';
+  showScreen('game');
+  renderBoard(data);
+  syncPileCount();
+  renderHand();
+  updatePhaseUI(data?.phase || 'serve', data?.turn);
+  toast(`重新加入房間 #${roomId}`);
 }
 
 function showWaitingScreen(id) {
@@ -2455,6 +2583,7 @@ function enterGame() {
   showScreen('game');
   renderBoard(gameState);
   syncPileCount();
+  saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
 }
@@ -2928,6 +3057,7 @@ function renderHand() {
   }
   document.getElementById('hand-meta').textContent = `${L.hand.length} 張`;
   syncHandCount();
+  saveSession();
 }
 
 
@@ -3600,6 +3730,7 @@ async function pushZones(zones) {
 
 async function syncPileCount() {
   await db.ref(`games/${roomId}/players/${myRole}/pileCount`).set(L.pile.length);
+  saveSession();
 }
 
 async function syncHandCount() {
