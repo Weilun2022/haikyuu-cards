@@ -2106,7 +2106,19 @@ function showScreen(name) {
 function listenRooms() {
   db.ref('rooms').on('value', snap => {
     const rooms = snap.val() || {};
-    const allRooms = Object.values(rooms).filter(r => r.status === 'waiting' || r.status === 'playing');
+    const STALE_MS = 4 * 60 * 60 * 1000; // 4 hours
+    const now = Date.now();
+    // Auto-delete stale rooms from Firebase
+    Object.values(rooms).forEach(r => {
+      if ((now - (r.createdAt || 0)) >= STALE_MS) {
+        db.ref(`rooms/${r.id}`).remove();
+        db.ref(`games/${r.id}`).remove();
+      }
+    });
+    const allRooms = Object.values(rooms).filter(r =>
+      (r.status === 'waiting' || r.status === 'playing') &&
+      (now - (r.createdAt || 0)) < STALE_MS
+    );
     const waiting = allRooms.filter(r => r.status === 'waiting');
     const cntEl = document.getElementById('room-count');
     if (cntEl) cntEl.textContent = waiting.length ? `${waiting.length} 間等待中` : '目前無房間';
@@ -2186,6 +2198,10 @@ async function createRoom() {
       guest: null,
     },
   });
+
+  // Auto-remove room & game if host disconnects (browser close / network loss)
+  db.ref(`rooms/${id}`).onDisconnect().remove();
+  db.ref(`games/${id}`).onDisconnect().remove();
 
   gameRef = db.ref(`games/${id}`);
   listenGame();
