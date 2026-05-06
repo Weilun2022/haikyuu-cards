@@ -639,7 +639,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .z-stat-adj:hover { opacity: .65; }
 
-.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 2px; }
+.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 0; }
 .z-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
 .z-label.lbl-rcv { color: #60a5fa; }
 .z-label.lbl-tos { color: #4ade80; }
@@ -1637,18 +1637,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <!-- Court (reversed: block near net = bottom of opp area) -->
         <div class="board-court opp-court">
           <div class="court-row">
-            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row">
-            <div class="zone-w"><div class="z-label lbl-rcv">接球</div><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-tos">舉球</div><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
         <!-- Right: Deck + Drop -->
@@ -1660,25 +1660,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
       <!-- Net -->
       <div class="net-div">
-        <div class="net-score" id="net-score-host">
-          <div class="net-score-name" id="net-score-host-name">—</div>
-          <div class="net-score-row">
-            <button class="net-pt-btn" id="btn-score-host-minus" onclick="adjustScore('host',-1)">−</button>
-            <span class="net-score-val" id="net-score-host-val">0</span>
-            <button class="net-pt-btn" id="btn-score-host-plus" onclick="adjustScore('host',1)">＋</button>
-          </div>
-        </div>
         <div class="net-line"></div>
         <div class="net-text">NET</div>
         <div class="net-line"></div>
-        <div class="net-score" id="net-score-guest">
-          <div class="net-score-name" id="net-score-guest-name">—</div>
-          <div class="net-score-row">
-            <button class="net-pt-btn" id="btn-score-guest-minus" onclick="adjustScore('guest',-1)">−</button>
-            <span class="net-score-val" id="net-score-guest-val">0</span>
-            <button class="net-pt-btn" id="btn-score-guest-plus" onclick="adjustScore('guest',1)">＋</button>
-          </div>
-        </div>
       </div>
 
       <!-- Self -->
@@ -1695,18 +1679,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <!-- Court (block on top = near net) -->
         <div class="board-court" id="self-court">
           <div class="court-row">
-            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk" id="self-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-blk" id="self-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row">
-            <div class="zone-w"><div class="z-label lbl-rcv">接球</div><div class="z-slot z-rcv" id="self-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-tos">舉球</div><div class="z-slot z-tos" id="self-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-rcv" id="self-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-tos" id="self-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
         <!-- Right: Deck + Drop -->
@@ -1752,6 +1736,27 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="sb-av" id="sb-hand-guest-av">🏐</div>
             <div class="sb-name" id="sb-hand-guest-name">—</div>
             <div class="sb-num" id="sb-hand-guest-val">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="sb-section">
+        <div class="sb-title">攻擊值</div>
+        <div class="sets-grid">
+          <div class="set-box" id="net-score-host">
+            <div class="sb-name" id="net-score-host-name">—</div>
+            <div class="sb-num" id="net-score-host-val" style="font-size:22px">0</div>
+            <div class="sb-btns">
+              <button class="btn xs" id="btn-score-host-minus" onclick="adjustScore('host',-1)" style="display:none">−</button>
+              <button class="btn xs" id="btn-score-host-plus" onclick="adjustScore('host',1)" style="display:none">＋</button>
+            </div>
+          </div>
+          <div class="set-box" id="net-score-guest">
+            <div class="sb-name" id="net-score-guest-name">—</div>
+            <div class="sb-num" id="net-score-guest-val" style="font-size:22px">0</div>
+            <div class="sb-btns">
+              <button class="btn xs" id="btn-score-guest-minus" onclick="adjustScore('guest',-1)" style="display:none">−</button>
+              <button class="btn xs" id="btn-score-guest-plus" onclick="adjustScore('guest',1)" style="display:none">＋</button>
+            </div>
           </div>
         </div>
       </div>
