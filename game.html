@@ -607,12 +607,14 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* ── Zone stat overlay (數值＋按鈕壓在卡片底部) ── */
 .z-stat-overlay {
   position: absolute;
-  bottom: 4px; left: 0; right: 0;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;   /* only as wide as − N + content, never wider than the card */
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  padding: 0 3px;
+  gap: 0;
   z-index: 5;
   pointer-events: none;
 }
