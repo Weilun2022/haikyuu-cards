@@ -2229,11 +2229,14 @@ async function joinRoom(id) {
   await db.ref(`games/${id}/players/guest`).set({
     name: L.name, avatar: L.avatar, deckName: deck.name, ready: true, setCardsLeft: 5, zones: emptyZones(),
   });
-  await db.ref(`rooms/${id}/status`).set('playing');
+  // Set status to 'ready' (not 'playing') so listenRooms auto-cleanup doesn't delete it
+  // (auto-cleanup only fires on 'playing' rooms with no presence, but presence isn't set until game starts)
+  // 'ready' also blocks other guests from joining (joinRoom checks status === 'waiting')
+  await db.ref(`rooms/${id}/status`).set('ready');
 
-  // Auto-remove room & game if guest disconnects (browser close / network loss)
-  db.ref(`rooms/${id}`).onDisconnect().remove();
-  db.ref(`games/${id}`).onDisconnect().remove();
+  // If guest disconnects during waiting phase, only remove guest's data (not the whole room)
+  db.ref(`games/${id}/players/guest`).onDisconnect().remove();
+  db.ref(`rooms/${id}/status`).onDisconnect().set('waiting');
 
   gameRef = db.ref(`games/${id}`);
   listenGame();
@@ -2269,6 +2272,8 @@ async function leaveRoom() {
   const id = roomId;
   const role = myRole;
   const wasSpectator = isSpectator;
+  // Use DOM screen state (not Firebase) to determine if game has started
+  const wasInGame = document.getElementById('screen-game').classList.contains('active');
 
   // Reset local state first (prevents re-entry from syncUI)
   if (gameRef) gameRef.off();
@@ -2280,16 +2285,22 @@ async function leaveRoom() {
   showScreen('lobby');
 
   if (!wasSpectator && role) {
-    const inGame = !!(await db.ref(`games/${id}/presence/${role}`).once('value')).val();
-    if (inGame) {
-      // Game already started — cancel onDisconnect and remove own presence
-      // The other player's syncUI will detect this and show offline notification
+    if (wasInGame) {
+      // Game phase: remove own presence; handlePresenceChange on the other player will clean up
       await db.ref(`games/${id}/presence/${role}`).onDisconnect().cancel();
       await db.ref(`games/${id}/presence/${role}`).remove();
-    } else {
-      // Still in waiting phase — delete whole room
+    } else if (role === 'host') {
+      // Waiting phase, host leaves: delete whole room (guest will get disconnected)
+      await db.ref(`rooms/${id}`).onDisconnect().cancel();
+      await db.ref(`games/${id}`).onDisconnect().cancel();
       await db.ref(`rooms/${id}`).remove();
       await db.ref(`games/${id}`).remove();
+    } else {
+      // Waiting phase, guest leaves: cancel guest onDisconnects, remove guest data, reset status
+      await db.ref(`games/${id}/players/guest`).onDisconnect().cancel();
+      await db.ref(`rooms/${id}/status`).onDisconnect().cancel();
+      await db.ref(`games/${id}/players/guest`).remove();
+      await db.ref(`rooms/${id}/status`).set('waiting');
     }
   }
 }
@@ -2479,6 +2490,12 @@ function updateWaitingScreen(data) {
     badge.className = 'wp-badge ready';
     if (dots) dots.style.display = 'none';
     btn.disabled = false;
+  } else {
+    gCard.classList.remove('joined');
+    badge.textContent = '等待中';
+    badge.className = 'wp-badge';
+    if (dots) dots.style.display = '';
+    btn.disabled = true;
   }
 
   if (data.started && myRole === 'guest' && !isSpectator) {
@@ -2572,6 +2589,7 @@ function showOppNotification(player, action) {
 function startGame() {
   if (!gameState?.players?.guest) { toast('等待對手加入'); return; }
   db.ref(`games/${roomId}`).update({ started: true, turn: 'host', phase: 'serve' });
+  db.ref(`rooms/${roomId}/status`).set('playing');  // Now the game is truly starting
   enterGame();
 }
 
@@ -2587,9 +2605,11 @@ function enterGame() {
   L.setPool = [];
   L.setCards = 0;
 
-  // Cancel waiting-phase onDisconnect (presence system takes over from here)
+  // Cancel waiting-phase onDisconnects (presence system takes over from here)
   db.ref(`rooms/${roomId}`).onDisconnect().cancel();
   db.ref(`games/${roomId}`).onDisconnect().cancel();
+  db.ref(`games/${roomId}/players/guest`).onDisconnect().cancel(); // cancel guest's player-data onDisconnect
+  db.ref(`rooms/${roomId}/status`).onDisconnect().cancel();        // cancel guest's status-reset onDisconnect
   // Set own presence; auto-remove on disconnect
   db.ref(`games/${roomId}/presence/${myRole}`).set(true);
   db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
