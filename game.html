@@ -586,27 +586,44 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .court-row.back-row { flex: 1; }
 .zone-spacer { flex: 1; min-width: 0; }
 
-/* ── Counter row (between NET and block zone) ── */
-.counter-row { flex: 0 0 auto !important; gap: 6px; }
-.counter-cell {
-  flex: 1; display: flex; flex-direction: row;
-  align-items: center; justify-content: center;
-  gap: 5px; min-width: 0;
-  background: rgba(255,255,255,.03);
-  border: 1px solid var(--border);
-  border-radius: 6px; padding: 3px 6px;
+/* ── Zone stat overlay (數值＋按鈕壓在卡片底部) ── */
+.z-stat-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 3px 3px;
+  background: linear-gradient(to top, rgba(0,0,0,.88) 0%, rgba(0,0,0,.5) 60%, transparent 100%);
+  border-radius: 0 0 5px 5px;
+  z-index: 5;
+  pointer-events: none;
 }
-.cnt-label { font-size: 9px; color: var(--text-dim); font-weight: 600; letter-spacing: .4px; flex-shrink: 0; }
-.cnt-val { font-size: 16px; font-weight: 800; line-height: 1; min-width: 18px; text-align: center; transition: color .2s; }
-.cnt-btns { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
-.cnt-btn {
-  font-size: 9px; padding: 0 5px; line-height: 13px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 3px; color: var(--text-dim); cursor: pointer;
+.z-stat-overlay.interactive { pointer-events: auto; }
+.z-stat-val {
+  font-size: 17px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  min-width: 22px;
+  text-align: center;
+  text-shadow: 0 1px 6px rgba(0,0,0,.9);
+  transition: color .2s;
 }
-.cnt-btn:hover { border-color: var(--accent); color: var(--accent); }
+.z-stat-adj {
+  font-size: 12px; padding: 1px 5px; line-height: 15px;
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 4px;
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .12s;
+}
+.z-stat-adj:hover { background: rgba(255,255,255,.38); }
 
-.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 5px; }
+.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 2px; }
 .z-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
 .z-label.lbl-rcv { color: #60a5fa; }
 .z-label.lbl-tos { color: #4ade80; }
@@ -1590,21 +1607,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Court (reversed: block near net = bottom of opp area) -->
         <div class="board-court opp-court">
-          <!-- Counter row: first in HTML → last visually (bottom = near NET) -->
-          <div class="court-row counter-row">
-            <div class="counter-cell">
-              <div class="cnt-label">接球</div>
-              <div class="cnt-val" id="opp-cnt-rcv">0</div>
-            </div>
-            <div class="counter-cell">
-              <div class="cnt-label">舉球</div>
-              <div class="cnt-val" id="opp-cnt-tos">0</div>
-            </div>
-            <div class="counter-cell">
-              <div class="cnt-label">攻擊</div>
-              <div class="cnt-val" id="opp-cnt-atk">0</div>
-            </div>
-          </div>
           <div class="court-row">
             <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk opp" id="opp-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
@@ -1616,10 +1618,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="counter-cell">
-              <div class="cnt-label lbl-srv">發球</div>
-              <div class="cnt-val" id="opp-cnt-srv">0</div>
-            </div>
             <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
@@ -1667,33 +1665,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Court (block on top = near net) -->
         <div class="board-court" id="self-court">
-          <!-- Counter row: first in HTML → top visually (near NET above self-area) -->
-          <div class="court-row counter-row">
-            <div class="counter-cell">
-              <div class="cnt-label">接球</div>
-              <div class="cnt-val" id="self-cnt-rcv">0</div>
-              <div class="cnt-btns">
-                <button class="cnt-btn" onclick="adjustCounter('rcv',1)">＋</button>
-                <button class="cnt-btn" onclick="adjustCounter('rcv',-1)">−</button>
-              </div>
-            </div>
-            <div class="counter-cell">
-              <div class="cnt-label">舉球</div>
-              <div class="cnt-val" id="self-cnt-tos">0</div>
-              <div class="cnt-btns">
-                <button class="cnt-btn" onclick="adjustCounter('tos',1)">＋</button>
-                <button class="cnt-btn" onclick="adjustCounter('tos',-1)">−</button>
-              </div>
-            </div>
-            <div class="counter-cell">
-              <div class="cnt-label">攻擊</div>
-              <div class="cnt-val" id="self-cnt-atk">0</div>
-              <div class="cnt-btns">
-                <button class="cnt-btn" onclick="adjustCounter('atk',1)">＋</button>
-                <button class="cnt-btn" onclick="adjustCounter('atk',-1)">−</button>
-              </div>
-            </div>
-          </div>
           <div class="court-row">
             <div class="zone-w"><div class="z-label">側攔位</div><div class="z-slot z-blk" id="self-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">中攔位</div><div class="z-slot z-blk" id="self-slot-block-1" data-zone="block:1"><div class="z-empty">—</div></div></div>
@@ -1705,14 +1676,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-label lbl-atk">攻擊</div><div class="z-slot z-atk" id="self-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="counter-cell">
-              <div class="cnt-label lbl-srv">發球</div>
-              <div class="cnt-val" id="self-cnt-srv">0</div>
-              <div class="cnt-btns">
-                <button class="cnt-btn" onclick="adjustCounter('srv',1)">＋</button>
-                <button class="cnt-btn" onclick="adjustCounter('srv',-1)">−</button>
-              </div>
-            </div>
             <div class="zone-w"><div class="z-label lbl-srv">發球</div><div class="z-slot z-srv" id="self-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-label">事件</div><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
@@ -2590,7 +2553,6 @@ function renderBoard(data) {
   });
 
   updatePhaseUI(data.phase || 'serve', data.turn);
-  renderCounters(data);
 
   // Hand counts in sidebar
   document.getElementById('sb-hand-host-name').textContent  = hn;
@@ -2684,6 +2646,41 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         tag.className = 'z-hstack-tag';
         tag.textContent = 'G';
         cardEl.appendChild(tag);
+      }
+
+      // Stat overlay on top card
+      if (isTop) {
+        const si = ZONE_STAT_INFO[zoneName];
+        if (si) {
+          const role = isOpp ? (myRole === 'host' ? 'guest' : 'host') : myRole;
+          const delta = gameState?.counterDelta?.[role] || {};
+          const baseVal = +(allCards[img]?.[si.stat]) || 0;
+          const dVal = delta[si.stat] || 0;
+          const total = baseVal + dVal;
+          if (baseVal > 0 || dVal !== 0) {
+            const overlay = document.createElement('div');
+            overlay.className = 'z-stat-overlay' + (si.adj && !isOpp ? ' interactive' : '');
+            if (si.adj && !isOpp) {
+              const bm = document.createElement('button');
+              bm.className = 'z-stat-adj'; bm.textContent = '−';
+              bm.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, -1); });
+              overlay.appendChild(bm);
+            }
+            const valEl = document.createElement('span');
+            valEl.className = 'z-stat-val';
+            valEl.textContent = total;
+            valEl.style.color = dVal !== 0 ? 'var(--accent)' : si.color;
+            valEl.style.textShadow = `0 0 10px ${si.color}90`;
+            overlay.appendChild(valEl);
+            if (si.adj && !isOpp) {
+              const bp = document.createElement('button');
+              bp.className = 'z-stat-adj'; bp.textContent = '＋';
+              bp.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, 1); });
+              overlay.appendChild(bp);
+            }
+            cardEl.appendChild(overlay);
+          }
+        }
       }
 
       cardEl.addEventListener('mouseenter', e => showCardHover(img, e));
@@ -3372,7 +3369,18 @@ async function adjustScore(role, delta) {
 }
 
 // ── Counter cells (接球 / 舉球 / 攻擊) ─────────────────
-const ZONE_TO_STAT = { receive: 'rcv', toss: 'tos', attack: 'atk', serve: 'srv' };
+const ZONE_TO_STAT = { receive: 'rcv', toss: 'tos', attack: 'atk', serve: 'srv', 'block:0': 'blk', 'block:1': 'blk', 'block:2': 'blk' };
+
+// For stat overlay on cards: zone → { stat key, accent color, delta-adjustable }
+const ZONE_STAT_INFO = {
+  receive:  { stat: 'rcv', color: '#60a5fa', adj: true },
+  toss:     { stat: 'tos', color: '#4ade80', adj: true },
+  attack:   { stat: 'atk', color: '#f87171', adj: true },
+  serve:    { stat: 'srv', color: '#fbbf24', adj: true },
+  'block:0':{ stat: 'blk', color: '#94a3b8', adj: false },
+  'block:1':{ stat: 'blk', color: '#94a3b8', adj: false },
+  'block:2':{ stat: 'blk', color: '#94a3b8', adj: false },
+};
 
 async function resetCounterDelta(zoneName) {
   const stat = ZONE_TO_STAT[zoneName];
