@@ -530,13 +530,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 5px 8px;
+  padding: 5px 4px;
   gap: 4px;
   overflow: hidden;
   min-width: 0;
-  max-width: 1100px;
-  margin-left: auto;
-  margin-right: auto;
   width: 100%;
 }
 
@@ -544,7 +541,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex: 1;
   display: flex;
   align-items: stretch;
-  gap: 6px;
+  gap: 4px;
   min-height: 0;
   position: relative;
   border-radius: 10px;
@@ -574,7 +571,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .area-name.self { color: var(--accent); border-color: rgba(108,99,255,.4); }
 
 /* ── Board layout ── */
-.board-side { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; width: 62px; }
+.board-side { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; width: 54px; }
 .shuffle-btn { width: 100%; font-size: 11px; padding: 4px 2px; }
 .info-tile {
   background: var(--surface2);
@@ -604,14 +601,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .court-row.back-row { flex: 1; }
 .zone-spacer { flex: 1; min-width: 0; }
 
-/* ── Zone stat overlay (數值＋按鈕壓在卡片底部) ── */
+/* ── Zone stat overlay（格子右側直排） ── */
 .z-stat-overlay {
   position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;   /* only as wide as − N + content, never wider than the card */
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0;
@@ -620,7 +618,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .z-stat-overlay.interactive { pointer-events: auto; }
 .z-stat-val {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 900;
   line-height: 1.2;
   min-width: 22px;
@@ -629,12 +627,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: inline-block;
 }
 .z-stat-adj {
-  font-size: 12px; padding: 1px 4px; line-height: 16px;
+  font-size: 11px; padding: 2px 5px; line-height: 14px;
   cursor: pointer;
   flex-shrink: 0;
   transition: opacity .12s;
   font-weight: 700;
-  min-width: 20px;
+  width: 100%;
   text-align: center;
 }
 .z-stat-adj:hover { opacity: .65; }
@@ -2942,20 +2940,21 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           overlay.className = 'z-stat-overlay' + (si.adj && !isOpp ? ' interactive' : '');
           overlay.style.background = badgeBg;
           overlay.style.borderRadius = '6px';
-          overlay.style.padding = '2px 0';
+          overlay.style.padding = '0 2px';
           overlay.style.boxShadow = '0 2px 6px rgba(0,0,0,.7)';
           overlay.style.overflow = 'hidden';
 
+          // Vertical layout: ＋ (top) → number → − (bottom)
           if (si.adj && !isOpp) {
-            const bm = document.createElement('button');
-            bm.className = 'z-stat-adj'; bm.textContent = '−';
-            bm.style.color = textCol;
-            bm.style.background = 'transparent';
-            bm.style.border = 'none';
-            bm.style.borderRight = `1px solid ${sepColor}`;
-            bm.style.borderRadius = '0';
-            bm.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, -1); });
-            overlay.appendChild(bm);
+            const bp = document.createElement('button');
+            bp.className = 'z-stat-adj'; bp.textContent = '＋';
+            bp.style.color = textCol;
+            bp.style.background = 'transparent';
+            bp.style.border = 'none';
+            bp.style.borderBottom = `1px solid ${sepColor}`;
+            bp.style.borderRadius = '0';
+            bp.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, 1); });
+            overlay.appendChild(bp);
           }
 
           const valEl = document.createElement('span');
@@ -2963,22 +2962,23 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           valEl.textContent = total;
           valEl.style.color = textCol;
           valEl.style.background = 'transparent';
-          valEl.style.padding = '0 6px';
+          valEl.style.padding = '2px 4px';
           overlay.appendChild(valEl);
 
           if (si.adj && !isOpp) {
-            const bp = document.createElement('button');
-            bp.className = 'z-stat-adj'; bp.textContent = '＋';
-            bp.style.color = textCol;
-            bp.style.background = 'transparent';
-            bp.style.border = 'none';
-            bp.style.borderLeft = `1px solid ${sepColor}`;
-            bp.style.borderRadius = '0';
-            bp.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, 1); });
-            overlay.appendChild(bp);
+            const bm = document.createElement('button');
+            bm.className = 'z-stat-adj'; bm.textContent = '−';
+            bm.style.color = textCol;
+            bm.style.background = 'transparent';
+            bm.style.border = 'none';
+            bm.style.borderTop = `1px solid ${sepColor}`;
+            bm.style.borderRadius = '0';
+            bm.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, -1); });
+            overlay.appendChild(bm);
           }
 
-          cardEl.appendChild(overlay);
+          // Append to slot (not cardEl) so badge sits at zone right edge, not on card
+          slot.appendChild(overlay);
         }
       }
 
