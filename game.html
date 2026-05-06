@@ -589,39 +589,34 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* ── Zone stat overlay (數值＋按鈕壓在卡片底部) ── */
 .z-stat-overlay {
   position: absolute;
-  bottom: 0; left: 0; right: 0;
+  bottom: 4px; left: 0; right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 4px 3px 3px;
-  background: linear-gradient(to top, rgba(0,0,0,.88) 0%, rgba(0,0,0,.5) 60%, transparent 100%);
-  border-radius: 0 0 5px 5px;
+  padding: 0 3px;
   z-index: 5;
   pointer-events: none;
 }
 .z-stat-overlay.interactive { pointer-events: auto; }
 .z-stat-val {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 900;
-  color: #fff;
-  line-height: 1;
-  min-width: 22px;
+  line-height: 1.2;
+  min-width: 24px;
   text-align: center;
-  text-shadow: 0 1px 6px rgba(0,0,0,.9);
-  transition: color .2s;
+  letter-spacing: .5px;
+  display: inline-block;
 }
 .z-stat-adj {
   font-size: 12px; padding: 1px 5px; line-height: 15px;
-  background: rgba(255,255,255,.18);
-  border: 1px solid rgba(255,255,255,.35);
+  border: 1px solid;
   border-radius: 4px;
-  color: #fff;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background .12s;
+  transition: opacity .12s;
 }
-.z-stat-adj:hover { background: rgba(255,255,255,.38); }
+.z-stat-adj:hover { opacity: .75; }
 
 .zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 2px; }
 .z-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: .3px; white-space: nowrap; }
@@ -2648,7 +2643,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         cardEl.appendChild(tag);
       }
 
-      // Stat overlay on top card
+      // Stat overlay on top card — always show when zone has a stat
       if (isTop) {
         const si = ZONE_STAT_INFO[zoneName];
         if (si) {
@@ -2657,29 +2652,45 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           const baseVal = +(allCards[img]?.[si.stat]) || 0;
           const dVal = delta[si.stat] || 0;
           const total = baseVal + dVal;
-          if (baseVal > 0 || dVal !== 0) {
-            const overlay = document.createElement('div');
-            overlay.className = 'z-stat-overlay' + (si.adj && !isOpp ? ' interactive' : '');
-            if (si.adj && !isOpp) {
-              const bm = document.createElement('button');
-              bm.className = 'z-stat-adj'; bm.textContent = '−';
-              bm.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, -1); });
-              overlay.appendChild(bm);
-            }
-            const valEl = document.createElement('span');
-            valEl.className = 'z-stat-val';
-            valEl.textContent = total;
-            valEl.style.color = dVal !== 0 ? 'var(--accent)' : si.color;
-            valEl.style.textShadow = `0 0 10px ${si.color}90`;
-            overlay.appendChild(valEl);
-            if (si.adj && !isOpp) {
-              const bp = document.createElement('button');
-              bp.className = 'z-stat-adj'; bp.textContent = '＋';
-              bp.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, 1); });
-              overlay.appendChild(bp);
-            }
-            cardEl.appendChild(overlay);
+
+          const overlay = document.createElement('div');
+          overlay.className = 'z-stat-overlay' + (si.adj && !isOpp ? ' interactive' : '');
+
+          if (si.adj && !isOpp) {
+            const bm = document.createElement('button');
+            bm.className = 'z-stat-adj'; bm.textContent = '−';
+            bm.style.color = si.textDark ? '#1a1200' : '#fff';
+            bm.style.borderColor = si.textDark ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.4)';
+            bm.style.background = si.textDark ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.2)';
+            bm.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, -1); });
+            overlay.appendChild(bm);
           }
+
+          const valEl = document.createElement('span');
+          valEl.className = 'z-stat-val';
+          valEl.textContent = total;
+          // Badge background: use zone color; if delta applied, show accent tint
+          const badgeBg = dVal !== 0 ? '#6c63ff' : si.bg;
+          const textCol = (dVal !== 0 || !si.textDark) ? '#fff' : '#1a1200';
+          valEl.style.background = badgeBg;
+          valEl.style.color = textCol;
+          valEl.style.borderRadius = '5px';
+          valEl.style.padding = '1px 7px';
+          valEl.style.boxShadow = `0 1px 6px rgba(0,0,0,.7)`;
+          valEl.style.textShadow = 'none';
+          overlay.appendChild(valEl);
+
+          if (si.adj && !isOpp) {
+            const bp = document.createElement('button');
+            bp.className = 'z-stat-adj'; bp.textContent = '＋';
+            bp.style.color = si.textDark ? '#1a1200' : '#fff';
+            bp.style.borderColor = si.textDark ? 'rgba(0,0,0,.3)' : 'rgba(255,255,255,.4)';
+            bp.style.background = si.textDark ? 'rgba(0,0,0,.15)' : 'rgba(255,255,255,.2)';
+            bp.addEventListener('click', e => { e.stopPropagation(); adjustCounter(si.stat, 1); });
+            overlay.appendChild(bp);
+          }
+
+          cardEl.appendChild(overlay);
         }
       }
 
@@ -3372,14 +3383,15 @@ async function adjustScore(role, delta) {
 const ZONE_TO_STAT = { receive: 'rcv', toss: 'tos', attack: 'atk', serve: 'srv', 'block:0': 'blk', 'block:1': 'blk', 'block:2': 'blk' };
 
 // For stat overlay on cards: zone → { stat key, accent color, delta-adjustable }
+// bg: badge background color; textDark: true = dark text (for bright bg like yellow)
 const ZONE_STAT_INFO = {
-  receive:  { stat: 'rcv', color: '#60a5fa', adj: true },
-  toss:     { stat: 'tos', color: '#4ade80', adj: true },
-  attack:   { stat: 'atk', color: '#f87171', adj: true },
-  serve:    { stat: 'srv', color: '#fbbf24', adj: true },
-  'block:0':{ stat: 'blk', color: '#94a3b8', adj: false },
-  'block:1':{ stat: 'blk', color: '#94a3b8', adj: false },
-  'block:2':{ stat: 'blk', color: '#94a3b8', adj: false },
+  receive:  { stat: 'rcv', bg: '#1d4ed8', textDark: false, adj: true },
+  toss:     { stat: 'tos', bg: '#15803d', textDark: false, adj: true },
+  attack:   { stat: 'atk', bg: '#b91c1c', textDark: false, adj: true },
+  serve:    { stat: 'srv', bg: '#d97706', textDark: true,  adj: true },
+  'block:0':{ stat: 'blk', bg: '#374151', textDark: false, adj: true },
+  'block:1':{ stat: 'blk', bg: '#374151', textDark: false, adj: true },
+  'block:2':{ stat: 'blk', bg: '#374151', textDark: false, adj: true },
 };
 
 async function resetCounterDelta(zoneName) {
@@ -3392,6 +3404,8 @@ async function resetCounterDelta(zoneName) {
     // Recalc serve score with new card's srv value (delta reset to 0)
     const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
     await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, auto_srv));
+  } else if (zoneName === 'block:0' || zoneName === 'block:1' || zoneName === 'block:2') {
+    // Block delta only affects display, no score recalc needed
   } else {
     // Recalc NET score with reset delta
     const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
@@ -3403,12 +3417,16 @@ async function resetCounterDelta(zoneName) {
 }
 
 async function adjustCounter(stat, delta) {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
   const cur = gameState?.counterDelta?.[myRole]?.[stat] ?? 0;
   const next = cur + delta;
   await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(next);
   const zones  = gameState?.players?.[myRole]?.zones;
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: next };
-  if (stat === 'srv') {
+  if (stat === 'blk') {
+    // Block delta only affects display, not NET score
+    return;
+  } else if (stat === 'srv') {
     // Recalc serve score if currently in serve mode
     if ((gameState?.scoreModes?.[myRole] || 'attack') === 'serve') {
       const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
