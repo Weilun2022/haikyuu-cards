@@ -2464,6 +2464,12 @@ function handleRoundReset(data) {
   const rv = data?.roundReset;
   if (!rv || rv === _processedRoundReset) return;
   _processedRoundReset = rv;
+
+  // Exit any active move mode / pinned hover
+  exitMoveMode();
+  // Force-hide atkAlert (might be showing if it was our turn to receive)
+  document.getElementById('atk-alert').classList.remove('show');
+
   // Collect all own cards back into pile and shuffle
   const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   L.pile.push(...L.hand, ...collectCardsFromZones(myZones));
@@ -3816,6 +3822,9 @@ async function declareLost() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
   if (!confirm('重置本局？雙方所有牌洗回牌庫，場面清空，請手動抽牌開始。')) return;
 
+  // Exit any active move mode / pinned hover immediately
+  exitMoveMode();
+
   // Collect all own cards back into pile and shuffle
   const myZones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
   L.pile.push(...L.hand, ...collectCardsFromZones(myZones));
@@ -3826,10 +3835,18 @@ async function declareLost() {
   syncPileCount();
   renderHand();
 
+  // Clear round-scoped Firebase state so opponent's screen doesn't get stuck
+  await db.ref(`games/${roomId}/atkAlert`).remove();
+  await db.ref(`games/${roomId}/currentAction`).remove();
+  await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
+
   // Signal opponent to do the same
   const resetVal = Date.now();
   _processedRoundReset = resetVal;
   await db.ref(`games/${roomId}/roundReset`).set(resetVal);
+
+  // Force-hide atkAlert locally (covers the case where we were the defender)
+  document.getElementById('atk-alert').classList.remove('show');
 
   addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`);
   toast(`本局重置，牌庫 ${L.pile.length} 張，請手動抽牌`);
