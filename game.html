@@ -2365,6 +2365,7 @@ async function spectateRoom(id) {
 
 async function leaveRoom() {
   if (!roomId) return;
+  exitMoveMode();
   const id = roomId;
   const role = myRole;
   const wasSpectator = isSpectator;
@@ -2712,6 +2713,13 @@ function enterGame() {
   if (!deck) return;
   L.pile = [];
   deck.cards.forEach(e => { for (let i = 0; i < (e.count||1); i++) L.pile.push(e.image_file); });
+  const totalCards = L.pile.length;
+  const eventCount = deck.cards.filter(e => {
+    const card = allCards[e.image_file];
+    return card?.category === 'EVENT';
+  }).reduce((s, e) => s + (e.count || 1), 0);
+  if (totalCards !== 40) { toast(`牌組張數錯誤（${totalCards} 張，應為 40 張）`); L.pile = []; return; }
+  if (eventCount > 8)    { toast(`EVENT 牌超過上限（${eventCount} 張，上限 8 張）`); L.pile = []; return; }
   shuffle(L.pile);
   L.hand = [];
   L.setPool = [];
@@ -2814,6 +2822,7 @@ async function endTurn() {
   // Clear undo stack at end of turn (no going back across turns)
   L.undoStack = [];
   updateUndoBtn();
+  toast('回合結束，復原紀錄已清除');
 }
 
 function selectAction(action) {
@@ -3307,15 +3316,21 @@ async function handleDrop(targetZone, hasCards) {
 
   // ── Drag to discard zone: only move the TOP card ──
   if (targetZone === 'drop') {
-    if (dd.src === 'hand') {
-      discardFromHand(dd.idx);
-    } else if (dd.src === 'zone') {
-      const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
-      const cd = getZoneCard(zones, dd.zoneName);
-      if (cd) discardTopFromZone(dd.zoneName, cd);
-    } else if (dd.src === 'guts') {
-      moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
-    }
+    const doDiscard = () => {
+      if (dd.src === 'hand') {
+        discardFromHand(dd.idx);
+      } else if (dd.src === 'zone') {
+        const zones = deepCopy(gameState?.players?.[myRole]?.zones || emptyZones());
+        const cd = getZoneCard(zones, dd.zoneName);
+        if (cd) discardTopFromZone(dd.zoneName, cd);
+      } else if (dd.src === 'guts') {
+        moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
+      }
+    };
+    showPlaceConfirm('確定要送入棄牌區？', doDiscard, null);
+    document.getElementById('place-confirm-top-btn').textContent = '確定棄牌';
+    document.getElementById('place-confirm-guts-btn').textContent = '取消';
+    document.getElementById('place-confirm-guts-btn').onclick = () => closePlaceConfirm();
     return;
   }
 
@@ -4681,7 +4696,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
   if (!zc) return;
   const _gi = (zc.guts || []).lastIndexOf(gutsImg);
   if (_gi !== -1) zc.guts = [...zc.guts.slice(0, _gi), ...zc.guts.slice(_gi + 1)];
-  else zc.guts = zc.guts || [];
+  else { toast('找不到該 Guts 牌'); return; }
   setZoneCard(zones, zoneName, zc);
 
   const _gfrom = zoneName.split(':')[0];
