@@ -661,10 +661,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
-  background-color: #0c1526;
+  background-color: #4a2400;
   background-image: repeating-linear-gradient(
     45deg,
-    rgba(255,255,255,.018) 0, rgba(255,255,255,.018) 1px,
+    rgba(255,255,255,.03) 0, rgba(255,255,255,.03) 1px,
     transparent 0, transparent 50%
   );
   background-size: 12px 12px;
@@ -721,12 +721,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-label.lbl-srv { color: #fbbf24; }
 
 /* Zone type colors — official mat palette */
-.z-slot.z-blk { border: none; background-color: #1c2d42; }
-.z-slot.z-rcv { border: none; background-color: #0d2878; }
-.z-slot.z-tos { border: none; background-color: #093d1c; }
-.z-slot.z-atk { border: none; background-color: #6e1010; }
-.z-slot.z-srv { border: none; background-color: #57230a; }
-.z-slot.z-evt { border: none; background-color: #1a3040; }
+.z-slot.z-blk { border: 1.5px solid rgba(255,255,255,.28); background-color: #2e2e2e; }
+.z-slot.z-rcv { border: 1.5px solid rgba(255,255,255,.22); background-color: #1258d0; }
+.z-slot.z-tos { border: 1.5px solid rgba(255,255,255,.22); background-color: #1e9438; }
+.z-slot.z-atk { border: 1.5px solid rgba(255,255,255,.22); background-color: #cc2010; }
+.z-slot.z-srv { border: 1.5px solid rgba(255,255,255,.28); background-color: #d4b800; }
+.z-slot.z-evt { border: 1.5px solid rgba(255,255,255,.22); background-color: #9898a0; }
 
 /* Camera-viewfinder corner L-brackets (8 gradients: TL×2, TR×2, BL×2, BR×2) */
 .z-slot::before {
@@ -736,7 +736,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   border-radius: 8px;
   background-image:
     /* depth: top-light → bottom-dark for material feel */
-    linear-gradient(170deg, rgba(255,255,255,.12) 0%, rgba(0,0,0,.45) 100%),
+    linear-gradient(170deg, rgba(255,255,255,.10) 0%, rgba(0,0,0,.30) 100%),
     /* L-bracket corners (TL×2, TR×2, BL×2, BR×2) */
     linear-gradient(to right,  rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
     linear-gradient(to bottom, rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
@@ -787,12 +787,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-slot.z-evt::after { content: 'EVENT'; }
 
 /* Hover states — slightly lighter, keep no border */
-.z-slot.z-blk:not(.filled):not(.opp):hover { border: none; background-color: #263d58; }
-.z-slot.z-rcv:not(.filled):not(.opp):hover { border: none; background-color: #1435a8; }
-.z-slot.z-tos:not(.filled):not(.opp):hover { border: none; background-color: #0d5528; }
-.z-slot.z-atk:not(.filled):not(.opp):hover { border: none; background-color: #941515; }
-.z-slot.z-srv:not(.filled):not(.opp):hover { border: none; background-color: #6e300e; }
-.z-slot.z-evt:not(.filled):not(.opp):hover { border: none; background-color: #244056; }
+.z-slot.z-blk:not(.filled):not(.opp):hover { border: none; background-color: #383838; }
+.z-slot.z-rcv:not(.filled):not(.opp):hover { border: none; background-color: #1a6aee; }
+.z-slot.z-tos:not(.filled):not(.opp):hover { border: none; background-color: #28b050; }
+.z-slot.z-atk:not(.filled):not(.opp):hover { border: none; background-color: #f04020; }
+.z-slot.z-srv:not(.filled):not(.opp):hover { border: none; background-color: #e0bc00; }
+.z-slot.z-evt:not(.filled):not(.opp):hover { border: none; background-color: #909098; }
 
 /* Zone slots */
 .z-slot {
