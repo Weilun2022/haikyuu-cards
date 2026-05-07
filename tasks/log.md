@@ -2,6 +2,40 @@
 
 ---
 
+## 2026-05-07（Session 12）
+
+### game.html：版面 CYBER 風格化 + 效能優化
+
+**版面修正（`538e066`）**
+- 我方面板恢復原始順序：SET 左、牌組+棄牌 右（對方維持鏡像：牌組+棄牌 左、SET 右）
+- 場地底色移除橘色（`#7a3a00`），改為深暗 `#040810` + 藍色 CSS grid 線
+
+**CYBER 螢光風格（`538e066`）**
+- 全區域改為半透明暗底 + 螢光邊框 + 外發光（各色對應：藍/綠/紅/金/青）
+- EVENT 區改為 cyan（原為灰色）
+- `::before` 改為掃描線漸層 + `neonGlow` pulse 動畫
+- `::after` 標籤字色改為各區螢光色 + text-shadow 發光
+- Hover 狀態加強發光強度
+
+**UX 小修（`c75505c`）**
+- 左上角「思考中」badge 隱藏（`#turn-indicator { display:none }`）
+- 結束回合按鈕加寬：`min-width` 96px → 140px，`padding` 18px → 32px
+
+**頭像替換（`eccbca1`）**
+- AVATARS 陣列改為排球少年吉祥物：🦅🐦🦉🐱🦊🕊️🛡️🌲🐍🦝🦦
+- 大廳 hero icon 及所有 avatar fallback 由 🏐 改為 🦅
+
+**renderHand diff 更新（`bb3f697`）**
+- 抽出 `makeHandCard(img, idx)`，event listener 改讀 `+div.dataset.idx`（不再 close over idx）
+- `renderHand()` 改為 pool-based diff：以 `dataset.img` 為 key 重用現有節點，`insertBefore` 對齊順序，只在空↔非空切換時才 `innerHTML=''`
+
+**效能優化（`e4ddf4c`）**
+- `syncPileCount()`/`syncHandCount()`：加 150ms debounce（pure display 值，15+ 呼叫點減少 Firebase 連發寫入）
+- `_posCardHover()`：改用 `requestAnimationFrame` throttle，快照 clientX/Y 避免 event 物件過期
+- `fillSlot()`：加 bail-early cache（`dataset.fillKey`），每次 Firebase sync 不重繪未變化格子；drag-state class（target/guts-target）仍每次清除
+
+---
+
 ## 2026-05-07（Session 11）
 
 ### game.html：點擊直覺化 + 重置 bug 修正（`f8a2755`）
