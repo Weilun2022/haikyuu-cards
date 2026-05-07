@@ -8,6 +8,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="cards_data.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
 /* ── Base ── */
 :root {
@@ -656,7 +659,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .set-pool-val:hover { transform: scale(1.12); }
 .set-pool-loss-btn { font-size: 9px !important; padding: 2px 6px !important; background: rgba(220,38,38,.15) !important; border-color: rgba(220,38,38,.4) !important; color: #f87171 !important; width: 100%; }
 
-.board-court { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; }
+.board-court { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; min-height: 0; background: #4b5563; border-radius: 8px; padding: 4px; }
 .opp-court { flex-direction: column-reverse; }
 .court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
 .court-row.back-row { flex: 1; }
@@ -705,41 +708,74 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-label.lbl-atk { color: #f87171; }
 .z-label.lbl-srv { color: #fbbf24; }
 
-/* Zone type colors */
-.z-slot.z-blk { border-color: #374151; background: #0c1018; }
-.z-slot.z-rcv { border-color: rgba(29,78,216,.45); background: rgba(29,78,216,.05); }
-.z-slot.z-tos { border-color: rgba(21,128,61,.45); background: rgba(21,128,61,.05); }
-.z-slot.z-atk { border-color: rgba(220,38,38,.45); background: rgba(220,38,38,.05); }
-.z-slot.z-srv { border-color: rgba(217,119,6,.45); background: rgba(217,119,6,.05); }
-.z-slot.z-evt { border-color: rgba(100,116,139,.35); background: rgba(100,116,139,.03); }
+/* Zone type colors — official mat palette */
+.z-slot.z-blk { border: none; background-color: #1f2937; }
+.z-slot.z-rcv { border: none; background-color: #1e40af; }
+.z-slot.z-tos { border: none; background-color: #166534; }
+.z-slot.z-atk { border: none; background-color: #b91c1c; }
+.z-slot.z-srv { border: none; background-color: #92400e; }
+.z-slot.z-evt { border: none; background-color: #374151; }
 
-/* Zone name watermark — inside slot, bottom-center, subtle */
+/* Camera-viewfinder corner L-brackets (8 gradients: TL×2, TR×2, BL×2, BR×2) */
+.z-slot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  background-image:
+    linear-gradient(to right,  rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to bottom, rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to left,   rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to bottom, rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to right,  rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to top,    rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to left,   rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
+    linear-gradient(to top,    rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%);
+  background-position:
+    top 0 left 0,    top 0 left 0,
+    top 0 right 0,   top 0 right 0,
+    bottom 0 left 0, bottom 0 left 0,
+    bottom 0 right 0,bottom 0 right 0;
+  background-size:
+    14px 2px, 2px 14px,
+    14px 2px, 2px 14px,
+    14px 2px, 2px 14px,
+    14px 2px, 2px 14px;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Zone label — Bebas Neue, white, bottom-center */
 .z-slot::after {
   content: '';
   position: absolute;
-  bottom: 5px;
+  bottom: 4px;
   left: 0; right: 0;
   text-align: center;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
   pointer-events: none;
-  opacity: .28;
+  opacity: .7;
   line-height: 1;
+  color: #fff;
+  z-index: 2;
 }
-.z-slot.z-blk::after { content: 'BLOCK';   color: #9ca3af; }
-.z-slot.z-rcv::after { content: 'RECEIVE'; color: #60a5fa; }
-.z-slot.z-tos::after { content: 'TOSS';    color: #4ade80; }
-.z-slot.z-atk::after { content: 'ATTACK';  color: #f87171; }
-.z-slot.z-srv::after { content: 'SERVE';   color: #fbbf24; }
-.z-slot.z-evt::after { content: 'EVENT';   color: #94a3b8; }
-.z-slot.z-blk:not(.filled):not(.opp):hover { border-color: #6b7280; background: rgba(107,114,128,.1); }
-.z-slot.z-rcv:not(.filled):not(.opp):hover { border-color: #2563eb; background: rgba(37,99,235,.14); }
-.z-slot.z-tos:not(.filled):not(.opp):hover { border-color: #16a34a; background: rgba(22,163,74,.14); }
-.z-slot.z-atk:not(.filled):not(.opp):hover { border-color: #dc2626; background: rgba(220,38,38,.14); }
-.z-slot.z-srv:not(.filled):not(.opp):hover { border-color: #d97706; background: rgba(217,119,6,.14); }
-.z-slot.z-evt:not(.filled):not(.opp):hover { border-color: #94a3b8; background: rgba(148,163,184,.1); }
+.z-slot.z-blk::after { content: 'BLOCK'; }
+.z-slot.z-rcv::after { content: 'RECEIVE'; }
+.z-slot.z-tos::after { content: 'TOSS'; }
+.z-slot.z-atk::after { content: 'ATTACK'; }
+.z-slot.z-srv::after { content: 'SERVE'; }
+.z-slot.z-evt::after { content: 'EVENT'; }
+
+/* Hover states — slightly lighter, keep no border */
+.z-slot.z-blk:not(.filled):not(.opp):hover { border: none; background-color: #374151; }
+.z-slot.z-rcv:not(.filled):not(.opp):hover { border: none; background-color: #1d4ed8; }
+.z-slot.z-tos:not(.filled):not(.opp):hover { border: none; background-color: #15803d; }
+.z-slot.z-atk:not(.filled):not(.opp):hover { border: none; background-color: #dc2626; }
+.z-slot.z-srv:not(.filled):not(.opp):hover { border: none; background-color: #b45309; }
+.z-slot.z-evt:not(.filled):not(.opp):hover { border: none; background-color: #4b5563; }
 
 /* Zone slots */
 .z-slot {
@@ -757,28 +793,23 @@ input[type=text]::placeholder { color: var(--text-dim); }
   transition: border-color .15s, background .15s, box-shadow .15s;
   min-height: 0;
 }
-.z-slot:hover { border-color: var(--accent); background: var(--zone-hover); }
-.z-slot.filled { border-style: solid; border-color: var(--border); }
-.z-slot.filled:hover { border-color: var(--accent2); }
 .z-slot.opp { cursor: default; }
-.z-slot.opp:hover { border-color: var(--border); background: var(--zone-bg); }
 .z-slot.opp.filled { cursor: pointer; }
-.z-slot.opp.filled:hover { border-color: var(--text-dim); background: var(--zone-hover); }
 
 /* Zone targeting animation */
 @keyframes zoneTarget {
   0%, 100% { border-color: var(--green); box-shadow: inset 0 0 10px rgba(74,222,128,.1); }
   50% { border-color: var(--green); box-shadow: inset 0 0 20px rgba(74,222,128,.25), 0 0 8px rgba(74,222,128,.15); }
 }
-.z-slot.target { border-style: solid; animation: zoneTarget 1.1s ease-in-out infinite; }
-.z-slot.target:hover { animation: none; border-color: var(--green); background: rgba(74,222,128,.1); }
+.z-slot.target { border: 1.5px solid var(--green); animation: zoneTarget 1.1s ease-in-out infinite; }
+.z-slot.target:hover { animation: none; border-color: var(--green); }
 
 /* Guts target animation */
 @keyframes gutsTarget {
   0%, 100% { border-color: var(--orange); box-shadow: inset 0 0 10px rgba(251,146,60,.1); }
   50% { border-color: var(--orange); box-shadow: inset 0 0 20px rgba(251,146,60,.25), 0 0 8px rgba(251,146,60,.15); }
 }
-.z-slot.guts-target { animation: gutsTarget 1.1s ease-in-out infinite; }
+.z-slot.guts-target { border: 1.5px solid var(--orange); animation: gutsTarget 1.1s ease-in-out infinite; }
 
 /* Horizontal card stack in zones */
 .z-hstack {
@@ -1712,11 +1743,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <!-- Opponent -->
       <div class="player-area" id="opp-area">
         <span class="area-name" id="opp-lbl">對手</span>
-        <!-- Left: Set -->
+        <!-- Left: Deck + Drop (mirrored from self) -->
         <div class="board-side">
-          <div class="info-tile"><div class="t-label">SET</div><div class="t-val" id="opp-set">0</div></div>
+          <div class="info-tile"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('opp')"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
         </div>
-        <!-- Court (reversed: block near net = bottom of opp area) -->
+        <!-- Court (reversed: block near net = bottom of opp area; columns mirrored) -->
         <div class="board-court opp-court">
           <div class="court-row">
             <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-0" data-zone="block:0"><div class="z-empty">—</div></div></div>
@@ -1724,19 +1756,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-2" data-zone="block:2"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row">
-            <div class="zone-w"><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
-            <div class="zone-w"><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-slot z-atk opp" id="opp-slot-attack" data-zone="attack"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-tos opp" id="opp-slot-toss" data-zone="toss"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-rcv opp" id="opp-slot-receive" data-zone="receive"><div class="z-empty">—</div></div></div>
           </div>
           <div class="court-row back-row">
-            <div class="zone-w"><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
             <div class="zone-w"><div class="z-slot z-evt opp" id="opp-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
+            <div class="zone-w"><div class="z-slot z-srv opp" id="opp-slot-serve" data-zone="serve"><div class="z-empty">—</div></div></div>
           </div>
         </div>
-        <!-- Right: Deck + Drop -->
+        <!-- Right: Set (mirrored from self) -->
         <div class="board-side">
-          <div class="info-tile"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
-          <div class="info-tile clickable" onclick="openDropViewer('opp')"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
+          <div class="info-tile"><div class="t-label">SET</div><div class="t-val" id="opp-set">0</div></div>
         </div>
       </div>
 
