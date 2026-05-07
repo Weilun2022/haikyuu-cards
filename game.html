@@ -3222,64 +3222,97 @@ function normaliseBlock(raw) {
 // ══════════════════════════════════════════════════════
 // HAND RENDER
 // ══════════════════════════════════════════════════════
+function makeHandCard(img, idx) {
+  const div = document.createElement('div');
+  div.className = 'hand-card';
+  div.dataset.idx = idx;
+  div.dataset.img = img;
+  div.innerHTML = `<img src="images/${img}" loading="lazy" alt="">`;
+  div.addEventListener('click', e => { e.stopPropagation(); onHandClick(+div.dataset.idx, div, e); });
+  div.addEventListener('mouseenter', e => showCardHover(img, e));
+  div.addEventListener('mousemove',  e => _posCardHover(e));
+  div.addEventListener('mouseleave', hideCardHover);
+  div.draggable = true;
+  div.addEventListener('dragstart', e => {
+    hideCardHover();
+    e.dataTransfer.effectAllowed = 'move';
+    dragData = { src: 'hand', idx: +div.dataset.idx, img };
+    e.dataTransfer.setData('text/plain', 'card');
+    setTimeout(() => div.style.opacity = '.4', 0);
+  });
+  div.addEventListener('dragend', () => { div.style.opacity = ''; });
+  div.addEventListener('dragover', e => {
+    if (!dragData || dragData.src !== 'hand') return;
+    e.preventDefault(); e.stopPropagation();
+    const rect = div.getBoundingClientRect();
+    div.classList.toggle('hand-reorder-before', e.clientX <= rect.left + rect.width / 2);
+    div.classList.toggle('hand-reorder-after',  e.clientX >  rect.left + rect.width / 2);
+  });
+  div.addEventListener('dragleave', () => {
+    div.classList.remove('hand-reorder-before', 'hand-reorder-after');
+  });
+  div.addEventListener('drop', e => {
+    div.classList.remove('hand-reorder-before', 'hand-reorder-after');
+    const dd = dragData;
+    if (!dd || dd.src !== 'hand') return;
+    e.preventDefault(); e.stopPropagation();
+    dragData = null;
+    const myIdx = +div.dataset.idx;
+    if (dd.idx === myIdx) return;
+    const insertAfter = e.clientX > div.getBoundingClientRect().left + div.getBoundingClientRect().width / 2;
+    const moved = L.hand.splice(dd.idx, 1)[0];
+    let toIdx = myIdx;
+    if (dd.idx < myIdx) toIdx--;
+    L.hand.splice(insertAfter ? toIdx + 1 : toIdx, 0, moved);
+    renderHand();
+  });
+  return div;
+}
+
 function renderHand() {
   if (isSpectator) return;
   const wrap = document.getElementById('hand-cards');
-  wrap.innerHTML = '';
+
   if (!L.hand.length) {
-    const e = document.createElement('div'); e.className = 'hand-empty'; e.textContent = '手牌為空'; wrap.appendChild(e);
-  } else {
-    L.hand.forEach((img, idx) => {
-      const div = document.createElement('div');
-      div.className = 'hand-card';
-      div.dataset.idx = idx;
-      div.innerHTML = `<img src="images/${img}" loading="lazy" alt="">`;
-      div.addEventListener('click', e => { e.stopPropagation(); onHandClick(idx, div, e); });
-      div.addEventListener('mouseenter', e => showCardHover(img, e));
-      div.addEventListener('mousemove',  e => _posCardHover(e));
-      div.addEventListener('mouseleave', hideCardHover);
-      div.draggable = true;
-      div.addEventListener('dragstart', e => {
-        hideCardHover();
-        e.dataTransfer.effectAllowed = 'move';
-        dragData = { src: 'hand', idx, img };
-        e.dataTransfer.setData('text/plain', 'card');
-        setTimeout(() => div.style.opacity = '.4', 0);
-      });
-      div.addEventListener('dragend', () => { div.style.opacity = ''; });
-
-      // ── Same-hand reorder ──
-      div.addEventListener('dragover', e => {
-        if (!dragData || dragData.src !== 'hand') return;
-        e.preventDefault(); e.stopPropagation();
-        const rect = div.getBoundingClientRect();
-        div.classList.toggle('hand-reorder-before', e.clientX <= rect.left + rect.width / 2);
-        div.classList.toggle('hand-reorder-after',  e.clientX >  rect.left + rect.width / 2);
-      });
-      div.addEventListener('dragleave', () => {
-        div.classList.remove('hand-reorder-before', 'hand-reorder-after');
-      });
-      div.addEventListener('drop', e => {
-        div.classList.remove('hand-reorder-before', 'hand-reorder-after');
-        const dd = dragData;
-        if (!dd || dd.src !== 'hand') return;
-        e.preventDefault(); e.stopPropagation();
-        dragData = null;
-        if (dd.idx === idx) return;
-        const insertAfter = e.clientX > div.getBoundingClientRect().left + div.getBoundingClientRect().width / 2;
-        const moved = L.hand.splice(dd.idx, 1)[0];
-        let toIdx = idx;
-        if (dd.idx < idx) toIdx--;               // index shifted after splice
-        L.hand.splice(insertAfter ? toIdx + 1 : toIdx, 0, moved);
-        renderHand();
-      });
-
-      wrap.appendChild(div);
-    });
+    if (!wrap.querySelector('.hand-empty')) {
+      wrap.innerHTML = '';
+      const e = document.createElement('div');
+      e.className = 'hand-empty'; e.textContent = '手牌為空';
+      wrap.appendChild(e);
+    }
+    document.getElementById('hand-meta').textContent = '0 張';
+    syncHandCount(); saveSession();
+    return;
   }
+
+  // Clear empty placeholder if present
+  const emptyEl = wrap.querySelector('.hand-empty');
+  if (emptyEl) wrap.innerHTML = '';
+
+  // Build pool of reusable nodes keyed by img (handles duplicates via queue)
+  const pool = new Map();
+  [...wrap.querySelectorAll('.hand-card')].forEach(node => {
+    const key = node.dataset.img;
+    if (!pool.has(key)) pool.set(key, []);
+    pool.get(key).push(node);
+  });
+
+  // Resolve each position: reuse or create
+  const placed = L.hand.map((img, idx) => {
+    const bucket = pool.get(img);
+    const node = (bucket && bucket.length) ? bucket.shift() : makeHandCard(img, idx);
+    node.dataset.idx = idx;
+    return node;
+  });
+
+  // Reconcile DOM order with minimal moves
+  placed.forEach((node, i) => {
+    if (wrap.children[i] !== node) wrap.insertBefore(node, wrap.children[i] || null);
+  });
+  while (wrap.children.length > placed.length) wrap.removeChild(wrap.lastChild);
+
   document.getElementById('hand-meta').textContent = `${L.hand.length} 張`;
-  syncHandCount();
-  saveSession();
+  syncHandCount(); saveSession();
 }
 
 
