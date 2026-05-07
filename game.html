@@ -1783,12 +1783,24 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <!-- Self -->
       <div class="player-area my-turn-glow" id="self-area">
         <span class="area-name self" id="self-lbl">自己</span>
-        <!-- Left: Set -->
+        <!-- Left: Deck + Drop (mirrored to match opp) -->
         <div class="board-side">
-          <div class="info-tile set-pool-tile">
-            <div class="t-label">SET</div>
-            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊從牌庫頂取2張">0</div>
-            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球">輸一球</button>
+          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽牌 / 拖曳直接放場上"
+               draggable="true"
+               ondragstart="startDragPile(event)"
+               ondragover="event.preventDefault(); this.classList.add('target')"
+               ondragleave="this.classList.remove('target')"
+               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
+            <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
+          </div>
+          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
+          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="手牌洗入牌庫">↩ 手牌入庫</button>
+          <div class="info-tile clickable" onclick="openDropViewer('self')"
+               ondragover="event.preventDefault(); this.classList.add('target')"
+               ondragleave="this.classList.remove('target')"
+               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
+            <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
+            <img id="self-drop-img" src="" alt="" style="width:100%;border-radius:5px;margin-top:4px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.6)">
           </div>
         </div>
         <!-- Court (block on top = near net) -->
@@ -1808,24 +1820,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
-        <!-- Right: Deck + Drop -->
+        <!-- Right: Set (mirrored to match opp) -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽牌 / 拖曳直接放場上"
-               draggable="true"
-               ondragstart="startDragPile(event)"
-               ondragover="event.preventDefault(); this.classList.add('target')"
-               ondragleave="this.classList.remove('target')"
-               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
-            <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
-          </div>
-          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
-          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="手牌洗入牌庫">↩ 手牌入庫</button>
-          <div class="info-tile clickable" onclick="openDropViewer('self')"
-               ondragover="event.preventDefault(); this.classList.add('target')"
-               ondragleave="this.classList.remove('target')"
-               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
-            <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
-            <img id="self-drop-img" src="" alt="" style="width:100%;border-radius:5px;margin-top:4px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.6)">
+          <div class="info-tile set-pool-tile">
+            <div class="t-label">SET</div>
+            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊從牌庫頂取2張">0</div>
+            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球">輸一球</button>
           </div>
         </div>
       </div>
