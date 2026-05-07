@@ -1631,7 +1631,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <div id="screen-lobby" class="screen">
   <!-- Hero -->
   <div class="lobby-hero">
-    <span class="hero-icon">🏐</span>
+    <span class="hero-icon">🦅</span>
     <h1>バボカ!! <em>BREAK</em></h1>
     <p>對戰大廳 — 使用你在卡牌資料庫建立的牌組</p>
   </div>
@@ -1719,7 +1719,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <!-- Players -->
     <div class="waiting-players">
       <div class="waiting-player joined">
-        <div class="wp-avatar" id="w-host-avatar">🏐</div>
+        <div class="wp-avatar" id="w-host-avatar">🦅</div>
         <div class="wp-role">房主</div>
         <div class="wp-name" id="w-host-name">—</div>
         <div class="wp-deck" id="w-host-deck">—</div>
@@ -1857,12 +1857,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <div class="sb-title">手牌數量</div>
         <div class="sets-grid">
           <div class="set-box" id="sb-hand-host">
-            <div class="sb-av" id="sb-hand-host-av">🏐</div>
+            <div class="sb-av" id="sb-hand-host-av">🦅</div>
             <div class="sb-name" id="sb-hand-host-name">—</div>
             <div class="sb-num" id="sb-hand-host-val">0</div>
           </div>
           <div class="set-box" id="sb-hand-guest">
-            <div class="sb-av" id="sb-hand-guest-av">🏐</div>
+            <div class="sb-av" id="sb-hand-guest-av">🦅</div>
             <div class="sb-name" id="sb-hand-guest-name">—</div>
             <div class="sb-num" id="sb-hand-guest-val">0</div>
           </div>
@@ -1893,7 +1893,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <div class="sb-title">局數戰績</div>
         <div class="sets-grid">
           <div class="set-box" id="sb-box-host">
-            <div class="sb-av" id="sb-host-av">🏐</div>
+            <div class="sb-av" id="sb-host-av">🦅</div>
             <div class="sb-name" id="sb-host-name">—</div>
             <div class="sb-num" id="sb-host-sets">0</div>
             <div class="sb-btns">
@@ -1902,7 +1902,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
             </div>
           </div>
           <div class="set-box" id="sb-box-guest">
-            <div class="sb-av" id="sb-guest-av">🏐</div>
+            <div class="sb-av" id="sb-guest-av">🦅</div>
             <div class="sb-name" id="sb-guest-name">—</div>
             <div class="sb-num" id="sb-guest-sets">0</div>
             <div class="sb-btns">
@@ -2108,7 +2108,7 @@ const AVATAR_KEY   = 'hv_avatar';
 const SESSION_KEY  = 'hv_game_session';
 const STALE_MS     = 4 * 60 * 60 * 1000; // 4 hours — room auto-cleanup + session expiry
 
-const AVATARS = ['🏐','🔥','⚡','🦅','🐯','🌊','💫','🎯','🦊','🌸'];
+const AVATARS = ['🦅','🐦','🦉','🐱','🦊','🕊️','🛡️','🌲','🐍','🦝','🦦'];
 
 const ZONE_NAMES  = ['serve','block','receive','toss','attack','event'];
 const ZONE_LABEL  = { serve:'發球區', block:'攔網區', 'block:0':'側攔(左)', 'block:1':'中攔位', 'block:2':'側攔(右)', receive:'接球區', toss:'舉球區', attack:'攻擊區', event:'事件區', drop:'棄牌區' };
@@ -2135,7 +2135,7 @@ let _qrInstance = null;
 
 const L = {
   name:    '',
-  avatar:  '🏐',
+  avatar:  '🦅',
   deckId:  '',
   hand:    [],
   pile:    [],
@@ -2275,7 +2275,7 @@ function listenRooms() {
       const row = document.createElement('div');
       row.className = 'room-item';
       row.innerHTML = `
-        <div class="room-avatar">${esc(r.hostAvatar || '🏐')}</div>
+        <div class="room-avatar">${esc(r.hostAvatar || '🦅')}</div>
         <span class="room-code-tag">${esc(r.id)}</span>
         <div class="room-info">
           <div class="room-host">${esc(r.hostName)}</div>
@@ -2905,8 +2905,8 @@ function renderBoard(data) {
 
   const hn = data.players.host?.name || '房主';
   const gn = data.players.guest?.name || '挑戰者';
-  const hav = data.players.host?.avatar || '🏐';
-  const gav = data.players.guest?.avatar || '🏐';
+  const hav = data.players.host?.avatar || '🦅';
+  const gav = data.players.guest?.avatar || '🦅';
 
   document.getElementById('sb-host-name').textContent  = hn;
   document.getElementById('sb-guest-name').textContent = gn;
