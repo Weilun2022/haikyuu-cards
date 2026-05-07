@@ -3545,11 +3545,13 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   }
 
   L.hand.splice(handIdx, 1);
+  // Optimistic UI: update hand and zone display immediately, before Firebase awaits
+  renderHand();
+  renderZones('self', zones, false);
   await pushZones(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
   await resetCounterDelta(baseZone);
   addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}${cardState()}`);
-  renderHand();
 }
 
 // ── Move card between zones ──────────────────────────
@@ -3736,10 +3738,12 @@ async function applyGuts(handIdx, zoneName) {
   if (!target.guts) target.guts = [];
   target.guts.push(img);
   setZoneCard(zones, zoneName, target);
+  // Optimistic UI: update hand and zone display immediately, before Firebase await
+  renderHand();
+  renderZones('self', zones, false);
   await pushZones(zones);
   addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）${cardState()}`);
   cancelGuts();
-  renderHand();
 }
 
 // ══════════════════════════════════════════════════════
