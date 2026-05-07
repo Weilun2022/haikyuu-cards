@@ -499,8 +499,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   border-radius: 20px;
   padding: 2px 10px;
 }
-.wp-badge.ready { color: var(--green); border: 1px solid var(--green); }
+.wp-badge.ready { color: var(--green); border: 1px solid var(--green); animation: badgeFadeIn .4s ease; }
 .wp-badge.waiting { color: var(--orange); border: 1px solid var(--orange); animation: dotBounce 2s ease-in-out infinite; }
+@keyframes badgeFadeIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
 .waiting-footer { display: flex; gap: 10px; justify-content: center; margin-top: 24px; }
 
 /* ══════════════════════════════════════
@@ -563,14 +564,14 @@ input[type=text]::placeholder { color: var(--text-dim); }
   transition: background .2s, border-color .2s, color .2s;
 }
 #turn-indicator.my {
-  background: rgba(108,99,255,.15);
+  background: rgba(108,99,255,.28);
   border-color: var(--accent);
-  color: var(--accent);
+  color: #a8a2ff;
 }
 #turn-indicator.opp-acting {
-  background: rgba(251,146,60,.12);
+  background: rgba(251,146,60,.22);
   border-color: var(--orange);
-  color: var(--orange);
+  color: #fdb57a;
 }
 /* Phase radio buttons */
 .phase-select-btn.selected {
@@ -2376,6 +2377,7 @@ async function leaveRoom() {
   if (gameRef) gameRef.off();
   gameRef = null; roomId = null; myRole = null; isSpectator = false;
   clearSession();
+  closeDiceModal();
   document.getElementById('spectator-banner').style.display = 'none';
   document.getElementById('hand-area').style.display = '';
   document.getElementById('sb-actions').style.display = '';
@@ -2643,6 +2645,7 @@ function handlePresenceChange(data, prev) {
     // Reset local first
     if (gameRef) gameRef.off();
     gameRef = null; roomId = null; myRole = null;
+    closeDiceModal();
     document.getElementById('hand-area').style.display = '';
     document.getElementById('sb-actions').style.display = '';
     showScreen('lobby');
@@ -2759,7 +2762,7 @@ function updatePhaseUI(phase, turn) {
   pill.style.borderColor = meta.color + '66';
   pill.style.background = meta.bg;
   document.getElementById('phase-icon').textContent = meta.icon;
-  document.getElementById('h-phase').textContent = currentAction ? meta.label : '（未選擇）';
+  document.getElementById('h-phase').textContent = currentAction ? meta.label : (turn === myRole ? '（未選擇）' : (PHASE_META[phase]?.label || ''));
 
   const isMyTurn = turn === myRole;
   const endBtn = document.getElementById('end-turn-btn');
@@ -3570,6 +3573,7 @@ async function discardTopFromZone(zoneName, cardData) {
   zones.drop.push(cardData.img);
   const card = allCards[cardData.img];
   await pushZones(zones);
+  updateDropImg(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, null);
   addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`);
 }
@@ -3585,6 +3589,7 @@ async function discardFromZone(zoneName, cardData) {
   if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
   const card = allCards[cardData.img];
   await pushZones(zones);
+  updateDropImg(zones);
   const _dz = zoneName.split(':')[0];
   if (_dz === 'serve' || _dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones, null);
   addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`);
@@ -3602,6 +3607,7 @@ async function discardFromHand(idx) {
   if (!zones.drop) zones.drop = [];
   zones.drop.push(img);
   await pushZones(zones);
+  updateDropImg(zones);
   addLog(L.name, `棄置 ${card?.name || img}${cardState()}`);
   renderHand();
 }
@@ -4787,10 +4793,11 @@ function showCtx(anchor, title, items) {
     body.appendChild(el);
   });
   const rect = anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : {left:100,bottom:100};
+  const menuH = Math.min(menu.scrollHeight || 300, window.innerHeight - 8);
   let x = rect.left;
   let y = rect.bottom + 4;
   if (x + 200 > window.innerWidth) x = window.innerWidth - 204;
-  if (y + 300 > window.innerHeight) y = rect.top - 4;
+  if (y + menuH > window.innerHeight) y = rect.top - 4 - menuH;
   menu.style.left = Math.max(4, x) + 'px';
   menu.style.top  = Math.max(4, y) + 'px';
   menu.classList.add('open');
