@@ -661,17 +661,17 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
-  background-color: #7a3a00;
+  background-color: #040810;
   background-image:
-    repeating-linear-gradient(
-      45deg,
-      rgba(0,0,0,.12) 0, rgba(0,0,0,.12) 1px,
-      transparent 0, transparent 50%
-    );
-  background-size: 10px 10px;
+    linear-gradient(rgba(0,120,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,120,255,.06) 1px, transparent 1px);
+  background-size: 20px 20px;
   border-radius: 10px;
   padding: 5px;
-  box-shadow: inset 0 2px 8px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.3);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,100,255,.18),
+    inset 0 0 30px rgba(0,60,180,.12),
+    0 0 8px rgba(0,80,200,.15);
 }
 .opp-court { flex-direction: column-reverse; }
 .court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
@@ -721,28 +721,75 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-label.lbl-atk { color: #f87171; }
 .z-label.lbl-srv { color: #fbbf24; }
 
-/* Zone type colors — official mat palette, same-color-family darker border */
-.z-slot.z-blk { border: 2px solid #141414; background-color: #2e2e2e; }
-.z-slot.z-rcv { border: 2px solid #082090; background-color: #1258d0; }
-.z-slot.z-tos { border: 2px solid #0c5a22; background-color: #1e9438; }
-.z-slot.z-atk { border: 2px solid #820800; background-color: #cc2010; }
-.z-slot.z-srv { border: 2px solid #8a7200; background-color: #d4b800; }
-.z-slot.z-evt { border: 2px solid #585860; background-color: #9898a0; }
+/* CYBER neon zone palette */
+.z-slot.z-blk {
+  border: 1.5px solid #505870;
+  background: rgba(20,24,36,.85);
+  box-shadow:
+    inset 0 0 0 1px rgba(80,88,112,.35),
+    0 0 8px rgba(80,88,112,.3),
+    0 0 20px rgba(80,88,112,.1);
+}
+.z-slot.z-rcv {
+  border: 1.5px solid #0e7fff;
+  background: rgba(8,32,120,.45);
+  box-shadow:
+    inset 0 0 0 1px rgba(14,127,255,.25),
+    0 0 10px rgba(14,127,255,.5),
+    0 0 28px rgba(14,127,255,.2);
+}
+.z-slot.z-tos {
+  border: 1.5px solid #00d850;
+  background: rgba(0,80,30,.45);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,216,80,.25),
+    0 0 10px rgba(0,216,80,.45),
+    0 0 28px rgba(0,216,80,.18);
+}
+.z-slot.z-atk {
+  border: 1.5px solid #ff2820;
+  background: rgba(100,10,8,.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,40,32,.25),
+    0 0 10px rgba(255,40,32,.55),
+    0 0 28px rgba(255,40,32,.2);
+}
+.z-slot.z-srv {
+  border: 1.5px solid #ffc800;
+  background: rgba(90,60,0,.5);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,200,0,.25),
+    0 0 10px rgba(255,200,0,.5),
+    0 0 28px rgba(255,200,0,.18);
+}
+.z-slot.z-evt {
+  border: 1.5px solid #00d8e8;
+  background: rgba(0,70,90,.45);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,216,232,.25),
+    0 0 10px rgba(0,216,232,.5),
+    0 0 28px rgba(0,216,232,.18);
+}
 
-/* Material light effect — radial highlight top-left, shadow bottom-right */
+/* CYBER scan-line sweep + neon pulse */
+@keyframes neonGlow {
+  0%, 100% { opacity: .55; }
+  50%       { opacity: .85; }
+}
 .z-slot::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: 6px;
   background:
-    radial-gradient(ellipse at 32% 22%, rgba(255,255,255,.22) 0%, transparent 58%),
-    radial-gradient(ellipse at 80% 85%, rgba(0,0,0,.28) 0%, transparent 50%);
+    linear-gradient(160deg, rgba(255,255,255,.10) 0%, transparent 45%),
+    linear-gradient(0deg, rgba(0,0,0,.35) 0%, transparent 60%);
   pointer-events: none;
   z-index: 1;
+  animation: neonGlow 2.4s ease-in-out infinite;
 }
 
-/* Zone label — Bebas Neue, white, bottom-center */
+/* Zone label — Bebas Neue, neon color per zone */
 .z-slot::after {
   content: '';
   position: absolute;
@@ -753,26 +800,24 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 11px;
   letter-spacing: 2px;
   pointer-events: none;
-  opacity: .85;
+  opacity: .9;
   line-height: 1;
-  color: #fff;
-  text-shadow: 0 1px 4px rgba(0,0,0,.8), 0 0 8px rgba(0,0,0,.6);
   z-index: 2;
 }
-.z-slot.z-blk::after { content: 'BLOCK'; }
-.z-slot.z-rcv::after { content: 'RECEIVE'; }
-.z-slot.z-tos::after { content: 'TOSS'; }
-.z-slot.z-atk::after { content: 'ATTACK'; }
-.z-slot.z-srv::after { content: 'SERVE'; }
-.z-slot.z-evt::after { content: 'EVENT'; }
+.z-slot.z-blk::after { content: 'BLOCK';   color: #8898c8; text-shadow: 0 0 6px rgba(80,88,112,.8); }
+.z-slot.z-rcv::after { content: 'RECEIVE'; color: #4ab4ff; text-shadow: 0 0 8px rgba(14,127,255,1); }
+.z-slot.z-tos::after { content: 'TOSS';    color: #00e85a; text-shadow: 0 0 8px rgba(0,216,80,1); }
+.z-slot.z-atk::after { content: 'ATTACK';  color: #ff6058; text-shadow: 0 0 8px rgba(255,40,32,1); }
+.z-slot.z-srv::after { content: 'SERVE';   color: #ffd840; text-shadow: 0 0 8px rgba(255,200,0,1); }
+.z-slot.z-evt::after { content: 'EVENT';   color: #40eeff; text-shadow: 0 0 8px rgba(0,216,232,1); }
 
-/* Hover states — keep colored border, lighten background */
-.z-slot.z-blk:not(.filled):not(.opp):hover { background-color: #3e3e3e; }
-.z-slot.z-rcv:not(.filled):not(.opp):hover { background-color: #1a6aee; }
-.z-slot.z-tos:not(.filled):not(.opp):hover { background-color: #26ac44; }
-.z-slot.z-atk:not(.filled):not(.opp):hover { background-color: #e82a18; }
-.z-slot.z-srv:not(.filled):not(.opp):hover { background-color: #e0c400; }
-.z-slot.z-evt:not(.filled):not(.opp):hover { background-color: #a8a8b0; }
+/* Hover states — boost glow */
+.z-slot.z-blk:not(.filled):not(.opp):hover { background: rgba(30,34,52,.9); box-shadow: inset 0 0 0 1px rgba(80,88,112,.5), 0 0 14px rgba(80,88,112,.5); }
+.z-slot.z-rcv:not(.filled):not(.opp):hover { background: rgba(8,44,160,.6); box-shadow: inset 0 0 0 1px rgba(14,127,255,.4), 0 0 18px rgba(14,127,255,.7); }
+.z-slot.z-tos:not(.filled):not(.opp):hover { background: rgba(0,100,40,.6); box-shadow: inset 0 0 0 1px rgba(0,216,80,.4), 0 0 18px rgba(0,216,80,.65); }
+.z-slot.z-atk:not(.filled):not(.opp):hover { background: rgba(130,15,10,.65); box-shadow: inset 0 0 0 1px rgba(255,40,32,.4), 0 0 18px rgba(255,40,32,.7); }
+.z-slot.z-srv:not(.filled):not(.opp):hover { background: rgba(110,80,0,.65); box-shadow: inset 0 0 0 1px rgba(255,200,0,.4), 0 0 18px rgba(255,200,0,.65); }
+.z-slot.z-evt:not(.filled):not(.opp):hover { background: rgba(0,90,110,.6); box-shadow: inset 0 0 0 1px rgba(0,216,232,.4), 0 0 18px rgba(0,216,232,.65); }
 
 /* Zone slots */
 .z-slot {
@@ -789,11 +834,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s;
   min-height: 0;
-  box-shadow:
-    inset 0 0 0 4px rgba(255,255,255,.20),   /* white inset frame */
-    inset 0 1px 0 rgba(255,255,255,.30),      /* top-edge highlight */
-    inset 0 -4px 12px rgba(0,0,0,.40),        /* bottom depth shadow */
-    0 2px 8px rgba(0,0,0,.55);               /* outer drop shadow */
 }
 .z-slot.opp { cursor: default; }
 .z-slot.opp.filled { cursor: pointer; }
@@ -1783,24 +1823,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <!-- Self -->
       <div class="player-area my-turn-glow" id="self-area">
         <span class="area-name self" id="self-lbl">自己</span>
-        <!-- Left: Deck + Drop (mirrored to match opp) -->
+        <!-- Left: Set -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽牌 / 拖曳直接放場上"
-               draggable="true"
-               ondragstart="startDragPile(event)"
-               ondragover="event.preventDefault(); this.classList.add('target')"
-               ondragleave="this.classList.remove('target')"
-               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
-            <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
-          </div>
-          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
-          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="手牌洗入牌庫">↩ 手牌入庫</button>
-          <div class="info-tile clickable" onclick="openDropViewer('self')"
-               ondragover="event.preventDefault(); this.classList.add('target')"
-               ondragleave="this.classList.remove('target')"
-               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
-            <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
-            <img id="self-drop-img" src="" alt="" style="width:100%;border-radius:5px;margin-top:4px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.6)">
+          <div class="info-tile set-pool-tile">
+            <div class="t-label">SET</div>
+            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊從牌庫頂取2張">0</div>
+            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球">輸一球</button>
           </div>
         </div>
         <!-- Court (block on top = near net) -->
@@ -1820,12 +1848,24 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="zone-w"><div class="z-slot z-evt" id="self-slot-event" data-zone="event"><div class="z-empty">—</div></div></div>
           </div>
         </div>
-        <!-- Right: Set (mirrored to match opp) -->
+        <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile set-pool-tile">
-            <div class="t-label">SET</div>
-            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊從牌庫頂取2張">0</div>
-            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球">輸一球</button>
+          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽牌 / 拖曳直接放場上"
+               draggable="true"
+               ondragstart="startDragPile(event)"
+               ondragover="event.preventDefault(); this.classList.add('target')"
+               ondragleave="this.classList.remove('target')"
+               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
+            <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
+          </div>
+          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
+          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="手牌洗入牌庫">↩ 手牌入庫</button>
+          <div class="info-tile clickable" onclick="openDropViewer('self')"
+               ondragover="event.preventDefault(); this.classList.add('target')"
+               ondragleave="this.classList.remove('target')"
+               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
+            <div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div>
+            <img id="self-drop-img" src="" alt="" style="width:100%;border-radius:5px;margin-top:4px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.6)">
           </div>
         </div>
       </div>
