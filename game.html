@@ -227,14 +227,23 @@ input[type=text]::placeholder { color: var(--text-dim); }
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--accent), transparent);
 }
+.hero-icons {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 14px;
+}
 .hero-icon {
   font-size: 52px;
   display: block;
-  margin-bottom: 14px;
   animation: heroFloat 4s ease-in-out infinite;
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 0 20px rgba(108,99,255,.5));
+}
+.hero-icon-2 {
+  animation-delay: -1.8s;
+  filter: drop-shadow(0 0 16px rgba(108,99,255,.35));
 }
 @keyframes heroFloat {
   0%, 100% { transform: translateY(0) rotate(-3deg); }
@@ -1631,7 +1640,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <div id="screen-lobby" class="screen">
   <!-- Hero -->
   <div class="lobby-hero">
-    <span class="hero-icon">🏐</span>
+    <div class="hero-icons">
+      <span class="hero-icon">🏐</span>
+      <span class="hero-icon hero-icon-2">🐦‍⬛</span>
+    </div>
     <h1>バボカ!! <em>BREAK</em></h1>
     <p>對戰大廳 — 使用你在卡牌資料庫建立的牌組</p>
   </div>
