@@ -14,21 +14,21 @@
 <style>
 /* ── Base ── */
 :root {
-  --bg:           #080e1c;
-  --surface:      #0f172a;
-  --surface2:     #162035;
-  --surface3:     #1e2d45;
-  --border:       #243352;
-  --text:         #e8eaf4;
-  --text-dim:     #6278a8;
+  --bg:           #0e0a02;
+  --surface:      #17120a;
+  --surface2:     #201a10;
+  --surface3:     #2a2318;
+  --border:       #352c1c;
+  --text:         #ede8df;
+  --text-dim:     #7a6a50;
   --accent:       #6c63ff;
   --accent2:      #ff6584;
   --green:        #4ade80;
   --orange:       #fb923c;
   --blue:         #60a5fa;
-  --zone-bg:      #0e1828;
-  --zone-hover:   #182236;
-  --net-color:    #1e2e50;
+  --zone-bg:      #120e06;
+  --zone-hover:   #1c1610;
+  --net-color:    #2e2010;
   /* Phase theming – updated dynamically */
   --pc:           #fb923c;
   --pc-bg:        rgba(251,146,60,.08);
@@ -661,16 +661,17 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
-  background-color: #4a2400;
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255,255,255,.03) 0, rgba(255,255,255,.03) 1px,
-    transparent 0, transparent 50%
-  );
-  background-size: 12px 12px;
+  background-color: #7a3a00;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(0,0,0,.12) 0, rgba(0,0,0,.12) 1px,
+      transparent 0, transparent 50%
+    );
+  background-size: 10px 10px;
   border-radius: 10px;
   padding: 5px;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04);
+  box-shadow: inset 0 2px 8px rgba(0,0,0,.5), inset 0 0 0 1px rgba(0,0,0,.3);
 }
 .opp-court { flex-direction: column-reverse; }
 .court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
@@ -720,45 +721,23 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-label.lbl-atk { color: #f87171; }
 .z-label.lbl-srv { color: #fbbf24; }
 
-/* Zone type colors — official mat palette */
-.z-slot.z-blk { border: 1.5px solid rgba(255,255,255,.28); background-color: #2e2e2e; }
-.z-slot.z-rcv { border: 1.5px solid rgba(255,255,255,.22); background-color: #1258d0; }
-.z-slot.z-tos { border: 1.5px solid rgba(255,255,255,.22); background-color: #1e9438; }
-.z-slot.z-atk { border: 1.5px solid rgba(255,255,255,.22); background-color: #cc2010; }
-.z-slot.z-srv { border: 1.5px solid rgba(255,255,255,.28); background-color: #d4b800; }
-.z-slot.z-evt { border: 1.5px solid rgba(255,255,255,.22); background-color: #9898a0; }
+/* Zone type colors — official mat palette, same-color-family darker border */
+.z-slot.z-blk { border: 2px solid #141414; background-color: #2e2e2e; }
+.z-slot.z-rcv { border: 2px solid #082090; background-color: #1258d0; }
+.z-slot.z-tos { border: 2px solid #0c5a22; background-color: #1e9438; }
+.z-slot.z-atk { border: 2px solid #820800; background-color: #cc2010; }
+.z-slot.z-srv { border: 2px solid #8a7200; background-color: #d4b800; }
+.z-slot.z-evt { border: 2px solid #585860; background-color: #9898a0; }
 
-/* Camera-viewfinder corner L-brackets (8 gradients: TL×2, TR×2, BL×2, BR×2) */
+/* Material light effect — radial highlight top-left, shadow bottom-right */
 .z-slot::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 8px;
-  background-image:
-    /* depth: top-light → bottom-dark for material feel */
-    linear-gradient(170deg, rgba(255,255,255,.10) 0%, rgba(0,0,0,.30) 100%),
-    /* L-bracket corners (TL×2, TR×2, BL×2, BR×2) */
-    linear-gradient(to right,  rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to bottom, rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to left,   rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to bottom, rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to right,  rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to top,    rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to left,   rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%),
-    linear-gradient(to top,    rgba(255,255,255,.55) 0, rgba(255,255,255,.55) 100%);
-  background-position:
-    0 0,
-    top 0 left 0,    top 0 left 0,
-    top 0 right 0,   top 0 right 0,
-    bottom 0 left 0, bottom 0 left 0,
-    bottom 0 right 0,bottom 0 right 0;
-  background-size:
-    100% 100%,
-    20px 2px, 2px 20px,
-    20px 2px, 2px 20px,
-    20px 2px, 2px 20px,
-    20px 2px, 2px 20px;
-  background-repeat: no-repeat;
+  border-radius: 6px;
+  background:
+    radial-gradient(ellipse at 32% 22%, rgba(255,255,255,.22) 0%, transparent 58%),
+    radial-gradient(ellipse at 80% 85%, rgba(0,0,0,.28) 0%, transparent 50%);
   pointer-events: none;
   z-index: 1;
 }
@@ -774,9 +753,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 11px;
   letter-spacing: 2px;
   pointer-events: none;
-  opacity: .7;
+  opacity: .85;
   line-height: 1;
   color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,.8), 0 0 8px rgba(0,0,0,.6);
   z-index: 2;
 }
 .z-slot.z-blk::after { content: 'BLOCK'; }
@@ -786,13 +766,13 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .z-slot.z-srv::after { content: 'SERVE'; }
 .z-slot.z-evt::after { content: 'EVENT'; }
 
-/* Hover states — slightly lighter, keep no border */
-.z-slot.z-blk:not(.filled):not(.opp):hover { border: none; background-color: #383838; }
-.z-slot.z-rcv:not(.filled):not(.opp):hover { border: none; background-color: #1a6aee; }
-.z-slot.z-tos:not(.filled):not(.opp):hover { border: none; background-color: #28b050; }
-.z-slot.z-atk:not(.filled):not(.opp):hover { border: none; background-color: #f04020; }
-.z-slot.z-srv:not(.filled):not(.opp):hover { border: none; background-color: #e0bc00; }
-.z-slot.z-evt:not(.filled):not(.opp):hover { border: none; background-color: #909098; }
+/* Hover states — keep colored border, lighten background */
+.z-slot.z-blk:not(.filled):not(.opp):hover { background-color: #3e3e3e; }
+.z-slot.z-rcv:not(.filled):not(.opp):hover { background-color: #1a6aee; }
+.z-slot.z-tos:not(.filled):not(.opp):hover { background-color: #26ac44; }
+.z-slot.z-atk:not(.filled):not(.opp):hover { background-color: #e82a18; }
+.z-slot.z-srv:not(.filled):not(.opp):hover { background-color: #e0c400; }
+.z-slot.z-evt:not(.filled):not(.opp):hover { background-color: #a8a8b0; }
 
 /* Zone slots */
 .z-slot {
@@ -809,7 +789,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
   cursor: pointer;
   transition: border-color .15s, background .15s, box-shadow .15s;
   min-height: 0;
-  box-shadow: inset 0 2px 0 rgba(255,255,255,.05), inset 0 -3px 8px rgba(0,0,0,.5), 0 1px 3px rgba(0,0,0,.4);
+  box-shadow:
+    inset 0 0 0 4px rgba(255,255,255,.20),   /* white inset frame */
+    inset 0 1px 0 rgba(255,255,255,.30),      /* top-edge highlight */
+    inset 0 -4px 12px rgba(0,0,0,.40),        /* bottom depth shadow */
+    0 2px 8px rgba(0,0,0,.55);               /* outer drop shadow */
 }
 .z-slot.opp { cursor: default; }
 .z-slot.opp.filled { cursor: pointer; }
