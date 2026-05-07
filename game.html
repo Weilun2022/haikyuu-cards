@@ -3016,7 +3016,18 @@ function renderZones(prefix, zones, isOpp) {
 }
 
 function fillSlot(slot, cardData, isOpp, zoneName) {
-  slot.classList.remove('filled','opp','target','guts-target');
+  // Always clear drag-state classes
+  slot.classList.remove('target', 'guts-target');
+
+  // Bail-early: skip full rebuild if content unchanged
+  const _si = ZONE_STAT_INFO[zoneName];
+  const _role = isOpp ? (myRole === 'host' ? 'guest' : 'host') : myRole;
+  const _dv = _si ? (gameState?.counterDelta?.[_role]?.[_si.stat] || 0) : 0;
+  const _key = `${cardData?.img||''}|${JSON.stringify(cardData?.guts||[])}|${_dv}|${isOpp}`;
+  if (slot.dataset.fillKey === _key) return;
+  slot.dataset.fillKey = _key;
+
+  slot.classList.remove('filled', 'opp');
   if (isOpp) slot.classList.add('opp');
   slot.innerHTML = '';
   slot.ondragover = null; slot.ondragleave = null; slot.ondrop = null;
@@ -4084,13 +4095,19 @@ async function pushZones(zones) {
   await db.ref(`games/${roomId}/players/${myRole}/zones`).set(sanitise(zones));
 }
 
+let _syncPileTimer = 0, _syncHandTimer = 0;
 async function syncPileCount() {
-  await db.ref(`games/${roomId}/players/${myRole}/pileCount`).set(L.pile.length);
-  saveSession();
+  clearTimeout(_syncPileTimer);
+  _syncPileTimer = setTimeout(async () => {
+    await db.ref(`games/${roomId}/players/${myRole}/pileCount`).set(L.pile.length);
+    saveSession();
+  }, 150);
 }
-
 async function syncHandCount() {
-  await db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+  clearTimeout(_syncHandTimer);
+  _syncHandTimer = setTimeout(() => {
+    db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+  }, 150);
 }
 
 function cardState() {
@@ -4476,15 +4493,21 @@ function unpinCardHover() {
 
 function _pinnedHoverMove(e) { _posCardHover(e); }
 
+let _posRaf = 0;
 function _posCardHover(e) {
-  const el = document.getElementById('card-hover');
-  const pad = 14, w = 490, h = 270;
-  let x = e.clientX + pad, y = e.clientY - h / 2;
-  if (x + w > window.innerWidth  - 4) x = e.clientX - w - pad;
-  if (y + h > window.innerHeight - 4) y = window.innerHeight - h - 4;
-  if (y < 4) y = 4;
-  el.style.left = x + 'px';
-  el.style.top  = y + 'px';
+  const cx = e.clientX, cy = e.clientY;
+  if (_posRaf) cancelAnimationFrame(_posRaf);
+  _posRaf = requestAnimationFrame(() => {
+    _posRaf = 0;
+    const el = document.getElementById('card-hover');
+    const pad = 14, w = 490, h = 270;
+    let x = cx + pad, y = cy - h / 2;
+    if (x + w > window.innerWidth  - 4) x = cx - w - pad;
+    if (y + h > window.innerHeight - 4) y = window.innerHeight - h - 4;
+    if (y < 4) y = 4;
+    el.style.left = x + 'px';
+    el.style.top  = y + 'px';
+  });
 }
 
 // ══════════════════════════════════════════════════════
