@@ -99,8 +99,8 @@ body {
 #hand-area #end-turn-btn {
   align-self: stretch;
   flex-shrink: 0;
-  min-width: 96px;
-  padding: 0 18px;
+  min-width: 140px;
+  padding: 0 32px;
   border-radius: 14px;
   border: none;
   display: flex;
@@ -548,34 +548,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* Turn badge (header, kept for layout) */
 .turn-badge { display: none; }
 
-/* Top-left turn indicator */
-#turn-indicator {
-  position: fixed;
-  top: 54px;
-  left: 8px;
-  z-index: 500;
-  font-size: 12px;
-  max-width: 160px;
-  white-space: nowrap;
-  font-weight: 700;
-  padding: 5px 14px;
-  border-radius: 8px;
-  background: var(--surface2);
-  border: 1.5px solid var(--border);
-  color: var(--text-dim);
-  pointer-events: none;
-  transition: background .2s, border-color .2s, color .2s;
-}
-#turn-indicator.my {
-  background: rgba(108,99,255,.28);
-  border-color: var(--accent);
-  color: #a8a2ff;
-}
-#turn-indicator.opp-acting {
-  background: rgba(251,146,60,.22);
-  border-color: var(--orange);
-  color: #fdb57a;
-}
+/* Top-left turn indicator — hidden */
+#turn-indicator { display: none; }
 /* Phase radio buttons */
 .phase-select-btn.selected {
   background: var(--accent);
