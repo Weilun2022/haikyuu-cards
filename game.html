@@ -4079,6 +4079,7 @@ async function declareLost() {
   await db.ref(`games/${roomId}/atkAlert`).remove();
   await db.ref(`games/${roomId}/currentAction`).remove();
   await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
+  await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
 
   // Signal opponent to do the same
   const resetVal = Date.now();
