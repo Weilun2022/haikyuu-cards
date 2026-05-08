@@ -1920,7 +1920,7 @@ function applyFilters() {
     if (activeSchool && c.school !== activeSchool) return false;
     if (activeCategory && c.category !== activeCategory) return false;
     if (activeRarity && c.rarity !== activeRarity && c.rarity !== activeRarity + 'P') return false;
-    if (activePosition && !c.position?.includes(activePosition)) return false;
+    if (activePosition && c.position !== activePosition) return false;
     if (searchText) {
       const stats = [
         c.atk && `攻擊${c.atk}`, c.rcv && `接球${c.rcv}`,
