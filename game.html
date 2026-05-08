@@ -4260,10 +4260,10 @@ function addToSetPool() {
   addLog(L.name, `組數補牌 +2（組數：${cnt}，牌庫剩 ${L.pile.length}）`);
 }
 
-function loseRallySetPool() {
+async function loseRallySetPool() {
   L.setPool = L.setPool || [];
   if (!L.setPool.length) { toast('組數池已空'); return; }
-  if (!confirm('輸一球？從組數池取一張到手牌。')) return;
+  if (!confirm('輸一球？從組數池取一張到手牌，並自動結束回合。')) return;
   const card = L.setPool.pop();
   L.hand.push(card);
   const cnt = L.setPool.length;
@@ -4271,6 +4271,19 @@ function loseRallySetPool() {
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
   renderHand();
   addLog(L.name, `輸一球 — 組數 -1（組數：${cnt}）`);
+
+  // Auto end turn: switch to opponent, clear atkAlert (it's their serve, no attack alert needed)
+  if (gameState?.turn === myRole) {
+    const oppRole = myRole === 'host' ? 'guest' : 'host';
+    await db.ref(`games/${roomId}`).update({
+      turn: oppRole,
+      currentAction: null,
+      atkAlert: null,
+    });
+    L.undoStack = [];
+    updateUndoBtn();
+    addLog(L.name, '回合結束（輸一球）');
+  }
 }
 
 function openOppStack(zoneName) {
