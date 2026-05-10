@@ -2604,9 +2604,12 @@ function listenRooms() {
       // Skip own room: startGame() sets status='playing' before presence is written,
       // so this cleanup would race and delete our own active game.
       if (r.status === 'playing' && r.id !== roomId) {
+        console.log(`[listenRooms] checking playing room ${r.id} (my roomId=${roomId})`);
         db.ref(`games/${r.id}/presence`).once('value').then(pSnap => {
           const p = pSnap.val() || {};
+          console.log(`[listenRooms] room ${r.id} presence:`, JSON.stringify(p));
           if (!p.host && !p.guest) {
+            console.error(`[listenRooms] DELETING abandoned room ${r.id} (no presence)`);
             db.ref(`rooms/${r.id}`).remove();
             db.ref(`games/${r.id}`).remove();
           }
@@ -2942,6 +2945,7 @@ function listenGame() {
     const data = snap.val();
     if (!data) {
       // Game node deleted externally (e.g., stale-room cleanup race) while we're in it
+      console.error('[listenGame] game node is NULL', { roomId, screenActive: document.getElementById('screen-game').classList.contains('active') });
       if (document.getElementById('screen-game').classList.contains('active') && roomId) {
         if (gameRef) { gameRef.off(); gameRef = null; }
         roomId = null; myRole = null;
@@ -2949,7 +2953,7 @@ function listenGame() {
         document.getElementById('hand-area').style.display = '';
         document.getElementById('sb-actions').style.display = '';
         showScreen('lobby');
-        toast('對局已結束');
+        toast('對局已結束 [listenGame/null]');
       }
       return;
     }
@@ -3043,6 +3047,7 @@ function handlePresenceChange(data, prev) {
   if (!roomId || !myRole) return;
   const presence     = data?.presence  || {};
   const prevPresence = prev?.presence  || {};
+  console.log('[handlePresenceChange] prev:', JSON.stringify(prevPresence), '→ now:', JSON.stringify(presence));
   const oppRole      = myRole === 'host' ? 'guest' : 'host';
   const oppName      = data?.players?.[oppRole]?.name || '對手';
 
@@ -3064,11 +3069,14 @@ function handlePresenceChange(data, prev) {
       _presenceKickTimer = setTimeout(async () => {
         _presenceKickTimer = null;
         if (!roomId || roomId !== _kickRoomId) return;
+        console.error('[handlePresenceChange] kick timer fired — re-verifying presence', { roomId });
         try {
           const freshSnap = await db.ref(`games/${_kickRoomId}/presence`).once('value');
           const p = freshSnap.val() || {};
-          if (p.host || p.guest) return; // someone is back — cancel kick
+          console.log('[handlePresenceChange] fresh presence:', JSON.stringify(p));
+          if (p.host || p.guest) { console.log('[handlePresenceChange] presence restored — kick cancelled'); return; }
         } catch (_) { return; }
+        console.error('[handlePresenceChange] KICKING to lobby (both absent after 3s)');
         const id = roomId;
         if (gameRef) { gameRef.off(); gameRef = null; }
         roomId = null; myRole = null;
@@ -3077,7 +3085,7 @@ function handlePresenceChange(data, prev) {
         document.getElementById('sb-actions').style.display = '';
         showScreen('lobby');
         cleanupRoom(id);
-        toast('雙方都已離線，對局結束');
+        toast('雙方都已離線，對局結束 [presence/3s]');
       }, 3000);
     }
   } else if (_presenceKickTimer) {
@@ -3136,15 +3144,14 @@ function showOppNotification(player, action) {
 // ══════════════════════════════════════════════════════
 async function startGame() {
   if (!gameState?.players?.guest) { toast('等待對手加入'); return; }
+  console.log('[startGame] writing started=true, turn, phase');
   db.ref(`games/${roomId}`).update({ started: true, turn: 'host', phase: 'serve' });
-  // Await presence write BEFORE setting status='playing'.
-  // listenRooms cleanup fires the moment status becomes 'playing' and checks presence.
-  // If presence isn't set yet, every client in the lobby deletes the game node,
-  // which causes 'turn', 'phase', and 'players' to be lost, breaking end-turn,
-  // hand-count sidebar, and dice sync for the rest of the session.
+  console.log('[startGame] awaiting presence/host = true');
   await db.ref(`games/${roomId}/presence/host`).set(true);
+  console.log('[startGame] presence/host set — now setting status=playing');
   db.ref(`games/${roomId}/presence/host`).onDisconnect().remove();
   db.ref(`rooms/${roomId}/status`).set('playing');
+  console.log('[startGame] status=playing sent — calling enterGame()');
   enterGame(); // enterGame will set presence again — idempotent, no issue
 }
 
@@ -5748,6 +5755,7 @@ function _showDiceStep(step) {
 }
 
 async function pickDiceSide(pick) {
+  console.log('[pickDiceSide] picked:', pick, '| roomId:', roomId, '| myRole:', myRole);
   // I am the initiator
   _showDiceStep('roll');
   document.getElementById('dice-result-text').textContent = `你選了「${pick}」，擲骰中...`;
