@@ -711,12 +711,13 @@
     padding: 4px 6px;
     font-size: 13px; font-weight: 600;
     cursor: pointer; outline: none;
-    max-width: 140px;
+    max-width: 260px;
     flex-shrink: 1;
     transition: border-color 0.15s;
   }
   .tray-deck-select:hover,
   .tray-deck-select:focus { border-color: var(--accent); }
+  .tray-deck-select option { background: #fff; color: #111; }
   .tray-count-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
   .tray-count-num { font-weight: 700; color: var(--accent); }
   .tray-count-num.warn { color: #fb923c; }
@@ -2531,6 +2532,7 @@ function closeDeckPanel() {
     colorModeActive = false;
     colorModeSlots = [];
     colorModeSelectedIndices.clear();
+    colorModeSortKey = 'card_no';
     document.getElementById('deck-color-mode-btn').textContent = '🎨 上色';
     document.getElementById('deck-color-mode-btn').classList.remove('active');
     document.getElementById('deck-color-picker-bar').classList.remove('show');
@@ -2627,6 +2629,7 @@ function renderDeckPanel() {
 let colorModeActive = false;
 let colorModeSlots = []; // { imageFile, slotIndex, color: key|null, isEvent }
 let colorModeSelectedIndices = new Set();
+let colorModeSortKey = 'card_no';
 
 // ── Deck Preview ───────────────────────────────────────
 let deckPreviewSelectedImg = null;
@@ -3247,14 +3250,25 @@ function buildColorModeSlots() {
     for (let i = 0; i < entry.count; i++)
       slots.push({ imageFile: entry.image_file, slotIndex: i, color: slotColors[i], isEvent });
   }
-  // 依 slot 自身顏色排序（同色聚集），同色內再依卡號排
+  // 主鍵：顏色分組；次鍵：依 colorModeSortKey
   const SLOT_COLOR_ORD = { free: 0, receive: 1, set: 2, attack: 3, event: 4 };
+  const RARITY_ORD = { NP:0, N:1, R:2, RP:3, S:4, SP:5, 極:6, '極P':7, 頂:8, '頂P':9, 秘:10 };
   slots.sort((a, b) => {
     const aO = a.color !== null ? (SLOT_COLOR_ORD[a.color] ?? 5) : 5;
     const bO = b.color !== null ? (SLOT_COLOR_ORD[b.color] ?? 5) : 5;
     if (aO !== bO) return aO - bO;
     const ca = cards.find(x => x.image_file === a.imageFile);
     const cb = cards.find(x => x.image_file === b.imageFile);
+    const sk = colorModeSortKey;
+    if (sk === 'rarity') {
+      const ra = RARITY_ORD[ca && ca.rarity] ?? 99;
+      const rb = RARITY_ORD[cb && cb.rarity] ?? 99;
+      if (ra !== rb) return rb - ra;
+    } else if (sk !== 'card_no') {
+      const av = (ca && ca[sk]) ?? -1;
+      const bv = (cb && cb[sk]) ?? -1;
+      if (av !== bv) return bv - av;
+    }
     return ((ca && ca.card_no) || '').localeCompare((cb && cb.card_no) || '');
   });
   return slots;
@@ -3574,8 +3588,13 @@ function bindDeckEvents() {
   });
 
   document.getElementById('deck-reorganize-select').addEventListener('change', e => {
-    reorganizeDeck(e.target.value);
-    e.target.value = e.target.options[0].value; // 執行後重置回第一項
+    if (colorModeActive) {
+      colorModeSortKey = e.target.value === 'color' ? 'card_no' : e.target.value;
+      colorModeSlots = buildColorModeSlots();
+      renderColorModeGrid();
+    } else {
+      reorganizeDeck(e.target.value);
+    }
   });
   document.getElementById('deck-color-mode-btn').addEventListener('click', toggleColorMode);
   document.getElementById('deck-color-picker-bar').querySelectorAll('.color-pick-btn').forEach(btn => {
