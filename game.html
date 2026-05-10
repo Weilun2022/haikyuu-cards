@@ -2601,7 +2601,9 @@ function listenRooms() {
         return;
       }
       // For 'playing' rooms: check presence — if both absent, treat as abandoned
-      if (r.status === 'playing') {
+      // Skip own room: startGame() sets status='playing' before presence is written,
+      // so this cleanup would race and delete our own active game.
+      if (r.status === 'playing' && r.id !== roomId) {
         db.ref(`games/${r.id}/presence`).once('value').then(pSnap => {
           const p = pSnap.val() || {};
           if (!p.host && !p.guest) {
@@ -2767,6 +2769,7 @@ async function spectateRoom(id) {
 
 async function leaveRoom() {
   if (!roomId) return;
+  if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
   exitMoveMode();
   const id = roomId;
   const role = myRole;
@@ -2937,7 +2940,19 @@ function copyCode() {
 function listenGame() {
   gameRef.on('value', snap => {
     const data = snap.val();
-    if (!data) return;
+    if (!data) {
+      // Game node deleted externally (e.g., stale-room cleanup race) while we're in it
+      if (document.getElementById('screen-game').classList.contains('active') && roomId) {
+        if (gameRef) { gameRef.off(); gameRef = null; }
+        roomId = null; myRole = null;
+        if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
+        document.getElementById('hand-area').style.display = '';
+        document.getElementById('sb-actions').style.display = '';
+        showScreen('lobby');
+        toast('對局已結束');
+      }
+      return;
+    }
 
     const prevState = gameState;
     gameState = data;
@@ -2946,6 +2961,7 @@ function listenGame() {
 }
 
 let _processedRoundReset = 0;
+let _presenceKickTimer = null;
 
 function syncUI(data, prev) {
   if (!isSpectator) updateWaitingScreen(data);
@@ -3039,20 +3055,34 @@ function handlePresenceChange(data, prev) {
     showPresenceNotif(`${oppName} 重新連線`, '✅', '#4ade80');
   }
   // Both gone → cleanup
-  // Guard: only trigger if presence was previously established (prevents false fire on game start
-  // when presence flags haven't been written yet)
+  // Delay + re-verify before kicking to avoid false positives caused by stale snapshots
+  // (e.g., when the game node was briefly deleted and recreated without presence fields).
   const hadPresenceBefore = !!(prevPresence.host || prevPresence.guest);
   if (hadPresenceBefore && !presence.host && !presence.guest && roomId) {
-    const id = roomId;
-    // Reset local first
-    if (gameRef) gameRef.off();
-    gameRef = null; roomId = null; myRole = null;
-    closeDiceModal();
-    document.getElementById('hand-area').style.display = '';
-    document.getElementById('sb-actions').style.display = '';
-    showScreen('lobby');
-    cleanupRoom(id);
-    toast('雙方都已離線，對局結束');
+    if (!_presenceKickTimer) {
+      const _kickRoomId = roomId;
+      _presenceKickTimer = setTimeout(async () => {
+        _presenceKickTimer = null;
+        if (!roomId || roomId !== _kickRoomId) return;
+        try {
+          const freshSnap = await db.ref(`games/${_kickRoomId}/presence`).once('value');
+          const p = freshSnap.val() || {};
+          if (p.host || p.guest) return; // someone is back — cancel kick
+        } catch (_) { return; }
+        const id = roomId;
+        if (gameRef) { gameRef.off(); gameRef = null; }
+        roomId = null; myRole = null;
+        closeDiceModal();
+        document.getElementById('hand-area').style.display = '';
+        document.getElementById('sb-actions').style.display = '';
+        showScreen('lobby');
+        cleanupRoom(id);
+        toast('雙方都已離線，對局結束');
+      }, 3000);
+    }
+  } else if (_presenceKickTimer) {
+    clearTimeout(_presenceKickTimer);
+    _presenceKickTimer = null;
   }
 }
 
