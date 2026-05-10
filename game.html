@@ -3439,19 +3439,33 @@ function _pileDrop(e, tile) {
 }
 function _onPileTileClick(e) {
   if (moveMode) {
-    // Position-based pile return when in move mode
     const tile = e.currentTarget;
     const pos = e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom';
     const m = moveMode;
-    exitMoveMode();
-    _executePileReturn(m, pos);
+    if (m.type === 'hand') {
+      // Multi-select: return primary + all additionally selected cards
+      const allIdxs = [m.idx, ...multiSelect];
+      exitMoveMode(); // clears multiSelect
+      allIdxs.sort((a, b) => b - a).forEach(idx => returnHandToPile(idx, pos));
+    } else {
+      exitMoveMode();
+      _executePileReturn(m, pos);
+    }
     return;
   }
   drawCard();
 }
 function _doReturnToPile(dd, pos) {
-  if (dd.src === 'hand') returnHandToPile(dd.idx, pos);
-  else if (dd.src === 'zone') {
+  if (dd.src === 'hand') {
+    if (moveMode?.type === 'hand') {
+      // Drag while in hand moveMode: return dragged card + all multi-selected cards
+      const allIdxs = [...new Set([moveMode.idx, ...multiSelect, dd.idx])];
+      exitMoveMode(); // clears multiSelect
+      allIdxs.sort((a, b) => b - a).forEach(idx => returnHandToPile(idx, pos));
+    } else {
+      returnHandToPile(dd.idx, pos);
+    }
+  } else if (dd.src === 'zone') {
     const zones = myZonesCopy();
     const cd = getZoneCard(zones, dd.zoneName);
     if (cd) returnToPile(dd.zoneName, cd, pos);
@@ -4728,10 +4742,9 @@ function executeMoveToZone(targetZone, targetImg = null) {
 
   if (existing?.img) {
     if (m.type === 'hand') {
-      // Hand → occupied zone: place all selected cards on top
-      const ms = [...multiSelect];
+      // Hand → occupied zone: single card only (multi-select is pile-return only)
       exitMoveMode();
-      placeMultiCards([m.idx, ...ms], targetZone);
+      placeCard(m.idx, targetZone, false);
     } else {
       // Zone/guts → occupied zone: ask top or guts
       document.getElementById('place-confirm-top-btn').textContent = '最上方';
@@ -4751,9 +4764,9 @@ function executeMoveToZone(targetZone, targetImg = null) {
     }
   } else {
     if (m.type === 'hand') {
-      const ms = [...multiSelect];
+      // Single card placement — multi-select only applies to pile return
       exitMoveMode();
-      placeMultiCards([m.idx, ...ms], targetZone);
+      placeCard(m.idx, targetZone);
     } else {
       exitMoveMode();
       if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
