@@ -3134,11 +3134,18 @@ function showOppNotification(player, action) {
 // ══════════════════════════════════════════════════════
 // GAME START
 // ══════════════════════════════════════════════════════
-function startGame() {
+async function startGame() {
   if (!gameState?.players?.guest) { toast('等待對手加入'); return; }
   db.ref(`games/${roomId}`).update({ started: true, turn: 'host', phase: 'serve' });
-  db.ref(`rooms/${roomId}/status`).set('playing');  // Now the game is truly starting
-  enterGame();
+  // Await presence write BEFORE setting status='playing'.
+  // listenRooms cleanup fires the moment status becomes 'playing' and checks presence.
+  // If presence isn't set yet, every client in the lobby deletes the game node,
+  // which causes 'turn', 'phase', and 'players' to be lost, breaking end-turn,
+  // hand-count sidebar, and dice sync for the rest of the session.
+  await db.ref(`games/${roomId}/presence/host`).set(true);
+  db.ref(`games/${roomId}/presence/host`).onDisconnect().remove();
+  db.ref(`rooms/${roomId}/status`).set('playing');
+  enterGame(); // enterGame will set presence again — idempotent, no issue
 }
 
 function enterGame() {
