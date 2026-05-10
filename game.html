@@ -3229,8 +3229,10 @@ async function endTurn() {
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const action = gameState?.currentAction || null;
   const actionLabel = action ? (PHASE_META[action]?.label || action) : '（無動作）';
-  // Use the already-synced score (accounts for scoreMode, toss+atk or srv, and manual adjustments)
-  const atkTotal = gameState?.scores?.[myRole] ?? calcBaseScore(myRole, gameState);
+  // Use || so a stored score of 0 also falls back to computing from zones
+  const atkTotal = gameState?.scores?.[myRole] || calcBaseScore(myRole, gameState);
+  // Optimistic local update: flip button immediately without waiting for Firebase round-trip
+  updatePhaseUI(gameState?.phase || 'serve', oppRole);
   await db.ref(`games/${roomId}`).update({
     turn: oppRole, currentAction: null,
     atkAlert: atkTotal > 0 ? atkTotal : null
@@ -3327,8 +3329,10 @@ function renderBoard(data) {
   document.getElementById('sb-hand-guest-name').textContent = gn;
   // Avatar: use local L.avatar for self (always available), Firebase for opponent
   if (!isSpectator) {
-    document.getElementById(`sb-hand-${myRole}-av`).textContent  = L.avatar || '🦅';
-    document.getElementById(`sb-hand-${oppRole}-av`).textContent = data.players[oppRole]?.avatar || '🦅';
+    const _sbSelf = document.getElementById(`sb-hand-${myRole}-av`);
+    const _sbOpp  = document.getElementById(`sb-hand-${oppRole}-av`);
+    if (_sbSelf) _sbSelf.textContent = L.avatar || '🦅';
+    if (_sbOpp)  _sbOpp.textContent  = data.players[oppRole]?.avatar || '🦅';
   } else {
     document.getElementById('sb-hand-host-av').textContent  = hav;
     document.getElementById('sb-hand-guest-av').textContent = gav;
@@ -4609,11 +4613,9 @@ async function syncPileCount() {
     saveSession();
   }, 150);
 }
-async function syncHandCount() {
+function syncHandCount() {
   clearTimeout(_syncHandTimer);
-  _syncHandTimer = setTimeout(() => {
-    db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
-  }, 150);
+  db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
 }
 
 function cardState() {
