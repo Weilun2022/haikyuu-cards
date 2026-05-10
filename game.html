@@ -632,7 +632,23 @@ input[type=text]::placeholder { color: var(--text-dim); }
   align-items: center;
   justify-content: center;
   transition: border-color .15s, background .15s;
+  position: relative;
+  overflow: hidden;
 }
+/* Pile drop split — top/bottom half highlight */
+.info-tile.pile-top::before,
+.info-tile.pile-bottom::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; height: 50%;
+  background: rgba(108,99,255,.28);
+  pointer-events: none;
+  z-index: 1;
+}
+.info-tile.pile-top::before  { top: 0;    border-radius: 8px 8px 0 0; }
+.info-tile.pile-bottom::after { bottom: 0; border-radius: 0 0 8px 8px; }
+.info-tile.pile-top  { border-color: var(--accent); }
+.info-tile.pile-bottom { border-color: var(--accent); }
 .info-tile.clickable { cursor: pointer; }
 .info-tile.clickable:hover { border-color: var(--accent); background: var(--surface3); }
 .info-tile .t-label { font-size: 9px; color: var(--text-dim); line-height: 1; margin-bottom: 3px; font-weight: 500; }
@@ -1836,12 +1852,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile clickable" onclick="drawCard()" title="點擊抽牌 / 拖曳直接放場上"
+          <div class="info-tile clickable" id="pile-tile" onclick="_onPileTileClick(event)" title="點擊抽牌 / 拖曳直接放場上"
                draggable="true"
                ondragstart="startDragPile(event)"
-               ondragover="event.preventDefault(); this.classList.add('target')"
-               ondragleave="this.classList.remove('target')"
-               ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('pile',false)">
+               ondragover="event.preventDefault(); _pileHoverSplit(event,this)"
+               ondragleave="_pileDragLeave(this)"
+               ondrop="event.preventDefault(); _pileDrop(event,this)">
             <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
           </div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
@@ -3303,7 +3319,7 @@ function renderHand() {
       e.className = 'hand-empty'; e.textContent = '手牌為空';
       wrap.appendChild(e);
     }
-    document.getElementById('hand-meta').textContent = '0 張';
+    updateHandMeta();
     syncHandCount(); saveSession();
     return;
   }
@@ -3334,7 +3350,7 @@ function renderHand() {
   });
   while (wrap.children.length > placed.length) wrap.removeChild(wrap.lastChild);
 
-  document.getElementById('hand-meta').textContent = `${L.hand.length} 張`;
+  updateHandMeta();
   syncHandCount(); saveSession();
 }
 
@@ -3369,7 +3385,25 @@ function highlightGutsTargets() {
 // CARD INTERACTION
 // ══════════════════════════════════════════════════════
 let selectedHandIdx = null;
+let multiSelect = []; // additional hand card indices selected beyond the primary moveMode card
 let dragData = null; // { src:'hand', idx, img } | { src:'zone', zoneName, cardData } | { src:'guts', ... }
+
+function updateHandMeta() {
+  const el = document.getElementById('hand-meta');
+  if (!el) return;
+  const selCount = moveMode?.type === 'hand' ? 1 + multiSelect.length : 0;
+  el.textContent = selCount > 1
+    ? `${L.hand.length} 張（已選 ${selCount}）`
+    : `${L.hand.length} 張`;
+}
+
+async function placeMultiCards(idxs, targetZone) {
+  // Place in descending index order so each splice doesn't shift remaining indices
+  const sorted = [...idxs].sort((a, b) => b - a);
+  for (const idx of sorted) {
+    await placeCard(idx, targetZone, false);
+  }
+}
 
 // ── Place-confirm helpers ─────────────────────────────
 function showPlaceConfirm(title, onTop, onGuts) {
@@ -3384,6 +3418,46 @@ function closePlaceConfirm() {
 function cancelPlaceConfirm() {
   closePlaceConfirm();
   if (moveMode) exitMoveMode();
+}
+
+// ── Pile tile: position-aware drag + click ─────────────
+function _pileHoverSplit(e, tile) {
+  tile.classList.add('target');
+  const isTop = e.offsetY < tile.clientHeight / 2;
+  tile.classList.toggle('pile-top',    isTop);
+  tile.classList.toggle('pile-bottom', !isTop);
+}
+function _pileDragLeave(tile) {
+  tile.classList.remove('target', 'pile-top', 'pile-bottom');
+}
+function _pileDrop(e, tile) {
+  _pileDragLeave(tile);
+  if (!dragData) return;
+  const pos = e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom';
+  const dd = dragData; dragData = null;
+  _doReturnToPile(dd, pos);
+}
+function _onPileTileClick(e) {
+  if (moveMode) {
+    // Position-based pile return when in move mode
+    const tile = e.currentTarget;
+    const pos = e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom';
+    const m = moveMode;
+    exitMoveMode();
+    _executePileReturn(m, pos);
+    return;
+  }
+  drawCard();
+}
+function _doReturnToPile(dd, pos) {
+  if (dd.src === 'hand') returnHandToPile(dd.idx, pos);
+  else if (dd.src === 'zone') {
+    const zones = myZonesCopy();
+    const cd = getZoneCard(zones, dd.zoneName);
+    if (cd) returnToPile(dd.zoneName, cd, pos);
+  } else if (dd.src === 'guts') {
+    moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, pos === 'top' ? 'pile-top' : 'pile-bottom');
+  }
 }
 
 async function handleDrop(targetZone, hasCards) {
@@ -3402,21 +3476,11 @@ async function handleDrop(targetZone, hasCards) {
     return;
   }
 
-  // ── Drag to pile: ask top or bottom ──
+  // ── Drag to pile: handled by _pileDrop (position-aware); fallback dialog if somehow called directly ──
   if (targetZone === 'pile') {
-    const doReturn = pos => {
-      if (dd.src === 'hand') returnHandToPile(dd.idx, pos);
-      else if (dd.src === 'zone') {
-        const zones = myZonesCopy();
-        const cd = getZoneCard(zones, dd.zoneName);
-        if (cd) returnToPile(dd.zoneName, cd, pos);
-      } else if (dd.src === 'guts') {
-        moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, pos === 'top' ? 'pile-top' : 'pile-bottom');
-      }
-    };
     document.getElementById('place-confirm-top-btn').textContent = '上方';
     document.getElementById('place-confirm-guts-btn').textContent = '下方';
-    showPlaceConfirm('放回牌堆', () => doReturn('top'), () => doReturn('bottom'));
+    showPlaceConfirm('放回牌堆', () => _doReturnToPile(dd,'top'), () => _doReturnToPile(dd,'bottom'));
     return;
   }
 
@@ -3482,9 +3546,25 @@ async function handleDrop(targetZone, hasCards) {
 }
 
 function onHandClick(idx, el, e) {
-  // If already in move mode for this same card → cancel
+  // Same card while in moveMode → cancel
   if (moveMode?.type === 'hand' && moveMode?.idx === idx) { exitMoveMode(); return; }
-  // Enter move mode and pin hover preview to follow mouse
+
+  // Already in hand moveMode → multi-select: add or remove
+  if (moveMode?.type === 'hand') {
+    const pos = multiSelect.indexOf(idx);
+    if (pos !== -1) {
+      multiSelect.splice(pos, 1);
+      el.classList.remove('selected');
+    } else {
+      multiSelect.push(idx);
+      el.classList.add('selected');
+    }
+    updateHandMeta();
+    return;
+  }
+
+  // Fresh selection: enter move mode
+  multiSelect = [];
   const img = L.hand[idx];
   const c   = allCards[img];
   pinCardHover(img, e);
@@ -4591,6 +4671,10 @@ function enterMoveMode(mode) {
   moveMode = mode;
   if (mode.type === 'hand') {
     highlightTargetZones(mode.cat);
+    // Highlight the primary selected card
+    const firstEl = document.querySelector(`.hand-card[data-idx="${mode.idx}"]`);
+    if (firstEl) firstEl.classList.add('selected');
+    updateHandMeta();
   } else {
     // zone / guts: all self zones are valid targets
     document.querySelectorAll('#self-court .z-slot').forEach(s => s.classList.add('target'));
@@ -4610,12 +4694,15 @@ function enterMoveMode(mode) {
 
 function exitMoveMode() {
   moveMode = null;
+  multiSelect = [];
   unpinCardHover();
   clearZoneHighlights();
+  document.querySelectorAll('.hand-card.selected').forEach(c => c.classList.remove('selected'));
   const ha = document.getElementById('hand-area');
   ha.classList.remove('move-target-hand');
   ha.onclick = null;
   document.querySelectorAll('.info-tile.move-target-tile').forEach(t => t.classList.remove('move-target-tile'));
+  updateHandMeta();
 }
 
 function executeMoveToZone(targetZone, targetImg = null) {
@@ -4641,9 +4728,10 @@ function executeMoveToZone(targetZone, targetImg = null) {
 
   if (existing?.img) {
     if (m.type === 'hand') {
-      // Hand → occupied zone: always place on top, no modal
+      // Hand → occupied zone: place all selected cards on top
+      const ms = [...multiSelect];
       exitMoveMode();
-      placeCard(m.idx, targetZone, false);
+      placeMultiCards([m.idx, ...ms], targetZone);
     } else {
       // Zone/guts → occupied zone: ask top or guts
       document.getElementById('place-confirm-top-btn').textContent = '最上方';
@@ -4662,10 +4750,15 @@ function executeMoveToZone(targetZone, targetImg = null) {
       );
     }
   } else {
-    exitMoveMode();
-    if (m.type === 'hand')  placeCard(m.idx, targetZone);
-    else if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
-    else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+    if (m.type === 'hand') {
+      const ms = [...multiSelect];
+      exitMoveMode();
+      placeMultiCards([m.idx, ...ms], targetZone);
+    } else {
+      exitMoveMode();
+      if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
+      else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+    }
   }
 }
 
