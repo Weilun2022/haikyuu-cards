@@ -99,7 +99,7 @@ body {
 #hand-area #end-turn-btn {
   align-self: stretch;
   flex-shrink: 0;
-  min-width: 168px;
+  min-width: 218px;
   padding: 0 32px;
   border-radius: 14px;
   border: none;
@@ -149,8 +149,8 @@ body {
 
 /* ── Hand-area Undo Button ── */
 @keyframes undoPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(0,229,255,.35), inset 0 0 8px rgba(0,229,255,.08); }
-  50%       { box-shadow: 0 0 20px rgba(0,229,255,.7), inset 0 0 14px rgba(0,229,255,.15); }
+  0%, 100% { box-shadow: 0 0 8px rgba(192,38,211,.45), inset 0 0 8px rgba(192,38,211,.1); }
+  50%       { box-shadow: 0 0 22px rgba(224,64,251,.8), inset 0 0 14px rgba(224,64,251,.18); }
 }
 @keyframes undoGlitch {
   0%, 88%, 100% { transform: none; }
@@ -185,19 +185,19 @@ body {
 
 /* CYBER active state — shown when undoStack has entries */
 .hand-undo-btn.has-undo {
-  background: linear-gradient(160deg, #001a2e 0%, #002d4a 55%, #001e38 100%);
-  border: 1.5px solid #00c8e8;
-  color: #00e5ff;
-  text-shadow: 0 0 8px rgba(0,229,255,.9);
+  background: linear-gradient(160deg, #1a0025 0%, #2e0042 55%, #1a0030 100%);
+  border: 1.5px solid #c026d3;
+  color: #e879f9;
+  text-shadow: 0 0 8px rgba(224,64,251,.85);
   animation: undoPulse 2.2s ease-in-out infinite, undoGlitch 7s ease-in-out infinite;
 }
 .hand-undo-btn.has-undo:hover:not(:disabled) {
   animation: none;
-  background: linear-gradient(160deg, #002d4a 0%, #003f60 55%, #002540 100%);
-  border-color: #00ffcc;
-  color: #00ffcc;
-  text-shadow: 0 0 12px rgba(0,255,200,.95);
-  box-shadow: 0 0 22px rgba(0,229,255,.55), 0 4px 16px rgba(0,229,255,.2);
+  background: linear-gradient(160deg, #2e0042 0%, #3d0058 55%, #280040 100%);
+  border-color: #e040fb;
+  color: #f0abfc;
+  text-shadow: 0 0 12px rgba(240,171,252,.95);
+  box-shadow: 0 0 24px rgba(192,38,211,.55), 0 4px 18px rgba(192,38,211,.25);
 }
 .hand-undo-btn .undo-icon { font-size: 17px; line-height: 1; }
 .hand-undo-btn .undo-lbl  { font-size: 9px; font-weight: 600; letter-spacing: .8px; }
