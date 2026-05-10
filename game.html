@@ -1629,24 +1629,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
    MOVE MODE BANNER
 ══════════════════════════════════════ */
 #move-banner {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  z-index: 3100;
-  background: linear-gradient(135deg, rgba(30,20,60,.97), rgba(22,16,54,.97));
-  border-top: 2px solid var(--accent);
-  padding: 9px 18px;
-  display: flex; align-items: center; gap: 10px;
-  font-size: 13px; font-weight: 600;
-  transform: translateY(110%);
-  transition: transform .22s cubic-bezier(.34,1.4,.64,1);
-  pointer-events: none;
-  box-shadow: 0 -4px 24px rgba(108,99,255,.25);
+  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(108,99,255,.13), rgba(108,99,255,.05));
+  border-top: 2px solid rgba(108,99,255,.65);
+  padding: 7px 16px;
+  display: none;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
 }
-#move-banner.show {
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.mb-icon { font-size: 18px; flex-shrink: 0; }
+#move-banner.show { display: flex; }
+.mb-icon { font-size: 16px; flex-shrink: 0; }
 .mb-label { color: var(--accent); white-space: nowrap; }
 .mb-hint  { color: var(--text-dim); font-size: 11px; }
 .mb-sep   { color: var(--border); margin: 0 2px; }
@@ -1660,31 +1654,111 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .mb-esc:hover { border-color: var(--accent); color: var(--text); }
 
 /* ══════════════════════════════════════
-   PHASE / ACTION SELECT
+   TUTORIAL MODAL
 ══════════════════════════════════════ */
-.action-select-row {
-  display: flex; gap: 5px; margin-top: 6px;
+#tutorial-overlay {
+  position: fixed; inset: 0; z-index: 7000;
+  background: rgba(0,0,0,.85);
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
 }
-.action-btn {
-  flex: 1; padding: 7px 4px; font-size: 11px; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--surface2);
-  color: var(--text-dim); cursor: pointer; font-family: inherit;
-  text-align: center; transition: all .15s; font-weight: 600;
-  letter-spacing: .2px; line-height: 1.2;
+#tutorial-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: min(720px, 95vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 32px 100px rgba(0,0,0,.8);
 }
-.action-btn:hover:not(:disabled):not(.opp-turn) {
-  border-color: var(--pc); color: var(--text);
-  background: var(--pc-bg);
+.tut-header {
+  padding: 20px 24px 0;
+  flex-shrink: 0;
 }
-.action-btn.selected {
-  background: var(--pc); border-color: transparent; color: #fff;
-  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+.tut-title {
+  font-size: 18px; font-weight: 900; color: var(--accent);
+  letter-spacing: .3px; margin-bottom: 4px;
 }
-.action-btn:disabled, .action-btn.opp-turn {
-  opacity: .38; cursor: not-allowed;
+.tut-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; }
+.tut-tabs {
+  display: flex; gap: 0;
+  border-bottom: 2px solid var(--border);
 }
-.action-btn-icon { display: block; font-size: 14px; }
-.action-btn-lbl  { display: block; font-size: 10px; margin-top: 1px; }
+.tut-tab {
+  padding: 8px 18px; font-size: 13px; font-weight: 700;
+  color: var(--text-dim); cursor: pointer; border: none;
+  background: transparent; font-family: inherit;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px; transition: color .15s, border-color .15s;
+}
+.tut-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tut-tab:hover:not(.active) { color: var(--text); }
+.tut-body {
+  flex: 1; overflow-y: auto; padding: 18px 24px;
+}
+.tut-panel { display: none; }
+.tut-panel.active { display: block; }
+
+/* Flow steps */
+.tut-steps { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.tut-step {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--surface2); border-radius: 10px; padding: 12px 14px;
+  border: 1px solid var(--border);
+}
+.tut-step-num {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  font-size: 13px; font-weight: 900;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.tut-step-icon { font-size: 20px; flex-shrink: 0; line-height: 1.3; }
+.tut-step-info {}
+.tut-step-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.tut-step-desc  { font-size: 11px; color: var(--text-dim); line-height: 1.55; }
+
+/* Feature sections */
+.tut-feat { margin-bottom: 16px; }
+.tut-feat-title {
+  font-size: 12px; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .5px;
+  margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.tut-feat-list { display: flex; flex-direction: column; gap: 5px; }
+.tut-feat-item {
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+}
+.tut-feat-item b { color: var(--text); font-weight: 600; min-width: 70px; flex-shrink: 0; }
+/* Keyboard hints in tutorial */
+.tut-kbd-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.tut-kbd {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface2); border-radius: 8px;
+  padding: 6px 10px; border: 1px solid var(--border);
+  font-size: 12px;
+}
+.tut-key {
+  background: var(--surface3); border: 1px solid var(--border);
+  border-radius: 5px; padding: 1px 7px;
+  font-size: 11px; font-weight: 700; color: var(--accent);
+  font-family: monospace;
+}
+
+/* Tutorial footer */
+.tut-footer {
+  flex-shrink: 0;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2);
+}
+.tut-no-show { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
+.tut-no-show input { accent-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -1936,59 +2010,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
     <!-- Sidebar -->
     <div id="sidebar">
-      <div class="sb-section" style="padding:8px 12px 8px">
-        <div class="phase-pill" id="phase-pill" style="justify-content:center">
-          <span class="phase-icon" id="phase-icon">🏐</span>
-          <span id="h-phase">發球階段</span>
-        </div>
-        <div class="action-select-row" id="action-select-row" title="選擇本回合的動作階段">
-          <button class="action-btn" data-phase="serve"   onclick="selectAction('serve')"   title="發球階段">
-            <span class="action-btn-icon">🏐</span><span class="action-btn-lbl">發球</span>
-          </button>
-          <button class="action-btn" data-phase="receive" onclick="selectAction('receive')" title="接球階段">
-            <span class="action-btn-icon">🤝</span><span class="action-btn-lbl">接球</span>
-          </button>
-          <button class="action-btn" data-phase="block"   onclick="selectAction('block')"   title="攔網階段">
-            <span class="action-btn-icon">🛡️</span><span class="action-btn-lbl">攔網</span>
-          </button>
-        </div>
-      </div>
-      <div class="sb-section">
-        <div class="sb-title">手牌數量</div>
-        <div class="sets-grid">
-          <div class="set-box" id="sb-hand-host">
-            <div class="sb-av" id="sb-hand-host-av">🦅</div>
-            <div class="sb-name" id="sb-hand-host-name">—</div>
-            <div class="sb-num" id="sb-hand-host-val">0</div>
-          </div>
-          <div class="set-box" id="sb-hand-guest">
-            <div class="sb-av" id="sb-hand-guest-av">🦅</div>
-            <div class="sb-name" id="sb-hand-guest-name">—</div>
-            <div class="sb-num" id="sb-hand-guest-val">0</div>
-          </div>
-        </div>
-      </div>
-      <div class="sb-section">
-        <div class="sb-title">攻擊值</div>
-        <div class="sets-grid">
-          <div class="set-box" id="net-score-host">
-            <div class="sb-name" id="net-score-host-name">—</div>
-            <div class="sb-num" id="net-score-host-val" style="font-size:22px">0</div>
-            <div class="sb-btns">
-              <button class="btn xs" id="btn-score-host-minus" onclick="adjustScore('host',-1)" style="display:none">−</button>
-              <button class="btn xs" id="btn-score-host-plus" onclick="adjustScore('host',1)" style="display:none">＋</button>
-            </div>
-          </div>
-          <div class="set-box" id="net-score-guest">
-            <div class="sb-name" id="net-score-guest-name">—</div>
-            <div class="sb-num" id="net-score-guest-val" style="font-size:22px">0</div>
-            <div class="sb-btns">
-              <button class="btn xs" id="btn-score-guest-minus" onclick="adjustScore('guest',-1)" style="display:none">−</button>
-              <button class="btn xs" id="btn-score-guest-plus" onclick="adjustScore('guest',1)" style="display:none">＋</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- 局數戰績 -->
       <div class="sb-section">
         <div class="sb-title">局數戰績</div>
         <div class="sets-grid">
@@ -2012,23 +2034,53 @@ input[type=text]::placeholder { color: var(--text-dim); }
           </div>
         </div>
       </div>
-
+      <!-- 手牌數量 -->
+      <div class="sb-section">
+        <div class="sb-title">手牌數量</div>
+        <div class="sets-grid">
+          <div class="set-box" id="sb-hand-host">
+            <div class="sb-av" id="sb-hand-host-av">🦅</div>
+            <div class="sb-name" id="sb-hand-host-name">—</div>
+            <div class="sb-num" id="sb-hand-host-val">0</div>
+          </div>
+          <div class="set-box" id="sb-hand-guest">
+            <div class="sb-av" id="sb-hand-guest-av">🦅</div>
+            <div class="sb-name" id="sb-hand-guest-name">—</div>
+            <div class="sb-num" id="sb-hand-guest-val">0</div>
+          </div>
+        </div>
+      </div>
+      <!-- 攻擊值 -->
+      <div class="sb-section">
+        <div class="sb-title">攻擊值</div>
+        <div class="sets-grid">
+          <div class="set-box" id="net-score-host">
+            <div class="sb-name" id="net-score-host-name">—</div>
+            <div class="sb-num" id="net-score-host-val" style="font-size:22px">0</div>
+            <div class="sb-btns">
+              <button class="btn xs" id="btn-score-host-minus" onclick="adjustScore('host',-1)" style="display:none">−</button>
+              <button class="btn xs" id="btn-score-host-plus" onclick="adjustScore('host',1)" style="display:none">＋</button>
+            </div>
+          </div>
+          <div class="set-box" id="net-score-guest">
+            <div class="sb-name" id="net-score-guest-name">—</div>
+            <div class="sb-num" id="net-score-guest-val" style="font-size:22px">0</div>
+            <div class="sb-btns">
+              <button class="btn xs" id="btn-score-guest-minus" onclick="adjustScore('guest',-1)" style="display:none">−</button>
+              <button class="btn xs" id="btn-score-guest-plus" onclick="adjustScore('guest',1)" style="display:none">＋</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- 本回合動作 -->
       <div class="sb-section" id="sb-actions">
         <div class="sb-title">本回合動作</div>
         <button class="btn xs" id="undo-btn" onclick="undoLastAction()" style="width:100%;margin-bottom:4px" disabled title="復原上一步操作（每回合最多 10 步）">↩ 復原</button>
         <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:0" title="擲骰子決定先攻後攻">🎲 先攻後攻</button>
+        <button class="btn xs" onclick="showTutorial()" style="width:100%;margin-top:4px" title="查看遊戲說明">📖 遊戲說明</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px" title="重置本局：雙方所有牌洗回牌庫">🔄 重置本局</button>
       </div>
-
-      <div style="padding:6px 12px;font-size:10px;color:var(--text-dim);border-top:1px solid var(--border);line-height:1.8;opacity:.75">
-        <span title="D 鍵抽牌">⌨️ <b>D</b> 抽牌</span>
-        <span style="margin:0 6px">·</span>
-        <span title="Enter 鍵結束回合"><b>↵</b> 結束回合</span>
-        <span style="margin:0 6px">·</span>
-        <span title="Esc 取消移動/關閉"><b>Esc</b> 取消</span>
-        <span style="margin:0 6px">·</span>
-        <span title="右鍵手牌顯示更多選項"><b>右鍵</b> 手牌選單</span>
-      </div>
+      <!-- 行動記錄 -->
       <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
       <div id="log-wrap"></div>
     </div>
@@ -2153,6 +2205,139 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <div style="display:flex;gap:10px;justify-content:center">
       <button class="btn" id="gen-confirm-cancel-btn" onclick="_genConfirmClose(false)" style="flex:1;max-width:120px">取消</button>
       <button class="btn primary" id="gen-confirm-ok-btn" onclick="_genConfirmClose(true)" style="flex:1;max-width:160px">確認</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tutorial Modal -->
+<div id="tutorial-overlay" style="display:none" onclick="closeTutorial()">
+  <div id="tutorial-box" onclick="event.stopPropagation()">
+    <div class="tut-header">
+      <div class="tut-title">🏐 バボカ!! BREAK — 遊戲說明</div>
+      <div class="tut-sub">了解流程與操作後即可開始對戰</div>
+      <div class="tut-tabs">
+        <button class="tut-tab active" onclick="switchTutTab('flow', this)">📋 遊戲流程</button>
+        <button class="tut-tab" onclick="switchTutTab('feat', this)">🎮 功能說明</button>
+      </div>
+    </div>
+    <div class="tut-body">
+      <!-- Tab 1: 流程 -->
+      <div class="tut-panel active" id="tut-panel-flow">
+        <div class="tut-steps">
+          <div class="tut-step">
+            <div class="tut-step-num">1</div>
+            <div class="tut-step-icon">🎲</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">先攻後攻決定</div>
+              <div class="tut-step-desc">點右側「先攻後攻」按鈕擲骰子。選單/雙，贏的人選擇先攻或後攻。</div>
+            </div>
+          </div>
+          <div class="tut-step">
+            <div class="tut-step-num">2</div>
+            <div class="tut-step-icon">🃏</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">雙方各抽牌至 6 張手牌</div>
+              <div class="tut-step-desc">按 <b>D 鍵</b>或點牌庫格子抽牌，抽到手牌剛好 6 張。</div>
+            </div>
+          </div>
+          <div class="tut-step">
+            <div class="tut-step-num">3</div>
+            <div class="tut-step-icon">🤝</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">與對手討論要放回幾張</div>
+              <div class="tut-step-desc">雙方公開討論（語音或文字），決定各自要放回牌庫的張數。</div>
+            </div>
+          </div>
+          <div class="tut-step">
+            <div class="tut-step-num">4</div>
+            <div class="tut-step-icon">↩</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">將決定的牌放回牌庫</div>
+              <div class="tut-step-desc">右鍵手牌 → 放回牌庫頂／底；或點擊手牌進入選牌模式後，點牌組格子上半（牌頂）/ 下半（牌底）放回。</div>
+            </div>
+          </div>
+          <div class="tut-step">
+            <div class="tut-step-num">5</div>
+            <div class="tut-step-icon">🔀</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">雙方各自洗牌</div>
+              <div class="tut-step-desc">點右側「🔀 洗牌」按鈕，將牌庫順序隨機洗亂。</div>
+            </div>
+          </div>
+          <div class="tut-step">
+            <div class="tut-step-num">6</div>
+            <div class="tut-step-icon">🃏</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">再次抽牌至 6 張手牌</div>
+              <div class="tut-step-desc">同步驟 2，將手牌補回 6 張。</div>
+            </div>
+          </div>
+          <div class="tut-step">
+            <div class="tut-step-num">7</div>
+            <div class="tut-step-icon">🏆</div>
+            <div class="tut-step-info">
+              <div class="tut-step-title">先攻方補充 SET 池，開始第一回合</div>
+              <div class="tut-step-desc">先攻方點場地左側 SET 數字，從牌庫頂取 2 張到 SET 池。然後由先攻方開始行動。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Tab 2: 功能 -->
+      <div class="tut-panel" id="tut-panel-feat">
+        <div class="tut-feat">
+          <div class="tut-feat-title">場地區域</div>
+          <div class="tut-feat-list">
+            <div class="tut-feat-item"><b>🏐 發球區</b>用發球值作為本回合攻擊值（先攻）</div>
+            <div class="tut-feat-item"><b>🤝 接球區</b>接球值 ≥ 對手攻擊值時防守成功，攻擊警示解除</div>
+            <div class="tut-feat-item"><b>🟢 舉球區</b>舉球值＋攻擊區攻擊值 = 本方攻擊力</div>
+            <div class="tut-feat-item"><b>⚡ 攻擊區</b>攻擊值，與舉球合計作為本方攻擊力</div>
+            <div class="tut-feat-item"><b>🛡️ 攔網區</b>總攔網值 ≥ 對手攻擊值時攔網成功，攻擊警示解除</div>
+            <div class="tut-feat-item"><b>📋 事件區</b>效果牌放置處，可疊放多張</div>
+          </div>
+        </div>
+        <div class="tut-feat">
+          <div class="tut-feat-title">手牌操作</div>
+          <div class="tut-feat-list">
+            <div class="tut-feat-item"><b>點擊手牌</b>進入選牌模式，高亮可放置區域，再點場地格子放置</div>
+            <div class="tut-feat-item"><b>右鍵手牌</b>快速選單：移至場上 / 放回牌庫頂或底 / 棄牌</div>
+            <div class="tut-feat-item"><b>多選放回</b>選牌模式下繼續點其他手牌可累加選取，一次放回多張到牌庫</div>
+            <div class="tut-feat-item"><b>拖曳手牌</b>直接拖到場地格子放置，拖到牌庫格子放回（上半=頂/下半=底）</div>
+          </div>
+        </div>
+        <div class="tut-feat">
+          <div class="tut-feat-title">SET 池 ＆ 輸球</div>
+          <div class="tut-feat-list">
+            <div class="tut-feat-item"><b>補充 SET</b>點場地左側 SET 數字，從牌庫頂取 2 張進入 SET 池</div>
+            <div class="tut-feat-item"><b>輸一球</b>點「輸一球」：先從牌庫補手牌到 6 張，再從 SET 池取 1 張加入手牌，自動結束回合</div>
+          </div>
+        </div>
+        <div class="tut-feat">
+          <div class="tut-feat-title">其他操作</div>
+          <div class="tut-feat-list">
+            <div class="tut-feat-item"><b>復原</b>每回合最多復原 10 步，結束回合後清除</div>
+            <div class="tut-feat-item"><b>棄牌區</b>點棄牌格子查看；可從中撿回任一張到手牌</div>
+            <div class="tut-feat-item"><b>Guts 疊牌</b>點場上角色右鍵 → Guts，或拖曳手牌到有角色的格子</div>
+            <div class="tut-feat-item"><b>攻擊警示</b>對手結束回合時，其攻擊力閃爍顯示於對方場地；接球或攔網值達標後自動消失</div>
+          </div>
+        </div>
+        <div class="tut-feat">
+          <div class="tut-feat-title">⌨️ 鍵盤快捷鍵</div>
+          <div class="tut-kbd-row">
+            <div class="tut-kbd"><span class="tut-key">D</span> 抽牌</div>
+            <div class="tut-kbd"><span class="tut-key">Enter</span> 結束回合</div>
+            <div class="tut-kbd"><span class="tut-key">Esc</span> 取消 / 關閉</div>
+            <div class="tut-kbd"><span class="tut-key">右鍵</span> 手牌快速選單</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tut-footer">
+      <label class="tut-no-show">
+        <input type="checkbox" id="tut-no-show-chk"> 下次不再顯示
+      </label>
+      <button class="btn primary" onclick="closeTutorial()" style="margin-left:auto;padding:10px 28px;font-size:14px;border-radius:10px">
+        了解了！開始對戰 ▶
+      </button>
     </div>
   </div>
 </div>
@@ -2931,7 +3116,12 @@ function enterGame() {
   saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
-  setTimeout(() => toast('🏐 對戰開始！按 D 鍵抽牌，右鍵手牌查看更多操作'), 800);
+  // Show tutorial unless suppressed
+  if (localStorage.getItem(TUT_KEY) !== '1') {
+    setTimeout(showTutorial, 400);
+  } else {
+    setTimeout(() => toast('🏐 對戰開始！按 D 鍵抽牌，右鍵手牌查看更多操作'), 800);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -3742,7 +3932,6 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   clearSelection();
   clearZoneHighlights();
   saveUndo();
-  if (gameState?.atkAlert) db.ref(`games/${roomId}/atkAlert`).remove();
   const img  = L.hand[handIdx];
   const card = allCards[img];
   const zones = myZonesCopy();
@@ -3791,6 +3980,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   await pushZones(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
   await resetCounterDelta(baseZone);
+  await _checkAndClearAtkAlert(zones);
   addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}${cardState()}`);
 }
 
@@ -4222,6 +4412,28 @@ async function resetCounterDelta(zoneName) {
   }
 }
 
+// Check if my receive or block total defeats the atkAlert — if so, clear it
+async function _checkAndClearAtkAlert(zones) {
+  const alert = gameState?.atkAlert;
+  if (!alert || gameState?.turn !== myRole) return;
+  const delta = gameState?.counterDelta?.[myRole] || {};
+
+  // Receive check
+  const rcvImg = zones?.receive?.img;
+  const rcvTotal = (rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0) + (delta.rcv || 0);
+
+  // Block total check (sum all 3 slots)
+  const blocks = normaliseBlock(zones?.block);
+  const blkBase = blocks.reduce((sum, b) => sum + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0);
+  const blkTotal = blkBase + (delta.blk || 0);
+
+  if (rcvTotal >= alert || blkTotal >= alert) {
+    await db.ref(`games/${roomId}/atkAlert`).remove();
+    if (rcvTotal >= alert) toast(`✅ 接球成功！（接球 ${rcvTotal} ≥ 攻擊 ${alert}）`);
+    else                   toast(`✅ 攔網成功！（攔網 ${blkTotal} ≥ 攻擊 ${alert}）`);
+  }
+}
+
 async function adjustCounter(stat, delta) {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
   saveUndo();
@@ -4232,6 +4444,8 @@ async function adjustCounter(stat, delta) {
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: next };
   if (stat === 'blk') {
     // Block delta only affects display, not NET score
+    // But still check if block now defeats atkAlert
+    await _checkAndClearAtkAlert(zones);
     return;
   } else if (stat === 'srv') {
     // Recalc serve score if currently in serve mode
@@ -4246,6 +4460,8 @@ async function adjustCounter(stat, delta) {
     const total = auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0);
     await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, total));
   }
+  // Check if rcv/blk delta change now defeats atkAlert
+  if (stat === 'rcv' || stat === 'blk') await _checkAndClearAtkAlert(zones);
 }
 
 function renderCounters(data) {
@@ -4507,29 +4723,44 @@ async function addToSetPool() {
 async function loseRallySetPool() {
   L.setPool = L.setPool || [];
   if (!L.setPool.length) { toast('組數池已空，無法輸球'); return; }
+  const handNow = L.hand.length;
+  const needDraw = Math.max(0, 6 - handNow);
+  const canDraw  = Math.min(needDraw, L.pile.length);
   const ok = await showConfirm({
     icon: '😓',
     title: '確認輸一球？',
-    body: `組數 -1，一張牌加回手牌，並自動結束你的回合。\n剩餘組數：${L.setPool.length} 張`,
+    body: `從牌庫補 ${canDraw} 張到手牌${canDraw > 0 ? '（共 ' + (handNow + canDraw) + ' 張）' : '（手牌已 6 張以上）'}，再從 SET 池取 1 張，自動結束回合。\nSET 池剩餘：${L.setPool.length} 張`,
     okText: '確認輸球',
     okDanger: true,
   });
   if (!ok) return;
-  const card = L.setPool.pop();
-  L.hand.push(card);
+  saveUndo();
+
+  // Step 1: draw from pile until hand reaches 6
+  let drawn = 0;
+  while (L.hand.length < 6 && L.pile.length > 0) {
+    drawFromPile();
+    drawn++;
+  }
+
+  // Step 2: take 1 card from SET pool into hand
+  const setCard = L.setPool.pop();
+  L.hand.push(setCard);
+
   const cnt = L.setPool.length;
-  document.getElementById('self-set').textContent = cnt;
+  document.getElementById('self-set').textContent  = cnt;
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
   renderHand();
-  addLog(L.name, `輸一球 — 組數 -1（組數：${cnt}）`);
+  const drawnMsg = drawn > 0 ? `補 ${drawn} 張到 6 張，` : '';
+  addLog(L.name, `輸一球 — ${drawnMsg}SET 牌入手，組數剩 ${cnt}`);
 
-  // Auto end turn: switch to opponent, clear atkAlert (it's their serve, no attack alert needed)
+  // Auto end turn
   if (gameState?.turn === myRole) {
     const oppRole = myRole === 'host' ? 'guest' : 'host';
     await db.ref(`games/${roomId}`).update({
-      turn: oppRole,
-      currentAction: null,
-      atkAlert: null,
+      turn: oppRole, currentAction: null, atkAlert: null,
     });
     L.undoStack = [];
     updateUndoBtn();
@@ -5305,6 +5536,29 @@ function deepCopy(o) { try { return JSON.parse(JSON.stringify(o)); } catch(e) { 
 function myZonesCopy() { return deepCopy(gameState?.players?.[myRole]?.zones || emptyZones()); }
 function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ══════════════════════════════════════════════════════
+// TUTORIAL MODAL
+// ══════════════════════════════════════════════════════
+const TUT_KEY = 'hv_no_tutorial';
+
+function showTutorial() {
+  document.getElementById('tutorial-overlay').style.display = 'flex';
+}
+
+function closeTutorial() {
+  if (document.getElementById('tut-no-show-chk')?.checked) {
+    localStorage.setItem(TUT_KEY, '1');
+  }
+  document.getElementById('tutorial-overlay').style.display = 'none';
+}
+
+function switchTutTab(name, btn) {
+  document.querySelectorAll('.tut-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tut-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tut-panel-' + name)?.classList.add('active');
+}
 
 // ══════════════════════════════════════════════════════
 // GENERAL CONFIRM MODAL
