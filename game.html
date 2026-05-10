@@ -2943,6 +2943,7 @@ function copyCode() {
 function listenGame() {
   gameRef.on('value', snap => {
     const data = snap.val();
+    console.log('[listenGame] fired | turn:', data?.turn, '| started:', data?.started, '| presence:', JSON.stringify(data?.presence));
     if (!data) {
       // Game node deleted externally (e.g., stale-room cleanup race) while we're in it
       console.error('[listenGame] game node is NULL', { roomId, screenActive: document.getElementById('screen-game').classList.contains('active') });
@@ -3272,6 +3273,7 @@ function updatePhaseUI(phase, turn) {
 // ══════════════════════════════════════════════════════
 async function endTurn() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  console.log('[endTurn] called | gameState.turn:', gameState?.turn, '| myRole:', myRole, '| roomId:', roomId);
   if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const action = gameState?.currentAction || null;
@@ -3280,10 +3282,18 @@ async function endTurn() {
   const atkTotal = gameState?.scores?.[myRole] || calcBaseScore(myRole, gameState);
   // Optimistic local update: flip button immediately without waiting for Firebase round-trip
   updatePhaseUI(gameState?.phase || 'serve', oppRole);
-  await db.ref(`games/${roomId}`).update({
-    turn: oppRole, currentAction: null,
-    atkAlert: atkTotal > 0 ? atkTotal : null
-  });
+  console.log('[endTurn] writing turn:', oppRole, 'atkAlert:', atkTotal > 0 ? atkTotal : null);
+  try {
+    await db.ref(`games/${roomId}`).update({
+      turn: oppRole, currentAction: null,
+      atkAlert: atkTotal > 0 ? atkTotal : null
+    });
+    console.log('[endTurn] Firebase write SUCCESS — turn is now', oppRole);
+  } catch (e) {
+    console.error('[endTurn] Firebase write FAILED:', e);
+    toast('回合結束失敗：' + e.message);
+    return;
+  }
   addLog(L.name, `回合結束 — ${actionLabel}`);
   // Clear undo stack at end of turn (no going back across turns)
   L.undoStack = [];
