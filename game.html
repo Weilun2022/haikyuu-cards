@@ -99,7 +99,7 @@ body {
 #hand-area #end-turn-btn {
   align-self: stretch;
   flex-shrink: 0;
-  min-width: 140px;
+  min-width: 168px;
   padding: 0 32px;
   border-radius: 14px;
   border: none;
@@ -148,11 +148,21 @@ body {
 #hand-end-sub   { font-size: 9px; opacity: .65; letter-spacing: 1.5px; }
 
 /* ── Hand-area Undo Button ── */
+@keyframes undoPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,229,255,.35), inset 0 0 8px rgba(0,229,255,.08); }
+  50%       { box-shadow: 0 0 20px rgba(0,229,255,.7), inset 0 0 14px rgba(0,229,255,.15); }
+}
+@keyframes undoGlitch {
+  0%, 88%, 100% { transform: none; }
+  90%           { transform: translateX(-2px) skewX(-2deg); }
+  92%           { transform: translateX(2px) skewX(1deg); }
+  94%           { transform: translateX(-1px); }
+}
 .hand-undo-btn {
   align-self: stretch;
   flex-shrink: 0;
-  min-width: 58px;
-  padding: 0 12px;
+  min-width: 90px;
+  padding: 0 14px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface2);
@@ -164,7 +174,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  transition: all .15s;
+  transition: background .2s, border-color .2s, color .2s, box-shadow .2s;
 }
 .hand-undo-btn:hover:not(:disabled) {
   background: var(--surface3);
@@ -172,6 +182,23 @@ body {
   color: var(--text);
 }
 .hand-undo-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+/* CYBER active state — shown when undoStack has entries */
+.hand-undo-btn.has-undo {
+  background: linear-gradient(160deg, #001a2e 0%, #002d4a 55%, #001e38 100%);
+  border: 1.5px solid #00c8e8;
+  color: #00e5ff;
+  text-shadow: 0 0 8px rgba(0,229,255,.9);
+  animation: undoPulse 2.2s ease-in-out infinite, undoGlitch 7s ease-in-out infinite;
+}
+.hand-undo-btn.has-undo:hover:not(:disabled) {
+  animation: none;
+  background: linear-gradient(160deg, #002d4a 0%, #003f60 55%, #002540 100%);
+  border-color: #00ffcc;
+  color: #00ffcc;
+  text-shadow: 0 0 12px rgba(0,255,200,.95);
+  box-shadow: 0 0 22px rgba(0,229,255,.55), 0 4px 16px rgba(0,229,255,.2);
+}
 .hand-undo-btn .undo-icon { font-size: 17px; line-height: 1; }
 .hand-undo-btn .undo-lbl  { font-size: 9px; font-weight: 600; letter-spacing: .8px; }
 
@@ -4343,6 +4370,7 @@ function updateUndoBtn() {
   const lbl = btn.querySelector('.undo-lbl');
   if (lbl) lbl.textContent = n ? `復原(${n})` : '復原';
   btn.disabled = (n === 0);
+  btn.classList.toggle('has-undo', n > 0);
 }
 
 // ══════════════════════════════════════════════════════
