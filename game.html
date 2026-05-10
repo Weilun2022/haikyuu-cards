@@ -147,6 +147,34 @@ body {
 #hand-end-label { font-size: 13px; font-weight: 800; letter-spacing: .4px; }
 #hand-end-sub   { font-size: 9px; opacity: .65; letter-spacing: 1.5px; }
 
+/* ── Hand-area Undo Button ── */
+.hand-undo-btn {
+  align-self: stretch;
+  flex-shrink: 0;
+  min-width: 58px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  transition: all .15s;
+}
+.hand-undo-btn:hover:not(:disabled) {
+  background: var(--surface3);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.hand-undo-btn:disabled { opacity: .3; cursor: not-allowed; }
+.hand-undo-btn .undo-icon { font-size: 17px; line-height: 1; }
+.hand-undo-btn .undo-lbl  { font-size: 9px; font-weight: 600; letter-spacing: .8px; }
+
 /* ── Inputs ── */
 input[type=text], select, textarea {
   background: var(--surface2);
@@ -1149,11 +1177,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .sb-toggle:hover { background: var(--surface2); color: var(--text); }
 
 .sb-section {
-  padding: 10px 12px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.sb-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; font-weight: 600; }
+.sb-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; font-weight: 600; }
 
 /* Score grid */
 .sets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
@@ -1996,7 +2024,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
           </div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌（僅洗牌庫順序）">🔀 洗牌</button>
-          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="將所有手牌洗入牌庫">↩ 手牌入庫</button>
           <div class="info-tile clickable" onclick="openDropViewer('self')" title="點擊查看棄牌區 · 可從中回收到手牌"
                ondragover="event.preventDefault(); this.classList.add('target')"
                ondragleave="this.classList.remove('target')"
@@ -2072,16 +2099,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
           </div>
         </div>
       </div>
-      <!-- 本回合動作 -->
+      <!-- 工具 -->
       <div class="sb-section" id="sb-actions">
-        <div class="sb-title">本回合動作</div>
-        <button class="btn xs" id="undo-btn" onclick="undoLastAction()" style="width:100%;margin-bottom:4px" disabled title="復原上一步操作（每回合最多 10 步）">↩ 復原</button>
-        <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:0" title="擲骰子決定先攻後攻">🎲 先攻後攻</button>
+        <div class="sb-title">⚙️ 工具</div>
+        <button class="btn xs" onclick="openDiceModal()" style="width:100%" title="擲骰子決定先攻後攻">🎲 先攻後攻</button>
         <button class="btn xs" onclick="showTutorial()" style="width:100%;margin-top:4px" title="查看遊戲說明">📖 遊戲說明</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px" title="重置本局：雙方所有牌洗回牌庫">🔄 重置本局</button>
       </div>
       <!-- 行動記錄 -->
-      <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
+      <div style="padding:6px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0">行動記錄</div>
       <div id="log-wrap"></div>
     </div>
   </div><!-- /game-body -->
@@ -2110,6 +2136,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <div class="hand-lbl">手牌</div>
     <div id="hand-cards"></div>
     <div id="hand-meta"></div>
+    <button id="undo-btn" class="hand-undo-btn" onclick="undoLastAction()" disabled title="復原上一步操作（每回合最多 10 步）">
+      <span class="undo-icon">↩</span>
+      <span class="undo-lbl">復原</span>
+    </button>
     <button class="btn end-turn" id="end-turn-btn" onclick="endTurn()">
       <span id="hand-end-icon">⚡</span>
       <span id="hand-end-label">結束回合</span>
@@ -2332,9 +2362,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
       </div>
     </div>
     <div class="tut-footer">
-      <label class="tut-no-show">
-        <input type="checkbox" id="tut-no-show-chk"> 下次不再顯示
-      </label>
       <button class="btn primary" onclick="closeTutorial()" style="margin-left:auto;padding:10px 28px;font-size:14px;border-radius:10px">
         了解了！開始對戰 ▶
       </button>
@@ -3116,12 +3143,8 @@ function enterGame() {
   saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
-  // Show tutorial unless suppressed
-  if (localStorage.getItem(TUT_KEY) !== '1') {
-    setTimeout(showTutorial, 400);
-  } else {
-    setTimeout(() => toast('🏐 對戰開始！按 D 鍵抽牌，右鍵手牌查看更多操作'), 800);
-  }
+  // Always show tutorial on game entry
+  setTimeout(showTutorial, 400);
 }
 
 // ══════════════════════════════════════════════════════
@@ -3155,7 +3178,9 @@ function updatePhaseUI(phase, turn) {
 
   if (isSpectator) {
     const actingName = gameState?.players?.[turn]?.name || turn;
-    endBtn.textContent = '觀戰中';
+    document.getElementById('hand-end-icon').textContent  = '👁';
+    document.getElementById('hand-end-label').textContent = '觀戰中';
+    document.getElementById('hand-end-sub').textContent   = 'SPECTATING';
     endBtn.classList.add('opp-turn');
     selfArea.classList.remove('my-turn-glow');
     turnIndicator.textContent = currentAction
@@ -3163,13 +3188,17 @@ function updatePhaseUI(phase, turn) {
       : `${actingName} 思考中...`;
     turnIndicator.className = '';
   } else if (isMyTurn) {
-    endBtn.textContent = '結束回合 ▶';
+    document.getElementById('hand-end-icon').textContent  = '⚡';
+    document.getElementById('hand-end-label').textContent = '結束回合';
+    document.getElementById('hand-end-sub').textContent   = 'END TURN';
     endBtn.classList.remove('opp-turn');
     selfArea.classList.add('my-turn-glow');
     turnIndicator.textContent = '我的回合';
     turnIndicator.className = 'my';
   } else {
-    endBtn.textContent = '對手回合中...';
+    document.getElementById('hand-end-icon').textContent  = '⏳';
+    document.getElementById('hand-end-label').textContent = '對手回合中';
+    document.getElementById('hand-end-sub').textContent   = 'OPP TURN';
     endBtn.classList.add('opp-turn');
     const oppRole = myRole === 'host' ? 'guest' : 'host';
     const oppName = gameState?.players?.[oppRole]?.name || '對手';
@@ -3640,6 +3669,8 @@ function renderHand() {
       wrap.appendChild(e);
     }
     updateHandMeta();
+    const sbElEmpty = document.getElementById(`sb-hand-${myRole}-val`);
+    if (sbElEmpty) sbElEmpty.textContent = 0;
     syncHandCount(); saveSession();
     return;
   }
@@ -3671,6 +3702,9 @@ function renderHand() {
   while (wrap.children.length > placed.length) wrap.removeChild(wrap.lastChild);
 
   updateHandMeta();
+  // Update sidebar hand count immediately (no need to wait for Firebase round-trip)
+  const sbEl = document.getElementById(`sb-hand-${myRole}-val`);
+  if (sbEl) sbEl.textContent = L.hand.length;
   syncHandCount(); saveSession();
 }
 
@@ -4229,8 +4263,9 @@ function updateUndoBtn() {
   const btn = document.getElementById('undo-btn');
   if (!btn) return;
   const n = L.undoStack.length;
-  btn.textContent = n ? `↩ 復原 (${n})` : '↩ 復原';
-  btn.disabled    = (n === 0);
+  const lbl = btn.querySelector('.undo-lbl');
+  if (lbl) lbl.textContent = n ? `復原(${n})` : '復原';
+  btn.disabled = (n === 0);
 }
 
 // ══════════════════════════════════════════════════════
@@ -4309,18 +4344,6 @@ function shufflePile() {
   addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
 }
 
-function shuffleHandToPile() {
-  if (!L.hand.length) { toast('手牌已空'); return; }
-  saveUndo();
-  const count = L.hand.length;
-  L.pile.push(...L.hand.splice(0));
-  shuffle(L.pile);
-  document.getElementById('self-deck').textContent = L.pile.length;
-  syncPileCount();
-  renderHand();
-  toast(`${count} 張手牌洗入牌庫`);
-  addLog(L.name, `↩ ${count} 張手牌洗入牌庫（牌庫 ${L.pile.length} 張）`);
-}
 
 function calcBaseScoreFromZones(zones) {
   const tossImg   = zones?.toss?.img;
@@ -5540,16 +5563,11 @@ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ══════════════════════════════════════════════════════
 // TUTORIAL MODAL
 // ══════════════════════════════════════════════════════
-const TUT_KEY = 'hv_no_tutorial';
-
 function showTutorial() {
   document.getElementById('tutorial-overlay').style.display = 'flex';
 }
 
 function closeTutorial() {
-  if (document.getElementById('tut-no-show-chk')?.checked) {
-    localStorage.setItem(TUT_KEY, '1');
-  }
   document.getElementById('tutorial-overlay').style.display = 'none';
 }
 
