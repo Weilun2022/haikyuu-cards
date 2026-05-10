@@ -2699,6 +2699,7 @@ async function createRoom() {
   db.ref(`rooms/${id}`).onDisconnect().remove();
   db.ref(`games/${id}`).onDisconnect().remove();
 
+  if (gameRef) gameRef.off();
   gameRef = db.ref(`games/${id}`);
   listenGame();
   showWaitingScreen(id);
@@ -2733,6 +2734,7 @@ async function joinRoom(id) {
   db.ref(`games/${id}/players/guest`).onDisconnect().remove();
   db.ref(`rooms/${id}/status`).onDisconnect().set('waiting');
 
+  if (gameRef) gameRef.off();
   gameRef = db.ref(`games/${id}`);
   listenGame();
   showWaitingScreen(id);
@@ -2748,6 +2750,7 @@ async function spectateRoom(id) {
   roomId = id;
   myRole = 'host'; // used only for opp calculation; spectator sees both sides as read-only
 
+  if (gameRef) gameRef.off();
   gameRef = db.ref(`games/${id}`);
   listenGame();
 
@@ -4609,12 +4612,14 @@ let _syncPileTimer = 0, _syncHandTimer = 0;
 async function syncPileCount() {
   clearTimeout(_syncPileTimer);
   _syncPileTimer = setTimeout(async () => {
+    if (!roomId || !myRole) return;
     await db.ref(`games/${roomId}/players/${myRole}/pileCount`).set(L.pile.length);
     saveSession();
   }, 150);
 }
 function syncHandCount() {
   clearTimeout(_syncHandTimer);
+  if (!roomId || !myRole) return;
   db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
 }
 
@@ -5761,9 +5766,11 @@ async function chooseTurn(choice) {
   });
   await db.ref(`games/${roomId}/turn`).set(firstRole);
   // Auto-close the dice modal after showing result, then clear Firebase diceRoll
+  // Capture roomId now — player might leave during the 2.5s wait
+  const _diceRoomId = roomId;
   setTimeout(async () => {
     closeDiceModal();
-    await db.ref(`games/${roomId}/diceRoll`).remove();
+    if (_diceRoomId) await db.ref(`games/${_diceRoomId}/diceRoll`).remove();
   }, 2500);
 }
 
