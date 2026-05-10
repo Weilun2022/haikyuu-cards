@@ -3209,11 +3209,15 @@ function updatePhaseUI(phase, turn) {
   document.documentElement.style.setProperty('--pc', meta.color);
   document.documentElement.style.setProperty('--pc-bg', meta.bg);
   const pill = document.getElementById('phase-pill');
-  pill.style.color = meta.color;
-  pill.style.borderColor = meta.color + '66';
-  pill.style.background = meta.bg;
-  document.getElementById('phase-icon').textContent = meta.icon;
-  document.getElementById('h-phase').textContent = currentAction ? meta.label : (turn === myRole ? '（未選擇）' : (PHASE_META[phase]?.label || ''));
+  if (pill) {
+    pill.style.color = meta.color;
+    pill.style.borderColor = meta.color + '66';
+    pill.style.background = meta.bg;
+  }
+  const phaseIcon = document.getElementById('phase-icon');
+  if (phaseIcon) phaseIcon.textContent = meta.icon;
+  const hPhase = document.getElementById('h-phase');
+  if (hPhase) hPhase.textContent = currentAction ? meta.label : (turn === myRole ? '（未選擇）' : (PHASE_META[phase]?.label || ''));
 
   const isMyTurn = turn === myRole;
   const endBtn = document.getElementById('end-turn-btn');
