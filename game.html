@@ -1624,6 +1624,67 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 22px; font-weight: 700; color: rgba(255,255,255,.65);
   letter-spacing: 3px; margin-top: 16px; text-transform: uppercase;
 }
+
+/* ══════════════════════════════════════
+   MOVE MODE BANNER
+══════════════════════════════════════ */
+#move-banner {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 3100;
+  background: linear-gradient(135deg, rgba(30,20,60,.97), rgba(22,16,54,.97));
+  border-top: 2px solid var(--accent);
+  padding: 9px 18px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 600;
+  transform: translateY(110%);
+  transition: transform .22s cubic-bezier(.34,1.4,.64,1);
+  pointer-events: none;
+  box-shadow: 0 -4px 24px rgba(108,99,255,.25);
+}
+#move-banner.show {
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.mb-icon { font-size: 18px; flex-shrink: 0; }
+.mb-label { color: var(--accent); white-space: nowrap; }
+.mb-hint  { color: var(--text-dim); font-size: 11px; }
+.mb-sep   { color: var(--border); margin: 0 2px; }
+.mb-esc   {
+  margin-left: auto; flex-shrink: 0;
+  cursor: pointer; color: var(--text-dim); font-size: 11px;
+  border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px;
+  background: var(--surface2); transition: border-color .15s, color .15s;
+  font-family: inherit; font-weight: 600;
+}
+.mb-esc:hover { border-color: var(--accent); color: var(--text); }
+
+/* ══════════════════════════════════════
+   PHASE / ACTION SELECT
+══════════════════════════════════════ */
+.action-select-row {
+  display: flex; gap: 5px; margin-top: 6px;
+}
+.action-btn {
+  flex: 1; padding: 7px 4px; font-size: 11px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-dim); cursor: pointer; font-family: inherit;
+  text-align: center; transition: all .15s; font-weight: 600;
+  letter-spacing: .2px; line-height: 1.2;
+}
+.action-btn:hover:not(:disabled):not(.opp-turn) {
+  border-color: var(--pc); color: var(--text);
+  background: var(--pc-bg);
+}
+.action-btn.selected {
+  background: var(--pc); border-color: transparent; color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4);
+}
+.action-btn:disabled, .action-btn.opp-turn {
+  opacity: .38; cursor: not-allowed;
+}
+.action-btn-icon { display: block; font-size: 14px; }
+.action-btn-lbl  { display: block; font-size: 10px; margin-top: 1px; }
 </style>
 </head>
 <body>
@@ -1789,8 +1850,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <span class="area-name" id="opp-lbl">對手</span>
         <!-- Left: Deck + Drop (mirrored from self) -->
         <div class="board-side">
-          <div class="info-tile"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
-          <div class="info-tile clickable" onclick="openDropViewer('opp')"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
+          <div class="info-tile" title="對手牌庫張數"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('opp')" title="點擊查看對手棄牌區"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
         </div>
         <!-- Court (reversed: block near net = bottom of opp area; columns mirrored) -->
         <div class="board-court opp-court">
@@ -1811,7 +1872,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Right: Set (mirrored from self) -->
         <div class="board-side">
-          <div class="info-tile"><div class="t-label">SET</div><div class="t-val" id="opp-set">0</div></div>
+          <div class="info-tile" title="對手組數池（勝球數）"><div class="t-label">SET</div><div class="t-val" id="opp-set">0</div></div>
         </div>
       </div>
 
@@ -1827,10 +1888,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <span class="area-name self" id="self-lbl">自己</span>
         <!-- Left: Set -->
         <div class="board-side">
-          <div class="info-tile set-pool-tile">
+          <div class="info-tile set-pool-tile" title="組數：每勝一球可補充&#10;點數字從牌庫頂補 2 張">
             <div class="t-label">SET</div>
-            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊從牌庫頂取2張">0</div>
-            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球">輸一球</button>
+            <div class="t-val set-pool-val" id="self-set" onclick="addToSetPool()" title="點擊：從牌庫頂補 2 張到組數池">0</div>
+            <button class="btn xs set-pool-loss-btn" onclick="loseRallySetPool()" title="輸一球：組數 -1，自動結束回合">輸一球</button>
           </div>
         </div>
         <!-- Court (block on top = near net) -->
@@ -1860,9 +1921,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
                ondrop="event.preventDefault(); _pileDrop(event,this)">
             <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
           </div>
-          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌">🔀 洗牌</button>
-          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="手牌洗入牌庫">↩ 手牌入庫</button>
-          <div class="info-tile clickable" onclick="openDropViewer('self')"
+          <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌（僅洗牌庫順序）">🔀 洗牌</button>
+          <button class="btn xs shuffle-btn" onclick="shuffleHandToPile()" title="將所有手牌洗入牌庫">↩ 手牌入庫</button>
+          <div class="info-tile clickable" onclick="openDropViewer('self')" title="點擊查看棄牌區 · 可從中回收到手牌"
                ondragover="event.preventDefault(); this.classList.add('target')"
                ondragleave="this.classList.remove('target')"
                ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
@@ -1875,10 +1936,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
     <!-- Sidebar -->
     <div id="sidebar">
-      <div class="sb-section" style="padding:8px 12px 6px">
+      <div class="sb-section" style="padding:8px 12px 8px">
         <div class="phase-pill" id="phase-pill" style="justify-content:center">
           <span class="phase-icon" id="phase-icon">🏐</span>
           <span id="h-phase">發球階段</span>
+        </div>
+        <div class="action-select-row" id="action-select-row" title="選擇本回合的動作階段">
+          <button class="action-btn" data-phase="serve"   onclick="selectAction('serve')"   title="發球階段">
+            <span class="action-btn-icon">🏐</span><span class="action-btn-lbl">發球</span>
+          </button>
+          <button class="action-btn" data-phase="receive" onclick="selectAction('receive')" title="接球階段">
+            <span class="action-btn-icon">🤝</span><span class="action-btn-lbl">接球</span>
+          </button>
+          <button class="action-btn" data-phase="block"   onclick="selectAction('block')"   title="攔網階段">
+            <span class="action-btn-icon">🛡️</span><span class="action-btn-lbl">攔網</span>
+          </button>
         </div>
       </div>
       <div class="sb-section">
@@ -1943,11 +2015,20 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
       <div class="sb-section" id="sb-actions">
         <div class="sb-title">本回合動作</div>
-        <button class="btn xs" id="undo-btn" onclick="undoLastAction()" style="width:100%;margin-bottom:4px" disabled>↩ 復原</button>
-        <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:0">🎲 先攻後攻</button>
-        <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px">🔄 重置本局</button>
+        <button class="btn xs" id="undo-btn" onclick="undoLastAction()" style="width:100%;margin-bottom:4px" disabled title="復原上一步操作（每回合最多 10 步）">↩ 復原</button>
+        <button class="btn xs" onclick="openDiceModal()" style="width:100%;margin-top:0" title="擲骰子決定先攻後攻">🎲 先攻後攻</button>
+        <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px" title="重置本局：雙方所有牌洗回牌庫">🔄 重置本局</button>
       </div>
 
+      <div style="padding:6px 12px;font-size:10px;color:var(--text-dim);border-top:1px solid var(--border);line-height:1.8;opacity:.75">
+        <span title="D 鍵抽牌">⌨️ <b>D</b> 抽牌</span>
+        <span style="margin:0 6px">·</span>
+        <span title="Enter 鍵結束回合"><b>↵</b> 結束回合</span>
+        <span style="margin:0 6px">·</span>
+        <span title="Esc 取消移動/關閉"><b>Esc</b> 取消</span>
+        <span style="margin:0 6px">·</span>
+        <span title="右鍵手牌顯示更多選項"><b>右鍵</b> 手牌選單</span>
+      </div>
       <div style="padding:8px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase">行動記錄</div>
       <div id="log-wrap"></div>
     </div>
@@ -1958,6 +2039,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <span class="guts-text">🔶 Guts 模式</span>
     <span class="guts-hint">點擊場上角色牌以疊放 Guts</span>
     <button class="btn xs" onclick="cancelGuts()">取消</button>
+  </div>
+
+  <!-- Move mode banner -->
+  <div id="move-banner">
+    <span class="mb-icon" id="mb-icon">🃏</span>
+    <span class="mb-label" id="mb-label">移動模式</span>
+    <span class="mb-sep">·</span>
+    <span class="mb-hint" id="mb-hint">點擊目標區域放置</span>
+    <button class="mb-esc" onclick="exitMoveMode()">Esc 取消</button>
   </div>
 
   <!-- Hand -->
@@ -2054,6 +2144,19 @@ input[type=text]::placeholder { color: var(--text-dim); }
   </div>
 </div>
 
+<!-- General confirm modal -->
+<div id="gen-confirm-overlay" style="display:none;position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="_genConfirmClose(false)">
+  <div id="gen-confirm-box" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 28px 22px;max-width:360px;width:90%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.7)" onclick="event.stopPropagation()">
+    <div id="gen-confirm-icon" style="font-size:32px;margin-bottom:10px">⚠️</div>
+    <div id="gen-confirm-title" style="font-size:16px;font-weight:700;margin-bottom:8px"></div>
+    <div id="gen-confirm-body"  style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button class="btn" id="gen-confirm-cancel-btn" onclick="_genConfirmClose(false)" style="flex:1;max-width:120px">取消</button>
+      <button class="btn primary" id="gen-confirm-ok-btn" onclick="_genConfirmClose(true)" style="flex:1;max-width:160px">確認</button>
+    </div>
+  </div>
+</div>
+
 <!-- Dice roll overlay -->
 <div id="dice-overlay" onclick="closeDiceModal()">
   <div id="dice-modal" onclick="event.stopPropagation()">
@@ -2120,6 +2223,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <div id="atk-alert">
   <div id="atk-alert-val"></div>
   <div id="atk-alert-label">對手攻擊力</div>
+  <div id="atk-alert-hint" style="font-size:14px;color:rgba(255,255,255,.5);margin-top:6px;letter-spacing:1px">出牌後自動消失</div>
 </div>
 
 <!-- Toast -->
@@ -2222,8 +2326,15 @@ function saveConfig() {
   startFirebase(cfg);
 }
 
-function clearConfig() {
-  if (!confirm('清除 Firebase 設定？')) return;
+async function clearConfig() {
+  const ok = await showConfirm({
+    icon: '🔥',
+    title: '清除 Firebase 設定？',
+    body: '清除後需重新輸入 Firebase 設定才能連線。',
+    okText: '確認清除',
+    okDanger: true,
+  });
+  if (!ok) return;
   localStorage.removeItem(CONFIG_KEY);
   location.reload();
 }
@@ -2820,6 +2931,7 @@ function enterGame() {
   saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
+  setTimeout(() => toast('🏐 對戰開始！按 D 鍵抽牌，右鍵手牌查看更多操作'), 800);
 }
 
 // ══════════════════════════════════════════════════════
@@ -2844,9 +2956,11 @@ function updatePhaseUI(phase, turn) {
   const selfArea = document.getElementById('self-area');
   const turnIndicator = document.getElementById('turn-indicator');
 
-  // Update radio button highlights
-  document.querySelectorAll('.phase-select-btn').forEach(btn => {
+  // Update action-select button highlights & enabled state
+  document.querySelectorAll('.action-btn').forEach(btn => {
     btn.classList.toggle('selected', isMyTurn && btn.dataset.phase === currentAction);
+    btn.classList.toggle('opp-turn', !isMyTurn || isSpectator);
+    btn.disabled = !isMyTurn || isSpectator;
   });
 
   if (isSpectator) {
@@ -3280,6 +3394,22 @@ function makeHandCard(img, idx) {
     setTimeout(() => div.style.opacity = '.4', 0);
   });
   div.addEventListener('dragend', () => { div.style.opacity = ''; });
+  div.addEventListener('contextmenu', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (isSpectator) return;
+    hideCardHover();
+    const curIdx = +div.dataset.idx;
+    const curImg = L.hand[curIdx];
+    const c = allCards[curImg];
+    showCtx(div, c?.name || curImg, [
+      { icon: '🎯', label: '移至場上', fn: () => onHandClick(curIdx, div, e) },
+      'sep',
+      { icon: '📤', label: '放回牌庫頂', fn: () => { exitMoveMode(); returnHandToPile(curIdx, 'top'); } },
+      { icon: '📥', label: '放回牌庫底', fn: () => { exitMoveMode(); returnHandToPile(curIdx, 'bottom'); } },
+      'sep',
+      { icon: '🗑', label: '棄牌', fn: () => { exitMoveMode(); discardFromHand(curIdx); }, red: true },
+    ]);
+  });
   div.addEventListener('dragover', e => {
     if (!dragData || dragData.src !== 'hand') return;
     e.preventDefault(); e.stopPropagation();
@@ -3511,10 +3641,13 @@ async function handleDrop(targetZone, hasCards) {
         moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
       }
     };
-    showPlaceConfirm('確定要送入棄牌區？', doDiscard, null);
-    document.getElementById('place-confirm-top-btn').textContent = '確定棄牌';
-    document.getElementById('place-confirm-guts-btn').textContent = '取消';
+    // Use confirm-top as "discard", confirm-guts as "cancel"
+    document.getElementById('place-confirm-title').textContent = '確定送入棄牌區？';
+    document.getElementById('place-confirm-top-btn').textContent = '✓ 確認棄牌';
+    document.getElementById('place-confirm-guts-btn').textContent = '✕ 取消';
+    document.getElementById('place-confirm-top-btn').onclick  = () => { closePlaceConfirm(); doDiscard(); };
     document.getElementById('place-confirm-guts-btn').onclick = () => closePlaceConfirm();
+    document.getElementById('place-confirm-overlay').classList.add('open');
     return;
   }
 
@@ -3574,6 +3707,7 @@ function onHandClick(idx, el, e) {
       el.classList.add('selected');
     }
     updateHandMeta();
+    _updateMoveBanner();
     return;
   }
 
@@ -3922,13 +4056,15 @@ function startDragPile(e) {
 function drawCard() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
   if (moveMode) { showPileReturnChoice(); return; }
-  if (!L.pile.length) { toast('牌庫已空！'); return; }
+  if (!L.pile.length) { toast('⚠️ 牌庫已空！請考慮重置本局'); return; }
   saveUndo();
-  drawFromPile();
+  const img = drawFromPile();
+  const cardName = allCards[img]?.name ? `「${allCards[img].name}」` : '';
   addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
   renderHand();
+  if (L.pile.length <= 5) toast(`⚠️ 牌庫剩 ${L.pile.length} 張！`);
 }
 
 function drawFromPile() {
@@ -3956,6 +4092,7 @@ async function returnToPile(fromZone, cardData, position) {
   saveUndo();
   const zones = myZonesCopy();
   removeFromZone(zones, fromZone, cardData.img);
+  zones.drop = zones.drop || [];
   if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
   if (position === 'top') {
     L.pile.push(cardData.img);
@@ -4151,7 +4288,14 @@ function adjustSet() {
 
 async function declareLost() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
-  if (!confirm('重置本局？雙方所有牌洗回牌庫，場面清空，請手動抽牌開始。')) return;
+  const ok = await showConfirm({
+    icon: '🔄',
+    title: '重置本局？',
+    body: '雙方所有牌（手牌、場上、組數）全數洗回各自牌庫，場面清空。重置後需手動抽牌重新開始。',
+    okText: '確認重置',
+    okDanger: true,
+  });
+  if (!ok) return;
 
   // Exit any active move mode / pinned hover immediately
   exitMoveMode();
@@ -4341,9 +4485,15 @@ function layoutHstack(hstack) {
 }
 
 // ── 組數池 ──────────────────────────────────────────
-function addToSetPool() {
+async function addToSetPool() {
   if (L.pile.length < 2) { toast('牌庫不足 2 張'); return; }
-  if (!confirm('從牌庫頂取 2 張放入組數池？')) return;
+  const ok = await showConfirm({
+    icon: '🃏',
+    title: '補充組數池',
+    body: `從牌庫頂取 2 張放入組數池。\n當前牌庫：${L.pile.length} 張`,
+    okText: '確認補牌',
+  });
+  if (!ok) return;
   L.setPool = L.setPool || [];
   L.setPool.push(L.pile.pop(), L.pile.pop());
   const cnt = L.setPool.length;
@@ -4356,8 +4506,15 @@ function addToSetPool() {
 
 async function loseRallySetPool() {
   L.setPool = L.setPool || [];
-  if (!L.setPool.length) { toast('組數池已空'); return; }
-  if (!confirm('輸一球？從組數池取一張到手牌，並自動結束回合。')) return;
+  if (!L.setPool.length) { toast('組數池已空，無法輸球'); return; }
+  const ok = await showConfirm({
+    icon: '😓',
+    title: '確認輸一球？',
+    body: `組數 -1，一張牌加回手牌，並自動結束你的回合。\n剩餘組數：${L.setPool.length} 張`,
+    okText: '確認輸球',
+    okDanger: true,
+  });
+  if (!ok) return;
   const card = L.setPool.pop();
   L.hand.push(card);
   const cnt = L.setPool.length;
@@ -4703,7 +4860,8 @@ function enterMoveMode(mode) {
       t.classList.add('move-target-tile');
     }
   });
-  toast('點擊目標區域放置牌');
+  // Show persistent move banner
+  _updateMoveBanner();
 }
 
 function exitMoveMode() {
@@ -4716,7 +4874,42 @@ function exitMoveMode() {
   ha.classList.remove('move-target-hand');
   ha.onclick = null;
   document.querySelectorAll('.info-tile.move-target-tile').forEach(t => t.classList.remove('move-target-tile'));
+  // Hide move banner
+  const banner = document.getElementById('move-banner');
+  if (banner) banner.classList.remove('show');
   updateHandMeta();
+}
+
+function _updateMoveBanner() {
+  const banner = document.getElementById('move-banner');
+  if (!banner || !moveMode) return;
+  let icon = '🃏', label = '', hint = '';
+  if (moveMode.type === 'hand') {
+    const img = L.hand[moveMode.idx];
+    const card = allCards[img];
+    const selCount = 1 + multiSelect.length;
+    icon = '🃏';
+    if (selCount > 1) {
+      label = `已選 ${selCount} 張手牌`;
+      hint = '點牌組上半放牌頂 / 下半放牌底 · 繼續點手牌累加 · Esc 取消';
+    } else {
+      label = card?.name ? `「${card.name}」已選取` : '手牌已選取';
+      hint = '點場上空格放置 · 右鍵更多選項 · Esc 取消';
+    }
+  } else if (moveMode.type === 'zone') {
+    const card = allCards[moveMode.cardData?.img];
+    icon = '🔄';
+    label = card?.name ? `移動「${card.name}」` : '移動場上角色';
+    hint = '點目標區域移動 · 點手牌區收回 · 點棄牌區棄置 · Esc 取消';
+  } else if (moveMode.type === 'guts') {
+    icon = '🔶';
+    label = `移動 Guts 牌`;
+    hint = '點目標區域移動 · Esc 取消';
+  }
+  document.getElementById('mb-icon').textContent  = icon;
+  document.getElementById('mb-label').textContent = label;
+  document.getElementById('mb-hint').textContent  = hint;
+  banner.classList.add('show');
 }
 
 function executeMoveToZone(targetZone, targetImg = null) {
@@ -5113,6 +5306,32 @@ function myZonesCopy() { return deepCopy(gameState?.players?.[myRole]?.zones || 
 function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// ══════════════════════════════════════════════════════
+// GENERAL CONFIRM MODAL
+// ══════════════════════════════════════════════════════
+let _genConfirmResolve = null;
+
+function showConfirm({ icon = '⚠️', title, body, okText = '確認', cancelText = '取消', okDanger = false }) {
+  return new Promise(resolve => {
+    _genConfirmResolve = resolve;
+    const overlay = document.getElementById('gen-confirm-overlay');
+    document.getElementById('gen-confirm-icon').textContent = icon;
+    document.getElementById('gen-confirm-title').textContent = title;
+    document.getElementById('gen-confirm-body').textContent = body || '';
+    const okBtn = document.getElementById('gen-confirm-ok-btn');
+    okBtn.textContent = okText;
+    okBtn.className = 'btn ' + (okDanger ? 'danger' : 'primary');
+    document.getElementById('gen-confirm-cancel-btn').textContent = cancelText;
+    overlay.style.display = 'flex';
+    okBtn.focus();
+  });
+}
+
+function _genConfirmClose(ok) {
+  document.getElementById('gen-confirm-overlay').style.display = 'none';
+  if (_genConfirmResolve) { _genConfirmResolve(ok); _genConfirmResolve = null; }
+}
+
 let _toastTimer;
 function toast(msg) {
   const el = document.getElementById('toast');
@@ -5128,6 +5347,14 @@ function clearSelection() {
   clearZoneHighlights();
 }
 
+// Hide unpinned card hover when clicking away from hand area
+function cancelPreview() {
+  if (!_hoverPinned) {
+    clearTimeout(_hoverTimer);
+    document.getElementById('card-hover').classList.remove('open');
+  }
+}
+
 // ══════════════════════════════════════════════════════
 // KEYBOARD SHORTCUTS
 // ══════════════════════════════════════════════════════
@@ -5136,6 +5363,9 @@ document.addEventListener('keydown', e => {
   if (!document.getElementById('screen-game').classList.contains('active')) return;
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); drawCard(); }
   if (e.key === 'Escape') {
+    // Close gen-confirm if open
+    const gc = document.getElementById('gen-confirm-overlay');
+    if (gc?.style.display === 'flex') { _genConfirmClose(false); return; }
     closeCtx();
     closeDetail();
     closeDropViewer();
