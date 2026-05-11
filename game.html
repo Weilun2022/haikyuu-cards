@@ -5662,7 +5662,7 @@ function setZoneCard(zones, zoneName, val) {
 
 function deepCopy(o) { try { return JSON.parse(JSON.stringify(o)); } catch(e) { console.error('deepCopy failed', e); return null; } }
 function myZonesCopy() { return deepCopy(gameState?.players?.[myRole]?.zones || emptyZones()); }
-function shuffle(a) { for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} }
+function shuffle(a) { const buf=new Uint32Array(a.length); crypto.getRandomValues(buf); for(let i=a.length-1;i>0;i--){const j=buf[i]%(i+1);[a[i],a[j]]=[a[j],a[i]];} }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ══════════════════════════════════════════════════════
