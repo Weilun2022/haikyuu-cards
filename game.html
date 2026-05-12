@@ -4741,7 +4741,7 @@ function _renderPeekCards() {
     const label = i === 0 ? '牌頂' : i === _peekCards.length - 1 ? '牌底' : `第${i+1}張`;
     div.innerHTML = `
       <div class="peek-card-order">${label}</div>
-      <img class="peek-card-img" src="${esc(img)}" alt="${esc(c?.name||'')}" onclick="showDetail('${esc(img)}')">
+      <img class="peek-card-img" src="images/${esc(img)}" alt="${esc(c?.name||'')}" onclick="showDetail('${esc(img)}')">
       <div class="peek-card-name">${esc(c?.name||img)}</div>
       ${used ? '' : `
       <div class="peek-card-actions">
@@ -4856,7 +4856,7 @@ function handleOppPeek(data, prev) {
       const c   = allCards[img];
       const div = document.createElement('div');
       div.className = 'opp-peek-card';
-      div.innerHTML = `<img src="${esc(img)}" alt="${esc(c?.name||'')}"><div class="opp-peek-card-name">${esc(c?.name||img)}</div>`;
+      div.innerHTML = `<img src="images/${esc(img)}" alt="${esc(c?.name||'')}"><div class="opp-peek-card-name">${esc(c?.name||img)}</div>`;
       cardsEl.appendChild(div);
     });
     banner.classList.add('show');
