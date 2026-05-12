@@ -4741,7 +4741,7 @@ function _renderPeekCards() {
     const label = i === 0 ? '牌頂' : i === _peekCards.length - 1 ? '牌底' : `第${i+1}張`;
     div.innerHTML = `
       <div class="peek-card-order">${label}</div>
-      <img class="peek-card-img" src="images/${esc(img)}" alt="${esc(c?.name||'')}" onclick="showDetail('${esc(img)}')">
+      <img class="peek-card-img" src="images/${esc(img)}" alt="${esc(c?.name||'')}">
       <div class="peek-card-name">${esc(c?.name||img)}</div>
       ${used ? '' : `
       <div class="peek-card-actions">
@@ -4751,6 +4751,11 @@ function _renderPeekCards() {
         <button class="red" onclick="_peekPlace(${i},'drop')">🗑 棄牌</button>
       </div>`}
     `;
+    const imgEl = div.querySelector('.peek-card-img');
+    imgEl.addEventListener('mouseenter', e => showCardHover(img, e));
+    imgEl.addEventListener('mousemove',  e => _posCardHover(e));
+    imgEl.addEventListener('mouseleave', hideCardHover);
+    imgEl.addEventListener('click',      () => showDetail(img));
     row.appendChild(div);
   });
 }
