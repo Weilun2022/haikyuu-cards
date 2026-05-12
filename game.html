@@ -1709,6 +1709,181 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .mb-esc:hover { border-color: var(--accent); color: var(--text); }
 
 /* ══════════════════════════════════════
+   DECK PEEK
+══════════════════════════════════════ */
+#peek-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 4800;
+  background: rgba(0,0,0,.65);
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#peek-overlay.open { display: flex; }
+#peek-setup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px 26px 20px;
+  width: 272px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.8);
+}
+.peek-setup-title { font-size: 15px; font-weight: 800; align-self: flex-start; }
+.peek-stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.peek-stepper-label { flex: 1; font-size: 13px; color: var(--text-dim); }
+.peek-step-val { font-size: 22px; font-weight: 700; min-width: 30px; text-align: center; }
+.peek-step-btn {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s, border-color .12s;
+  font-family: inherit;
+}
+.peek-step-btn:hover:not(:disabled) { background: var(--surface3); border-color: var(--accent); }
+.peek-step-btn:disabled { opacity: .3; cursor: not-allowed; }
+.peek-mode-row { display: flex; gap: 8px; width: 100%; }
+.peek-mode-btn {
+  flex: 1;
+  padding: 8px 0;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.peek-mode-btn.active {
+  border-color: var(--accent);
+  background: rgba(108,99,255,.15);
+  color: var(--text);
+}
+.peek-mode-desc { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.5; width: 100%; }
+/* Peek result panel */
+#peek-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 20px 16px;
+  max-width: 700px;
+  width: 96vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.8);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.peek-panel-hd { display: flex; align-items: center; justify-content: space-between; }
+.peek-panel-title { font-size: 14px; font-weight: 800; }
+.peek-panel-close {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+}
+.peek-panel-close:hover { background: var(--surface2); color: var(--text); }
+.peek-cards-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.peek-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 96px;
+  transition: opacity .2s;
+}
+.peek-card.used { opacity: .3; pointer-events: none; }
+.peek-card-order { font-size: 10px; color: var(--text-dim); }
+.peek-card-img {
+  width: 100%;
+  aspect-ratio: 0.714;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 4px 14px rgba(0,0,0,.6);
+  cursor: pointer;
+}
+.peek-card-name {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.peek-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  width: 100%;
+}
+.peek-card-actions button {
+  padding: 3px 0;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .1s;
+  white-space: nowrap;
+}
+.peek-card-actions button:hover { background: var(--surface3); color: var(--text); border-color: var(--accent); }
+.peek-card-actions button.red:hover { border-color: var(--accent2); color: var(--accent2); }
+.peek-done-row { display: flex; gap: 8px; justify-content: flex-end; }
+/* Opponent public peek banner */
+#opp-peek-banner {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-width: 220px;
+  max-width: 480px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.7);
+}
+#opp-peek-banner.show { display: block; }
+.opp-peek-hd { font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; }
+.opp-peek-cards { display: flex; gap: 6px; flex-wrap: wrap; }
+.opp-peek-card { width: 52px; }
+.opp-peek-card img { width: 100%; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+.opp-peek-card-name { font-size: 9px; color: var(--text-dim); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
+
+/* ══════════════════════════════════════
    TUTORIAL MODAL
 ══════════════════════════════════════ */
 #tutorial-overlay {
@@ -2042,7 +2217,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
         <!-- Right: Deck + Drop -->
         <div class="board-side">
-          <div class="info-tile clickable" id="pile-tile" onclick="_onPileTileClick(event)" title="點擊抽牌 / 拖曳直接放場上"
+          <div class="info-tile clickable" id="pile-tile" onclick="_onPileTileClick(event)" oncontextmenu="event.preventDefault();openPeekSetup()" title="點擊抽牌 / 右鍵翻牌頂 / 拖曳直接放場上"
                draggable="true"
                ondragstart="startDragPile(event)"
                ondragover="event.preventDefault(); _pileHoverSplit(event,this)"
@@ -2220,6 +2395,45 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <button class="btn primary" id="ha-move-btn">移動</button>
     <button class="btn" onclick="closeHandAction()">關閉</button>
   </div>
+</div>
+
+<!-- Deck Peek -->
+<div id="peek-overlay" onclick="_peekOverlayClick(event)">
+  <!-- Step 1: setup -->
+  <div id="peek-setup" onclick="event.stopPropagation()">
+    <div class="peek-setup-title">🔍 翻牌頂</div>
+    <div class="peek-stepper">
+      <span class="peek-stepper-label">查看張數</span>
+      <button class="peek-step-btn" id="peek-minus" onclick="_peekAdj(-1)" disabled>−</button>
+      <span class="peek-step-val" id="peek-count-val">1</span>
+      <button class="peek-step-btn" id="peek-plus"  onclick="_peekAdj(1)">+</button>
+    </div>
+    <div class="peek-mode-row">
+      <button class="peek-mode-btn active" id="peek-priv-btn" onclick="_peekSetMode('private')">🔒 私看</button>
+      <button class="peek-mode-btn"        id="peek-pub-btn"  onclick="_peekSetMode('public')">👁 公開</button>
+    </div>
+    <div class="peek-mode-desc" id="peek-mode-desc">僅自己可見牌面，對手只看到提示</div>
+    <button class="btn primary" style="width:100%" onclick="executePeek()">翻牌</button>
+    <button class="btn" style="width:100%;margin-top:-6px" onclick="closePeek()">取消</button>
+  </div>
+  <!-- Step 2: result -->
+  <div id="peek-panel" style="display:none" onclick="event.stopPropagation()">
+    <div class="peek-panel-hd">
+      <span class="peek-panel-title" id="peek-panel-title">牌頂（1 張）</span>
+      <button class="peek-panel-close" onclick="closePeek()">✕</button>
+    </div>
+    <div class="peek-cards-row" id="peek-cards-row"></div>
+    <div class="peek-done-row">
+      <button class="btn sm" onclick="_peekReturnAll()">全部放回牌頂</button>
+      <button class="btn sm primary" onclick="closePeek()">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- Opponent public peek banner -->
+<div id="opp-peek-banner">
+  <div class="opp-peek-hd" id="opp-peek-hd">對手翻牌頂</div>
+  <div class="opp-peek-cards" id="opp-peek-cards"></div>
 </div>
 
 <!-- Stack viewer -->
@@ -3004,6 +3218,7 @@ function syncUI(data, prev) {
       handleDiceRollUpdate(data);
       handleRoundReset(data);
       handlePresenceChange(data, prev);
+      handleOppPeek(data, prev);
     }
   }
 }
@@ -3306,6 +3521,8 @@ async function endTurn() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
   console.log('[endTurn] called | gameState.turn:', gameState?.turn, '| myRole:', myRole, '| roomId:', roomId);
   if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
+  // Auto-close any open peek (returns unplaced cards to pile)
+  if (document.getElementById('peek-overlay').classList.contains('open')) closePeek();
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const action = gameState?.currentAction || null;
   const actionLabel = action ? (PHASE_META[action]?.label || action) : '（無動作）';
@@ -4449,6 +4666,204 @@ function shufflePile() {
   addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
 }
 
+// ══════════════════════════════════════════════════════
+// DECK PEEK
+// ══════════════════════════════════════════════════════
+let _peekCount = 1;
+let _peekMode  = 'private';
+let _peekCards = []; // imgs removed from pile top during peek
+let _peekUsed  = new Set(); // indices of _peekCards already placed
+
+function openPeekSetup() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!L.pile.length) { toast('牌庫已空'); return; }
+  _peekCount = 1;
+  _peekMode  = 'private';
+  _peekCards = [];
+  _peekUsed  = new Set();
+  document.getElementById('peek-count-val').textContent = 1;
+  document.getElementById('peek-minus').disabled = true;
+  document.getElementById('peek-plus').disabled  = (L.pile.length <= 1);
+  _peekSetMode('private');
+  document.getElementById('peek-setup').style.display = '';
+  document.getElementById('peek-panel').style.display  = 'none';
+  document.getElementById('peek-overlay').classList.add('open');
+}
+
+function _peekAdj(d) {
+  const max = Math.min(L.pile.length, 10);
+  _peekCount = Math.max(1, Math.min(max, _peekCount + d));
+  document.getElementById('peek-count-val').textContent = _peekCount;
+  document.getElementById('peek-minus').disabled = (_peekCount <= 1);
+  document.getElementById('peek-plus').disabled  = (_peekCount >= max);
+}
+
+function _peekSetMode(m) {
+  _peekMode = m;
+  document.getElementById('peek-priv-btn').classList.toggle('active', m === 'private');
+  document.getElementById('peek-pub-btn').classList.toggle('active',  m === 'public');
+  document.getElementById('peek-mode-desc').textContent =
+    m === 'private' ? '僅自己可見牌面，對手只看到提示' : '對手也能即時看到翻出的牌';
+}
+
+function executePeek() {
+  const n = Math.min(_peekCount, L.pile.length);
+  if (!n) { toast('牌庫已空'); return; }
+  saveUndo();
+  // splice from pile top (last n elements), reverse so index 0 = topmost card
+  _peekCards = L.pile.splice(L.pile.length - n, n).reverse();
+  _peekUsed  = new Set();
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+
+  if (_peekMode === 'private') {
+    db.ref(`games/${roomId}/peekNotif`).set({ by: myRole, count: n, ts: Date.now() });
+  } else {
+    db.ref(`games/${roomId}/peekReveal`).set({ by: myRole, cards: _peekCards, ts: Date.now() });
+  }
+  addLog(L.name, `🔍 翻牌頂（${n} 張，${_peekMode === 'private' ? '私看' : '公開'}）`);
+
+  document.getElementById('peek-setup').style.display = 'none';
+  document.getElementById('peek-panel').style.display  = '';
+  document.getElementById('peek-panel-title').textContent =
+    `牌頂（${n} 張）${_peekMode === 'public' ? '　👁 公開中' : '　🔒 私看'}`;
+  _renderPeekCards();
+}
+
+function _renderPeekCards() {
+  const row = document.getElementById('peek-cards-row');
+  row.innerHTML = '';
+  _peekCards.forEach((img, i) => {
+    const c    = allCards[img];
+    const used = _peekUsed.has(i);
+    const div  = document.createElement('div');
+    div.className = 'peek-card' + (used ? ' used' : '');
+    const label = i === 0 ? '牌頂' : i === _peekCards.length - 1 ? '牌底' : `第${i+1}張`;
+    div.innerHTML = `
+      <div class="peek-card-order">${label}</div>
+      <img class="peek-card-img" src="${esc(img)}" alt="${esc(c?.name||'')}" onclick="showDetail('${esc(img)}')">
+      <div class="peek-card-name">${esc(c?.name||img)}</div>
+      ${used ? '' : `
+      <div class="peek-card-actions">
+        <button onclick="_peekPlace(${i},'top')">↑ 牌頂</button>
+        <button onclick="_peekPlace(${i},'bottom')">↓ 牌底</button>
+        <button onclick="_peekPlace(${i},'hand')">✋ 手牌</button>
+        <button class="red" onclick="_peekPlace(${i},'drop')">🗑 棄牌</button>
+      </div>`}
+    `;
+    row.appendChild(div);
+  });
+}
+
+async function _peekPlace(idx, where) {
+  if (_peekUsed.has(idx)) return;
+  const img  = _peekCards[idx];
+  const name = allCards[img]?.name || img;
+  _peekUsed.add(idx);
+
+  if (where === 'top') {
+    L.pile.push(img);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
+    addLog(L.name, `🔍 ${name} → 牌頂`);
+  } else if (where === 'bottom') {
+    L.pile.unshift(img);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
+    addLog(L.name, `🔍 ${name} → 牌底`);
+  } else if (where === 'hand') {
+    L.hand.push(img);
+    db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+    renderHand();
+    addLog(L.name, `🔍 ${name} → 手牌（手牌 ${L.hand.length} 張）`);
+  } else if (where === 'drop') {
+    const zones = myZonesCopy();
+    zones.drop.push(img);
+    await pushZones(zones);
+    document.getElementById('self-drop').textContent = zones.drop.length;
+    addLog(L.name, `🔍 ${name} → 棄牌`);
+  }
+
+  // Update public reveal for opponent
+  if (_peekMode === 'public') {
+    const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
+    if (remaining.length) db.ref(`games/${roomId}/peekReveal`).update({ cards: remaining });
+    else                  db.ref(`games/${roomId}/peekReveal`).remove();
+  }
+
+  _renderPeekCards();
+  if (_peekUsed.size === _peekCards.length) setTimeout(closePeek, 350);
+}
+
+function _peekReturnAll() {
+  const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
+  // Push in reverse so index 0 ends up on top
+  for (let i = remaining.length - 1; i >= 0; i--) L.pile.push(remaining[i]);
+  _peekCards.forEach((_, i) => _peekUsed.add(i));
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+  if (remaining.length) addLog(L.name, `🔍 ${remaining.length} 張放回牌頂`);
+  closePeek();
+}
+
+function closePeek() {
+  // Return any unplaced cards to pile top in order
+  const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
+  if (remaining.length) {
+    for (let i = remaining.length - 1; i >= 0; i--) L.pile.push(remaining[i]);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
+  }
+  db.ref(`games/${roomId}/peekNotif`).remove();
+  db.ref(`games/${roomId}/peekReveal`).remove();
+  _peekCards = [];
+  _peekUsed  = new Set();
+  document.getElementById('peek-overlay').classList.remove('open');
+}
+
+function _peekOverlayClick(e) {
+  if (e.target === document.getElementById('peek-overlay')) closePeek();
+}
+
+// Opponent-side peek display (called from syncUI)
+function handleOppPeek(data, prev) {
+  const oppRole = myRole === 'host' ? 'guest' : 'host';
+  const oppName = data.players?.[oppRole]?.name || '對手';
+  const banner  = document.getElementById('opp-peek-banner');
+
+  const notif  = data.peekNotif;
+  const reveal = data.peekReveal;
+
+  if (notif && notif.by === oppRole) {
+    // Private peek: show simple banner
+    const prevNotif = prev?.peekNotif;
+    if (!prevNotif || prevNotif.ts !== notif.ts) {
+      toast(`🔍 ${oppName} 正在查看牌頂 ${notif.count} 張`);
+    }
+    document.getElementById('opp-peek-hd').textContent = `🔍 ${oppName} 查看牌頂（${notif.count} 張）`;
+    document.getElementById('opp-peek-cards').innerHTML = '';
+    banner.classList.add('show');
+  } else if (reveal && reveal.by === oppRole) {
+    // Public peek: show cards
+    const prevReveal = prev?.peekReveal;
+    if (!prevReveal || prevReveal.ts !== reveal.ts) {
+      toast(`👁 ${oppName} 公開翻牌頂 ${(reveal.cards||[]).length} 張`);
+    }
+    document.getElementById('opp-peek-hd').textContent = `👁 ${oppName} 公開翻牌頂`;
+    const cardsEl = document.getElementById('opp-peek-cards');
+    cardsEl.innerHTML = '';
+    (reveal.cards || []).forEach(img => {
+      const c   = allCards[img];
+      const div = document.createElement('div');
+      div.className = 'opp-peek-card';
+      div.innerHTML = `<img src="${esc(img)}" alt="${esc(c?.name||'')}"><div class="opp-peek-card-name">${esc(c?.name||img)}</div>`;
+      cardsEl.appendChild(div);
+    });
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
 
 function calcBaseScoreFromZones(zones) {
   const tossImg   = zones?.toss?.img;
