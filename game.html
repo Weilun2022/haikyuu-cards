@@ -1204,37 +1204,70 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .sb-toggle:hover { background: var(--surface2); color: var(--text); }
 
 .sb-section {
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-.sb-title { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; font-weight: 600; }
+.sb-title {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  margin-bottom: 5px;
+  font-weight: 700;
+  padding-left: 7px;
+  border-left: 3px solid var(--border);
+}
+#sb-score .sb-title  { border-left-color: #facc15; color: #facc15; }
+#sb-hand  .sb-title  { border-left-color: var(--blue); color: var(--blue); }
+#sb-atk   .sb-title  { border-left-color: var(--orange); color: var(--orange); }
+#sb-actions .sb-title { border-left-color: var(--text-dim); }
 
 /* Score grid */
-.sets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .set-box {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 8px;
+  border-radius: 8px;
+  padding: 5px 8px;
   text-align: center;
 }
 .set-box.active { border-color: rgba(108,99,255,.4); background: rgba(108,99,255,.06); }
-.set-box .sb-av { font-size: 16px; margin-bottom: 2px; }
+.set-box .sb-av { font-size: 12px; margin-bottom: 1px; }
 .set-box .sb-name { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.set-box .sb-num { font-size: 28px; font-weight: 900; color: var(--accent); line-height: 1.1; }
-.set-box .sb-btns { display: flex; gap: 4px; justify-content: center; margin-top: 5px; }
+.set-box .sb-num { font-size: 22px; font-weight: 900; color: var(--accent); line-height: 1.1; }
+.set-box .sb-btns { display: flex; gap: 4px; justify-content: center; margin-top: 4px; }
 
 /* Phase controls */
 .phase-row { display: flex; gap: 5px; margin-bottom: 6px; }
 .phase-row select { flex: 1; font-size: 12px; padding: 6px 8px; }
 
 /* Log */
-#log-wrap { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; }
-.log-line { font-size: 11px; color: var(--text-dim); line-height: 1.4; border-bottom: 1px solid #1e1e2e; padding-bottom: 3px; }
-.log-line .lp { color: var(--accent); font-weight: 600; }
-.log-line .lp.opp { color: var(--accent2); }
-.log-line .lt { color: var(--border); float: right; }
+#log-wrap { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+.log-line {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.45;
+  padding: 4px 6px;
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+}
+.log-line.opp {
+  color: var(--text);
+  font-size: 12px;
+  border-left-color: var(--accent2);
+  background: rgba(255,101,132,.07);
+}
+.log-line.sys {
+  font-style: italic;
+  font-size: 10px;
+  text-align: center;
+  color: var(--text-dim);
+  opacity: .7;
+}
+.log-line .lp { color: var(--accent); font-weight: 700; }
+.log-line.opp .lp { color: var(--accent2); }
+.log-line .lt { color: var(--border); float: right; font-size: 10px; }
 
 /* card-preview removed */
 
@@ -2240,8 +2273,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <!-- Sidebar -->
     <div id="sidebar">
       <!-- 局數戰績 -->
-      <div class="sb-section">
-        <div class="sb-title">局數戰績</div>
+      <div class="sb-section" id="sb-score">
+        <div class="sb-title">🏆 局數戰績</div>
         <div class="sets-grid">
           <div class="set-box" id="sb-box-host">
             <div class="sb-av" id="sb-host-av">🦅</div>
@@ -2264,8 +2297,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
       </div>
       <!-- 手牌數量 -->
-      <div class="sb-section">
-        <div class="sb-title">手牌數量</div>
+      <div class="sb-section" id="sb-hand">
+        <div class="sb-title">🃏 手牌數量</div>
         <div class="sets-grid">
           <div class="set-box" id="sb-hand-host">
             <div class="sb-av" id="sb-hand-host-av">🦅</div>
@@ -2280,8 +2313,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
         </div>
       </div>
       <!-- 攻擊值 -->
-      <div class="sb-section">
-        <div class="sb-title">攻擊值</div>
+      <div class="sb-section" id="sb-atk">
+        <div class="sb-title">⚡ 攻擊值</div>
         <div class="sets-grid">
           <div class="set-box" id="net-score-host">
             <div class="sb-name" id="net-score-host-name">—</div>
@@ -2309,7 +2342,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px" title="重置本局：雙方所有牌洗回牌庫">🔄 重置本局</button>
       </div>
       <!-- 行動記錄 -->
-      <div style="padding:6px 12px;font-size:10px;color:var(--text-dim);border-bottom:1px solid var(--border);font-weight:600;letter-spacing:.5px;text-transform:uppercase;flex-shrink:0">行動記錄</div>
+      <div style="padding:6px 12px 5px;font-size:10px;color:var(--accent);border-bottom:1px solid var(--border);font-weight:700;letter-spacing:.8px;text-transform:uppercase;flex-shrink:0;border-left:3px solid var(--accent);margin-left:0">📋 行動記錄</div>
       <div id="log-wrap"></div>
     </div>
   </div><!-- /game-body -->
@@ -5159,10 +5192,15 @@ function renderLog(log) {
   const oppName = gameState?.players?.[oppRole]?.name;
   entries.forEach(e => {
     const d = document.createElement('div');
-    d.className = 'log-line';
+    const isSys = e.player === 'system';
+    const isOpp = !isSys && e.player && e.player !== L.name;
+    d.className = 'log-line' + (isOpp ? ' opp' : '') + (isSys ? ' sys' : '');
     const t = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
-    const isOpp = e.player && e.player !== L.name && e.player !== 'system';
-    d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
+    if (isSys) {
+      d.innerHTML = `${esc(e.action)} <span class="lt">${t}</span>`;
+    } else {
+      d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
+    }
     el.appendChild(d);
   });
 }
