@@ -5169,8 +5169,10 @@ async function syncPileCount() {
 }
 function syncHandCount() {
   clearTimeout(_syncHandTimer);
-  if (!roomId || !myRole) return;
-  db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+  _syncHandTimer = setTimeout(() => {
+    if (!roomId || !myRole) return;
+    db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+  }, 150);
 }
 
 function cardState() {
@@ -5184,25 +5186,51 @@ async function addLog(player, action) {
   });
 }
 
+let _logRenderedKeys = new Set();
+
+function _makeLogLine(e) {
+  const d = document.createElement('div');
+  const isSys = e.player === 'system';
+  const isOpp = !isSys && e.player && e.player !== L.name;
+  d.className = 'log-line' + (isOpp ? ' opp' : '') + (isSys ? ' sys' : '');
+  const t = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
+  if (isSys) {
+    d.innerHTML = `${esc(e.action)} <span class="lt">${t}</span>`;
+  } else {
+    d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
+  }
+  return d;
+}
+
 function renderLog(log) {
   const el = document.getElementById('log-wrap');
-  const entries = Object.values(log || {}).slice(-50).reverse();
-  el.innerHTML = '';
-  const oppRole = myRole === 'host' ? 'guest' : 'host';
-  const oppName = gameState?.players?.[oppRole]?.name;
-  entries.forEach(e => {
-    const d = document.createElement('div');
-    const isSys = e.player === 'system';
-    const isOpp = !isSys && e.player && e.player !== L.name;
-    d.className = 'log-line' + (isOpp ? ' opp' : '') + (isSys ? ' sys' : '');
-    const t = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
-    if (isSys) {
-      d.innerHTML = `${esc(e.action)} <span class="lt">${t}</span>`;
-    } else {
-      d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
+  if (!log) return;
+
+  // Sort by Firebase push key (lexicographic = chronological), keep last 50
+  const sorted = Object.entries(log).sort(([a], [b]) => a < b ? -1 : 1).slice(-50);
+
+  // Detect if previously rendered keys no longer exist (room switch / reset)
+  if (_logRenderedKeys.size > 0) {
+    const currentKeys = new Set(sorted.map(([k]) => k));
+    const hasOrphans = [..._logRenderedKeys].some(k => !currentKeys.has(k));
+    if (hasOrphans) {
+      el.innerHTML = '';
+      _logRenderedKeys.clear();
     }
-    el.appendChild(d);
+  }
+
+  // Only process entries not yet in DOM
+  const newEntries = sorted.filter(([k]) => !_logRenderedKeys.has(k));
+  if (!newEntries.length) return;
+
+  // Prepend oldest-first so newest ends up at top
+  newEntries.forEach(([k, e]) => {
+    _logRenderedKeys.add(k);
+    el.prepend(_makeLogLine(e));
   });
+
+  // Trim DOM to 50 entries
+  while (el.children.length > 50) el.removeChild(el.lastChild);
 }
 
 // ══════════════════════════════════════════════════════
