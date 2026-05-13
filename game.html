@@ -1680,35 +1680,48 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #phase-flash.show #phase-flash-text { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
 /* ══════════════════════════════════════
-   ATK ALERT OVERLAY
+   DEFENSE PROGRESS BAR
 ══════════════════════════════════════ */
-#atk-alert {
-  position: fixed; top: 0; left: 0; right: 0; height: 50vh;
-  z-index: 3500; pointer-events: none;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  opacity: 0; transition: opacity .3s;
+#def-progress {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  background: rgba(220,38,38,.07);
+  border: 1px solid rgba(220,38,38,.22);
+  border-radius: 8px;
+  pointer-events: none;
+  transition: opacity .3s;
 }
-#atk-alert.show { opacity: 1; animation: atkBg 1.1s ease-in-out infinite; }
-@keyframes atkBg {
-  0%, 100% { background: rgba(220,38,38,.10); }
-  50%       { background: rgba(220,38,38,.32); }
+#def-progress.show { display: flex; }
+#def-threat-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1px; flex-shrink: 0;
 }
-#atk-alert-val {
-  font-size: clamp(120px, 22vw, 260px);
-  font-weight: 900;
-  color: #f87171;
-  text-shadow: 0 0 100px rgba(248,113,113,.9), 0 4px 30px rgba(0,0,0,.95);
-  line-height: 1;
-  animation: atkNum 1.1s ease-in-out infinite;
+#def-threat-label {
+  font-size: 9px; font-weight: 700; color: rgba(255,255,255,.4);
+  letter-spacing: 1.5px; text-transform: uppercase;
 }
-@keyframes atkNum {
-  0%, 100% { transform: scale(1);    text-shadow: 0 0 100px rgba(248,113,113,.9), 0 4px 30px rgba(0,0,0,.95); }
-  50%       { transform: scale(1.06); text-shadow: 0 0 160px rgba(248,113,113,1),  0 4px 30px rgba(0,0,0,.95); }
+#def-threat-num {
+  font-size: 26px; font-weight: 900; color: #f87171; line-height: 1;
+  min-width: 30px; text-align: center;
 }
-#atk-alert-label {
-  font-size: 22px; font-weight: 700; color: rgba(255,255,255,.65);
-  letter-spacing: 3px; margin-top: 16px; text-transform: uppercase;
+#def-bars { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.def-bar-group { display: flex; flex-direction: column; gap: 2px; }
+.def-bar-header { display: flex; justify-content: space-between; align-items: baseline; }
+.def-bar-type { font-size: 9px; font-weight: 700; color: rgba(255,255,255,.5); letter-spacing: .5px; }
+.def-bar-frac { font-size: 10px; font-weight: 800; color: rgba(255,255,255,.75); font-variant-numeric: tabular-nums; }
+.def-bar-track {
+  height: 5px; background: rgba(255,255,255,.07); border-radius: 3px; overflow: hidden;
 }
+.def-bar-fill {
+  height: 100%; width: 0%; border-radius: 3px;
+  background: #f87171;
+  transition: width .3s ease, background .3s ease;
+}
+.def-bar-fill.close { background: #fb923c; }
+.def-bar-fill.done  { background: #4ade80; }
 
 /* ══════════════════════════════════════
    MOVE MODE BANNER
@@ -2217,6 +2230,30 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <div class="net-line"></div>
       </div>
 
+      <!-- Defense progress bar (shown when opponent has attacked) -->
+      <div id="def-progress">
+        <div id="def-threat-wrap">
+          <div id="def-threat-label">⚔ 攻擊</div>
+          <div id="def-threat-num">0</div>
+        </div>
+        <div id="def-bars">
+          <div class="def-bar-group">
+            <div class="def-bar-header">
+              <span class="def-bar-type">接球</span>
+              <span class="def-bar-frac" id="def-rcv-frac">0 / 0</span>
+            </div>
+            <div class="def-bar-track"><div class="def-bar-fill" id="def-rcv-fill"></div></div>
+          </div>
+          <div class="def-bar-group">
+            <div class="def-bar-header">
+              <span class="def-bar-type">攔網</span>
+              <span class="def-bar-frac" id="def-blk-frac">0 / 0</span>
+            </div>
+            <div class="def-bar-track"><div class="def-bar-fill" id="def-blk-fill"></div></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Self -->
       <div class="player-area my-turn-glow" id="self-area">
         <span class="area-name self" id="self-lbl">自己</span>
@@ -2703,12 +2740,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
   <div id="phase-flash-text"></div>
 </div>
 
-<!-- Atk alert -->
-<div id="atk-alert">
-  <div id="atk-alert-val"></div>
-  <div id="atk-alert-label">對手攻擊力</div>
-  <div id="atk-alert-hint" style="font-size:14px;color:rgba(255,255,255,.5);margin-top:6px;letter-spacing:1px">出牌後自動消失</div>
-</div>
 
 <!-- Toast -->
 <div id="toast"></div>
@@ -3256,8 +3287,8 @@ function handleRoundReset(data) {
 
   // Exit any active move mode / pinned hover
   exitMoveMode();
-  // Force-hide atkAlert (might be showing if it was our turn to receive)
-  document.getElementById('atk-alert').classList.remove('show');
+  // Force-hide def progress (might be showing if it was our turn to receive)
+  document.getElementById('def-progress').classList.remove('show');
 
   // Collect all own cards back into pile and shuffle
   const myZones = myZonesCopy();
@@ -3669,14 +3700,7 @@ function renderBoard(data) {
   // Calling it here on every Firebase sync caused a race condition where hand cards were
   // destroyed/recreated mid-click, making card play fail during atkAlert.
 
-  // Atk alert: flash opponent's attack power until defender plays a card
-  const alertEl = document.getElementById('atk-alert');
-  if (data.atkAlert && data.turn === myRole) {
-    document.getElementById('atk-alert-val').textContent = data.atkAlert;
-    alertEl.classList.add('show');
-  } else {
-    alertEl.classList.remove('show');
-  }
+  updateDefProgress();
 }
 
 function countDrop(zones) { return zones?.drop?.length ?? 0; }
@@ -4986,6 +5010,38 @@ async function resetCounterDelta(zoneName) {
   }
 }
 
+function updateDefProgress() {
+  const el = document.getElementById('def-progress');
+  const alert = gameState?.atkAlert;
+  if (!alert || gameState?.turn !== myRole) { el.classList.remove('show'); return; }
+
+  el.classList.add('show');
+  document.getElementById('def-threat-num').textContent = alert;
+
+  const zones = L.zones;
+  const delta = gameState?.counterDelta?.[myRole] || {};
+
+  const rcvImg = zones?.receive?.img;
+  const rcvVal = (rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0) + (delta.rcv || 0);
+
+  const blocks = normaliseBlock(zones?.block);
+  const blkVal = blocks.reduce((s, b) => s + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0) + (delta.blk || 0);
+
+  _setDefBar('def-rcv-fill', 'def-rcv-frac', rcvVal, alert);
+  _setDefBar('def-blk-fill', 'def-blk-frac', blkVal, alert);
+}
+
+function _setDefBar(fillId, fracId, val, target) {
+  const fill = document.getElementById(fillId);
+  const frac = document.getElementById(fracId);
+  const pct  = Math.min(100, target > 0 ? (val / target) * 100 : 0);
+  fill.style.width = pct + '%';
+  frac.textContent = `${val} / ${target}`;
+  fill.classList.remove('done', 'close');
+  if (val >= target)  fill.classList.add('done');
+  else if (pct >= 60) fill.classList.add('close');
+}
+
 // Check if my receive or block total defeats the atkAlert — if so, clear it
 async function _checkAndClearAtkAlert(zones) {
   const alert = gameState?.atkAlert;
@@ -5114,8 +5170,8 @@ async function declareLost() {
   _processedRoundReset = resetVal;
   await db.ref(`games/${roomId}/roundReset`).set(resetVal);
 
-  // Force-hide atkAlert locally (covers the case where we were the defender)
-  document.getElementById('atk-alert').classList.remove('show');
+  // Force-hide def progress locally (covers the case where we were the defender)
+  document.getElementById('def-progress').classList.remove('show');
 
   addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`);
   toast(`本局重置，牌庫 ${L.pile.length} 張，請手動抽牌`);
