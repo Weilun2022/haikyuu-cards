@@ -1273,6 +1273,21 @@
     </select>
   </div>
 
+  <!-- 排序 -->
+  <div class="filter-group">
+    <label>排序</label>
+    <select id="filter-sort">
+      <option value="card_no">卡號</option>
+      <option value="rarity">稀有度</option>
+      <option value="srv">發球↓</option>
+      <option value="blk">攔網↓</option>
+      <option value="rcv">接球↓</option>
+      <option value="tos">舉球↓</option>
+      <option value="atk">攻擊↓</option>
+      <option value="name">名稱</option>
+    </select>
+  </div>
+
   <button class="btn-reset" id="btn-reset">重置篩選</button>
 </div>
 </div><!-- /#sticky-wrapper -->
@@ -1845,6 +1860,8 @@ function bindEvents() {
     applyFilters();
   });
 
+  document.getElementById('filter-sort').addEventListener('change', () => applyFilters());
+
   document.getElementById('filter-category').addEventListener('change', e => {
     activeCategory = e.target.value;
     applyFilters();
@@ -1935,6 +1952,21 @@ function applyFilters() {
       if (!terms.every(t => haystack.includes(t))) return false;
     }
     return true;
+  });
+
+  // Sort
+  const sortMode = document.getElementById('filter-sort')?.value || 'card_no';
+  const RARITY_ORDER = { '秘':0, '頂P':1, '頂':2, 'S':3, 'R':4, 'N':5, 'D':6, 'P':7 };
+  filtered.sort((a, b) => {
+    if (sortMode === 'card_no') return (a.card_no||'').localeCompare(b.card_no||'');
+    if (sortMode === 'name')    return (a.name||'').localeCompare(b.name||'');
+    if (sortMode === 'rarity') {
+      const diff = (RARITY_ORDER[a.rarity] ?? 99) - (RARITY_ORDER[b.rarity] ?? 99);
+      return diff !== 0 ? diff : (a.card_no||'').localeCompare(b.card_no||'');
+    }
+    // stat sort descending
+    const av = a[sortMode] ?? -1, bv = b[sortMode] ?? -1;
+    return av !== bv ? bv - av : (a.card_no||'').localeCompare(b.card_no||'');
   });
 
   document.getElementById('count-display').textContent = filtered.length;
