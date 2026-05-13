@@ -1554,31 +1554,28 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #drop-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.75);
-  z-index: 910;
+  background: rgba(0,0,0,.65);
+  z-index: 4800;
   display: none;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(4px);
 }
 #drop-overlay.open { display: flex; }
 #drop-box {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
-  max-width: 520px;
-  width: 92%;
-  max-height: 70vh;
+  border-radius: 18px;
+  padding: 18px 20px 16px;
+  max-width: 700px;
+  width: 96vw;
+  max-height: 90vh;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0,0,0,.7);
+  gap: 12px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.8);
 }
-#drop-box h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
-#drop-cards { display: flex; flex-wrap: wrap; gap: 8px; overflow-y: auto; flex: 1; align-content: flex-start; }
-#drop-cards .drop-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-#drop-cards .drop-cell img { width: 80px; border-radius: 6px; cursor: pointer; transition: transform .15s, opacity .15s; }
-#drop-cards .drop-cell img:hover { transform: scale(1.06); opacity: .85; }
 
 /* ══════════════════════════════════════
    DICE ROLL MODAL
@@ -2188,7 +2185,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <!-- Left: Deck + Drop (mirrored from self) -->
         <div class="board-side">
           <div class="info-tile" title="對手牌庫張數"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
-          <div class="info-tile clickable" onclick="openDropViewer('opp')" title="點擊查看對手棄牌區"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
+          <div class="info-tile clickable" onclick="openDropViewer('opp')" oncontextmenu="event.preventDefault();openDropViewer('opp')" title="點擊／右鍵查看對手棄牌區"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
         </div>
         <!-- Court (reversed: block near net = bottom of opp area; columns mirrored) -->
         <div class="board-court opp-court">
@@ -2259,7 +2256,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
           </div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌（僅洗牌庫順序）">🔀 洗牌</button>
-          <div class="info-tile clickable" onclick="openDropViewer('self')" title="點擊查看棄牌區 · 可從中回收到手牌"
+          <div class="info-tile clickable" onclick="openDropViewer('self')" oncontextmenu="event.preventDefault();openDropViewer('self')" title="點擊／右鍵查看棄牌區"
                ondragover="event.preventDefault(); this.classList.add('target')"
                ondragleave="this.classList.remove('target')"
                ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
@@ -2480,9 +2477,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <!-- Drop viewer -->
 <div id="drop-overlay" onclick="closeDropViewer()">
   <div id="drop-box" onclick="event.stopPropagation()">
-    <h3 id="drop-title">棄牌區</h3>
-    <div id="drop-cards"></div>
-    <button class="btn sm" onclick="closeDropViewer()" style="margin-top:12px;align-self:flex-end">關閉</button>
+    <div class="peek-panel-hd">
+      <span class="peek-panel-title" id="drop-title">棄牌區</span>
+      <button class="peek-panel-close" onclick="closeDropViewer()">✕</button>
+    </div>
+    <div class="peek-cards-row" id="drop-cards"></div>
   </div>
 </div>
 
@@ -5497,42 +5496,109 @@ function openDropViewer(side) {
   const role    = side === 'self' ? myRole : oppRole;
   const zones   = gameState?.players?.[role]?.zones;
   const drop    = zones?.drop || [];
-  const isSelf  = side === 'self';
-  document.getElementById('drop-title').textContent = `棄牌區 — ${gameState?.players?.[role]?.name || side} (${drop.length}張)`;
+  const isSelf  = side === 'self' && !isSpectator;
+  const name    = gameState?.players?.[role]?.name || side;
+
+  document.getElementById('drop-title').textContent =
+    `🗑 棄牌區（${drop.length}張）— ${name}`;
   const wrap = document.getElementById('drop-cards');
   wrap.innerHTML = '';
-  if (!drop.length) { wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px">棄牌區為空</div>'; }
+
+  if (!drop.length) {
+    wrap.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:8px;text-align:center">棄牌區為空</div>';
+  }
+
+  // Newest first
   drop.slice().reverse().forEach(img => {
-    const cell = document.createElement('div');
-    cell.className = 'drop-cell';
-    const imgEl = document.createElement('img');
-    imgEl.src = `images/${img}`; imgEl.loading = 'lazy';
-    imgEl.title = allCards[img]?.name || img;
-    imgEl.addEventListener('click', () => showDetail(img));
-    cell.appendChild(imgEl);
-    if (isSelf) {
-      const btn = document.createElement('button');
-      btn.className = 'btn xs';
-      btn.textContent = '收回手牌';
-      btn.onclick = () => returnFromDrop(img);
-      cell.appendChild(btn);
-    }
-    wrap.appendChild(cell);
+    const c   = allCards[img];
+    const div = document.createElement('div');
+    div.className = 'peek-card';
+    div.innerHTML = `
+      <img class="peek-card-img" src="images/${esc(img)}" alt="${esc(c?.name||'')}">
+      <div class="peek-card-name">${esc(c?.name||img)}</div>
+      ${isSelf ? `
+      <div class="peek-card-actions">
+        <button onclick="_dropPlace('${esc(img)}','hand')">✋ 手牌</button>
+        <button onclick="_dropPlace('${esc(img)}','top')">↑ 牌頂</button>
+        <button onclick="_dropPlace('${esc(img)}','bottom')">↓ 牌底</button>
+        <button onclick="_dropPlace('${esc(img)}','zone')">🎯 場上</button>
+      </div>` : ''}
+    `;
+    const imgEl = div.querySelector('.peek-card-img');
+    imgEl.addEventListener('mouseenter', e => showCardHover(img, e));
+    imgEl.addEventListener('mousemove',  e => _posCardHover(e));
+    imgEl.addEventListener('mouseleave', hideCardHover);
+    imgEl.addEventListener('click',      () => showDetail(img));
+    wrap.appendChild(div);
   });
+
   document.getElementById('drop-overlay').classList.add('open');
 }
 
-async function returnFromDrop(img) {
+async function _dropPlace(img, where) {
+  if (where === 'zone') {
+    closeDropViewer();
+    enterMoveMode({ type: 'drop', img });
+    return;
+  }
+  saveUndo();
   const zones = myZonesCopy();
-  const idx = zones.drop.indexOf(img);
+  const idx   = zones.drop.indexOf(img);
   if (idx === -1) { toast('找不到此牌'); return; }
   zones.drop.splice(idx, 1);
-  L.hand.push(img);
+  const name = allCards[img]?.name || img;
+
+  if (where === 'hand') {
+    L.hand.push(img);
+    await pushZones(zones);
+    document.getElementById('self-drop').textContent = countDrop(zones);
+    renderHand();
+    addLog(L.name, `♻️ ${name} 從棄牌收回手牌${cardState()}`);
+  } else if (where === 'top') {
+    L.pile.push(img);
+    await pushZones(zones);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    document.getElementById('self-drop').textContent = countDrop(zones);
+    syncPileCount();
+    addLog(L.name, `♻️ ${name} 從棄牌放回牌頂`);
+  } else if (where === 'bottom') {
+    L.pile.unshift(img);
+    await pushZones(zones);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    document.getElementById('self-drop').textContent = countDrop(zones);
+    syncPileCount();
+    addLog(L.name, `♻️ ${name} 從棄牌放回牌底`);
+  }
+
+  openDropViewer('self'); // refresh
+}
+
+async function _dropPlaceToZone(img, zoneName) {
+  saveUndo();
+  const zones = myZonesCopy();
+  const idx   = zones.drop.indexOf(img);
+  if (idx === -1) { toast('找不到此牌'); return; }
+  zones.drop.splice(idx, 1);
+  const name    = allCards[img]?.name || img;
+  const baseZone = zoneName.split(':')[0];
+  const existing = getZoneCard(zones, zoneName);
+  if (existing?.img) {
+    showPlaceConfirm(
+      `放置 ${ZONE_LABEL[baseZone] || zoneName}`,
+      () => { setZoneCard(zones, zoneName, { img, guts: [existing.img, ...(existing.guts||[])] }); _finishDropZone(zones, img, name, zoneName); },
+      () => { setZoneCard(zones, zoneName, { img: existing.img, guts: [...(existing.guts||[]), img] }); _finishDropZone(zones, img, name, zoneName); }
+    );
+  } else {
+    setZoneCard(zones, zoneName, { img, guts: [] });
+    _finishDropZone(zones, img, name, zoneName);
+  }
+}
+
+async function _finishDropZone(zones, img, name, zoneName) {
   await pushZones(zones);
   document.getElementById('self-drop').textContent = countDrop(zones);
-  renderHand();
-  addLog(L.name, `${allCards[img]?.name || img} 從棄牌區收回手牌${cardState()}`);
-  openDropViewer('self'); // refresh
+  await syncScoreToBase(zones, zoneName.split(':')[0]);
+  addLog(L.name, `♻️ ${name} 從棄牌放置${ZONE_LABEL[zoneName.split(':')[0]] || zoneName}${cardState()}`);
 }
 
 function closeDropViewer() { document.getElementById('drop-overlay').classList.remove('open'); }
@@ -5761,6 +5827,11 @@ function _updateMoveBanner() {
     icon = '🔶';
     label = `移動 Guts 牌`;
     hint = '點目標區域移動 · Esc 取消';
+  } else if (moveMode.type === 'drop') {
+    const card = allCards[moveMode.img];
+    icon = '♻️';
+    label = card?.name ? `棄牌「${card.name}」→ 場上` : '棄牌放場上';
+    hint = '點場上空格放置 · 點手牌區收回手牌 · Esc 取消';
   }
   document.getElementById('mb-icon').textContent  = icon;
   document.getElementById('mb-label').textContent = label;
@@ -5794,6 +5865,9 @@ function executeMoveToZone(targetZone, targetImg = null) {
       // Hand → occupied zone: single card only (multi-select is pile-return only)
       exitMoveMode();
       placeCard(m.idx, targetZone, false);
+    } else if (m.type === 'drop') {
+      exitMoveMode();
+      _dropPlaceToZone(m.img, targetZone);
     } else {
       // Zone/guts → occupied zone: ask top or guts
       document.getElementById('place-confirm-top-btn').textContent = '最上方';
@@ -5816,6 +5890,9 @@ function executeMoveToZone(targetZone, targetImg = null) {
       // Single card placement — multi-select only applies to pile return
       exitMoveMode();
       placeCard(m.idx, targetZone);
+    } else if (m.type === 'drop') {
+      exitMoveMode();
+      _dropPlaceToZone(m.img, targetZone);
     } else {
       exitMoveMode();
       if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData);
@@ -5828,6 +5905,7 @@ function executeMoveDiscard() {
   const m = moveMode;
   exitMoveMode();
   if (m.type === 'hand')  discardFromHand(m.idx);
+  else if (m.type === 'drop') { /* drop→zone cancelled, card stays in drop */ openDropViewer('self'); }
   // Only move the top card to drop; guts stay in zone
   else if (m.type === 'zone') moveCardFromStack(m.zoneName, m.cardData.img, 'drop');
   else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, 'drop');
@@ -5837,7 +5915,8 @@ function executeMoveToHand() {
   const m = moveMode;
   if (!m || m.type === 'hand') return;
   exitMoveMode();
-  if (m.type === 'zone') moveCardFromStack(m.zoneName, m.cardData.img, 'hand');
+  if (m.type === 'drop') _dropPlace(m.img, 'hand');
+  else if (m.type === 'zone') moveCardFromStack(m.zoneName, m.cardData.img, 'hand');
   else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, 'hand');
 }
 
