@@ -3224,6 +3224,21 @@ function syncUI(data, prev) {
       handleRoundReset(data);
       handlePresenceChange(data, prev);
       handleOppPeek(data, prev);
+      // atkAlert: prev is available here (not inside renderBoard)
+      const isDefending  = !!(data.atkAlert && data.turn === myRole);
+      const wasDefending = !!(prev?.atkAlert && prev?.turn === myRole);
+      if (isDefending && !wasDefending) {
+        // Alert just appeared — snapshot pre-existing zone values so they don't count
+        const zones = L.zones;
+        const rcvImg = zones?.receive?.img;
+        const rcvSnap = rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0;
+        const blocks  = normaliseBlock(zones?.block);
+        const blkSnap = blocks.reduce((s, b) => s + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0);
+        _atkBaseline = { rcv: rcvSnap, blk: blkSnap };
+      } else if (!isDefending) {
+        _atkBaseline = null;
+      }
+      updateDefZones(isDefending ? data.atkAlert : null);
     }
   }
 }
@@ -3646,21 +3661,6 @@ function renderBoard(data) {
   // L.hand is pure local state — every function that modifies it already calls renderHand() itself.
   // Calling it here on every Firebase sync caused a race condition where hand cards were
   // destroyed/recreated mid-click, making card play fail during atkAlert.
-
-  const isDefending  = !!(data.atkAlert && data.turn === myRole);
-  const wasDefending = !!(prev?.atkAlert && prev?.turn === myRole);
-  if (isDefending && !wasDefending) {
-    // atkAlert just appeared — snapshot current zone values so pre-existing cards are excluded
-    const zones = L.zones;
-    const rcvImg = zones?.receive?.img;
-    const rcvSnap = rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0;
-    const blocks  = normaliseBlock(zones?.block);
-    const blkSnap = blocks.reduce((s, b) => s + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0);
-    _atkBaseline = { rcv: rcvSnap, blk: blkSnap };
-  } else if (!isDefending) {
-    _atkBaseline = null;
-  }
-  updateDefZones(isDefending ? data.atkAlert : null);
 }
 
 function countDrop(zones) { return zones?.drop?.length ?? 0; }
