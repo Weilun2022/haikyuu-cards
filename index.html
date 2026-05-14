@@ -1339,6 +1339,7 @@
         <input type="text" class="deck-name-input" id="deck-name-input" placeholder="牌組名稱...">
         <button class="tray-btn" id="deck-rename-btn">改名</button>
         <button class="tray-btn" id="deck-new-btn">＋新增</button>
+        <button class="tray-btn" id="deck-duplicate-btn" title="複製目前牌組為新牌組">複製</button>
         <button class="tray-btn danger" id="deck-delete-btn">刪除</button>
         <button class="tray-btn danger" id="deck-clear-btn" style="margin-left:8px;border-left:1px solid var(--border);padding-left:8px">清空</button>
       </div>
@@ -2438,6 +2439,23 @@ function createDeck(name) {
   return d;
 }
 
+function duplicateDeck() {
+  const src = getCurrentDeck();
+  if (!src) { showToast('沒有選取的牌組'); return; }
+  const newName = src.name + '（副本）';
+  const d = {
+    id: makeDeckId(),
+    name: newName,
+    cards: JSON.parse(JSON.stringify(src.cards)),
+    owned: JSON.parse(JSON.stringify(src.owned || {}))
+  };
+  decks.push(d);
+  currentDeckId = d.id;
+  saveDecks();
+  renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+  showToast(`已複製為「${newName}」`);
+}
+
 function getTotalCount(deck) { return deck.cards.reduce((s,c) => s + c.count, 0); }
 
 function getEventCount(deck) {
@@ -2744,8 +2762,12 @@ function doImport(mode) {
       const existing = decks.find(x => x.id === d.id);
       if (!existing) {
         decks.push(d);
+      } else if (existing.name !== d.name) {
+        // 同 id 但名稱不同 → 視為新牌組，重新指派 id
+        const copy = { ...d, id: makeDeckId() };
+        decks.push(copy);
       } else {
-        // 更新 owned 資料（保留本地有而匯入沒有的）
+        // 同 id 同名 → 只補 owned 資料（保留本地有而匯入沒有的）
         Object.assign(existing.owned, d.owned || {});
       }
     });
@@ -3577,6 +3599,8 @@ function bindDeckEvents() {
     createDeck(`我的牌組${decks.length + 1}`);
     renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
   });
+
+  document.getElementById('deck-duplicate-btn').addEventListener('click', duplicateDeck);
 
   document.getElementById('deck-delete-btn').addEventListener('click', () => {
     const deck = getCurrentDeck(); if (!deck) return;
