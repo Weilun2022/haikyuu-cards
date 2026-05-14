@@ -3211,6 +3211,7 @@ function listenGame() {
 }
 
 let _processedRoundReset = 0;
+let _atkBaseline = null; // { rcv, blk } — zone values at the moment atkAlert appeared
 let _presenceKickTimer = null;
 
 function syncUI(data, prev) {
@@ -3646,7 +3647,20 @@ function renderBoard(data) {
   // Calling it here on every Firebase sync caused a race condition where hand cards were
   // destroyed/recreated mid-click, making card play fail during atkAlert.
 
-  updateDefZones(data.atkAlert && data.turn === myRole ? data.atkAlert : null);
+  const isDefending  = !!(data.atkAlert && data.turn === myRole);
+  const wasDefending = !!(prev?.atkAlert && prev?.turn === myRole);
+  if (isDefending && !wasDefending) {
+    // atkAlert just appeared — snapshot current zone values so pre-existing cards are excluded
+    const zones = L.zones;
+    const rcvImg = zones?.receive?.img;
+    const rcvSnap = rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0;
+    const blocks  = normaliseBlock(zones?.block);
+    const blkSnap = blocks.reduce((s, b) => s + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0);
+    _atkBaseline = { rcv: rcvSnap, blk: blkSnap };
+  } else if (!isDefending) {
+    _atkBaseline = null;
+  }
+  updateDefZones(isDefending ? data.atkAlert : null);
 }
 
 function countDrop(zones) { return zones?.drop?.length ?? 0; }
@@ -4979,14 +4993,18 @@ async function _checkAndClearAtkAlert(zones) {
   if (!alert || gameState?.turn !== myRole) return;
   const delta = gameState?.counterDelta?.[myRole] || {};
 
+  // Only count value gained ABOVE the baseline (cards already in zones before alert don't count)
+  const baseline = _atkBaseline || { rcv: 0, blk: 0 };
+
   // Receive check
   const rcvImg = zones?.receive?.img;
-  const rcvTotal = (rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0) + (delta.rcv || 0);
+  const rcvRaw = rcvImg ? (+(allCards[rcvImg]?.rcv) || 0) : 0;
+  const rcvTotal = Math.max(0, rcvRaw - baseline.rcv) + (delta.rcv || 0);
 
   // Block total check (sum all 3 slots)
   const blocks = normaliseBlock(zones?.block);
-  const blkBase = blocks.reduce((sum, b) => sum + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0);
-  const blkTotal = blkBase + (delta.blk || 0);
+  const blkRaw = blocks.reduce((sum, b) => sum + (b?.img ? (+(allCards[b.img]?.blk) || 0) : 0), 0);
+  const blkTotal = Math.max(0, blkRaw - baseline.blk) + (delta.blk || 0);
 
   if (rcvTotal >= alert || blkTotal >= alert) {
     await db.ref(`games/${roomId}/atkAlert`).remove();
