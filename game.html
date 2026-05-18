@@ -4781,6 +4781,7 @@ async function _peekPlace(idx, where) {
     addLog(L.name, `🔍 ${name} → 手牌（手牌 ${L.hand.length} 張）`);
   } else if (where === 'drop') {
     const zones = myZonesCopy();
+    if (!zones.drop) zones.drop = [];
     zones.drop.push(img);
     await pushZones(zones);
     document.getElementById('self-drop').textContent = zones.drop.length;
