@@ -3397,7 +3397,7 @@ function renderColorModeGrid() {
       badge.innerHTML = `
         <button class="color-qty-btn" data-dir="-1" data-img="${slot.imageFile}" ${cnt <= 1 ? 'disabled' : ''}>−</button>
         <span class="color-qty-num">${cnt}</span>
-        <button class="color-qty-btn" data-dir="1"  data-img="${slot.imageFile}" ${cnt >= 4 ? 'disabled' : ''}>＋</button>
+        <button class="color-qty-btn" data-dir="1"  data-img="${slot.imageFile}">＋</button>
       `;
       badge.querySelectorAll('.color-qty-btn').forEach(btn => {
         btn.addEventListener('click', e => {
@@ -3417,7 +3417,7 @@ function _colorModeAdjustCount(imageFile, dir) {
   if (!deck) return;
   const entry = deck.cards.find(e => e.image_file === imageFile);
   if (!entry) return;
-  const newCount = Math.max(1, Math.min(4, entry.count + dir));
+  const newCount = Math.max(1, entry.count + dir);
   if (newCount === entry.count) return;
   entry.count = newCount;
   saveDecks();
