@@ -4629,7 +4629,7 @@ function returnHandToPile(idx, position) {
   }
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  addLog(L.name, `${allCards[img]?.name || img} 從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`);
+  addLog(L.name, `從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`);
   renderHand();
 }
 
