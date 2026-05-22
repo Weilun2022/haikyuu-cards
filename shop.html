@@ -131,7 +131,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; border-top: 1px solid var(--border);
   }
-  .price { font-size: 1rem; font-weight: 700; color: var(--accent2); }
+  .price { font-size: 1rem; font-weight: 700; color: var(--green); }
   .price span { font-size: 0.75rem; color: var(--text-dim); margin-left: 2px; }
 
   .buy-btn {
@@ -174,7 +174,7 @@
   }
   .single-price-badge {
     position: absolute; bottom: 4px; right: 4px;
-    background: rgba(0,0,0,0.78); color: var(--accent2);
+    background: rgba(0,0,0,0.78); color: var(--green);
     font-size: 0.72rem; font-weight: 700;
     padding: 2px 6px; border-radius: 6px;
   }
@@ -313,6 +313,45 @@
   }
 
   /* ── 加入購物車按鈕 ── */
+  /* ── 數量控制器（整盒） ── */
+  .qty-ctrl {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; width: 100%; margin-top: 2px;
+  }
+  .qc-btn {
+    width: 28px; height: 28px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px; cursor: pointer;
+    font-size: 1.1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s;
+  }
+  .qc-btn:hover { border-color: var(--accent); }
+  .qc-btn:disabled { opacity: .35; cursor: default; pointer-events: none; }
+  .qc-num { font-size: .88rem; min-width: 40px; text-align: center; }
+  .qc-cur { color: var(--green); font-weight: 700; }
+  .qc-sep { color: var(--text-dim); }
+  .qc-max { color: var(--text-dim); font-size: .78rem; }
+
+  /* ── 數量控制器（散卡懸停） ── */
+  .single-qty-ctrl {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(15,15,19,0.88);
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px; padding: 5px 2px;
+    opacity: 0; transition: opacity .15s; pointer-events: none;
+  }
+  .single-card:hover .single-qty-ctrl { opacity: 1; pointer-events: auto; }
+  .single-card.out-of-stock .single-qty-ctrl { display: none; }
+  .sqc-btn {
+    width: 22px; height: 22px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; cursor: pointer;
+    font-size: .9rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sqc-btn:hover { border-color: var(--accent); }
+
   .add-cart-btn {
     background: var(--accent); color: #fff; border: none;
     padding: 7px; border-radius: 6px; font-size: .82rem;
@@ -535,8 +574,9 @@ function renderProducts() {
   grid.innerHTML = '';
 
   for (const [pt, { label, cards }] of entries) {
-    const cfg   = shopConfig.products[pt] || {};
-    const stock = (cfg.stock !== undefined) ? cfg.stock > 0 : true; // 未設定視為有貨
+    const cfg = shopConfig.products[pt];
+    if (!cfg) continue; // 只顯示 Sheet 有設定的商品
+    const stock = cfg.stock > 0;
     const price = cfg.price || 0;
     const url   = cfg.buy_url || '';
 
@@ -568,7 +608,7 @@ function renderProducts() {
       <div class="product-card${stock ? '' : ' out-of-stock'}">
         <div class="product-cover">
           ${coverImgs}
-          <span class="stock-badge ${stock ? 'in' : 'out'}">${stock ? (cfg.stock ? `剩${cfg.stock}張` : '有貨') : '缺貨'}</span>
+          <span class="stock-badge ${stock ? 'in' : 'out'}">${stock ? '有貨' : '缺貨'}</span>
         </div>
         <div class="product-body">
           <div class="product-name">${label}</div>
@@ -580,7 +620,12 @@ function renderProducts() {
             <div class="price">${price ? `NT$${price}` : '—'}<span>/包</span></div>
             ${buyHtml}
           </div>
-          ${stock && price ? `<button class="add-cart-btn" onclick="addToCart('${pt}','${label}',${price},'product')">🛒 加入購物車</button>` : ''}
+          ${stock && price ? `
+          <div class="qty-ctrl">
+            <button class="qc-btn" onclick="changeQty('${pt}',-1,'product','${label.replace(/'/g,"\\'")}',${price},${cfg.stock})">−</button>
+            <span class="qc-num" data-qid="${pt}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${cfg.stock}</span></span>
+            <button class="qc-btn" onclick="changeQty('${pt}',1,'product','${label.replace(/'/g,"\\'")}',${price},${cfg.stock})">+</button>
+          </div>` : ''}
         </div>
       </div>
     `);
@@ -648,9 +693,9 @@ function renderSingles() {
 
   for (const card of singlesFiltered) {
     const cfg   = shopConfig.singles[card.image_file] || {};
-    const stock = (cfg.stock !== undefined) ? cfg.stock > 0 : true;
+    const stock = cfg.stock > 0;
     const price = cfg.price || 0;
-    const stockLabel = !stock ? '缺貨' : (cfg.stock ? `剩${cfg.stock}張` : '');
+    const sname = (card.name || card.card_no || '').replace(/'/g, "\\'");
 
     grid.insertAdjacentHTML('beforeend', `
       <div class="single-card${stock ? '' : ' out-of-stock'}">
@@ -658,8 +703,13 @@ function renderSingles() {
           <img src="${IMG_BASE}${card.image_file}" alt="${card.name||''}"
                loading="lazy" onerror="this.style.opacity='.2'">
           ${price ? `<div class="single-price-badge">NT$${price}</div>` : ''}
-          ${!stock ? '<div class="single-oos">缺貨</div>' : (cfg.stock ? `<div class="single-stock">剩${cfg.stock}張</div>` : '')}
-          ${stock && price ? `<button class="single-add-btn" onclick="addToCart('${card.image_file}','${card.name||card.card_no}',${price},'single')">🛒 加入</button>` : ''}
+          ${!stock ? '<div class="single-oos">缺貨</div>' : ''}
+          ${stock && price ? `
+          <div class="single-qty-ctrl">
+            <button class="sqc-btn" onclick="changeQty('${card.image_file}',-1,'single','${sname}',${price},${cfg.stock})">−</button>
+            <span class="qc-num" data-qid="${card.image_file}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${cfg.stock}</span></span>
+            <button class="sqc-btn" onclick="changeQty('${card.image_file}',1,'single','${sname}',${price},${cfg.stock})">+</button>
+          </div>` : ''}
         </div>
         <div class="single-info">
           <div class="single-name">${card.name || card.card_no}</div>
@@ -674,6 +724,23 @@ function renderSingles() {
 let cart = {}; // { id: { name, price, type, qty } }
 let checkoutOpen = false;
 
+// 卡片上的 −/+ 控制器
+function changeQty(id, delta, type, name, price, maxStock) {
+  const cur  = cart[id]?.qty || 0;
+  const next = Math.max(0, Math.min(maxStock, cur + delta));
+  if (next === 0) delete cart[id];
+  else cart[id] = { name, price, type, qty: next, max: maxStock };
+  renderCart();
+}
+
+// 同步所有卡片上的 qc-cur 數字
+function syncQtyDisplays() {
+  document.querySelectorAll('.qc-num[data-qid]').forEach(el => {
+    const cur = el.querySelector('.qc-cur');
+    if (cur) cur.textContent = cart[el.dataset.qid]?.qty || 0;
+  });
+}
+
 function addToCart(id, name, price, type) {
   if (cart[id]) cart[id].qty++;
   else cart[id] = { name, price, type, qty: 1 };
@@ -683,8 +750,9 @@ function addToCart(id, name, price, type) {
 
 function updateCartQty(id, delta) {
   if (!cart[id]) return;
-  cart[id].qty += delta;
-  if (cart[id].qty <= 0) delete cart[id];
+  const next = cart[id].qty + delta;
+  if (next <= 0) delete cart[id];
+  else cart[id] = { ...cart[id], qty: Math.min(next, cart[id].max || 99) };
   renderCart();
 }
 
@@ -713,6 +781,7 @@ function renderCart() {
   list.innerHTML = '';
   if (!items.length) {
     list.innerHTML = '<div class="cart-empty">購物車是空的</div>';
+    syncQtyDisplays();
     return;
   }
   for (const [id, item] of items) {
@@ -734,6 +803,7 @@ function renderCart() {
         </div>
       </div>`);
   }
+  syncQtyDisplays();
 }
 
 function openCart()  {
@@ -791,7 +861,7 @@ async function submitOrder() {
       if (cfg) cfg.stock = Math.max(0, (cfg.stock || 0) - item.qty);
     }
     renderProducts();
-    renderSingles();
+    filterSingles(); // 重新跑過濾 + renderSingles，確保缺貨卡正確隱藏/顯示
 
     // 顯示成功
     document.getElementById('cart-main').style.display = 'none';
