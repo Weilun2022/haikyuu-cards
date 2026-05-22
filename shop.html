@@ -783,6 +783,16 @@ async function submitOrder() {
       console.log('📦 訂單（WEBAPP_URL 未設定）:', payload);
       await new Promise(r => setTimeout(r, 700));
     }
+    // 本地立即扣庫存 → 頁面即時更新，不用等 Sheets CSV 快取過期
+    for (const [id, item] of Object.entries(cart)) {
+      const cfg = item.type === 'product'
+        ? shopConfig.products[id]
+        : shopConfig.singles[id];
+      if (cfg) cfg.stock = Math.max(0, (cfg.stock || 0) - item.qty);
+    }
+    renderProducts();
+    renderSingles();
+
     // 顯示成功
     document.getElementById('cart-main').style.display = 'none';
     document.getElementById('order-done').classList.add('show');
