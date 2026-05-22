@@ -1,0 +1,14 @@
+{
+  "products": {
+    "HV-P01": { "price": 800, "stock": true,  "buy_url": "https://shopee.tw/" },
+    "HV-P02": { "price": 800, "stock": true,  "buy_url": "https://shopee.tw/" },
+    "HV-P03": { "price": 800, "stock": false, "buy_url": "" },
+    "HV-P04": { "price": 850, "stock": true,  "buy_url": "https://shopee.tw/" }
+  },
+  "singles": {
+    "HV-P01-001-H.webp":  { "price": 1200, "stock": true },
+    "HV-P01-002-I.webp":  { "price": 600,  "stock": true },
+    "HV-P01-002-IP.webp": { "price": 800,  "stock": false },
+    "HV-P01-003-I.webp":  { "price": 550,  "stock": true }
+  }
+}

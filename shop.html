@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>排球少年!! バボカ!!BREAK 小賣部</title>
+<style>
+  :root {
+    --bg:       #0f0f13;
+    --surface:  #1a1a24;
+    --surface2: #22222f;
+    --border:   #2e2e40;
+    --text:     #e8e8f0;
+    --text-dim: #8888aa;
+    --accent:   #6c63ff;
+    --accent2:  #ff6584;
+    --green:    #4ade80;
+    --red:      #f87171;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-title { font-size: 1.1rem; font-weight: 700; }
+  .header-sub   { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+  .header-back  {
+    margin-left: auto;
+    font-size: 0.8rem; color: var(--text-dim);
+    text-decoration: none;
+    padding: 6px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .header-back:hover { color: var(--text); border-color: var(--accent); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    flex: 1; padding: 12px;
+    background: none; border: none;
+    color: var(--text-dim); font-size: 0.9rem; cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    padding: 10px 16px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .filter-bar input, .filter-bar select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px;
+    padding: 6px 10px; font-size: 0.85rem;
+  }
+  .filter-bar input { flex: 1; min-width: 140px; }
+  .stock-toggle {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.85rem; color: var(--text-dim); cursor: pointer;
+    padding: 6px 10px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    white-space: nowrap;
+  }
+  .stock-toggle input { margin: 0; cursor: pointer; }
+
+  /* Panels */
+  .tab-panel { display: none; padding: 16px; }
+  .tab-panel.active { display: block; }
+
+  /* Product grid */
+  .product-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .product-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color .15s;
+  }
+  .product-card:hover { border-color: var(--accent); }
+  .product-card.out-of-stock { opacity: 0.55; }
+
+  .product-cover {
+    position: relative; width: 100%; aspect-ratio: 3/2;
+    background: var(--surface2); overflow: hidden;
+    display: flex; gap: 4px; padding: 4px;
+  }
+  .product-cover img {
+    flex: 1; object-fit: cover; border-radius: 4px; min-width: 0;
+  }
+  .stock-badge {
+    position: absolute; top: 8px; right: 8px;
+    font-size: 0.7rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px;
+  }
+  .stock-badge.in  { background: #166534; color: var(--green); }
+  .stock-badge.out { background: #7f1d1d; color: var(--red); }
+
+  .product-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .product-name { font-size: 0.85rem; font-weight: 600; line-height: 1.4; }
+  .product-meta { font-size: 0.75rem; color: var(--text-dim); }
+  .rarity-row   { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 2px; }
+  .rarity-chip  {
+    font-size: 0.68rem; padding: 1px 6px; border-radius: 10px;
+    background: var(--surface2); border: 1px solid var(--border);
+  }
+
+  .product-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-top: 1px solid var(--border);
+  }
+  .price { font-size: 1rem; font-weight: 700; color: var(--accent2); }
+  .price span { font-size: 0.75rem; color: var(--text-dim); margin-left: 2px; }
+
+  .buy-btn {
+    padding: 6px 14px;
+    background: var(--accent); color: #fff;
+    border: none; border-radius: 6px;
+    font-size: 0.82rem; font-weight: 600;
+    cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  .buy-btn:hover { opacity: 0.85; }
+  .buy-btn.disabled {
+    background: var(--border); color: var(--text-dim);
+    cursor: not-allowed; pointer-events: none;
+  }
+
+  /* Singles grid */
+  .singles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  @media (min-width: 600px) {
+    .singles-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  }
+  .single-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: border-color .15s;
+  }
+  .single-card:hover { border-color: var(--accent); }
+  .single-card.out-of-stock { opacity: 0.45; }
+
+  .single-img-wrap {
+    position: relative; width: 100%; aspect-ratio: 3/4;
+    background: var(--surface2);
+  }
+  .single-img-wrap img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .single-price-badge {
+    position: absolute; bottom: 4px; right: 4px;
+    background: rgba(0,0,0,0.78); color: var(--accent2);
+    font-size: 0.72rem; font-weight: 700;
+    padding: 2px 6px; border-radius: 6px;
+  }
+  .single-oos {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.52);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; color: var(--red); font-weight: 700;
+  }
+  .single-info { padding: 6px 8px; font-size: 0.72rem; }
+  .single-name {
+    font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .single-sub  { color: var(--text-dim); margin-top: 2px; }
+
+  .empty {
+    text-align: center; color: var(--text-dim);
+    padding: 48px 16px; font-size: 0.9rem;
+  }
+  #loading-msg {
+    text-align: center; color: var(--text-dim);
+    padding: 40px; font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">排球少年!! 小賣部</div>
+    <div class="header-sub">バボカ!!BREAK 卡牌購買</div>
+  </div>
+  <a class="header-back" href="index.html">← 卡片資料庫</a>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="products">整盒 / 整彈</button>
+  <button class="tab-btn"        data-tab="singles">散卡</button>
+</div>
+
+<!-- Products panel -->
+<div id="panel-products" class="tab-panel active">
+  <div id="loading-msg">載入中...</div>
+  <div class="product-grid" id="product-grid" style="display:none"></div>
+  <div class="empty" id="product-empty" style="display:none">目前沒有上架商品</div>
+</div>
+
+<!-- Singles panel -->
+<div id="panel-singles" class="tab-panel">
+  <div class="filter-bar">
+    <input type="search" id="singles-search" placeholder="搜尋角色名稱 / 卡號...">
+    <select id="singles-rarity">
+      <option value="">全部稀有度</option>
+    </select>
+    <select id="singles-school">
+      <option value="">全部學校</option>
+    </select>
+    <select id="singles-product">
+      <option value="">全部彈</option>
+    </select>
+    <label class="stock-toggle">
+      <input type="checkbox" id="singles-stock-only"> 只看有貨
+    </label>
+  </div>
+  <div style="padding:16px">
+    <div class="singles-grid" id="singles-grid"></div>
+    <div class="empty" id="singles-empty" style="display:none">沒有符合條件的散卡</div>
+  </div>
+</div>
+
+<!--
+  資料來源設定：
+  開發中 → 使用本地 cards_data.js + shop_config.json
+  正式上線 → 改成以下兩行 CDN 版本：
+
+  <script src="https://cdn.jsdelivr.net/gh/Weilun2022/haikyuu-cards@main/cards_data.js"></script>
+
+  Google Sheets CSV（店家維護價格/庫存）：
+  在試算表「檔案 > 共用 > 發布到網路」選 CSV 格式後，
+  將網址貼到下方 SHEETS_URL 常數。
+-->
+<script src="cards_data.js"></script>
+<script>
+// ── 設定 ──────────────────────────────────────────────
+// 正式上線後換成 Google Sheets 發布 CSV 的網址
+const SHEETS_URL = '';
+
+// 圖片基底路徑（獨立網域時改成 CDN）
+// const IMG_BASE = 'https://cdn.jsdelivr.net/gh/Weilun2022/haikyuu-cards@main/images/';
+const IMG_BASE = 'images/';
+// ──────────────────────────────────────────────────────
+
+let shopConfig = { products: {}, singles: {} };
+let allCards   = [];
+
+// 稀有度顯示色
+const RARITY_COLOR = {
+  '秘':'#f0c040','頂':'#c084fc','S':'#60a5fa',
+  'R':'#4ade80', 'N':'#94a3b8','D':'#fb923c','P':'#f87171',
+};
+
+// ── 載入設定 ──────────────────────────────────────────
+async function loadConfig() {
+  if (SHEETS_URL) {
+    try {
+      const res  = await fetch(SHEETS_URL);
+      const text = await res.text();
+      shopConfig = parseSheetsCsv(text);
+      return;
+    } catch(e) {
+      console.warn('Google Sheets 載入失敗，改用本地設定', e);
+    }
+  }
+  // 本地 fallback
+  try {
+    const res = await fetch('shop_config.json');
+    shopConfig = await res.json();
+  } catch(e) {
+    console.warn('shop_config.json 不存在，以空設定運行');
+  }
+}
+
+// ── 解析 Google Sheets CSV ────────────────────────────
+// 格式：type | id | price | stock | buy_url
+function parseSheetsCsv(text) {
+  const cfg = { products: {}, singles: {} };
+  const rows = text.trim().split('\n').slice(1); // 跳過表頭
+  for (const row of rows) {
+    const [type, id, price, stock, buy_url] = row.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+    if (!type || !id) continue;
+    const entry = {
+      price:   parseInt(price) || 0,
+      stock:   stock === 'TRUE' || stock === 'true' || stock === '1',
+      buy_url: buy_url || '',
+    };
+    if (type === 'product') cfg.products[id]  = entry;
+    if (type === 'single')  cfg.singles[id]   = entry;
+  }
+  return cfg;
+}
+
+// ── 渲染整盒頁 ────────────────────────────────────────
+function renderProducts() {
+  const grid  = document.getElementById('product-grid');
+  const empty = document.getElementById('product-empty');
+  document.getElementById('loading-msg').style.display = 'none';
+
+  // 按 product_type 分組
+  const groups = {};
+  for (const card of allCards) {
+    const pt = card.product_type;
+    if (!pt) continue;
+    if (!groups[pt]) groups[pt] = { label: card.product_label || pt, cards: [] };
+    groups[pt].cards.push(card);
+  }
+
+  const entries = Object.entries(groups);
+  if (!entries.length) { empty.style.display = ''; return; }
+
+  grid.style.display = '';
+  grid.innerHTML = '';
+
+  for (const [pt, { label, cards }] of entries) {
+    const cfg   = shopConfig.products[pt] || {};
+    const stock = cfg.stock !== false; // 未設定的視為有貨（只顯示）
+    const price = cfg.price || 0;
+    const url   = cfg.buy_url || '';
+
+    // 取前 3 張卡做封面
+    const covers = cards.slice(0, 3);
+
+    // 稀有度統計
+    const rarityCounts = {};
+    for (const c of cards) {
+      const r = c.rarity || '?';
+      rarityCounts[r] = (rarityCounts[r] || 0) + 1;
+    }
+
+    const coverImgs = covers.map(c =>
+      `<img src="${IMG_BASE}${c.image_file}" alt="${c.name}" onerror="this.style.opacity='.2'">`
+    ).join('');
+
+    const rarityChips = Object.entries(rarityCounts).map(([r, n]) =>
+      `<span class="rarity-chip" style="color:${RARITY_COLOR[r]||'#999'}">${r} ×${n}</span>`
+    ).join('');
+
+    const buyHtml = price > 0
+      ? `<a class="buy-btn${url ? '' : ' disabled'}" ${url ? `href="${url}" target="_blank"` : ''}>
+           ${url ? '前往購買' : '洽詢店家'}
+         </a>`
+      : `<span style="font-size:.8rem;color:var(--text-dim)">價格洽詢</span>`;
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="product-card${stock ? '' : ' out-of-stock'}">
+        <div class="product-cover">
+          ${coverImgs}
+          <span class="stock-badge ${stock ? 'in' : 'out'}">${stock ? '有貨' : '缺貨'}</span>
+        </div>
+        <div class="product-body">
+          <div class="product-name">${label}</div>
+          <div class="product-meta">共 ${cards.length} 張卡</div>
+          <div class="rarity-row">${rarityChips}</div>
+        </div>
+        <div class="product-footer">
+          <div class="price">${price ? `NT$${price}` : '—'}<span>/包</span></div>
+          ${buyHtml}
+        </div>
+      </div>
+    `);
+  }
+}
+
+// ── 渲染散卡頁 ────────────────────────────────────────
+let singlesFiltered = [];
+
+function buildSinglesFilters() {
+  const rarities  = [...new Set(allCards.map(c => c.rarity).filter(Boolean))];
+  const schools   = [...new Set(allCards.map(c => c.school).filter(Boolean))];
+  const products  = [...new Set(allCards.map(c => c.product_type).filter(Boolean))];
+  const productLabels = {};
+  for (const c of allCards) if (c.product_type) productLabels[c.product_type] = c.product_label || c.product_type;
+
+  const rSel = document.getElementById('singles-rarity');
+  rarities.forEach(r => rSel.insertAdjacentHTML('beforeend', `<option value="${r}">${r}</option>`));
+
+  const sSel = document.getElementById('singles-school');
+  schools.forEach(s => sSel.insertAdjacentHTML('beforeend', `<option value="${s}">${s}</option>`));
+
+  const pSel = document.getElementById('singles-product');
+  products.forEach(p => pSel.insertAdjacentHTML('beforeend',
+    `<option value="${p}">${productLabels[p]}</option>`));
+}
+
+function filterSingles() {
+  const q         = document.getElementById('singles-search').value.trim().toLowerCase();
+  const rarity    = document.getElementById('singles-rarity').value;
+  const school    = document.getElementById('singles-school').value;
+  const product   = document.getElementById('singles-product').value;
+  const stockOnly = document.getElementById('singles-stock-only').checked;
+
+  // 只顯示 shop_config.singles 裡有設定的卡（有價格才算上架）
+  const listedKeys = Object.keys(shopConfig.singles);
+
+  singlesFiltered = allCards.filter(c => {
+    if (!listedKeys.includes(c.image_file)) return false;
+    const cfg = shopConfig.singles[c.image_file];
+    if (stockOnly && !cfg.stock) return false;
+    if (rarity  && c.rarity       !== rarity)  return false;
+    if (school  && c.school       !== school)   return false;
+    if (product && c.product_type !== product)  return false;
+    if (q) {
+      const hay = `${c.name||''} ${c.card_no||''} ${c.affiliation||''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  renderSingles();
+}
+
+function renderSingles() {
+  const grid  = document.getElementById('singles-grid');
+  const empty = document.getElementById('singles-empty');
+  grid.innerHTML = '';
+
+  if (!singlesFiltered.length) {
+    empty.style.display = '';
+    return;
+  }
+  empty.style.display = 'none';
+
+  for (const card of singlesFiltered) {
+    const cfg   = shopConfig.singles[card.image_file] || {};
+    const stock = cfg.stock !== false;
+    const price = cfg.price || 0;
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="single-card${stock ? '' : ' out-of-stock'}">
+        <div class="single-img-wrap">
+          <img src="${IMG_BASE}${card.image_file}" alt="${card.name||''}"
+               loading="lazy" onerror="this.style.opacity='.2'">
+          ${price ? `<div class="single-price-badge">NT$${price}</div>` : ''}
+          ${stock ? '' : '<div class="single-oos">缺貨</div>'}
+        </div>
+        <div class="single-info">
+          <div class="single-name">${card.name || card.card_no}</div>
+          <div class="single-sub">${card.card_no || ''} · ${card.rarity || ''}</div>
+        </div>
+      </div>
+    `);
+  }
+}
+
+// ── Tab 切換 ──────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(`panel-${btn.dataset.tab}`).classList.add('active');
+  });
+});
+
+// ── 散卡篩選事件 ─────────────────────────────────────
+['singles-search','singles-rarity','singles-school','singles-product'].forEach(id => {
+  document.getElementById(id).addEventListener('input', filterSingles);
+});
+document.getElementById('singles-stock-only').addEventListener('change', filterSingles);
+
+// ── 初始化 ────────────────────────────────────────────
+(async () => {
+  await loadConfig();
+
+  if (typeof CARDS_DATA === 'undefined') {
+    document.getElementById('loading-msg').textContent = '錯誤：找不到 cards_data.js';
+    return;
+  }
+  allCards = CARDS_DATA.cards || [];
+
+  renderProducts();
+  buildSinglesFilters();
+  filterSingles();
+})();
+</script>
+</body>
+</html>

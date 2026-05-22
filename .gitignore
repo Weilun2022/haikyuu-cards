@@ -3,6 +3,7 @@ __pycache__/
 *.csv
 *.xlsx
 *.json
+!shop_config.json
 output/
 cards_zh.json
 all_cards.json
