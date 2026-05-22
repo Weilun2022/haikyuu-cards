@@ -299,20 +299,31 @@ async function loadConfig() {
 }
 
 // ── 解析 Google Sheets CSV ────────────────────────────
-// 格式：type | id | price | stock | buy_url
+// 欄位：type | id | 備註 | price | stock | buy_url
+//
+// type    : product（整彈）或 single（散卡）
+// id      : 整彈填 HV-P01 / HV-P02 ...
+//           散卡填卡片編號+稀有碼，例如 HV-P01-001-H
+//           （就是圖片檔名去掉 .webp）
+// 備註    : 給店家自己看的說明，程式不使用
+// price   : 數字，例如 800
+// stock   : TRUE / FALSE
+// buy_url : 購買連結，散卡可留空
 function parseSheetsCsv(text) {
-  const cfg = { products: {}, singles: {} };
-  const rows = text.trim().split('\n').slice(1); // 跳過表頭
+  const cfg  = { products: {}, singles: {} };
+  const rows = text.trim().split('\n').slice(1); // 跳過表頭列
   for (const row of rows) {
-    const [type, id, price, stock, buy_url] = row.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
+    // 處理 Google Sheets CSV 的引號包裝與多餘空白
+    const cols = row.split(',').map(s => s.trim().replace(/^"|"$/g, '').trim());
+    const [type, id, , price, stock, buy_url] = cols; // 第3欄(備註)跳過
     if (!type || !id) continue;
     const entry = {
       price:   parseInt(price) || 0,
       stock:   stock === 'TRUE' || stock === 'true' || stock === '1',
       buy_url: buy_url || '',
     };
-    if (type === 'product') cfg.products[id]  = entry;
-    if (type === 'single')  cfg.singles[id]   = entry;
+    if (type === 'product') cfg.products[id]          = entry;
+    if (type === 'single')  cfg.singles[id + '.webp'] = entry; // 自動補副檔名
   }
   return cfg;
 }
