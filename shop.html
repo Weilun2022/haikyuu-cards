@@ -184,6 +184,12 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 0.75rem; color: var(--red); font-weight: 700;
   }
+  .single-stock {
+    position: absolute; bottom: 6px; right: 6px;
+    background: rgba(22,101,52,0.85);
+    color: var(--green); font-size: 0.65rem; font-weight: 700;
+    padding: 2px 6px; border-radius: 10px;
+  }
   .single-info { padding: 6px 8px; font-size: 0.72rem; }
   .single-name {
     font-weight: 600;
@@ -299,15 +305,13 @@ async function loadConfig() {
 }
 
 // ── 解析 Google Sheets CSV ────────────────────────────
-// 欄位：type | id | 備註 | price | stock | buy_url
+// 欄位：type | 卡片選擇(B) | id自動(C) | price | 庫存數量 | buy_url
 //
 // type    : product（整彈）或 single（散卡）
-// id      : 整彈填 HV-P01 / HV-P02 ...
-//           散卡填卡片編號+稀有碼，例如 HV-P01-001-H
-//           （就是圖片檔名去掉 .webp）
-// 備註    : 給店家自己看的說明，程式不使用
+// 卡片選擇: 整彈填 HV-P01；散卡從下拉選單選，id 由 ARRAYFORMULA 自動帶入
+// id      : 程式讀第3欄（C欄，ARRAYFORMULA 自動填入）
 // price   : 數字，例如 800
-// stock   : TRUE / FALSE
+// 庫存數量: 數字，0 = 缺貨
 // buy_url : 購買連結，散卡可留空
 function parseSheetsCsv(text) {
   const cfg  = { products: {}, singles: {} };
@@ -315,11 +319,11 @@ function parseSheetsCsv(text) {
   for (const row of rows) {
     // 處理 Google Sheets CSV 的引號包裝與多餘空白
     const cols = row.split(',').map(s => s.trim().replace(/^"|"$/g, '').trim());
-    const [type, id, , price, stock, buy_url] = cols; // 第3欄(備註)跳過
+    const [type, , id, price, stock, buy_url] = cols; // B欄(選擇名)跳過，C欄為自動id
     if (!type || !id) continue;
     const entry = {
       price:   parseInt(price) || 0,
-      stock:   stock === 'TRUE' || stock === 'true' || stock === '1',
+      stock:   parseInt(stock) || 0,   // 數字庫存，0 = 缺貨
       buy_url: buy_url || '',
     };
     if (type === 'product') cfg.products[id]          = entry;
@@ -351,7 +355,7 @@ function renderProducts() {
 
   for (const [pt, { label, cards }] of entries) {
     const cfg   = shopConfig.products[pt] || {};
-    const stock = cfg.stock !== false; // 未設定的視為有貨（只顯示）
+    const stock = (cfg.stock !== undefined) ? cfg.stock > 0 : true; // 未設定視為有貨
     const price = cfg.price || 0;
     const url   = cfg.buy_url || '';
 
@@ -383,7 +387,7 @@ function renderProducts() {
       <div class="product-card${stock ? '' : ' out-of-stock'}">
         <div class="product-cover">
           ${coverImgs}
-          <span class="stock-badge ${stock ? 'in' : 'out'}">${stock ? '有貨' : '缺貨'}</span>
+          <span class="stock-badge ${stock ? 'in' : 'out'}">${stock ? (cfg.stock ? `剩${cfg.stock}張` : '有貨') : '缺貨'}</span>
         </div>
         <div class="product-body">
           <div class="product-name">${label}</div>
@@ -433,7 +437,7 @@ function filterSingles() {
   singlesFiltered = allCards.filter(c => {
     if (!listedKeys.includes(c.image_file)) return false;
     const cfg = shopConfig.singles[c.image_file];
-    if (stockOnly && !cfg.stock) return false;
+    if (stockOnly && !(cfg.stock > 0)) return false;
     if (rarity  && c.rarity       !== rarity)  return false;
     if (school  && c.school       !== school)   return false;
     if (product && c.product_type !== product)  return false;
@@ -460,8 +464,9 @@ function renderSingles() {
 
   for (const card of singlesFiltered) {
     const cfg   = shopConfig.singles[card.image_file] || {};
-    const stock = cfg.stock !== false;
+    const stock = (cfg.stock !== undefined) ? cfg.stock > 0 : true;
     const price = cfg.price || 0;
+    const stockLabel = !stock ? '缺貨' : (cfg.stock ? `剩${cfg.stock}張` : '');
 
     grid.insertAdjacentHTML('beforeend', `
       <div class="single-card${stock ? '' : ' out-of-stock'}">
@@ -469,7 +474,7 @@ function renderSingles() {
           <img src="${IMG_BASE}${card.image_file}" alt="${card.name||''}"
                loading="lazy" onerror="this.style.opacity='.2'">
           ${price ? `<div class="single-price-badge">NT$${price}</div>` : ''}
-          ${stock ? '' : '<div class="single-oos">缺貨</div>'}
+          ${!stock ? '<div class="single-oos">缺貨</div>' : (cfg.stock ? `<div class="single-stock">剩${cfg.stock}張</div>` : '')}
         </div>
         <div class="single-info">
           <div class="single-name">${card.name || card.card_no}</div>
