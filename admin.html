@@ -148,10 +148,10 @@
       font-size: .75rem;
       font-weight: 600;
     }
-    .chip-pending  { background: rgba(251,191,36,.15); color: var(--yellow); }
-    .chip-paid     { background: rgba(74,222,128,.15); color: var(--green); }
+    .chip-new      { background: rgba(251,191,36,.15);  color: var(--yellow); }
+    .chip-pending  { background: rgba(251,146,60,.15);  color: var(--orange); }
     .chip-shipped  { background: rgba(124,111,247,.15); color: var(--accent); }
-    .chip-done     { background: rgba(74,222,128,.2);  color: #86efac; }
+    .chip-done     { background: rgba(74,222,128,.2);   color: #86efac; }
     .chip-cancel   { background: rgba(248,113,113,.15); color: var(--red); }
     .chip-in  { background: rgba(74,222,128,.15); color: var(--green); }
     .chip-out { background: rgba(248,113,113,.15); color: var(--red); }
@@ -262,10 +262,38 @@
       transition: all .15s;
     }
     .status-btn:active { opacity: .7; }
-    .status-btn.s-paid     { border-color: var(--green);  color: var(--green); }
-    .status-btn.s-shipped  { border-color: var(--accent); color: var(--accent); }
+    .status-btn.s-discuss  { border-color: var(--orange); color: var(--orange); }
+    .status-btn.s-toship   { border-color: var(--accent); color: var(--accent); }
     .status-btn.s-done     { border-color: #86efac; color: #86efac; }
     .status-btn.s-cancel   { border-color: var(--red);    color: var(--red); }
+    .memo-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .85rem;
+      padding: 10px 12px;
+      resize: vertical;
+      min-height: 64px;
+      font-family: inherit;
+      margin-top: 4px;
+      outline: none;
+    }
+    .memo-input:focus { border-color: var(--accent); }
+    .memo-save-btn {
+      margin-top: 6px;
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .memo-save-btn:active { opacity: .7; }
 
     /* ── 庫存頁 ── */
     .inv-card { display: flex; align-items: center; gap: 12px; }
@@ -372,11 +400,11 @@
     <div class="stat-grid" id="stat-grid">
       <div class="stat-card alert">
         <div class="stat-num" id="stat-pending">—</div>
-        <div class="stat-label">待確認訂單</div>
+        <div class="stat-label">新訂單數</div>
       </div>
       <div class="stat-card main">
         <div class="stat-num" id="stat-revenue">—</div>
-        <div class="stat-label">已付款收入</div>
+        <div class="stat-label">已確認金額</div>
       </div>
       <div class="stat-card warn">
         <div class="stat-num" id="stat-lowstock">—</div>
@@ -389,7 +417,7 @@
     </div>
 
     <div class="card" style="margin-bottom:12px">
-      <div style="font-weight:700;margin-bottom:10px">⚡ 最新待處理訂單</div>
+      <div style="font-weight:700;margin-bottom:10px">⚡ 最新新訂單</div>
       <div id="dash-pending-list">
         <div class="loading-spinner">載入中…</div>
       </div>
@@ -408,10 +436,10 @@
     <div class="page-title">📋 訂單管理</div>
     <div class="filter-bar" id="order-filter">
       <button class="filter-btn active" onclick="setOrderFilter('全部',this)">全部</button>
-      <button class="filter-btn" onclick="setOrderFilter('待確認',this)">待確認</button>
-      <button class="filter-btn" onclick="setOrderFilter('已付款',this)">已付款</button>
+      <button class="filter-btn" onclick="setOrderFilter('新訂單',this)">新訂單</button>
+      <button class="filter-btn" onclick="setOrderFilter('討論中',this)">討論中</button>
+      <button class="filter-btn" onclick="setOrderFilter('待出貨',this)">待出貨</button>
       <button class="filter-btn" onclick="setOrderFilter('已出貨',this)">已出貨</button>
-      <button class="filter-btn" onclick="setOrderFilter('已完成',this)">已完成</button>
       <button class="filter-btn" onclick="setOrderFilter('取消',this)">取消</button>
     </div>
     <div id="orders-list">
@@ -543,9 +571,10 @@ function showPage(name, btn) {
 
 // ══ 儀表板 ════════════════════════════════════════════════
 function renderDashboard() {
-  const pending  = allOrders.filter(o => o.status === '待確認');
-  const paid     = allOrders.filter(o => o.status === '已付款');
-  const revenue  = paid.reduce((s, o) => s + o.total, 0);
+  const pending  = allOrders.filter(o => o.status === '新訂單');
+  const revenue  = allOrders
+    .filter(o => !['新訂單','取消'].includes(o.status))
+    .reduce((s, o) => s + o.total, 0);
   const lowstock = allProducts.filter(p => p.active && p.stock > 0 && p.stock <= 3);
   const outstock = allProducts.filter(p => p.active && p.stock === 0);
 
@@ -595,13 +624,17 @@ function setOrderFilter(f, btn) {
 
 function getStatusChip(s) {
   const map = {
-    '待確認': 'chip-pending',
-    '已付款': 'chip-paid',
-    '已出貨': 'chip-shipped',
+    '新訂單': 'chip-new',
+    '討論中': 'chip-pending',
+    '待出貨': 'chip-shipped',
+    '已出貨': 'chip-done',
+    '取消':   'chip-cancel',
+    // 向下相容舊狀態名
+    '待確認': 'chip-new',
+    '已付款': 'chip-shipped',
     '已完成': 'chip-done',
-    '取消':   'chip-cancel'
   };
-  return `<span class="chip ${map[s] || ''}">${s}</span>`;
+  return `<span class="chip ${map[s] || 'chip-pending'}">${s}</span>`;
 }
 
 function renderOrders() {
@@ -634,11 +667,17 @@ function renderOrders() {
         ${o.note ? `<div class="order-info-row"><span class="order-info-label">備註</span>${o.note}</div>` : ''}
         <div id="items-${o.id}" style="margin:10px 0;font-size:.85rem;color:var(--text-dim)">載入明細中…</div>
         <div class="status-btns">
-          <button class="status-btn s-paid"   onclick="updateStatus(event,'${o.id}','已付款')">已付款</button>
-          <button class="status-btn s-shipped" onclick="updateStatus(event,'${o.id}','已出貨')">已出貨</button>
-          <button class="status-btn s-done"   onclick="updateStatus(event,'${o.id}','已完成')">已完成</button>
-          <button class="status-btn s-cancel" onclick="updateStatus(event,'${o.id}','取消')">取消</button>
+          <button class="status-btn s-discuss" onclick="updateStatus(event,'${o.id}','討論中')">討論中</button>
+          <button class="status-btn s-toship"  onclick="updateStatus(event,'${o.id}','待出貨')">待出貨</button>
+          <button class="status-btn s-done"    onclick="updateStatus(event,'${o.id}','已出貨')">已出貨</button>
+          <button class="status-btn s-cancel"  onclick="updateStatus(event,'${o.id}','取消')">取消</button>
         </div>
+        <div class="divider"></div>
+        <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:4px">📝 老闆備忘（僅自己可見）</div>
+        <textarea id="memo-${o.id}" class="memo-input"
+          placeholder="備忘記錄、付款確認、客戶要求…"
+          oninput="syncMemo('${o.id}',this)">${o.memo || ''}</textarea>
+        <button class="memo-save-btn" onclick="saveMemo(event,'${o.id}')">儲存備忘</button>
       </div>
     </div>
   `).join('');
@@ -828,6 +867,28 @@ async function toggleActive(id, active) {
     renderInventory(); renderDashboard();
     showToast('❌ 連線失敗');
   }
+}
+
+// ══ 備忘 ══════════════════════════════════════════════════
+function syncMemo(orderId, el) {
+  const o = allOrders.find(x => x.id === orderId);
+  if (o) o.memo = el.value;
+}
+
+async function saveMemo(e, orderId) {
+  e.stopPropagation();
+  const el = document.getElementById('memo-' + orderId);
+  const memo = el ? el.value : '';
+  const o = allOrders.find(x => x.id === orderId);
+  if (o) o.memo = memo;
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateMemo', token: authToken, orderId, memo })
+    });
+    const j = await r.json();
+    showToast(j.ok ? '✅ 備忘已儲存' : '❌ 儲存失敗: ' + j.error);
+  } catch(_) { showToast('❌ 連線失敗'); }
 }
 
 // ══ Toast ═════════════════════════════════════════════════
