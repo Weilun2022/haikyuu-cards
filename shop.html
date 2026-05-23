@@ -535,8 +535,9 @@ function parseSheetsCsv(text) {
   for (const row of rows) {
     // 處理 Google Sheets CSV 的引號包裝與多餘空白
     const cols = row.split(',').map(s => s.trim().replace(/^"|"$/g, '').trim());
-    const [type, , id, price, stock, buy_url] = cols; // B欄(選擇名)跳過，C欄為自動id
+    const [type, , id, price, stock, buy_url, active] = cols; // B欄(選擇名)跳過，C欄為自動id
     if (!type || !id) continue;
+    if (active === 'N') continue; // 下架商品不顯示
     const entry = {
       price:   parseInt(price) || 0,
       stock:   parseInt(stock) || 0,   // 數字庫存，0 = 缺貨

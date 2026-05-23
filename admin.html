@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>小賣部管理後台</title>
+  <style>
+    :root {
+      --bg:       #0f0f13;
+      --surface:  #1a1a22;
+      --surface2: #24242f;
+      --border:   #2e2e3e;
+      --text:     #f0f0f5;
+      --text-dim: #888899;
+      --accent:   #7c6ff7;
+      --accent2:  #ff6584;
+      --green:    #4ade80;
+      --orange:   #fb923c;
+      --red:      #f87171;
+      --yellow:   #fbbf24;
+      --nav-h:    64px;
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── 登入畫面 ── */
+    #login-screen {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      gap: 16px;
+    }
+    .login-logo { font-size: 3rem; }
+    .login-title { font-size: 1.4rem; font-weight: 700; }
+    .login-sub { color: var(--text-dim); font-size: .9rem; }
+    .login-box {
+      width: 100%; max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex; flex-direction: column; gap: 12px;
+      margin-top: 16px;
+    }
+    .login-box input {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 1rem;
+      width: 100%;
+      outline: none;
+    }
+    .login-box input:focus { border-color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity .15s;
+    }
+    .btn-primary:active { opacity: .8; }
+    .login-error {
+      color: var(--red);
+      font-size: .88rem;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    /* ── 主應用 ── */
+    #app { display: none; min-height: 100dvh; }
+    #app.visible { display: flex; flex-direction: column; }
+
+    /* ── 頁面容器 ── */
+    .page {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 16px calc(var(--nav-h) + var(--safe-bot) + 16px);
+    }
+    .page.active { display: block; }
+
+    /* ── 底部導覽 ── */
+    #bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: calc(var(--nav-h) + var(--safe-bot));
+      padding-bottom: var(--safe-bot);
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      z-index: 100;
+    }
+    .nav-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-size: .7rem;
+      cursor: pointer;
+      transition: color .15s;
+      padding-bottom: 4px;
+    }
+    .nav-btn .nav-icon { font-size: 1.5rem; }
+    .nav-btn.active { color: var(--accent); }
+
+    /* ── 通用組件 ── */
+    .page-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .chip {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+    .chip-pending  { background: rgba(251,191,36,.15); color: var(--yellow); }
+    .chip-paid     { background: rgba(74,222,128,.15); color: var(--green); }
+    .chip-shipped  { background: rgba(124,111,247,.15); color: var(--accent); }
+    .chip-done     { background: rgba(74,222,128,.2);  color: #86efac; }
+    .chip-cancel   { background: rgba(248,113,113,.15); color: var(--red); }
+    .chip-in  { background: rgba(74,222,128,.15); color: var(--green); }
+    .chip-out { background: rgba(248,113,113,.15); color: var(--red); }
+    .chip-low { background: rgba(251,191,36,.15);  color: var(--yellow); }
+    .chip-off { background: rgba(136,136,153,.15); color: var(--text-dim); }
+
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+
+    /* 下拉更新 */
+    .status-select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: .88rem;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    /* ── 儀表板卡片 ── */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-num { font-size: 2rem; font-weight: 800; }
+    .stat-label { font-size: .8rem; color: var(--text-dim); margin-top: 4px; }
+    .stat-card.alert .stat-num { color: var(--red); }
+    .stat-card.warn .stat-num  { color: var(--yellow); }
+    .stat-card.ok .stat-num    { color: var(--green); }
+    .stat-card.main .stat-num  { color: var(--accent); }
+
+    /* ── 訂單頁 ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+      scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .filter-btn {
+      flex-shrink: 0;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: .82rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-dim);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .15s;
+    }
+    .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .order-card { cursor: pointer; }
+    .order-header { display: flex; justify-content: space-between; align-items: flex-start; }
+    .order-id { font-weight: 700; font-size: .95rem; }
+    .order-meta { font-size: .82rem; color: var(--text-dim); margin-top: 4px; }
+    .order-total { font-size: 1.1rem; font-weight: 700; color: var(--accent2); }
+    .order-detail { display: none; margin-top: 12px; }
+    .order-detail.open { display: block; }
+    .order-info-row {
+      display: flex;
+      font-size: .85rem;
+      margin-bottom: 6px;
+    }
+    .order-info-label { color: var(--text-dim); width: 56px; flex-shrink: 0; }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: .85rem;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .item-row:last-child { border-bottom: none; }
+    .status-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+    .status-btn {
+      flex: 1; min-width: 72px;
+      padding: 8px 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: .8rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      transition: all .15s;
+    }
+    .status-btn:active { opacity: .7; }
+    .status-btn.s-paid     { border-color: var(--green);  color: var(--green); }
+    .status-btn.s-shipped  { border-color: var(--accent); color: var(--accent); }
+    .status-btn.s-done     { border-color: #86efac; color: #86efac; }
+    .status-btn.s-cancel   { border-color: var(--red);    color: var(--red); }
+
+    /* ── 庫存頁 ── */
+    .inv-card { display: flex; align-items: center; gap: 12px; }
+    .inv-info { flex: 1; min-width: 0; }
+    .inv-name { font-weight: 700; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .inv-id   { font-size: .75rem; color: var(--text-dim); }
+    .inv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
+    .inv-stock { font-size: 1.3rem; font-weight: 800; }
+    .stock-ctrl { display: flex; align-items: center; gap: 6px; }
+    .sc-btn {
+      width: 34px; height: 34px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s;
+    }
+    .sc-btn:active { background: var(--border); }
+    .sc-input {
+      width: 48px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 6px 4px;
+    }
+    .toggle-btn {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .toggle-btn.on  { background: rgba(74,222,128,.2);  color: var(--green); }
+    .toggle-btn.off { background: rgba(136,136,153,.15); color: var(--text-dim); }
+
+    /* ── 空白/載入狀態 ── */
+    .empty-state {
+      text-align: center;
+      color: var(--text-dim);
+      padding: 48px 0;
+      font-size: .95rem;
+    }
+    .loading-spinner {
+      text-align: center;
+      padding: 32px;
+      color: var(--text-dim);
+      font-size: .9rem;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: calc(var(--nav-h) + var(--safe-bot) + 12px);
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: 24px;
+      font-size: .88rem;
+      font-weight: 600;
+      opacity: 0;
+      transition: all .25s;
+      z-index: 200;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ 登入畫面 ══════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-logo">🏐</div>
+  <div class="login-title">排球少年小賣部</div>
+  <div class="login-sub">管理後台</div>
+  <div class="login-box">
+    <input type="password" id="pw-input" placeholder="請輸入管理密碼" autocomplete="current-password">
+    <button class="btn-primary" onclick="tryLogin()">登入</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ══ 主應用 ════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- 儀表板 -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-title">📊 今日總覽</div>
+    <div class="stat-grid" id="stat-grid">
+      <div class="stat-card alert">
+        <div class="stat-num" id="stat-pending">—</div>
+        <div class="stat-label">待確認訂單</div>
+      </div>
+      <div class="stat-card main">
+        <div class="stat-num" id="stat-revenue">—</div>
+        <div class="stat-label">已付款收入</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-num" id="stat-lowstock">—</div>
+        <div class="stat-label">低庫存商品</div>
+      </div>
+      <div class="stat-card ok">
+        <div class="stat-num" id="stat-total-orders">—</div>
+        <div class="stat-label">總訂單數</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-weight:700;margin-bottom:10px">⚡ 最新待處理訂單</div>
+      <div id="dash-pending-list">
+        <div class="loading-spinner">載入中…</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:10px">📦 低庫存警示</div>
+      <div id="dash-lowstock-list">
+        <div class="loading-spinner">載入中…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 訂單管理 -->
+  <div id="page-orders" class="page">
+    <div class="page-title">📋 訂單管理</div>
+    <div class="filter-bar" id="order-filter">
+      <button class="filter-btn active" onclick="setOrderFilter('全部',this)">全部</button>
+      <button class="filter-btn" onclick="setOrderFilter('待確認',this)">待確認</button>
+      <button class="filter-btn" onclick="setOrderFilter('已付款',this)">已付款</button>
+      <button class="filter-btn" onclick="setOrderFilter('已出貨',this)">已出貨</button>
+      <button class="filter-btn" onclick="setOrderFilter('已完成',this)">已完成</button>
+      <button class="filter-btn" onclick="setOrderFilter('取消',this)">取消</button>
+    </div>
+    <div id="orders-list">
+      <div class="loading-spinner">載入中…</div>
+    </div>
+  </div>
+
+  <!-- 庫存管理 -->
+  <div id="page-inventory" class="page">
+    <div class="page-title">📦 庫存管理</div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setInvFilter('全部',this)">全部</button>
+      <button class="filter-btn" onclick="setInvFilter('product',this)">整盒</button>
+      <button class="filter-btn" onclick="setInvFilter('single',this)">散卡</button>
+      <button class="filter-btn" onclick="setInvFilter('low',this)">低庫存</button>
+      <button class="filter-btn" onclick="setInvFilter('off',this)">下架</button>
+    </div>
+    <div id="inv-list">
+      <div class="loading-spinner">載入中…</div>
+    </div>
+  </div>
+
+  <!-- 底部導覽 -->
+  <nav id="bottom-nav">
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">📊</span>總覽
+    </button>
+    <button class="nav-btn" onclick="showPage('orders',this)">
+      <span class="nav-icon">📋</span>訂單
+    </button>
+    <button class="nav-btn" onclick="showPage('inventory',this)">
+      <span class="nav-icon">📦</span>庫存
+    </button>
+  </nav>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ══ 設定 ══════════════════════════════════════════════════
+// 預設密碼: shop2026（請自行更換 → 執行 sha256(新密碼) 取得 hash）
+const ADMIN_HASH = '486a0cf8c60ff06ae79e84dadaa38dd0a436167ac3ac9365425648b2600c7864';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx-b0C8DwQt746emt47LL168-_7g5Mp7V81-kDMRCflHg5Y-IFaaQOumekTjZ_j2YYYxQ/exec';
+
+// ══ SHA-256 工具 ══════════════════════════════════════════
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// ══ 登入 ══════════════════════════════════════════════════
+let authToken = '';
+
+async function tryLogin() {
+  const pw = document.getElementById('pw-input').value;
+  if (!pw) return;
+  const h = await sha256(pw);
+  if (h === ADMIN_HASH) {
+    authToken = h;
+    sessionStorage.setItem('admin_auth', h);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    loadAll();
+  } else {
+    const err = document.getElementById('login-error');
+    err.textContent = '密碼錯誤，請再試一次';
+    setTimeout(() => { err.textContent = ''; }, 2000);
+  }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+
+// 檢查 sessionStorage（頁面重整後不需重新登入）
+(async () => {
+  const saved = sessionStorage.getItem('admin_auth');
+  if (saved && saved === ADMIN_HASH) {
+    authToken = saved;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('visible');
+    loadAll();
+  }
+})();
+
+// ══ 狀態 ══════════════════════════════════════════════════
+let allOrders   = [];
+let allProducts = [];
+let orderFilter = '全部';
+let invFilter   = '全部';
+
+// ══ 載入所有資料 ══════════════════════════════════════════
+async function loadAll() {
+  await Promise.all([loadOrders(), loadProducts()]);
+  renderDashboard();
+}
+
+async function loadOrders() {
+  try {
+    const r = await fetch(`${WEBAPP_URL}?action=getOrders&token=${authToken}`);
+    const j = await r.json();
+    if (j.ok) allOrders = j.data;
+  } catch(e) { showToast('❌ 載入訂單失敗'); }
+  renderOrders();
+}
+
+async function loadProducts() {
+  try {
+    const r = await fetch(`${WEBAPP_URL}?action=getProducts&token=${authToken}`);
+    const j = await r.json();
+    if (j.ok) allProducts = j.data;
+  } catch(e) { showToast('❌ 載入商品失敗'); }
+  renderInventory();
+}
+
+// ══ 導覽 ══════════════════════════════════════════════════
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+// ══ 儀表板 ════════════════════════════════════════════════
+function renderDashboard() {
+  const pending  = allOrders.filter(o => o.status === '待確認');
+  const paid     = allOrders.filter(o => o.status === '已付款');
+  const revenue  = paid.reduce((s, o) => s + o.total, 0);
+  const lowstock = allProducts.filter(p => p.active && p.stock > 0 && p.stock <= 3);
+  const outstock = allProducts.filter(p => p.active && p.stock === 0);
+
+  document.getElementById('stat-pending').textContent      = pending.length;
+  document.getElementById('stat-revenue').textContent      = 'NT$' + revenue.toLocaleString();
+  document.getElementById('stat-lowstock').textContent     = lowstock.length + outstock.length;
+  document.getElementById('stat-total-orders').textContent = allOrders.length;
+
+  // 待處理列表
+  const pl = document.getElementById('dash-pending-list');
+  if (pending.length === 0) {
+    pl.innerHTML = '<div class="empty-state">✅ 無待處理訂單</div>';
+  } else {
+    pl.innerHTML = pending.slice(0, 5).map(o => `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:700;font-size:.9rem">${o.id} <span style="color:var(--text-dim)">${o.name}</span></div>
+          <div style="font-size:.8rem;color:var(--text-dim)">${o.time}</div>
+        </div>
+        <div style="color:var(--accent2);font-weight:700">NT$${o.total.toLocaleString()}</div>
+      </div>
+    `).join('');
+  }
+
+  // 低庫存列表
+  const ll = document.getElementById('dash-lowstock-list');
+  const warns = [...outstock, ...lowstock];
+  if (warns.length === 0) {
+    ll.innerHTML = '<div class="empty-state">✅ 庫存充足</div>';
+  } else {
+    ll.innerHTML = warns.slice(0, 6).map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="font-size:.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${p.name || p.id}</div>
+        <span class="chip ${p.stock === 0 ? 'chip-out' : 'chip-low'}">${p.stock === 0 ? '缺貨' : '剩' + p.stock}</span>
+      </div>
+    `).join('');
+  }
+}
+
+// ══ 訂單管理 ══════════════════════════════════════════════
+function setOrderFilter(f, btn) {
+  orderFilter = f;
+  document.querySelectorAll('#order-filter .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderOrders();
+}
+
+function getStatusChip(s) {
+  const map = {
+    '待確認': 'chip-pending',
+    '已付款': 'chip-paid',
+    '已出貨': 'chip-shipped',
+    '已完成': 'chip-done',
+    '取消':   'chip-cancel'
+  };
+  return `<span class="chip ${map[s] || ''}">${s}</span>`;
+}
+
+function renderOrders() {
+  const list = document.getElementById('orders-list');
+  const filtered = orderFilter === '全部'
+    ? allOrders
+    : allOrders.filter(o => o.status === orderFilter);
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">此狀態無訂單</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(o => `
+    <div class="card order-card" id="ord-${o.id}" onclick="toggleOrder('${o.id}')">
+      <div class="order-header">
+        <div>
+          <div class="order-id">${o.id}</div>
+          <div class="order-meta">${o.time} · ${o.name}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          ${getStatusChip(o.status)}
+          <div class="order-total">NT$${o.total.toLocaleString()}</div>
+        </div>
+      </div>
+      <div class="order-detail" id="detail-${o.id}">
+        <div class="divider"></div>
+        <div class="order-info-row"><span class="order-info-label">電話</span>${o.phone}</div>
+        <div class="order-info-row"><span class="order-info-label">地址</span>${o.address}</div>
+        ${o.note ? `<div class="order-info-row"><span class="order-info-label">備註</span>${o.note}</div>` : ''}
+        <div id="items-${o.id}" style="margin:10px 0;font-size:.85rem;color:var(--text-dim)">載入明細中…</div>
+        <div class="status-btns">
+          <button class="status-btn s-paid"   onclick="updateStatus(event,'${o.id}','已付款')">已付款</button>
+          <button class="status-btn s-shipped" onclick="updateStatus(event,'${o.id}','已出貨')">已出貨</button>
+          <button class="status-btn s-done"   onclick="updateStatus(event,'${o.id}','已完成')">已完成</button>
+          <button class="status-btn s-cancel" onclick="updateStatus(event,'${o.id}','取消')">取消</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function toggleOrder(orderId) {
+  const detail = document.getElementById('detail-' + orderId);
+  if (!detail) return;
+  const opening = !detail.classList.contains('open');
+  // 關閉其他
+  document.querySelectorAll('.order-detail.open').forEach(d => d.classList.remove('open'));
+  if (opening) {
+    detail.classList.add('open');
+    loadOrderItems(orderId);
+  }
+}
+
+async function loadOrderItems(orderId) {
+  const el = document.getElementById('items-' + orderId);
+  if (!el) return;
+  try {
+    const r = await fetch(`${WEBAPP_URL}?action=getOrderItems&orderId=${orderId}&token=${authToken}`);
+    const j = await r.json();
+    if (j.ok && j.data.length > 0) {
+      el.innerHTML = j.data.map(item =>
+        `<div class="item-row">
+           <span>${item.name}</span>
+           <span style="color:var(--text-dim)">x${item.qty} = NT$${item.subtotal.toLocaleString()}</span>
+         </div>`
+      ).join('');
+    } else {
+      el.innerHTML = '<div style="color:var(--text-dim);font-size:.85rem">（無明細資料）</div>';
+    }
+  } catch(e) {
+    el.innerHTML = '<div style="color:var(--red);font-size:.85rem">載入失敗</div>';
+  }
+}
+
+async function updateStatus(e, orderId, status) {
+  e.stopPropagation();
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStatus', token: authToken, orderId, status })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      const o = allOrders.find(x => x.id === orderId);
+      if (o) o.status = status;
+      renderOrders();
+      renderDashboard();
+      showToast('✅ 已更新為「' + status + '」');
+    } else {
+      showToast('❌ 更新失敗: ' + j.error);
+    }
+  } catch(e) {
+    showToast('❌ 連線失敗');
+  }
+}
+
+// ══ 庫存管理 ══════════════════════════════════════════════
+function setInvFilter(f, btn) {
+  invFilter = f;
+  document.querySelectorAll('#page-inventory .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderInventory();
+}
+
+function renderInventory() {
+  const list = document.getElementById('inv-list');
+  let filtered = allProducts;
+
+  if (invFilter === 'product') filtered = filtered.filter(p => p.type === 'product');
+  else if (invFilter === 'single') filtered = filtered.filter(p => p.type === 'single');
+  else if (invFilter === 'low') filtered = filtered.filter(p => p.active && p.stock <= 3);
+  else if (invFilter === 'off') filtered = filtered.filter(p => !p.active);
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state">此分類無商品</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const stockColor = p.stock === 0 ? 'var(--red)' : p.stock <= 3 ? 'var(--yellow)' : 'var(--green)';
+    const typeBadge  = p.type === 'product' ? '整盒' : '散卡';
+    const displayName = p.name || p.id;
+    return `
+    <div class="card">
+      <div class="inv-card">
+        <div class="inv-info">
+          <div class="inv-name">${displayName}</div>
+          <div class="inv-id">${p.id} · ${typeBadge} · NT$${p.price}</div>
+          <div style="margin-top:6px">
+            ${p.active
+              ? `<span class="chip chip-in">上架中</span>`
+              : `<span class="chip chip-off">已下架</span>`}
+            ${!p.active ? '' : p.stock === 0
+              ? `<span class="chip chip-out" style="margin-left:4px">缺貨</span>`
+              : p.stock <= 3
+              ? `<span class="chip chip-low" style="margin-left:4px">低庫存</span>`
+              : ''}
+          </div>
+        </div>
+        <div class="inv-right">
+          <div class="stock-ctrl">
+            <button class="sc-btn" onclick="adjustStock('${p.id}',-1)">−</button>
+            <input class="sc-input" id="stk-${p.id.replace(/[^a-zA-Z0-9]/g,'-')}" type="number"
+              value="${p.stock}" min="0" onblur="setStock('${p.id}',this.value)">
+            <button class="sc-btn" onclick="adjustStock('${p.id}',1)">＋</button>
+          </div>
+          <button class="toggle-btn ${p.active ? 'on' : 'off'}"
+            onclick="toggleActive('${p.id}',${!p.active})">
+            ${p.active ? '上架中' : '已下架'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function adjustStock(id, delta) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  const newStock = Math.max(0, p.stock + delta);
+  const inputId = 'stk-' + id.replace(/[^a-zA-Z0-9]/g, '-');
+  const input = document.getElementById(inputId);
+  if (input) input.value = newStock;
+  setStock(id, newStock);
+}
+
+async function setStock(id, val) {
+  const stock = Math.max(0, parseInt(val) || 0);
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  if (p.stock === stock) return; // 無變化
+  p.stock = stock;
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateStock', token: authToken, id, stock })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      showToast('✅ 庫存已更新為 ' + stock);
+      renderInventory();
+      renderDashboard();
+    } else {
+      showToast('❌ 更新失敗: ' + j.error);
+    }
+  } catch(e) {
+    showToast('❌ 連線失敗');
+  }
+}
+
+async function toggleActive(id, active) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) return;
+  p.active = active;
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'toggleActive', token: authToken, id, active })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      showToast('✅ 已' + (active ? '上架' : '下架'));
+      renderInventory();
+      renderDashboard();
+    } else {
+      showToast('❌ 更新失敗: ' + j.error);
+    }
+  } catch(e) {
+    showToast('❌ 連線失敗');
+  }
+}
+
+// ══ Toast ═════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
