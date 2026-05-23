@@ -500,6 +500,7 @@ document.getElementById('pw-input').addEventListener('keydown', e => {
 // ══ 狀態 ══════════════════════════════════════════════════
 let allOrders   = [];
 let allProducts = [];
+let allItemsMap = {};   // orderId → items[]，啟動時預載，展開訂單零延遲
 let orderFilter = '全部';
 let invFilter   = '全部';
 
@@ -511,9 +512,14 @@ async function loadAll() {
 
 async function loadOrders() {
   try {
-    const r = await fetch(`${WEBAPP_URL}?action=getOrders&token=${authToken}`);
-    const j = await r.json();
-    if (j.ok) allOrders = j.data;
+    // 同時拿訂單列表 + 全部明細（一次 cold-start，兩份資料）
+    const [r1, r2] = await Promise.all([
+      fetch(`${WEBAPP_URL}?action=getOrders&token=${authToken}`),
+      fetch(`${WEBAPP_URL}?action=getAllItems&token=${authToken}`)
+    ]);
+    const [j1, j2] = await Promise.all([r1.json(), r2.json()]);
+    if (j1.ok) allOrders = j1.data;
+    if (j2.ok) allItemsMap = j2.data;
   } catch(e) { showToast('❌ 載入訂單失敗'); }
   renderOrders();
 }
@@ -638,7 +644,7 @@ function renderOrders() {
   `).join('');
 }
 
-async function toggleOrder(orderId) {
+function toggleOrder(orderId) {
   const detail = document.getElementById('detail-' + orderId);
   if (!detail) return;
   const opening = !detail.classList.contains('open');
@@ -646,33 +652,36 @@ async function toggleOrder(orderId) {
   document.querySelectorAll('.order-detail.open').forEach(d => d.classList.remove('open'));
   if (opening) {
     detail.classList.add('open');
-    loadOrderItems(orderId);
+    renderOrderItems(orderId);   // 從快取讀，零延遲
   }
 }
 
-async function loadOrderItems(orderId) {
+function renderOrderItems(orderId) {
   const el = document.getElementById('items-' + orderId);
   if (!el) return;
-  try {
-    const r = await fetch(`${WEBAPP_URL}?action=getOrderItems&orderId=${orderId}&token=${authToken}`);
-    const j = await r.json();
-    if (j.ok && j.data.length > 0) {
-      el.innerHTML = j.data.map(item =>
-        `<div class="item-row">
-           <span>${item.name}</span>
-           <span style="color:var(--text-dim)">x${item.qty} = NT$${item.subtotal.toLocaleString()}</span>
-         </div>`
-      ).join('');
-    } else {
-      el.innerHTML = '<div style="color:var(--text-dim);font-size:.85rem">（無明細資料）</div>';
-    }
-  } catch(e) {
-    el.innerHTML = '<div style="color:var(--red);font-size:.85rem">載入失敗</div>';
+  const items = allItemsMap[orderId] || [];
+  if (items.length > 0) {
+    el.innerHTML = items.map(item =>
+      `<div class="item-row">
+         <span>${item.name}</span>
+         <span style="color:var(--text-dim)">x${item.qty} = NT$${item.subtotal.toLocaleString()}</span>
+       </div>`
+    ).join('');
+  } else {
+    el.innerHTML = '<div style="color:var(--text-dim);font-size:.85rem">（無明細資料）</div>';
   }
 }
 
 async function updateStatus(e, orderId, status) {
   e.stopPropagation();
+  const o = allOrders.find(x => x.id === orderId);
+  if (!o) return;
+  const prev = o.status;
+  // ── Optimistic：立刻更新 UI，不等 API ──
+  o.status = status;
+  renderOrders();
+  renderDashboard();
+  showToast('🔄 更新中…');
   try {
     const r = await fetch(WEBAPP_URL, {
       method: 'POST',
@@ -680,15 +689,15 @@ async function updateStatus(e, orderId, status) {
     });
     const j = await r.json();
     if (j.ok) {
-      const o = allOrders.find(x => x.id === orderId);
-      if (o) o.status = status;
-      renderOrders();
-      renderDashboard();
       showToast('✅ 已更新為「' + status + '」');
     } else {
+      o.status = prev;   // Rollback
+      renderOrders(); renderDashboard();
       showToast('❌ 更新失敗: ' + j.error);
     }
-  } catch(e) {
+  } catch(_) {
+    o.status = prev;     // Rollback
+    renderOrders(); renderDashboard();
     showToast('❌ 連線失敗');
   }
 }
@@ -753,22 +762,31 @@ function renderInventory() {
   }).join('');
 }
 
+// ── 防抖計時器（+/- 連按時合併為一次 API 請求）──
+const _stockTimer = {};
+
 function adjustStock(id, delta) {
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
-  const newStock = Math.max(0, p.stock + delta);
-  const inputId = 'stk-' + id.replace(/[^a-zA-Z0-9]/g, '-');
-  const input = document.getElementById(inputId);
-  if (input) input.value = newStock;
-  setStock(id, newStock);
+  p.stock = Math.max(0, p.stock + delta);
+  // 立刻更新 input 數字
+  const input = document.getElementById('stk-' + id.replace(/[^a-zA-Z0-9]/g, '-'));
+  if (input) input.value = p.stock;
+  // 防抖：700ms 後才送 API
+  clearTimeout(_stockTimer[id]);
+  _stockTimer[id] = setTimeout(() => _sendStock(id, p.stock), 700);
 }
 
-async function setStock(id, val) {
+function setStock(id, val) {
   const stock = Math.max(0, parseInt(val) || 0);
   const p = allProducts.find(x => x.id === id);
-  if (!p) return;
-  if (p.stock === stock) return; // 無變化
+  if (!p || p.stock === stock) return;
   p.stock = stock;
+  clearTimeout(_stockTimer[id]);
+  _stockTimer[id] = setTimeout(() => _sendStock(id, stock), 700);
+}
+
+async function _sendStock(id, stock) {
   try {
     const r = await fetch(WEBAPP_URL, {
       method: 'POST',
@@ -782,15 +800,16 @@ async function setStock(id, val) {
     } else {
       showToast('❌ 更新失敗: ' + j.error);
     }
-  } catch(e) {
-    showToast('❌ 連線失敗');
-  }
+  } catch(_) { showToast('❌ 連線失敗'); }
 }
 
 async function toggleActive(id, active) {
   const p = allProducts.find(x => x.id === id);
   if (!p) return;
+  // ── Optimistic：立刻切換 UI ──
   p.active = active;
+  renderInventory();
+  renderDashboard();
   try {
     const r = await fetch(WEBAPP_URL, {
       method: 'POST',
@@ -799,12 +818,14 @@ async function toggleActive(id, active) {
     const j = await r.json();
     if (j.ok) {
       showToast('✅ 已' + (active ? '上架' : '下架'));
-      renderInventory();
-      renderDashboard();
     } else {
+      p.active = !active;  // Rollback
+      renderInventory(); renderDashboard();
       showToast('❌ 更新失敗: ' + j.error);
     }
-  } catch(e) {
+  } catch(_) {
+    p.active = !active;    // Rollback
+    renderInventory(); renderDashboard();
     showToast('❌ 連線失敗');
   }
 }
