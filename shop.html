@@ -131,7 +131,7 @@
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 12px; border-top: 1px solid var(--border);
   }
-  .price { font-size: 1rem; font-weight: 700; color: var(--green); }
+  .price { font-size: 1rem; font-weight: 700; color: var(--accent2); }
   .price span { font-size: 0.75rem; color: var(--text-dim); margin-left: 2px; }
 
   .buy-btn {
@@ -174,7 +174,7 @@
   }
   .single-price-badge {
     position: absolute; bottom: 4px; right: 4px;
-    background: rgba(0,0,0,0.78); color: var(--green);
+    background: rgba(0,0,0,0.78); color: var(--accent2);
     font-size: 0.72rem; font-weight: 700;
     padding: 2px 6px; border-radius: 6px;
   }
@@ -329,19 +329,15 @@
   .qc-btn:hover { border-color: var(--accent); }
   .qc-btn:disabled { opacity: .35; cursor: default; pointer-events: none; }
   .qc-num { font-size: .88rem; min-width: 40px; text-align: center; }
-  .qc-cur { color: var(--green); font-weight: 700; }
+  .qc-cur { color: var(--text); font-weight: 700; }
   .qc-sep { color: var(--text-dim); }
   .qc-max { color: var(--text-dim); font-size: .78rem; }
 
-  /* ── 數量控制器（散卡懸停） ── */
+  /* ── 數量控制器（散卡，常駐底部） ── */
   .single-qty-ctrl {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: rgba(15,15,19,0.88);
     display: flex; align-items: center; justify-content: center;
-    gap: 6px; padding: 5px 2px;
-    opacity: 0; transition: opacity .15s; pointer-events: none;
+    gap: 6px; padding: 4px 0; width: 100%;
   }
-  .single-card:hover .single-qty-ctrl { opacity: 1; pointer-events: auto; }
   .single-card.out-of-stock .single-qty-ctrl { display: none; }
   .sqc-btn {
     width: 22px; height: 22px;
@@ -617,7 +613,7 @@ function renderProducts() {
         </div>
         <div class="product-footer" style="flex-direction:column;gap:8px">
           <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
-            <div class="price">${price ? `NT$${price}` : '—'}<span>/包</span></div>
+            <div class="price">${price ? `NT$${price}` : '—'}<span>/盒</span></div>
             ${buyHtml}
           </div>
           ${stock && price ? `
@@ -704,17 +700,17 @@ function renderSingles() {
                loading="lazy" onerror="this.style.opacity='.2'">
           ${price ? `<div class="single-price-badge">NT$${price}</div>` : ''}
           ${!stock ? '<div class="single-oos">缺貨</div>' : ''}
-          ${stock && price ? `
-          <div class="single-qty-ctrl">
-            <button class="sqc-btn" onclick="changeQty('${card.image_file}',-1,'single','${sname}',${price},${cfg.stock})">−</button>
-            <span class="qc-num" data-qid="${card.image_file}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${cfg.stock}</span></span>
-            <button class="sqc-btn" onclick="changeQty('${card.image_file}',1,'single','${sname}',${price},${cfg.stock})">+</button>
-          </div>` : ''}
         </div>
         <div class="single-info">
           <div class="single-name">${card.name || card.card_no}</div>
           <div class="single-sub">${card.card_no || ''} · ${card.rarity || ''}</div>
         </div>
+        ${stock && price ? `
+        <div class="single-qty-ctrl">
+          <button class="sqc-btn" onclick="changeQty('${card.image_file}',-1,'single','${sname}',${price},${cfg.stock})">−</button>
+          <span class="qc-num" data-qid="${card.image_file}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${cfg.stock}</span></span>
+          <button class="sqc-btn" onclick="changeQty('${card.image_file}',1,'single','${sname}',${price},${cfg.stock})">+</button>
+        </div>` : ''}
       </div>
     `);
   }
