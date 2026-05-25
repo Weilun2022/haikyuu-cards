@@ -676,6 +676,7 @@ function renderOrders() {
         <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:4px">📝 老闆備忘（僅自己可見）</div>
         <textarea id="memo-${o.id}" class="memo-input"
           placeholder="備忘記錄、付款確認、客戶要求…"
+          onclick="event.stopPropagation()"
           oninput="syncMemo('${o.id}',this)">${o.memo || ''}</textarea>
         <button class="memo-save-btn" onclick="saveMemo(event,'${o.id}')">儲存備忘</button>
       </div>
