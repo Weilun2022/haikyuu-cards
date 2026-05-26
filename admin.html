@@ -661,28 +661,74 @@ document.getElementById('pw-input').addEventListener('keydown', e => {
 // ══ 狀態 ══════════════════════════════════════════════════
 let allOrders   = [];
 let allProducts = [];
-let allItemsMap = {};   // orderId → items[]，啟動時預載，展開訂單零延遲
+let allItemsMap = {};   // orderId → items[]，點訂單 tab 時才載
 let orderFilter = '全部';
 let invFilter   = '全部';
+let _itemsLoaded = false;
+
+// ══ localStorage 快取（5 分鐘 TTL）════════════════════════
+const _CACHE_KEY = 'admin_cache_v2';
+const _CACHE_TTL = 5 * 60 * 1000;
+
+function _saveCache() {
+  try {
+    localStorage.setItem(_CACHE_KEY, JSON.stringify({
+      allOrders, allItemsMap, allProducts,
+      cp: typeof customProducts !== 'undefined' ? customProducts : [],
+      ts: Date.now()
+    }));
+  } catch(e) {}
+}
+
+function _loadCache() {
+  try {
+    const raw = localStorage.getItem(_CACHE_KEY);
+    if (!raw) return false;
+    const c = JSON.parse(raw);
+    if (Date.now() - c.ts > _CACHE_TTL) return false;
+    allOrders   = c.allOrders   || [];
+    allItemsMap = c.allItemsMap || {};
+    allProducts = c.allProducts || [];
+    if (typeof customProducts !== 'undefined') customProducts = c.cp || [];
+    _itemsLoaded = Object.keys(allItemsMap).length > 0;
+    return true;
+  } catch(e) { return false; }
+}
 
 // ══ 載入所有資料 ══════════════════════════════════════════
 async function loadAll() {
+  // 1. 快取命中 → 立刻畫面（無感等待）
+  if (_loadCache()) {
+    renderDashboard();
+    renderOrders();
+    renderInventory();
+    if (typeof renderCustomProducts === 'function') renderCustomProducts();
+  }
+
+  // 2. 背景刷新（只發 3 個請求，getAllItems 延後到點訂單 tab）
   await Promise.all([loadOrders(), loadProducts(), loadCustomProducts()]);
   renderDashboard();
+  _saveCache();
 }
 
 async function loadOrders() {
   try {
-    // 同時拿訂單列表 + 全部明細（一次 cold-start，兩份資料）
-    const [r1, r2] = await Promise.all([
-      fetch(`${WEBAPP_URL}?action=getOrders&token=${authToken}`),
-      fetch(`${WEBAPP_URL}?action=getAllItems&token=${authToken}`)
-    ]);
-    const [j1, j2] = await Promise.all([r1.json(), r2.json()]);
-    if (j1.ok) allOrders = j1.data;
-    if (j2.ok) allItemsMap = j2.data;
+    const r = await fetch(`${WEBAPP_URL}?action=getOrders&token=${authToken}`);
+    const j = await r.json();
+    if (j.ok) allOrders = j.data;
   } catch(e) { showToast('❌ 載入訂單失敗'); }
   renderOrders();
+}
+
+// 訂單明細（getAllItems）只在點訂單 tab 時才載
+async function _ensureItemsLoaded() {
+  if (_itemsLoaded) return;
+  _itemsLoaded = true;
+  try {
+    const r = await fetch(`${WEBAPP_URL}?action=getAllItems&token=${authToken}`);
+    const j = await r.json();
+    if (j.ok) { allItemsMap = j.data; _saveCache(); renderOrders(); }
+  } catch(e) {}
 }
 
 async function loadProducts() {
@@ -700,6 +746,7 @@ function showPage(name, btn) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
+  if (name === 'orders') _ensureItemsLoaded();
 }
 
 // ══ 儀表板 ════════════════════════════════════════════════
