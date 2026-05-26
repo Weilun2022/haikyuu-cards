@@ -485,6 +485,32 @@
         <div class="loading-spinner">載入中…</div>
       </div>
     </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-weight:700;margin-bottom:10px">🔗 快速連結</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <a href="https://docs.google.com/spreadsheets/d/1zgoiILh2PjxWadFrdyO60ETjJjuHWE6a73JF4tdnD8Q/edit"
+           target="_blank" rel="noopener"
+           style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);text-decoration:none;font-size:.88rem;">
+          <span style="font-size:1.2rem">📊</span>
+          <div>
+            <div style="font-weight:600">Google Sheets 資料庫</div>
+            <div style="font-size:.75rem;color:var(--text-dim)">訂單、庫存、預購原始資料</div>
+          </div>
+          <span style="margin-left:auto;color:var(--text-dim);font-size:.8rem">↗</span>
+        </a>
+        <a href="https://script.google.com/u/0/home/projects/1vpfAGBtWCYJqs5OiQURUe3NtLorrVmPwJpNft7RDPQs9UqvJp4cXoKX8/edit"
+           target="_blank" rel="noopener"
+           style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);text-decoration:none;font-size:.88rem;">
+          <span style="font-size:1.2rem">⚙️</span>
+          <div>
+            <div style="font-weight:600">Apps Script 後端</div>
+            <div style="font-size:.75rem;color:var(--text-dim)">API 程式碼與部署管理</div>
+          </div>
+          <span style="margin-left:auto;color:var(--text-dim);font-size:.8rem">↗</span>
+        </a>
+      </div>
+    </div>
   </div>
 
   <!-- 訂單管理 -->
@@ -529,7 +555,7 @@
       <div style="font-weight:700;margin-bottom:12px">＋ 新增自定義商品</div>
       <div class="upload-area" id="upload-area" onclick="document.getElementById('cp-image').click()">
         <div style="font-size:2rem">📷</div>
-        <div style="font-size:.82rem;color:var(--text-dim);margin-top:4px">點擊拍照或上傳圖片</div>
+        <div style="font-size:.82rem;color:var(--text-dim);margin-top:4px">點擊選圖 / 拍照 / 貼上 Ctrl+V</div>
         <input type="file" id="cp-image" accept="image/*" capture="environment"
                style="display:none" onchange="onCpImageSelect(this)">
         <img id="cp-preview" class="upload-preview">
@@ -1040,6 +1066,10 @@ async function compressCpImage(file) {
 async function onCpImageSelect(input) {
   const file = input.files[0];
   if (!file) return;
+  await _applyProductImage(file);
+}
+
+async function _applyProductImage(file) {
   const preview = document.getElementById('cp-preview');
   preview.style.display = 'none';
   const dataUrl = await compressCpImage(file);
@@ -1048,6 +1078,18 @@ async function onCpImageSelect(input) {
   preview.src = dataUrl;
   preview.style.display = 'block';
 }
+
+// 全域 Ctrl+V 貼上圖片
+document.addEventListener('paste', async (e) => {
+  if (!document.getElementById('page-products')?.classList.contains('active')) return;
+  const items = Array.from(e.clipboardData?.items || []);
+  const imgItem = items.find(it => it.kind === 'file' && it.type.startsWith('image/'));
+  if (!imgItem) return;
+  e.preventDefault();
+  const file = imgItem.getAsFile();
+  await _applyProductImage(file);
+  showToast('✅ 圖片已貼上');
+});
 
 async function loadCustomProducts() {
   try {
