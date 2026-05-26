@@ -367,6 +367,47 @@
       font-size: .9rem;
     }
 
+    /* ── 商品上架 ── */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s;
+      margin-bottom: 14px;
+    }
+    .upload-area:hover { border-color: var(--accent); }
+    .upload-preview {
+      width: 100%; max-height: 180px; object-fit: contain;
+      border-radius: 8px; margin-top: 8px; display: none;
+    }
+    .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+    .form-row label { font-size: .78rem; color: var(--text-dim); }
+    .form-row input, .form-row textarea {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px;
+      padding: 10px 12px; font-size: .9rem; outline: none;
+      width: 100%;
+    }
+    .form-row input:focus, .form-row textarea:focus { border-color: var(--accent); }
+    .form-row-inline { display: flex; gap: 8px; margin-bottom: 12px; }
+    .cp-card-row { display: flex; gap: 12px; align-items: flex-start; }
+    .cp-thumb {
+      width: 60px; height: 60px; border-radius: 8px;
+      object-fit: cover; background: var(--surface2); flex-shrink: 0;
+    }
+    .cp-info { flex: 1; min-width: 0; }
+    .cp-name { font-weight: 700; font-size: .9rem; }
+    .cp-meta { font-size: .77rem; color: var(--text-dim); margin-top: 2px; }
+    .cp-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+    .cp-del-btn {
+      padding: 5px 12px; border-radius: 6px;
+      border: 1px solid var(--red); background: transparent;
+      color: var(--red); font-size: .75rem; font-weight: 600; cursor: pointer;
+    }
+    .cp-del-btn:active { opacity: .7; }
+
     /* ── Toast ── */
     #toast {
       position: fixed;
@@ -479,6 +520,52 @@
     </div>
   </div>
 
+  <!-- 商品上架 -->
+  <div id="page-products" class="page">
+    <div class="page-title">🏪 商品上架</div>
+
+    <!-- 新增表單 -->
+    <div class="card" style="margin-bottom:16px">
+      <div style="font-weight:700;margin-bottom:12px">＋ 新增自定義商品</div>
+      <div class="upload-area" id="upload-area" onclick="document.getElementById('cp-image').click()">
+        <div style="font-size:2rem">📷</div>
+        <div style="font-size:.82rem;color:var(--text-dim);margin-top:4px">點擊拍照或上傳圖片</div>
+        <input type="file" id="cp-image" accept="image/*" capture="environment"
+               style="display:none" onchange="onCpImageSelect(this)">
+        <img id="cp-preview" class="upload-preview">
+      </div>
+      <div class="form-row">
+        <label>商品名稱 *</label>
+        <input type="text" id="cp-name" placeholder="例如：特賣品套組">
+      </div>
+      <div class="form-row-inline">
+        <div class="form-row" style="flex:1;margin-bottom:0">
+          <label>售價 (NT$)</label>
+          <input type="number" id="cp-price" placeholder="0" min="0">
+        </div>
+        <div class="form-row" style="flex:1;margin-bottom:0">
+          <label>庫存</label>
+          <input type="number" id="cp-stock" placeholder="1" min="0" value="1">
+        </div>
+        <div class="form-row" style="width:64px;margin-bottom:0">
+          <label>單位</label>
+          <input type="text" id="cp-unit" placeholder="件" value="件">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:12px">
+        <label>商品描述（選填）</label>
+        <input type="text" id="cp-desc" placeholder="簡短說明">
+      </div>
+      <button class="btn-primary" id="cp-submit-btn" onclick="submitCustomProduct()" style="margin-top:4px">
+        🏪 上架商品
+      </button>
+    </div>
+
+    <!-- 已上架列表 -->
+    <div style="font-weight:700;margin-bottom:10px">📋 已上架商品</div>
+    <div id="cp-list"><div class="loading-spinner">載入中…</div></div>
+  </div>
+
   <!-- 底部導覽 -->
   <nav id="bottom-nav">
     <button class="nav-btn active" onclick="showPage('dashboard',this)">
@@ -489,6 +576,9 @@
     </button>
     <button class="nav-btn" onclick="showPage('inventory',this)">
       <span class="nav-icon">📦</span>庫存
+    </button>
+    <button class="nav-btn" onclick="showPage('products',this)">
+      <span class="nav-icon">🏪</span>上架
     </button>
   </nav>
 </div>
@@ -551,7 +641,7 @@ let invFilter   = '全部';
 
 // ══ 載入所有資料 ══════════════════════════════════════════
 async function loadAll() {
-  await Promise.all([loadOrders(), loadProducts()]);
+  await Promise.all([loadOrders(), loadProducts(), loadCustomProducts()]);
   renderDashboard();
 }
 
@@ -918,6 +1008,169 @@ async function saveMemo(e, orderId) {
     const j = await r.json();
     showToast(j.ok ? '✅ 備忘已儲存' : '❌ 儲存失敗: ' + j.error);
   } catch(_) { showToast('❌ 連線失敗'); }
+}
+
+// ══ 商品上架 ══════════════════════════════════════════════
+let customProducts = [];
+let cpImageBase64  = '';
+let cpImageFilename = '';
+
+async function compressCpImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1200;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else       { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function onCpImageSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById('cp-preview');
+  preview.style.display = 'none';
+  const dataUrl = await compressCpImage(file);
+  cpImageBase64   = dataUrl.split(',')[1];
+  cpImageFilename = 'product.jpg';
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+}
+
+async function loadCustomProducts() {
+  try {
+    const r = await fetch(`${WEBAPP_URL}?action=getCustomProducts`);
+    const j = await r.json();
+    if (j.ok) { customProducts = j.data || []; renderCustomProducts(); }
+  } catch(e) { /* silent */ }
+}
+
+function renderCustomProducts() {
+  const list = document.getElementById('cp-list');
+  if (!list) return;
+  if (!customProducts.length) {
+    list.innerHTML = '<div class="empty-state">尚無上架商品</div>';
+    return;
+  }
+  list.innerHTML = customProducts.map(p => `
+    <div class="card" id="cp-card-${p.id}">
+      <div class="cp-card-row">
+        <img class="cp-thumb" src="${p.imageUrl || ''}" alt="${p.name}"
+             onerror="this.style.opacity='.3'">
+        <div class="cp-info">
+          <div class="cp-name">${p.name}</div>
+          <div class="cp-meta">NT$${p.price} · 庫存${p.stock}${p.unit}${p.description ? ' · ' + p.description : ''}</div>
+          <div class="cp-actions">
+            <div class="stock-ctrl">
+              <button class="sc-btn" onclick="adjCpStock('${p.id}',-1)">−</button>
+              <input class="sc-input" id="cpstk-${p.id}" type="number"
+                     value="${p.stock}" min="0" onblur="setCpStock('${p.id}',this.value)">
+              <button class="sc-btn" onclick="adjCpStock('${p.id}',1)">＋</button>
+            </div>
+            <button class="cp-del-btn" onclick="deleteCp('${p.id}','${p.name.replace(/'/g,"\\'")}')">🗑 刪除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function submitCustomProduct() {
+  const name  = document.getElementById('cp-name').value.trim();
+  const price = parseInt(document.getElementById('cp-price').value) || 0;
+  const stock = parseInt(document.getElementById('cp-stock').value);
+  const unit  = document.getElementById('cp-unit').value.trim() || '件';
+  const description = document.getElementById('cp-desc').value.trim();
+
+  if (!name)          { showToast('❌ 請填寫商品名稱'); return; }
+  if (!cpImageBase64) { showToast('❌ 請先上傳商品圖片'); return; }
+
+  const btn = document.getElementById('cp-submit-btn');
+  btn.disabled = true; btn.textContent = '上架中…';
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'addCustomProduct', token: authToken,
+        name, price, stock, unit, description,
+        imageBase64: cpImageBase64, imageFilename: cpImageFilename
+      })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      showToast('✅ 商品已上架！');
+      ['cp-name','cp-price','cp-desc'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('cp-stock').value = '1';
+      document.getElementById('cp-unit').value  = '件';
+      document.getElementById('cp-preview').style.display = 'none';
+      document.getElementById('cp-image').value = '';
+      cpImageBase64 = ''; cpImageFilename = '';
+      loadCustomProducts();
+    } else {
+      showToast('❌ 上架失敗: ' + (j.error || '未知錯誤'));
+    }
+  } catch(e) { showToast('❌ 連線失敗'); }
+  btn.disabled = false; btn.textContent = '🏪 上架商品';
+}
+
+const _cpStockTimer = {};
+function adjCpStock(id, delta) {
+  const p = customProducts.find(x => x.id === id);
+  if (!p) return;
+  p.stock = Math.max(0, p.stock + delta);
+  const inp = document.getElementById('cpstk-' + id);
+  if (inp) inp.value = p.stock;
+  clearTimeout(_cpStockTimer[id]);
+  _cpStockTimer[id] = setTimeout(() => _sendCpUpdate(id, { stock: p.stock }), 700);
+}
+
+function setCpStock(id, val) {
+  const stock = Math.max(0, parseInt(val) || 0);
+  const p = customProducts.find(x => x.id === id);
+  if (!p || p.stock === stock) return;
+  p.stock = stock;
+  clearTimeout(_cpStockTimer[id]);
+  _cpStockTimer[id] = setTimeout(() => _sendCpUpdate(id, { stock }), 700);
+}
+
+async function deleteCp(id, name) {
+  if (!confirm(`確定要刪除「${name}」？此操作無法恢復。`)) return;
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'deleteCustomProduct', token: authToken, id })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      customProducts = customProducts.filter(x => x.id !== id);
+      renderCustomProducts();
+      showToast('✅ 已刪除');
+    } else { showToast('❌ 刪除失敗: ' + (j.error || '')); }
+  } catch(e) { showToast('❌ 連線失敗'); }
+}
+
+async function _sendCpUpdate(id, fields) {
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateCustomProduct', token: authToken, id, ...fields })
+    });
+    const j = await r.json();
+    if (!j.ok) showToast('❌ 更新失敗');
+    else if (fields.stock !== undefined) showToast('✅ 庫存已更新');
+  } catch(e) { showToast('❌ 連線失敗'); }
 }
 
 // ══ Toast ═════════════════════════════════════════════════

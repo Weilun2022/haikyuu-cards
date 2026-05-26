@@ -37,8 +37,8 @@
   }
   .header-title { font-size: 1.1rem; font-weight: 700; }
   .header-sub   { font-size: 0.75rem; color: var(--text-dim); margin-top: 2px; }
+  .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
   .header-back  {
-    margin-left: auto;
     font-size: 0.8rem; color: var(--text-dim);
     text-decoration: none;
     padding: 6px 12px;
@@ -366,6 +366,60 @@
   }
   .single-card:hover .single-add-btn { opacity: 1; }
   .single-card.out-of-stock .single-add-btn { display: none; }
+
+  /* ── 特賣商品 / 自定義商品 ── */
+  .section-label {
+    font-size: .82rem; font-weight: 700; color: var(--accent);
+    letter-spacing: .05em; margin-bottom: 10px;
+  }
+  .section-divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* ── 預購按鈕 ── */
+  .preorder-btn {
+    width: 100%; padding: 7px;
+    background: transparent; border: 1px solid var(--accent);
+    color: var(--accent); border-radius: 6px;
+    font-size: .82rem; font-weight: 600; cursor: pointer;
+    transition: all .15s;
+  }
+  .preorder-btn:hover { background: var(--accent); color: #fff; }
+
+  /* ── 預購 Modal ── */
+  .preorder-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.6); z-index: 300;
+  }
+  .preorder-overlay.open { display: block; }
+  .preorder-sheet {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0; padding: 20px 20px 32px;
+    z-index: 301; max-height: 90vh; overflow-y: auto;
+    transform: translateY(100%); transition: transform .25s ease;
+  }
+  .preorder-sheet.open { transform: translateY(0); }
+  .pr-handle {
+    width: 40px; height: 4px; background: var(--border);
+    border-radius: 2px; margin: 0 auto 16px;
+  }
+  .pr-title { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+  .pr-product { font-size: .82rem; color: var(--text-dim); margin-bottom: 16px; }
+  .pr-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+  .pr-field label { font-size: .78rem; color: var(--text-dim); }
+  .pr-field input, .pr-field textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 10px 12px;
+    font-size: .88rem; outline: none; font-family: inherit;
+  }
+  .pr-field input:focus, .pr-field textarea:focus { border-color: var(--accent); }
+  .pr-field textarea { height: 56px; resize: none; }
+  .pr-submit-btn {
+    width: 100%; padding: 12px; border: none; border-radius: 10px;
+    background: var(--accent); color: #fff;
+    font-size: .95rem; font-weight: 700; cursor: pointer;
+    margin-top: 4px; transition: opacity .15s;
+  }
+  .pr-submit-btn:disabled { opacity: .5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -379,7 +433,10 @@
     🛒 購物車
     <span class="cart-count" id="cart-count">0</span>
   </button>
-  <a class="header-back" href="index.html">← 資料庫</a>
+  <div class="header-right">
+    <a class="header-back" href="order-status.html">📦 訂單查詢</a>
+    <a class="header-back" href="index.html">← 資料庫</a>
+  </div>
 </header>
 
 <!-- ── 購物車側欄 ─────────────────────────────────── -->
@@ -459,9 +516,39 @@
 
 <!-- Products panel -->
 <div id="panel-products" class="tab-panel active">
-  <div id="loading-msg">載入中...</div>
-  <div class="product-grid" id="product-grid" style="display:none"></div>
+  <!-- ✨ 特賣商品（自定義商品） -->
+  <div id="custom-products-section" style="display:none;padding:16px 16px 0">
+    <div class="section-label">✨ 特賣商品</div>
+    <div class="product-grid" id="custom-product-grid"></div>
+    <div class="section-divider"></div>
+  </div>
+  <div style="padding:16px 16px 0;display:none" id="regular-label">
+    <div class="section-label">📦 整盒 / 整彈</div>
+  </div>
+  <div id="loading-msg" style="padding:16px">載入中...</div>
+  <div class="product-grid" id="product-grid" style="display:none;padding:16px"></div>
   <div class="empty" id="product-empty" style="display:none">目前沒有上架商品</div>
+</div>
+
+<!-- 預購 Modal -->
+<div class="preorder-overlay" id="preorder-overlay" onclick="closePreorder()"></div>
+<div class="preorder-sheet" id="preorder-sheet">
+  <div class="pr-handle"></div>
+  <div class="pr-title">📋 預購登記</div>
+  <div class="pr-product" id="pr-product-name"></div>
+  <div class="pr-field">
+    <label>姓名 *</label>
+    <input type="text" id="pr-name" placeholder="王小明">
+  </div>
+  <div class="pr-field">
+    <label>手機號碼 *</label>
+    <input type="tel" id="pr-phone" placeholder="0912-345-678">
+  </div>
+  <div class="pr-field">
+    <label>備註（選填）</label>
+    <textarea id="pr-note" placeholder="數量需求、其他說明…"></textarea>
+  </div>
+  <button class="pr-submit-btn" id="pr-submit-btn" onclick="submitPreorderForm()">確認送出預購</button>
 </div>
 
 <!-- Singles panel -->
@@ -512,10 +599,11 @@ const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx-b0C8DwQt746emt47L
 const IMG_BASE = 'images/';
 // ──────────────────────────────────────────────────────
 
-let shopConfig     = { products: {}, singles: {} };
-let allCards       = [];
-let shippingConfig = { shipping: [], payment: [] };
+let shopConfig         = { products: {}, singles: {} };
+let allCards           = [];
+let shippingConfig     = { shipping: [], payment: [] };
 let currentShippingFee = 0;
+let customProductsList = [];  // Wave 2: 自定義商品
 
 // 稀有度顯示色
 const RARITY_COLOR = {
@@ -545,12 +633,17 @@ async function loadConfig() {
   })();
 
   const shippingPromise = fetch(`${WEBAPP_URL}?action=getShippingConfig`)
-    .then(r => r.json())
-    .catch(() => ({ ok: false }));
+    .then(r => r.json()).catch(() => ({ ok: false }));
 
-  const [, shipRes] = await Promise.all([csvPromise, shippingPromise]);
+  const customPromise = fetch(`${WEBAPP_URL}?action=getCustomProducts`)
+    .then(r => r.json()).catch(() => ({ ok: false }));
+
+  const [, shipRes, customRes] = await Promise.all([csvPromise, shippingPromise, customPromise]);
   if (shipRes && shipRes.ok && shipRes.data) {
     shippingConfig = shipRes.data;
+  }
+  if (customRes && customRes.ok) {
+    customProductsList = (customRes.data || []).filter(p => p.active);
   }
 }
 
@@ -583,11 +676,49 @@ function parseSheetsCsv(text) {
   return cfg;
 }
 
-// ── 渲染整盒頁 ────────────────────────────────────────
+// ── 渲染自定義商品 ─────────────────────────────────────
+function renderCustomProducts() {
+  const section = document.getElementById('custom-products-section');
+  if (!section) return;
+  if (!customProductsList.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  const grid = document.getElementById('custom-product-grid');
+  grid.innerHTML = customProductsList.map(p => {
+    const stock = p.stock > 0;
+    const safeName = (p.name || '').replace(/'/g, "\\'");
+    const qtyCtrl = stock && p.price ? `
+      <div class="qty-ctrl">
+        <button class="qc-btn" onclick="changeQty('cp-${p.id}',-1,'custom','${safeName}',${p.price},${p.stock})">−</button>
+        <span class="qc-num" data-qid="cp-${p.id}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${p.stock}</span></span>
+        <button class="qc-btn" onclick="changeQty('cp-${p.id}',1,'custom','${safeName}',${p.price},${p.stock})">+</button>
+      </div>` : !stock ? `<button class="preorder-btn" onclick="openPreorder('cp-${p.id}','${safeName}')">📋 預購登記</button>` : '';
+    return `
+      <div class="product-card${stock ? '' : ' out-of-stock'}">
+        <div class="product-cover">
+          <img src="${p.imageUrl || ''}" alt="${p.name}"
+               style="flex:1;object-fit:cover;border-radius:4px" onerror="this.style.opacity='.2'">
+          <span class="stock-badge ${stock ? 'in' : 'out'}">${stock ? '有貨' : '缺貨'}</span>
+        </div>
+        <div class="product-body">
+          <div class="product-name">${p.name}</div>
+          ${p.description ? `<div class="product-meta">${p.description}</div>` : ''}
+        </div>
+        <div class="product-footer" style="flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+            <div class="price">NT$${p.price}<span>/${p.unit || '件'}</span></div>
+          </div>
+          ${qtyCtrl}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── 渲染整盒頁 ─────────────────────────────────────────
 function renderProducts() {
   const grid  = document.getElementById('product-grid');
   const empty = document.getElementById('product-empty');
   document.getElementById('loading-msg').style.display = 'none';
+  renderCustomProducts();
 
   // 按 product_type 分組
   const groups = {};
@@ -599,7 +730,13 @@ function renderProducts() {
   }
 
   const entries = Object.entries(groups);
-  if (!entries.length) { empty.style.display = ''; return; }
+  if (!entries.length) {
+    if (!customProductsList.length) empty.style.display = '';
+    return;
+  }
+  // Show "整盒/整彈" section label only when there are also custom products
+  const regularLabel = document.getElementById('regular-label');
+  if (regularLabel) regularLabel.style.display = customProductsList.length ? '' : 'none';
 
   grid.style.display = '';
   grid.innerHTML = '';
@@ -629,11 +766,22 @@ function renderProducts() {
       `<span class="rarity-chip" style="color:${RARITY_COLOR[r]||'#999'}">${r} ×${n}</span>`
     ).join('');
 
+    const safeLabel = label.replace(/'/g, "\\'");
     const buyHtml = price > 0
       ? `<a class="buy-btn${url ? '' : ' disabled'}" ${url ? `href="${url}" target="_blank"` : ''}>
            ${url ? '前往購買' : '洽詢店家'}
          </a>`
       : `<span style="font-size:.8rem;color:var(--text-dim)">價格洽詢</span>`;
+
+    const bottomCtrl = stock && price
+      ? `<div class="qty-ctrl">
+           <button class="qc-btn" onclick="changeQty('${pt}',-1,'product','${safeLabel}',${price},${cfg.stock})">−</button>
+           <span class="qc-num" data-qid="${pt}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${cfg.stock}</span></span>
+           <button class="qc-btn" onclick="changeQty('${pt}',1,'product','${safeLabel}',${price},${cfg.stock})">+</button>
+         </div>`
+      : !stock && price
+      ? `<button class="preorder-btn" onclick="openPreorder('${pt}','${safeLabel}')">📋 預購登記</button>`
+      : '';
 
     grid.insertAdjacentHTML('beforeend', `
       <div class="product-card${stock ? '' : ' out-of-stock'}">
@@ -651,12 +799,7 @@ function renderProducts() {
             <div class="price">${price ? `NT$${price}` : '—'}<span>/盒</span></div>
             ${buyHtml}
           </div>
-          ${stock && price ? `
-          <div class="qty-ctrl">
-            <button class="qc-btn" onclick="changeQty('${pt}',-1,'product','${label.replace(/'/g,"\\'")}',${price},${cfg.stock})">−</button>
-            <span class="qc-num" data-qid="${pt}"><span class="qc-cur">0</span><span class="qc-sep">/</span><span class="qc-max">${cfg.stock}</span></span>
-            <button class="qc-btn" onclick="changeQty('${pt}',1,'product','${label.replace(/'/g,"\\'")}',${price},${cfg.stock})">+</button>
-          </div>` : ''}
+          ${bottomCtrl}
         </div>
       </div>
     `);
@@ -998,6 +1141,55 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   document.getElementById(id).addEventListener('input', filterSingles);
 });
 document.getElementById('singles-stock-only').addEventListener('change', filterSingles);
+
+// ── Wave 3：預購登記 ──────────────────────────────────
+let _preorderId = '', _preorderName = '';
+
+function openPreorder(id, name) {
+  _preorderId   = id;
+  _preorderName = name;
+  document.getElementById('pr-product-name').textContent = '商品：' + name;
+  document.getElementById('preorder-overlay').classList.add('open');
+  document.getElementById('preorder-sheet').classList.add('open');
+}
+function closePreorder() {
+  document.getElementById('preorder-overlay').classList.remove('open');
+  document.getElementById('preorder-sheet').classList.remove('open');
+}
+
+async function submitPreorderForm() {
+  const name  = document.getElementById('pr-name').value.trim();
+  const phone = document.getElementById('pr-phone').value.trim();
+  const note  = document.getElementById('pr-note').value.trim();
+  if (!name || !phone) { alert('請填寫姓名和電話'); return; }
+
+  const btn = document.getElementById('pr-submit-btn');
+  btn.disabled = true; btn.textContent = '送出中…';
+  try {
+    const r = await fetch(WEBAPP_URL, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'submitPreorder',
+        productId: _preorderId, productName: _preorderName,
+        name, phone, note,
+        timestamp: new Date().toLocaleString('zh-TW')
+      })
+    });
+    const j = await r.json();
+    if (j.ok) {
+      closePreorder();
+      document.getElementById('pr-name').value  = '';
+      document.getElementById('pr-phone').value = '';
+      document.getElementById('pr-note').value  = '';
+      alert('✅ 預購登記成功！店家確認後會主動聯繫您 🎉');
+    } else {
+      alert('❌ ' + (j.error || '登記失敗，請重試'));
+    }
+  } catch(e) {
+    alert('❌ 連線失敗，請稍後再試');
+  }
+  btn.disabled = false; btn.textContent = '確認送出預購';
+}
 
 // ── 初始化 ────────────────────────────────────────────
 (async () => {

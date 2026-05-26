@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>訂單查詢 - 排球少年小賣部</title>
+<style>
+  :root {
+    --bg:       #0f0f13;
+    --surface:  #1a1a24;
+    --surface2: #22222f;
+    --border:   #2e2e40;
+    --text:     #e8e8f0;
+    --text-dim: #8888aa;
+    --accent:   #6c63ff;
+    --accent2:  #ff6584;
+    --green:    #4ade80;
+    --red:      #f87171;
+    --yellow:   #fbbf24;
+    --orange:   #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', sans-serif;
+    min-height: 100dvh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .header-title { font-size: 1rem; font-weight: 700; }
+  .header-back {
+    margin-left: auto; font-size: .8rem; color: var(--text-dim);
+    text-decoration: none; padding: 6px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .header-back:hover { color: var(--text); border-color: var(--accent); }
+
+  .container { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+
+  .search-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; margin-bottom: 24px;
+  }
+  .search-title {
+    font-size: 1.1rem; font-weight: 700; margin-bottom: 6px;
+  }
+  .search-sub { font-size: .85rem; color: var(--text-dim); margin-bottom: 16px; }
+  .search-row { display: flex; gap: 10px; }
+  .search-input {
+    flex: 1;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 10px;
+    padding: 12px 14px; font-size: .95rem; outline: none;
+  }
+  .search-input:focus { border-color: var(--accent); }
+  .search-btn {
+    padding: 12px 20px; background: var(--accent);
+    color: #fff; border: none; border-radius: 10px;
+    font-size: .9rem; font-weight: 700; cursor: pointer;
+    transition: opacity .15s; white-space: nowrap;
+  }
+  .search-btn:hover { opacity: .85; }
+  .search-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .result-section { margin-bottom: 12px; }
+  .result-count { font-size: .82rem; color: var(--text-dim); margin-bottom: 10px; }
+
+  .order-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  }
+  .order-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .order-id    { font-weight: 700; font-size: .95rem; }
+  .order-time  { font-size: .78rem; color: var(--text-dim); margin-top: 3px; }
+  .order-total { font-size: 1.1rem; font-weight: 700; color: var(--accent2); }
+
+  .status-chip {
+    display: inline-block; padding: 3px 10px;
+    border-radius: 20px; font-size: .75rem; font-weight: 600;
+  }
+  .s-new      { background: rgba(251,191,36,.15);  color: var(--yellow); }
+  .s-discuss  { background: rgba(251,146,60,.15);  color: var(--orange); }
+  .s-toship   { background: rgba(108,99,255,.15);  color: var(--accent); }
+  .s-shipped  { background: rgba(74,222,128,.2);   color: var(--green); }
+  .s-cancel   { background: rgba(248,113,113,.15); color: var(--red); }
+
+  .order-info { font-size: .84rem; margin-bottom: 10px; }
+  .info-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .info-label { color: var(--text-dim); width: 48px; flex-shrink: 0; }
+
+  .items-title { font-size: .78rem; color: var(--text-dim); font-weight: 700;
+                 margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .item-row {
+    display: flex; justify-content: space-between;
+    font-size: .82rem; padding: 4px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-subtotal { color: var(--accent2); font-weight: 600; }
+
+  .divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+  .empty-state {
+    text-align: center; color: var(--text-dim);
+    padding: 48px 16px; font-size: .95rem; line-height: 1.6;
+  }
+  .empty-icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+  .error-msg {
+    background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3);
+    border-radius: 10px; padding: 12px 16px;
+    color: var(--red); font-size: .88rem; margin-bottom: 12px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-title">📦 訂單查詢</div>
+  </div>
+  <a class="header-back" href="shop.html">← 回小賣部</a>
+</header>
+
+<div class="container">
+  <div class="search-card">
+    <div class="search-title">查詢您的訂單</div>
+    <div class="search-sub">請輸入當時下單所填寫的手機號碼</div>
+    <div class="search-row">
+      <input type="tel" id="phone-input" class="search-input"
+             placeholder="0912-345-678"
+             onkeydown="if(event.key==='Enter')queryOrders()">
+      <button class="search-btn" id="search-btn" onclick="queryOrders()">查詢</button>
+    </div>
+  </div>
+
+  <div id="results"></div>
+</div>
+
+<script>
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx-b0C8DwQt746emt47LL168-_7g5Mp7V81-kDMRCflHg5Y-IFaaQOumekTjZ_j2YYYxQ/exec';
+
+const STATUS_CLASS = {
+  '新訂單': 's-new',
+  '討論中': 's-discuss',
+  '待出貨': 's-toship',
+  '已出貨': 's-shipped',
+  '取消':   's-cancel',
+  '待確認': 's-new',
+  '已付款': 's-toship',
+  '已完成': 's-shipped',
+};
+
+async function queryOrders() {
+  const phone = document.getElementById('phone-input').value.trim();
+  if (!phone) {
+    document.getElementById('results').innerHTML =
+      '<div class="error-msg">請輸入手機號碼</div>';
+    return;
+  }
+
+  const btn = document.getElementById('search-btn');
+  btn.disabled = true; btn.textContent = '查詢中…';
+  document.getElementById('results').innerHTML =
+    '<div class="empty-state"><div style="color:var(--text-dim);font-size:.9rem">載入中…</div></div>';
+
+  try {
+    const r = await fetch(`${WEBAPP_URL}?action=queryOrderByPhone&phone=${encodeURIComponent(phone)}`);
+    const j = await r.json();
+    if (j.ok) {
+      renderResults(j.data || []);
+    } else {
+      document.getElementById('results').innerHTML =
+        `<div class="error-msg">查詢失敗：${j.error || '請稍後再試'}</div>`;
+    }
+  } catch(e) {
+    document.getElementById('results').innerHTML =
+      '<div class="error-msg">連線失敗，請確認網路後再試</div>';
+  }
+  btn.disabled = false; btn.textContent = '查詢';
+}
+
+function renderResults(orders) {
+  const el = document.getElementById('results');
+  if (!orders.length) {
+    el.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        查無訂單記錄<br>
+        <span style="font-size:.82rem">請確認電話號碼是否正確</span>
+      </div>`;
+    return;
+  }
+
+  const chips = orders.map(o => {
+    const sc = STATUS_CLASS[o.status] || 's-discuss';
+    const itemsHtml = (o.items || []).length
+      ? (o.items || []).map(i => `
+          <div class="item-row">
+            <span>${i.name} ×${i.qty}</span>
+            <span class="item-subtotal">NT$${(i.subtotal || i.qty * i.price || 0).toLocaleString()}</span>
+          </div>`).join('')
+      : '<div class="item-row" style="color:var(--text-dim)">（無明細）</div>';
+
+    const shippingRow = o.shipping_method
+      ? `<div class="info-row"><span class="info-label">取貨</span>${o.shipping_method}${o.shipping_fee > 0 ? `（+NT$${o.shipping_fee}）` : '（免運）'}</div>`
+      : '';
+    const paymentRow = o.payment_method
+      ? `<div class="info-row"><span class="info-label">付款</span>${o.payment_method}</div>`
+      : '';
+
+    return `
+      <div class="order-card">
+        <div class="order-header">
+          <div>
+            <div class="order-id">${o.id}</div>
+            <div class="order-time">${o.time || ''}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <span class="status-chip ${sc}">${o.status}</span>
+            <div class="order-total">NT$${(o.total || 0).toLocaleString()}</div>
+          </div>
+        </div>
+        <div class="order-info">
+          <div class="info-row"><span class="info-label">姓名</span>${o.name || ''}</div>
+          <div class="info-row"><span class="info-label">地址</span>${o.address || ''}</div>
+          ${shippingRow}${paymentRow}
+          ${o.note ? `<div class="info-row"><span class="info-label">備註</span>${o.note}</div>` : ''}
+        </div>
+        <div class="divider"></div>
+        <div class="items-title">訂購明細</div>
+        ${itemsHtml}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="result-count">找到 ${orders.length} 筆訂單</div>
+    <div class="result-section">${chips}</div>`;
+}
+</script>
+</body>
+</html>
