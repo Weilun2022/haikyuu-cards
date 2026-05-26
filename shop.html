@@ -284,12 +284,14 @@
   .form-field { display: flex; flex-direction: column; gap: 3px; }
   .form-field label { font-size: .78rem; color: var(--text-dim); }
   .form-field input,
-  .form-field textarea {
+  .form-field textarea,
+  .form-field select {
     background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); border-radius: 6px; padding: 7px 10px; font-size: .85rem;
   }
   .form-field input:focus,
-  .form-field textarea:focus { outline: none; border-color: var(--accent); }
+  .form-field textarea:focus,
+  .form-field select:focus { outline: none; border-color: var(--accent); }
   .form-field textarea { height: 56px; resize: none; font-family: inherit; }
   .cart-action-btn {
     width: 100%; padding: 11px; border: none; border-radius: 8px;
@@ -392,8 +394,16 @@
   <div id="cart-main" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
     <div class="cart-items" id="cart-list"></div>
     <div class="cart-footer">
+      <div class="cart-total-row" id="subtotal-row" style="display:none;font-size:.85rem;color:var(--text-dim);font-weight:400">
+        <span>商品小計</span>
+        <span id="cart-subtotal">NT$0</span>
+      </div>
+      <div class="cart-total-row" id="shipping-fee-row" style="display:none;font-size:.85rem;color:var(--text-dim);font-weight:400">
+        <span>運費</span>
+        <span id="cart-shipping-disp">NT$0</span>
+      </div>
       <div class="cart-total-row">
-        <span>合計</span>
+        <span>總計</span>
         <span class="cart-total-amt" id="cart-total">NT$0</span>
       </div>
       <button class="cart-action-btn btn-checkout" id="btn-checkout"
@@ -411,8 +421,20 @@
           <label>收件地址 *</label>
           <input id="o-addr" type="text" placeholder="台北市...">
         </div>
+        <div class="form-field" id="shipping-field" style="display:none">
+          <label>取貨方式 *</label>
+          <select id="o-shipping" onchange="onShippingChange()">
+            <option value="">請選擇取貨方式</option>
+          </select>
+        </div>
+        <div class="form-field" id="payment-field" style="display:none">
+          <label>付款方式 *</label>
+          <select id="o-payment">
+            <option value="">請選擇付款方式</option>
+          </select>
+        </div>
         <div class="form-field">
-          <label>備註（取貨方式 / 特殊需求）</label>
+          <label>備註（特殊需求）</label>
           <textarea id="o-note" placeholder="可留空"></textarea>
         </div>
       </div>
@@ -490,8 +512,10 @@ const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx-b0C8DwQt746emt47L
 const IMG_BASE = 'images/';
 // ──────────────────────────────────────────────────────
 
-let shopConfig = { products: {}, singles: {} };
-let allCards   = [];
+let shopConfig     = { products: {}, singles: {} };
+let allCards       = [];
+let shippingConfig = { shipping: [], payment: [] };
+let currentShippingFee = 0;
 
 // 稀有度顯示色
 const RARITY_COLOR = {
@@ -501,22 +525,32 @@ const RARITY_COLOR = {
 
 // ── 載入設定 ──────────────────────────────────────────
 async function loadConfig() {
-  if (SHEETS_URL) {
-    try {
-      const res  = await fetch(SHEETS_URL);
-      const text = await res.text();
-      shopConfig = parseSheetsCsv(text);
-      return;
-    } catch(e) {
-      console.warn('Google Sheets 載入失敗，改用本地設定', e);
+  const csvPromise = (async () => {
+    if (SHEETS_URL) {
+      try {
+        const res  = await fetch(SHEETS_URL);
+        const text = await res.text();
+        shopConfig = parseSheetsCsv(text);
+        return;
+      } catch(e) {
+        console.warn('Google Sheets 載入失敗，改用本地設定', e);
+      }
     }
-  }
-  // 本地 fallback
-  try {
-    const res = await fetch('shop_config.json');
-    shopConfig = await res.json();
-  } catch(e) {
-    console.warn('shop_config.json 不存在，以空設定運行');
+    try {
+      const res = await fetch('shop_config.json');
+      shopConfig = await res.json();
+    } catch(e) {
+      console.warn('shop_config.json 不存在，以空設定運行');
+    }
+  })();
+
+  const shippingPromise = fetch(`${WEBAPP_URL}?action=getShippingConfig`)
+    .then(r => r.json())
+    .catch(() => ({ ok: false }));
+
+  const [, shipRes] = await Promise.all([csvPromise, shippingPromise]);
+  if (shipRes && shipRes.ok && shipRes.data) {
+    shippingConfig = shipRes.data;
   }
 }
 
@@ -769,11 +803,21 @@ function renderCart() {
   const btnCo = document.getElementById('btn-checkout');
   const items = Object.entries(cart);
   const count = items.reduce((s, [, i]) => s + i.qty, 0);
+  const subtotal = cartTotal();
+  const grandTotal = subtotal + currentShippingFee;
 
   badge.textContent = count;
   badge.classList.toggle('show', count > 0);
-  total.textContent = `NT$${cartTotal()}`;
+  total.textContent = `NT$${grandTotal}`;
   btnCo.disabled = items.length === 0;
+
+  // Breakdown rows（結帳展開後顯示）
+  if (checkoutOpen) {
+    document.getElementById('subtotal-row').style.display = '';
+    document.getElementById('shipping-fee-row').style.display = '';
+    document.getElementById('cart-subtotal').textContent = `NT$${subtotal}`;
+    document.getElementById('cart-shipping-disp').textContent = `NT$${currentShippingFee}`;
+  }
 
   list.innerHTML = '';
   if (!items.length) {
@@ -815,27 +859,74 @@ function closeCart() {
 function showCheckout() {
   if (checkoutOpen) return;
   checkoutOpen = true;
+  populateShippingSelects();
   document.getElementById('checkout-form').classList.add('show');
   document.getElementById('btn-submit').classList.add('show');
   document.getElementById('btn-checkout').style.display = 'none';
+  renderCart(); // refresh to show breakdown
+}
+
+function populateShippingSelects() {
+  const sSel = document.getElementById('o-shipping');
+  const pSel = document.getElementById('o-payment');
+  if (!sSel || !pSel || sSel.dataset.populated) return;
+  sSel.dataset.populated = '1';
+
+  shippingConfig.shipping.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.dataset.fee = s.fee;
+    opt.textContent = s.name + (s.fee > 0 ? ` (+NT$${s.fee})` : ' (免運)');
+    sSel.appendChild(opt);
+  });
+  shippingConfig.payment.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.name;
+    opt.textContent = p.name;
+    pSel.appendChild(opt);
+  });
+  if (shippingConfig.shipping.length > 0) {
+    document.getElementById('shipping-field').style.display = '';
+  }
+  if (shippingConfig.payment.length > 0) {
+    document.getElementById('payment-field').style.display = '';
+  }
+}
+
+function onShippingChange() {
+  const sel = document.getElementById('o-shipping');
+  const opt = sel.options[sel.selectedIndex];
+  currentShippingFee = parseInt(opt?.dataset.fee || 0) || 0;
+  renderCart();
 }
 
 async function submitOrder() {
-  const name  = document.getElementById('o-name').value.trim();
-  const phone = document.getElementById('o-phone').value.trim();
-  const addr  = document.getElementById('o-addr').value.trim();
-  const note  = document.getElementById('o-note').value.trim();
+  const name           = document.getElementById('o-name').value.trim();
+  const phone          = document.getElementById('o-phone').value.trim();
+  const addr           = document.getElementById('o-addr').value.trim();
+  const note           = document.getElementById('o-note').value.trim();
+  const shippingMethod = document.getElementById('o-shipping')?.value || '';
+  const paymentMethod  = document.getElementById('o-payment')?.value  || '';
+
   if (!name || !phone || !addr) { alert('請填寫姓名、電話、地址（必填）'); return; }
+  if (shippingConfig.shipping.length > 0 && !shippingMethod) { alert('請選擇取貨方式'); return; }
+  if (shippingConfig.payment.length > 0  && !paymentMethod)  { alert('請選擇付款方式'); return; }
 
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
   btn.textContent = '送出中…';
 
+  const subtotal   = cartTotal();
+  const grandTotal = subtotal + currentShippingFee;
+
   const payload = {
     name, phone, address: addr, note,
+    shipping_method: shippingMethod,
+    shipping_fee:    currentShippingFee,
+    payment_method:  paymentMethod,
     items: Object.entries(cart).map(([id, i]) =>
       ({ id, name: i.name, price: i.price, qty: i.qty, type: i.type })),
-    total: cartTotal(),
+    total: grandTotal,
     timestamp: new Date().toLocaleString('zh-TW'),
   };
 
@@ -873,6 +964,7 @@ async function submitOrder() {
 function resetCart() {
   cart = {};
   checkoutOpen = false;
+  currentShippingFee = 0;
   renderCart();
   document.getElementById('cart-main').style.display = '';
   document.getElementById('order-done').classList.remove('show');
@@ -881,6 +973,13 @@ function resetCart() {
   document.getElementById('btn-submit').textContent = '確認送出訂單';
   document.getElementById('btn-submit').disabled = false;
   document.getElementById('btn-checkout').style.display = '';
+  document.getElementById('subtotal-row').style.display = 'none';
+  document.getElementById('shipping-fee-row').style.display = 'none';
+  // Reset shipping select (allow re-population next time)
+  const sSel = document.getElementById('o-shipping');
+  const pSel = document.getElementById('o-payment');
+  if (sSel) { sSel.innerHTML = '<option value="">請選擇取貨方式</option>'; delete sSel.dataset.populated; }
+  if (pSel) { pSel.innerHTML = '<option value="">請選擇付款方式</option>'; }
   closeCart();
 }
 

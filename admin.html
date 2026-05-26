@@ -295,6 +295,21 @@
     }
     .memo-save-btn:active { opacity: .7; }
 
+    /* ── 訂單搜尋 ── */
+    .order-search {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: .88rem;
+      margin-bottom: 12px;
+      outline: none;
+      display: block;
+    }
+    .order-search:focus { border-color: var(--accent); }
+
     /* ── 庫存頁 ── */
     .inv-card { display: flex; align-items: center; gap: 12px; }
     .inv-info { flex: 1; min-width: 0; }
@@ -434,6 +449,8 @@
   <!-- 訂單管理 -->
   <div id="page-orders" class="page">
     <div class="page-title">📋 訂單管理</div>
+    <input type="search" id="order-search" class="order-search"
+      placeholder="🔍 搜尋訂單編號 / 姓名 / 電話…" oninput="renderOrders()">
     <div class="filter-bar" id="order-filter">
       <button class="filter-btn active" onclick="setOrderFilter('全部',this)">全部</button>
       <button class="filter-btn" onclick="setOrderFilter('新訂單',this)">新訂單</button>
@@ -639,12 +656,20 @@ function getStatusChip(s) {
 
 function renderOrders() {
   const list = document.getElementById('orders-list');
-  const filtered = orderFilter === '全部'
+  const q = (document.getElementById('order-search')?.value || '').trim().toLowerCase();
+  let filtered = orderFilter === '全部'
     ? allOrders
     : allOrders.filter(o => o.status === orderFilter);
+  if (q) {
+    filtered = filtered.filter(o =>
+      (o.id   || '').toLowerCase().includes(q) ||
+      (o.name || '').toLowerCase().includes(q) ||
+      (o.phone|| '').toLowerCase().includes(q)
+    );
+  }
 
   if (filtered.length === 0) {
-    list.innerHTML = '<div class="empty-state">此狀態無訂單</div>';
+    list.innerHTML = '<div class="empty-state">' + (q ? '查無符合訂單' : '此狀態無訂單') + '</div>';
     return;
   }
 
@@ -665,6 +690,9 @@ function renderOrders() {
         <div class="order-info-row"><span class="order-info-label">電話</span>${o.phone}</div>
         <div class="order-info-row"><span class="order-info-label">地址</span>${o.address}</div>
         ${o.note ? `<div class="order-info-row"><span class="order-info-label">備註</span>${o.note}</div>` : ''}
+        ${o.shipping_method ? `<div class="order-info-row"><span class="order-info-label">取貨</span>${o.shipping_method}</div>` : ''}
+        ${o.shipping_fee > 0 ? `<div class="order-info-row"><span class="order-info-label">運費</span>NT$${o.shipping_fee}</div>` : ''}
+        ${o.payment_method ? `<div class="order-info-row"><span class="order-info-label">付款</span>${o.payment_method}</div>` : ''}
         <div id="items-${o.id}" style="margin:10px 0;font-size:.85rem;color:var(--text-dim)">載入明細中…</div>
         <div class="status-btns">
           <button class="status-btn s-discuss" onclick="updateStatus(event,'${o.id}','討論中')">討論中</button>
