@@ -480,6 +480,19 @@
     border-left: 3px solid var(--accent);
   }
 
+  .modal-annot-title { font-size: 12px; color: var(--text-dim); margin: 14px 0 6px; font-weight: 600; letter-spacing: 0.5px; }
+  .modal-annot {
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    border-left: 3px solid #f59e0b;
+  }
+  .modal-annot .annot-jp { color: var(--text-dim); opacity: .7; font-size: 11px; display: block; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+
   /* ── Modal Q&A ── */
   .modal-qa-section { margin-top: 14px; }
   .modal-qa-toggle {
@@ -1494,6 +1507,8 @@
       <div class="modal-stats-grid" id="modal-stats"></div>
       <div class="modal-skill-title">技能文字</div>
       <div class="modal-skill" id="modal-skill"></div>
+      <div class="modal-annot-title" id="modal-annot-title" style="display:none">特殊技能解釋</div>
+      <div class="modal-annot" id="modal-annot" style="display:none"></div>
       <div class="modal-qa-section" id="modal-qa"></div>
       <a class="modal-feedback-btn" id="modal-feedback-btn" href="#" target="_blank" rel="noopener">
         🚩 回報翻譯問題
@@ -2196,6 +2211,22 @@ function openModal(card) {
   } else {
     skillEl.style.display = 'none';
     skillEl.previousElementSibling.style.display = 'none';
+  }
+
+  // 特殊技能解釋（注釈）
+  const annotTitle = document.getElementById('modal-annot-title');
+  const annotEl = document.getElementById('modal-annot');
+  const annotZh = (card.annotation_zh || '').trim();
+  const annotJp = (card.annotation_jp || '').trim();
+  if (annotZh || annotJp) {
+    let html = escapeHtml(annotZh || annotJp);
+    if (annotZh && annotJp) html += `<span class="annot-jp">${escapeHtml(annotJp)}</span>`;
+    annotEl.innerHTML = html;
+    annotEl.style.display = 'block';
+    annotTitle.style.display = 'block';
+  } else {
+    annotEl.style.display = 'none';
+    annotTitle.style.display = 'none';
   }
 
   // Q&A

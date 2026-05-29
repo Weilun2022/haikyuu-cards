@@ -1392,6 +1392,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .d-stat .dl { font-size: 10px; color: var(--text-dim); }
 .d-stat .dv { font-size: 18px; font-weight: 800; }
 .detail-skill { font-size: 13px; color: var(--text-dim); line-height: 1.7; max-height: 120px; overflow-y: auto; }
+.detail-annot-title { font-size: 11px; color: var(--text-dim); font-weight: 700; letter-spacing: .5px; margin: 12px 0 4px; }
+.detail-annot { font-size: 12px; color: var(--text-dim); line-height: 1.6; white-space: pre-wrap; border-left: 3px solid #f59e0b; padding: 8px 10px; background: rgba(245,158,11,.08); border-radius: 6px; max-height: 140px; overflow-y: auto; }
 
 /* ══════════════════════════════════════
    HAND ACTION MODAL
@@ -2380,6 +2382,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <div class="detail-sub" id="d-sub"></div>
       <div class="detail-stats" id="d-stats"></div>
       <div class="detail-skill" id="d-skill"></div>
+      <div class="detail-annot-title" id="d-annot-title" style="display:none">特殊技能解釋</div>
+      <div class="detail-annot" id="d-annot" style="display:none"></div>
       <button class="btn sm" onclick="closeDetail()" style="width:100%;margin-top:12px">關閉</button>
     </div>
   </div>
@@ -5609,6 +5613,18 @@ function showDetail(img) {
     stats.appendChild(d);
   });
   document.getElementById('d-skill').textContent = c.skill_zh || c.skill_jp || '（無技能）';
+  const annotZh = (c.annotation_zh || '').trim();
+  const annotJp = (c.annotation_jp || '').trim();
+  const annotEl = document.getElementById('d-annot');
+  const annotTitle = document.getElementById('d-annot-title');
+  if (annotZh || annotJp) {
+    annotEl.textContent = annotZh || annotJp;
+    annotEl.style.display = 'block';
+    annotTitle.style.display = 'block';
+  } else {
+    annotEl.style.display = 'none';
+    annotTitle.style.display = 'none';
+  }
   document.getElementById('detail-overlay').classList.add('open');
 }
 function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
