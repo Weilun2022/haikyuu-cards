@@ -1,4 +1,5 @@
 __pycache__/
+node_modules/
 *.py
 !analyze_meta.py
 !battle_simulator/**/*.py
