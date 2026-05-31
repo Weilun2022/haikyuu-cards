@@ -1,5 +1,7 @@
 __pycache__/
 *.py
+!analyze_meta.py
+!battle_simulator/**/*.py
 *.csv
 *.xlsx
 *.json

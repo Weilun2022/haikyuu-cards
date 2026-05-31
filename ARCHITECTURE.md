@@ -47,6 +47,38 @@
 
 ---
 
+## BS — 競技對戰模擬系統（battle_simulator/）
+
+| 代號 | 名稱 | 檔案 | 描述 |
+|------|------|------|------|
+| **BS-1** | CLI 主入口 | `analyze_meta.py` | 6 大命令：`--matchup`/`--vs-all`/`--find-counters`/`--full-meta`/`--build-advisor`/`--matrix` |
+| **BS-2** | 資料載入器 | `battle_simulator/data_loader.py` | 解析 `cards_data.js` → Card list；`load_all_cards()` / `get_by_school()` |
+| **BS-3** | 卡牌資料類 | `battle_simulator/engine/card.py` | `Card` dataclass；`from_dict()`、`has_tag()`、`zone_type()` |
+| **BS-4** | 遊戲狀態 | `battle_simulator/engine/game_state.py` | `PlayerState`（手牌/場地/Guts/分數）+ `GameState`（雙方+回合） |
+| **BS-5** | 技能引擎 | `battle_simulator/engine/skill_engine.py` | 從技能文字解析 +N 加值、抽牌、出場限制等 8 類效果 |
+| **BS-6** | 動作解決器 | `battle_simulator/engine/action_resolver.py` | `resolve_serve()/toss()/attack()/full_rally()` 完整一回合攻防解算 |
+| **BS-7** | 回合控制器 | `battle_simulator/engine/turn_controller.py` | 四階段（摸牌/出牌/動作/結束）流程；`rcv_lock`/`blk_lock` 限制執行 |
+| **BS-8** | 牌組生成器 | `battle_simulator/simulation/deck_sampler.py` | `build_school_deck(school)` 自動構建 40 張合法牌組 |
+| **BS-9** | 規則型 AI | `battle_simulator/simulation/ai_player.py` | 貪婪式 AI：優先填充高價值位置（ATK>BLK>RCV>SRV>TOS） |
+| **BS-10** | Monte Carlo | `battle_simulator/simulation/monte_carlo.py` | `run_simulation(deck1, deck2, n)` → `SimResult`（勝率/回合數/得分分布） |
+| **BS-11** | 類型分類器 | `battle_simulator/analysis/archetype_classifier.py` | 依數值分布分類 6 大類型：AGG/DEF/COMBO/TEMPO/CONTROL/HYBRID |
+| **BS-12** | 對局矩陣 | `battle_simulator/analysis/matchup_matrix.py` | 6×6 克制矩陣；`tier_ranking()`/`best_counter()`/`format_table()` |
+| **BS-13** | 克制分析器 | `battle_simulator/analysis/counter_analyzer.py` | `analyze_counter()` → `CounterReport`（弱點/推薦技術牌/模擬勝率） |
+| **BS-14** | 競技環境報告 | `battle_simulator/report/meta_report.py` | `generate_meta_report()` → Tier表 + 對局矩陣 + 克制環 Markdown |
+| **BS-15** | 構築建議器 | `battle_simulator/report/build_advisor.py` | `recommend_deck(school, threats, budget)` → 含卡表的 Markdown 構築建議 |
+
+**BS CLI 使用範例：**
+```bash
+python analyze_meta.py --matchup 稲荷崎 伊達工業 --n 500
+python analyze_meta.py --vs-all --school 音駒 --n 300
+python analyze_meta.py --find-counters --vs-archetype 攻擊型 --n 200
+python analyze_meta.py --build-advisor --school 梟谷 --threats 防守型 攻擊型
+python analyze_meta.py --matrix --n 200
+python analyze_meta.py --full-meta --n 300 --output output/meta_report.md
+```
+
+---
+
 ## DP — 牌組優化器（deck_optimizer/）
 
 | 代號 | 名稱 | 檔案 | 描述 |
@@ -97,7 +129,8 @@ DAT-2（all_cards.json）
 DAT-1（cards_zh.json）← 所有系統的單一資料來源
     ├─→ DB-8（前端載入）→ DB-3（卡片網格）
     ├─→ GM-8（Firebase 同步）→ GM-3（對戰場地）
-    └─→ DP-1（CLI）→ DP-2 → DP-3 → DP-4 → DP-7（報告）
+    ├─→ DP-1（CLI）→ DP-2 → DP-3 → DP-4 → DP-7（報告）
+    └─→ BS-2（資料載入）→ BS-10（Monte Carlo）→ BS-12（矩陣）→ BS-14（報告）
 ```
 
 ---
