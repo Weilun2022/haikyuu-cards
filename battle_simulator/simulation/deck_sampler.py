@@ -34,32 +34,43 @@ def _event_bridge_score(
     synergy_weight: float,
 ) -> float:
     """
-    「橋接分」：評估加入 char 後能解鎖多少事件池中的 SYN_JOINT 效果。
+    「橋接分」：評估加入 char 後能解鎖事件池中的 SYN_JOINT 或 SYN_VIA_EVENT 效果。
 
-    SYN_JOINT 事件需要兩張角色同時在場；若牌組已有角色 A，加入角色 B 後
-    該事件才能升格為完整 JOINT。此函數計算這種「潛在升格」帶來的分數增益，
-    讓純數值低但作為 combo 引擎的角色（如影山飛雄）能被正確選中。
+    (a) SYN_JOINT：事件需要兩張角色同時在場；若牌組已有角色 A，加入角色 B 後
+        該事件才能升格為完整 JOINT。
+    (b) SYN_VIA_EVENT：角色技能需要以特定事件出場才能解鎖；若事件池中有該事件，
+        選入此角色才有意義（否則特效永遠無法觸發）。
     """
     if not synergy_weight or not event_pool:
         return 0.0
 
-    from ..analysis.synergy_analyzer import _RE_JOINT_COND, _RE_STAT_BOOST
+    from ..analysis.synergy_analyzer import (
+        _RE_JOINT_COND, _RE_STAT_BOOST, _RE_VIA_EVENT,
+    )
 
-    # Build name index for current deck (without the candidate)
     name_index_current = {c.name: True for c in current_deck}
     candidate_name = char.name
+    event_names_in_pool = {ev.name for ev in event_pool}
 
     bridge = 0.0
+
+    # (a) JOINT bridge — adding this char completes a two-card zone condition
     for ev in event_pool:
         skill = ev.skill_zh
         for m in _RE_JOINT_COND.finditer(skill):
             a, b = m.group(2), m.group(4)
-            # Does adding `char` complete a pair where the other card is already in deck?
             if (a == candidate_name and b in name_index_current) or \
                (b == candidate_name and a in name_index_current):
                 boost = sum(int(n) for _, n in _RE_STAT_BOOST.findall(skill))
                 w = _analyzer.WEIGHTS['SYN_JOINT'] + min(boost * 0.15, 1.5)
-                bridge += w  # each event whose JOINT this char completes
+                bridge += w
+
+    # (b) VIA_EVENT bridge — char's own skill requires deployment via a pool event
+    for m in _RE_VIA_EVENT.finditer(char.skill_zh):
+        ref = m.group(1)
+        if ref in event_names_in_pool:
+            bridge += _analyzer.WEIGHTS['SYN_VIA_EVENT']
+
     return bridge * synergy_weight
 
 
