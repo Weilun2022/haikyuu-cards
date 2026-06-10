@@ -89,6 +89,8 @@
     background:color-mix(in srgb, var(--c) 20%, transparent); color:var(--c);
     border:1px solid color-mix(in srgb, var(--c) 45%, transparent);
   }
+  .s-link { cursor:pointer; }
+  .s-link:hover { background:color-mix(in srgb, var(--c) 38%, transparent); }
 
   .news-list { display:flex; flex-direction:column; gap:12px; max-width:680px; margin:0 auto; }
   .news-hero {
@@ -239,7 +241,7 @@ if (typeof PROMO_DATA !== 'undefined' && PROMO_DATA.updated) {
 
 // ── 學校 chips（只列出有影片的學校）──
 function renderChips(){
-  const present = new Set(VIDEOS.map(v=>v.school));
+  const present = new Set(VIDEOS.flatMap(v=>v.schools));
   const wrap = document.getElementById('chips');
   wrap.innerHTML = '';
   const mk = (label, isSchool) => {
@@ -260,12 +262,14 @@ if (typeof CARDS_DATA !== 'undefined') {
   for (const c of CARDS_DATA.cards) if (!CARD_BY_NO[c.card_no]) CARD_BY_NO[c.card_no] = c;
 }
 
-// ── 合併站長標註：精選學校 > 自動分類 ──
+// ── 合併站長標註：精選學校 > 自動分類（schools 陣列，第一個為主色）──
 function enrich(v){
   const tag = (typeof PROMO_TAGS !== 'undefined' && PROMO_TAGS[v.videoId]) || null;
+  const schools = tag?.schools || (tag?.school ? [tag.school] : [v.school]);
   return {
     ...v,
-    school: tag?.school || v.school,
+    schools,
+    school: schools[0],
     picked: !!tag,
     note: tag?.note || '',
     cards: (tag?.cards || []).map(no => CARD_BY_NO[no]).filter(Boolean),
@@ -285,7 +289,7 @@ function fmtDate(iso){
 // ── 影片渲染 ──
 function renderVideos(){
   const grid = document.getElementById('vid-grid');
-  const vids = VIDEOS.filter(v => curSchool==='全部' || v.school===curSchool);
+  const vids = VIDEOS.filter(v => curSchool==='全部' || v.schools.includes(curSchool));
   grid.innerHTML = vids.map(v => `
     <a class="vid-card" style="--c:var(--s-${v.school})" href="https://www.youtube.com/watch?v=${esc(v.videoId)}" target="_blank" rel="noopener">
       <div class="vid-thumb">
@@ -303,7 +307,10 @@ function renderVideos(){
           </span>`).join('')}</div>` : ''}
         <div class="vid-meta">
           <span class="vid-date">${esc(fmtDate(v.published))}</span>
-          <span class="s-tag">${esc(v.school)}</span>
+          <span>${v.schools.map(s => s==='綜合'
+            ? `<span class="s-tag">綜合</span>`
+            : `<span class="s-tag s-link" data-school="${esc(s)}" style="--c:var(--s-${esc(s)})">${esc(s)}</span>`
+          ).join(' ')}</span>
         </div>
       </div>
     </a>`).join('');
@@ -312,6 +319,11 @@ function renderVideos(){
   grid.querySelectorAll('.card-chip').forEach(ch => ch.onclick = e => {
     e.preventDefault(); e.stopPropagation();
     location.href = 'index.html?q=' + encodeURIComponent(ch.dataset.q);
+  });
+  // 學校標籤 → 跳卡牌庫篩該校卡片
+  grid.querySelectorAll('.s-link').forEach(ch => ch.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    location.href = 'index.html?q=' + encodeURIComponent(ch.dataset.school);
   });
 }
 
