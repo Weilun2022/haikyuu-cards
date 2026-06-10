@@ -576,10 +576,11 @@
 
 <!--
   資料來源設定：
-  開發中 → 使用本地 cards_data.js + shop_config.json
-  正式上線 → 改成以下兩行 CDN 版本：
-
-  <script src="https://cdn.jsdelivr.net/gh/Weilun2022/haikyuu-cards@main/cards_data.js"></script>
+  shop.html 與 cards_data.js 部署在同一個 GitHub Pages，
+  因此固定使用相對路徑載入（見下方 <script src="cards_data.js">）。
+  ⚠️ 請勿改成 cdn.jsdelivr.net/gh/... 的 CDN 版本：
+     jsdelivr 在 2021 年底失去中港 ICP 牌照，香港使用者會載不到、商城變空白。
+     同源相對路徑直接從 GitHub Pages 取得，香港可連又自動跟著 push 更新。
 
   Google Sheets CSV（店家維護價格/庫存）：
   在試算表「檔案 > 共用 > 發布到網路」選 CSV 格式後，
@@ -594,8 +595,8 @@ const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTXI-DJeq-bX
 // Apps Script Web App 網址（部署後填入）
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbx-b0C8DwQt746emt47LL168-_7g5Mp7V81-kDMRCflHg5Y-IFaaQOumekTjZ_j2YYYxQ/exec';
 
-// 圖片基底路徑（獨立網域時改成 CDN）
-// const IMG_BASE = 'https://cdn.jsdelivr.net/gh/Weilun2022/haikyuu-cards@main/images/';
+// 圖片基底路徑：同源 GitHub Pages，固定用相對路徑（香港可連）。
+// ⚠️ 勿改成 cdn.jsdelivr.net/gh/...（香港載不到圖片）。
 const IMG_BASE = 'images/';
 // ──────────────────────────────────────────────────────
 
