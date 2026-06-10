@@ -134,6 +134,24 @@
   .empty { text-align:center; color:var(--text-dim); font-size:14px; padding:50px 0; }
   .hidden { display:none; }
 
+  /* ── 浮動播放器 ── */
+  #player-overlay {
+    position:fixed; inset:0; z-index:500; display:none;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,.82); padding:16px;
+  }
+  #player-overlay.open { display:flex; }
+  #player-box {
+    width:min(92vw, 900px); aspect-ratio:16/9; position:relative;
+    background:#000; border-radius:12px; overflow:hidden;
+    box-shadow:0 12px 48px rgba(0,0,0,.7);
+  }
+  #player-box iframe { width:100%; height:100%; border:0; display:block; }
+  #player-hint {
+    margin-top:10px; color:var(--text-dim); font-size:12px; text-align:center;
+  }
+  #player-hint a { color:var(--accent); }
+
   /* ── 八校色裝飾條 ── */
   .school-strip { display:flex; height:4px; }
   .school-strip span { flex:1; }
@@ -223,6 +241,14 @@
     <div class="sec-note">新品消息由站長轉貼自合作商家公開貼文</div>
   </section>
 </main>
+
+<!-- 浮動播放器：點背景任意處關閉 -->
+<div id="player-overlay">
+  <div>
+    <div id="player-box"><iframe id="player-frame" src="" title="影片播放" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
+    <div id="player-hint">點影片外任意處關閉 ・ <a id="player-yt" href="#" target="_blank" rel="noopener">在 YouTube 開啟 ↗</a></div>
+  </div>
+</div>
 
 <script src="promo_data.js"></script>
 <script src="promo_news.js"></script>
@@ -330,6 +356,12 @@ function renderVideos(){
     e.preventDefault(); e.stopPropagation();
     location.href = 'index.html?q=' + encodeURIComponent(ch.dataset.school);
   });
+  // 影片卡 → 浮動播放器（href 保留，長按/新分頁仍可用原連結）
+  grid.querySelectorAll('.vid-card').forEach(a => a.addEventListener('click', e => {
+    if (e.target.closest('.card-chip, .s-link')) return;
+    e.preventDefault();
+    openPlayer(new URL(a.href).searchParams.get('v'));
+  }));
 }
 
 // ── 今日一抽 ──
@@ -347,8 +379,29 @@ document.getElementById('gacha-ball').onclick = () => {
   if (!VIDEOS.length) return;
   const v = VIDEOS[Math.floor(Math.random() * VIDEOS.length)];
   document.getElementById('gacha-quote').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-  setTimeout(() => window.open('https://www.youtube.com/watch?v=' + v.videoId, '_blank', 'noopener'), 450);
+  setTimeout(() => openPlayer(v.videoId), 450);
 };
+
+// ── 浮動播放器 ──
+const playerOverlay = document.getElementById('player-overlay');
+const playerFrame = document.getElementById('player-frame');
+function openPlayer(videoId){
+  if (!videoId) return;
+  playerFrame.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '?autoplay=1&rel=0';
+  document.getElementById('player-yt').href = 'https://www.youtube.com/watch?v=' + encodeURIComponent(videoId);
+  playerOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closePlayer(){
+  playerOverlay.classList.remove('open');
+  playerFrame.src = '';   // 清空 src 停止播放
+  document.body.style.overflow = '';
+}
+// 點影片外任意處關閉（播放器本體與 YouTube 連結除外）
+playerOverlay.addEventListener('click', e => {
+  if (!e.target.closest('#player-box, #player-yt')) closePlayer();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayer(); });
 
 // ── 新品渲染（日期倒序；最新一則 hero；7 天內 NEW）──
 function renderNews(){
