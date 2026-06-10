@@ -1664,6 +1664,8 @@
   ════════════════════════════════════════════════════════════════
 -->
 <script src="cards_data.js"></script>
+<script src="promo_data.js"></script>
+<script src="promo_tags.js"></script>
 <script>
 // ── Constants ──────────────────────────────────────────────────────────
 const RARITY_COLOR = {
@@ -2007,6 +2009,53 @@ function applyFilters() {
   document.getElementById('count-display').textContent = filtered.length;
   updateFilterBadge();
   renderGrid();
+  updatePromoBanner();
+}
+
+// ── 情報站反向串聯：學校 → 相關影片 ──────────────────────────────
+// 卡牌庫學校名（日文表記）↔ 情報站學校名（繁中）對照
+const DB2PROMO_SCHOOL = {
+  '烏野':'烏野', '音駒':'音駒', '稲荷崎':'稻荷崎', '白鳥沢':'白鳥澤',
+  '青葉城西':'青葉城西', '梟谷':'梟谷', '伊達工業':'伊達工', '鴎台':'鷗台',
+};
+// 各校影片數（合併站長標註）
+const SCHOOL_VIDEO_COUNT = (() => {
+  const cnt = {};
+  if (typeof PROMO_DATA === 'undefined') return cnt;
+  for (const v of (PROMO_DATA.videos || [])) {
+    const tag = (typeof PROMO_TAGS !== 'undefined' && PROMO_TAGS[v.videoId]) || null;
+    const schools = tag?.schools || (tag?.school ? [tag.school] : [v.school]);
+    for (const s of schools) cnt[s] = (cnt[s] || 0) + 1;
+  }
+  return cnt;
+})();
+// 目前篩選/搜尋對應到哪個學校（篩選優先，其次搜尋字含校名）
+function currentPromoSchool() {
+  if (activeSchool && DB2PROMO_SCHOOL[activeSchool]) return DB2PROMO_SCHOOL[activeSchool];
+  if (searchText) {
+    for (const [db, promo] of Object.entries(DB2PROMO_SCHOOL)) {
+      if (searchText.includes(db) || searchText.includes(promo)) return promo;
+    }
+  }
+  return null;
+}
+function updatePromoBanner() {
+  let banner = document.getElementById('promo-banner');
+  const school = currentPromoSchool();
+  const n = school ? (SCHOOL_VIDEO_COUNT[school] || 0) : 0;
+  if (!school || n === 0) { if (banner) banner.style.display = 'none'; return; }   // 0 部 → 完全隱藏
+  if (!banner) {
+    banner = document.createElement('a');
+    banner.id = 'promo-banner';
+    banner.style.cssText = 'display:flex;align-items:center;gap:8px;margin:10px 12px 0;padding:11px 14px;'
+      + 'background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 22%,var(--surface)),var(--surface));'
+      + 'border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));border-radius:11px;'
+      + 'color:var(--text);font-size:13.5px;font-weight:700;text-decoration:none;';
+    document.getElementById('card-grid').before(banner);
+  }
+  banner.href = 'promo.html?school=' + encodeURIComponent(school);
+  banner.style.display = 'flex';
+  banner.innerHTML = `🎬 <span>${school} 相關影片 ${n} 部</span><span style="margin-left:auto;color:var(--accent)">前往觀看 →</span>`;
 }
 
 function updateFilterBadge() {
@@ -2180,6 +2229,10 @@ function openModal(card) {
   if (card.category) tags.push(`<span class="tag">${CATEGORY_ZH[card.category] || card.category}</span>`);
   if (card.affiliation) tags.push(`<span class="tag">${card.affiliation}</span>`);
   if (card.product_label) tags.push(`<span class="tag">${card.product_label}</span>`);
+  // 該校有相關影片時，加一個前往情報站的小入口（0 部不顯示）
+  const promoSchool = DB2PROMO_SCHOOL[card.school];
+  const vidN = promoSchool ? (SCHOOL_VIDEO_COUNT[promoSchool] || 0) : 0;
+  if (vidN > 0) tags.push(`<a class="tag" href="promo.html?school=${encodeURIComponent(promoSchool)}" style="color:var(--accent);border-color:var(--accent);text-decoration:none">🎬 相關影片 ${vidN}</a>`);
   document.getElementById('modal-tags').innerHTML = tags.join('');
 
   // Stats

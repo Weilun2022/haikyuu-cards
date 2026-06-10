@@ -231,6 +231,11 @@
 <script>
 const SCHOOLS = ['烏野','音駒','稻荷崎','白鳥澤','青葉城西','梟谷','伊達工','鷗台','綜合'];
 let curSchool = '全部';
+// 深連結：?school=音駒 直接套用該校篩選（卡牌庫反向串聯入口）
+{
+  const _s = new URLSearchParams(location.search).get('school');
+  if (_s && SCHOOLS.includes(_s)) curSchool = _s;
+}
 
 function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
