@@ -1,0 +1,34 @@
+name: 情報站影片自動更新
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 每 6 小時
+  workflow_dispatch:          # 可手動觸發
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 抓取商家 YouTube RSS
+        run: node fetch_promo.js
+
+      - name: 有變動才 commit + push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet promo_data.js; then
+            git add promo_data.js
+            git commit -m "chore(promo): 自動更新影片資料 $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          else
+            echo "無變動，跳過 commit"
+          fi

@@ -1237,7 +1237,7 @@
 <header>
   <div>
     <h1>排球少年!! バボカ!!BREAK</h1>
-    <div class="subtitle">卡牌資料庫 / Card Database</div>
+    <div class="subtitle">卡牌資料庫 / Card Database　<a href="promo.html" style="color:var(--accent);font-weight:700;text-decoration:none">📡 情報站</a></div>
   </div>
   <div class="count">顯示 <span id="count-display">0</span> / <span id="count-total">0</span> 張</div>
   <button class="filter-toggle-btn" id="filter-toggle" aria-label="篩選">
@@ -2290,6 +2290,13 @@ function closeModal() {
 // ── Start ──────────────────────────────────────────────────────────────
 if (typeof CARDS_DATA !== 'undefined') {
   init();
+  // 支援 ?q= 深連結搜尋（情報站卡牌縮圖跳轉用）
+  const _q = new URLSearchParams(location.search).get('q');
+  if (_q) {
+    const _s = document.getElementById('search');
+    _s.value = _q;
+    _s.dispatchEvent(new Event('input'));
+  }
 } else {
   document.getElementById('loading').textContent = '錯誤：找不到 cards_data.js，請先執行 build_data.py';
 }

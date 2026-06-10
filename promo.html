@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>情報站 — 排球少年!! バボカ!!BREAK</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --surface-hi: #2a2a34;
+    --border: #2e2e40;
+    --text: #e8e8f0;
+    --text-dim: #8888aa;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --s-烏野: #f97316;
+    --s-音駒: #ef4444;
+    --s-稻荷崎: #a855f7;
+    --s-白鳥澤: #3b82f6;
+    --s-青葉城西: #14b8a6;
+    --s-梟谷: #eab308;
+    --s-伊達工: #10b981;
+    --s-鷗台: #8b5cf6;
+    --s-綜合: #8888aa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:"Noto Sans TC",system-ui,sans-serif; }
+  a { color:inherit; text-decoration:none; }
+
+  header {
+    position:sticky; top:0; z-index:100;
+    background:rgba(15,15,19,.92); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--border);
+  }
+  .hd-row { display:flex; align-items:center; gap:10px; padding:10px 14px; }
+  .hd-row h1 { font-size:17px; font-weight:800; letter-spacing:.5px; flex:1; }
+  .hd-row h1 .em { color:var(--accent); }
+  .hd-back { color:var(--text-dim); font-size:13px; }
+  .hd-upd { font-size:10.5px; color:var(--text-dim); }
+
+  .tabs { display:flex; height:48px; }
+  .tab {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:15px; font-weight:700; color:var(--text-dim);
+    border-bottom:3px solid transparent; cursor:pointer; user-select:none;
+  }
+  .tab.active { color:var(--text); border-bottom-color:var(--accent); }
+
+  .chips {
+    display:flex; gap:8px; overflow-x:auto; padding:10px 14px;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  .chips::-webkit-scrollbar { display:none; }
+  .chip {
+    flex:0 0 auto; padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
+    background:var(--surface2); color:var(--text-dim);
+    border:1px solid var(--border); cursor:pointer; white-space:nowrap;
+  }
+  .chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .chip[data-s] { border-left:4px solid var(--c); }
+  .chip[data-s].active { background:var(--c); border-color:var(--c); color:#fff; }
+
+  main { max-width:980px; margin:0 auto; padding:14px; }
+
+  .vid-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  @media (min-width:720px){ .vid-grid { grid-template-columns:repeat(3,1fr); } }
+  .vid-card {
+    display:block; background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; border-left:4px solid var(--c,var(--border));
+    transition:transform .15s;
+  }
+  .vid-card:hover { transform:translateY(-3px); }
+  .vid-thumb { position:relative; aspect-ratio:16/9; background:#000; }
+  .vid-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .vid-thumb .play {
+    position:absolute; right:8px; bottom:8px; width:30px; height:30px; border-radius:50%;
+    background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:12px;
+  }
+  .vid-body { padding:10px 12px 12px; }
+  .vid-title { font-size:13.5px; font-weight:700; line-height:1.4; display:-webkit-box;
+    -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:38px; }
+  .vid-meta { display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
+  .vid-date { font-size:11.5px; color:var(--text-dim); }
+  .s-tag {
+    font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px;
+    background:color-mix(in srgb, var(--c) 20%, transparent); color:var(--c);
+    border:1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  }
+
+  .news-list { display:flex; flex-direction:column; gap:12px; max-width:680px; margin:0 auto; }
+  .news-hero {
+    display:block; background:var(--surface-hi);
+    border:1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
+    border-radius:14px; overflow:hidden; position:relative;
+  }
+  .news-hero .hero-img { aspect-ratio:2/1; background:linear-gradient(135deg,#3b2f73,#1a1a24);
+    display:flex; align-items:center; justify-content:center; font-size:44px; overflow:hidden; }
+  .news-hero .hero-img img { width:100%; height:100%; object-fit:cover; }
+  .badge-new {
+    position:absolute; top:10px; left:10px; background:var(--accent2); color:#fff;
+    font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:1px;
+  }
+  .news-body { padding:14px; }
+  .news-title { font-size:16px; font-weight:800; line-height:1.4; }
+  .news-desc { font-size:13px; color:var(--text-dim); margin-top:6px; line-height:1.6; }
+  .news-foot { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
+  .news-date { font-size:12px; color:var(--text-dim); }
+  .btn-out {
+    display:inline-block; background:var(--accent); color:#fff; font-size:13px; font-weight:700;
+    padding:9px 18px; border-radius:9px;
+  }
+  .news-card {
+    display:flex; gap:12px; background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:12px; align-items:center;
+  }
+  .news-card .thumb {
+    flex:0 0 72px; width:72px; height:72px; border-radius:9px; overflow:hidden;
+    background:linear-gradient(135deg,#2e2e40,#1a1a24);
+    display:flex; align-items:center; justify-content:center; font-size:26px;
+  }
+  .news-card .thumb img { width:100%; height:100%; object-fit:cover; }
+  .news-card .nc-body { flex:1; min-width:0; }
+  .nc-title { font-size:14px; font-weight:700; line-height:1.4; }
+  .nc-title .mini-new { color:var(--accent2); font-size:10.5px; font-weight:800; margin-left:6px; }
+  .nc-meta { font-size:11.5px; color:var(--text-dim); margin-top:4px; }
+  .nc-link { flex:0 0 auto; color:var(--accent); font-size:18px; }
+
+  .sec-note { text-align:center; color:var(--text-dim); font-size:11.5px; padding:22px 0 10px; }
+  .empty { text-align:center; color:var(--text-dim); font-size:14px; padding:50px 0; }
+  .hidden { display:none; }
+
+  /* ── 八校色裝飾條 ── */
+  .school-strip { display:flex; height:4px; }
+  .school-strip span { flex:1; }
+
+  /* ── 今日一抽 ── */
+  .gacha-bar {
+    display:flex; align-items:center; gap:12px; margin-bottom:14px;
+    background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, var(--surface)), var(--surface));
+    border:1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+    border-radius:14px; padding:12px 14px;
+  }
+  .gacha-ball {
+    flex:0 0 auto; width:52px; height:52px; border-radius:50%; border:none; cursor:pointer;
+    font-size:26px; background:radial-gradient(circle at 32% 30%, #fff3, transparent 60%), var(--accent);
+    box-shadow:0 4px 14px color-mix(in srgb, var(--accent) 50%, transparent);
+    transition:transform .12s;
+  }
+  .gacha-ball:active { transform:scale(.88) rotate(18deg); }
+  .gacha-body { flex:1; min-width:0; }
+  .gacha-title { font-size:14px; font-weight:800; }
+  .gacha-quote { font-size:12px; color:var(--text-dim); margin-top:3px; font-style:italic;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* ── 精選 / 速報 徽章 ── */
+  .badge-pick {
+    position:absolute; top:8px; left:8px; font-size:10.5px; font-weight:800; letter-spacing:.5px;
+    background:color-mix(in srgb, var(--c) 85%, #000); color:#fff; padding:3px 9px; border-radius:6px;
+  }
+  .badge-hot {
+    position:absolute; top:8px; right:8px; font-size:10.5px; font-weight:800;
+    background:#f97316; color:#fff; padding:3px 8px; border-radius:6px;
+    animation:hotpulse 1.6s ease-in-out infinite;
+  }
+  @keyframes hotpulse { 50% { opacity:.55; } }
+
+  /* ── 精選備註 + 相關卡牌 ── */
+  .vid-note { font-size:11.5px; color:var(--c); margin-top:6px; font-weight:600;
+    display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden; }
+  .card-chips { display:flex; gap:6px; margin-top:8px; overflow-x:auto; scrollbar-width:none; }
+  .card-chips::-webkit-scrollbar { display:none; }
+  .card-chip {
+    flex:0 0 auto; display:flex; align-items:center; gap:5px;
+    background:var(--surface2); border:1px solid var(--border); border-radius:7px;
+    padding:3px 8px 3px 3px; font-size:10.5px; color:var(--text); font-weight:600;
+  }
+  .card-chip:hover { border-color:var(--accent); }
+  .card-chip img { width:22px; height:31px; border-radius:3px; object-fit:cover; display:block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd-row">
+    <a class="hd-back" href="index.html">← 卡牌庫</a>
+    <h1>📡 情報站 <span class="em">PROMO</span></h1>
+    <span class="hd-upd" id="hd-upd"></span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="vid">🎬 影片</div>
+    <div class="tab" data-tab="news">🆕 新品消息</div>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="school-strip">
+    <span style="background:var(--s-烏野)"></span><span style="background:var(--s-音駒)"></span>
+    <span style="background:var(--s-稻荷崎)"></span><span style="background:var(--s-白鳥澤)"></span>
+    <span style="background:var(--s-青葉城西)"></span><span style="background:var(--s-梟谷)"></span>
+    <span style="background:var(--s-伊達工)"></span><span style="background:var(--s-鷗台)"></span>
+  </div>
+</header>
+
+<main>
+  <section id="pane-vid">
+    <div class="gacha-bar">
+      <button class="gacha-ball" id="gacha-ball" aria-label="抽一部影片">🏐</button>
+      <div class="gacha-body">
+        <div class="gacha-title">今日一抽｜不知道看哪部？拍球決定！</div>
+        <div class="gacha-quote" id="gacha-quote">點左邊的排球，隨機抽一部影片開看</div>
+      </div>
+    </div>
+    <div class="vid-grid" id="vid-grid"></div>
+    <div class="empty hidden" id="vid-empty">此分類目前沒有影片</div>
+    <div class="sec-note">影片每 6 小時自動更新自合作商家 YouTube 頻道</div>
+  </section>
+
+  <section id="pane-news" class="hidden">
+    <div class="news-list" id="news-list"></div>
+    <div class="sec-note">新品消息由站長轉貼自合作商家公開貼文</div>
+  </section>
+</main>
+
+<script src="promo_data.js"></script>
+<script src="promo_news.js"></script>
+<script src="promo_tags.js"></script>
+<script src="cards_data.js"></script>
+<script>
+const SCHOOLS = ['烏野','音駒','稻荷崎','白鳥澤','青葉城西','梟谷','伊達工','鷗台','綜合'];
+let curSchool = '全部';
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// ── 更新時間顯示 ──
+if (typeof PROMO_DATA !== 'undefined' && PROMO_DATA.updated) {
+  document.getElementById('hd-upd').textContent = '更新 ' + PROMO_DATA.updated.slice(5, 16).replace('T', ' ');
+}
+
+// ── 學校 chips（只列出有影片的學校）──
+function renderChips(){
+  const present = new Set(VIDEOS.map(v=>v.school));
+  const wrap = document.getElementById('chips');
+  wrap.innerHTML = '';
+  const mk = (label, isSchool) => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (label===curSchool?' active':'');
+    if (isSchool){ c.setAttribute('data-s',''); c.style.setProperty('--c', `var(--s-${label})`); }
+    c.textContent = label;
+    c.onclick = () => { curSchool = label; renderChips(); renderVideos(); };
+    wrap.appendChild(c);
+  };
+  mk('全部', false);
+  SCHOOLS.filter(s=>present.has(s)).forEach(s=>mk(s,true));
+}
+
+// ── 卡號 → 卡片資料索引（取每個卡號第一個變體）──
+const CARD_BY_NO = {};
+if (typeof CARDS_DATA !== 'undefined') {
+  for (const c of CARDS_DATA.cards) if (!CARD_BY_NO[c.card_no]) CARD_BY_NO[c.card_no] = c;
+}
+
+// ── 合併站長標註：精選學校 > 自動分類 ──
+function enrich(v){
+  const tag = (typeof PROMO_TAGS !== 'undefined' && PROMO_TAGS[v.videoId]) || null;
+  return {
+    ...v,
+    school: tag?.school || v.school,
+    picked: !!tag,
+    note: tag?.note || '',
+    cards: (tag?.cards || []).map(no => CARD_BY_NO[no]).filter(Boolean),
+  };
+}
+const VIDEOS = (PROMO_DATA.videos||[]).map(enrich);
+const isHot = d => (Date.now() - new Date(d)) < 72*36e5;   // 72 小時內 = 環境速報
+
+// ── 影片渲染 ──
+function renderVideos(){
+  const grid = document.getElementById('vid-grid');
+  const vids = VIDEOS.filter(v => curSchool==='全部' || v.school===curSchool);
+  grid.innerHTML = vids.map(v => `
+    <a class="vid-card" style="--c:var(--s-${v.school})" href="https://www.youtube.com/watch?v=${esc(v.videoId)}" target="_blank" rel="noopener">
+      <div class="vid-thumb">
+        <img loading="lazy" src="https://i.ytimg.com/vi/${esc(v.videoId)}/mqdefault.jpg" alt="">
+        ${v.picked ? `<div class="badge-pick">★ 精選</div>` : ''}
+        ${isHot(v.published) ? `<div class="badge-hot">⚡ 速報</div>` : ''}
+        <div class="play">▶</div>
+      </div>
+      <div class="vid-body">
+        <div class="vid-title">${esc(v.title)}</div>
+        ${v.note ? `<div class="vid-note">${esc(v.note)}</div>` : ''}
+        ${v.cards.length ? `<div class="card-chips">${v.cards.map(c => `
+          <span class="card-chip" data-q="${esc(c.card_no)}">
+            <img loading="lazy" src="images/${esc(c.image_file)}" alt="">${esc(c.name)}
+          </span>`).join('')}</div>` : ''}
+        <div class="vid-meta">
+          <span class="vid-date">${esc(v.published.slice(5))}</span>
+          <span class="s-tag">${esc(v.school)}</span>
+        </div>
+      </div>
+    </a>`).join('');
+  document.getElementById('vid-empty').classList.toggle('hidden', vids.length>0);
+  // 卡牌縮圖 → 跳卡牌庫搜尋（阻止外層影片連結）
+  grid.querySelectorAll('.card-chip').forEach(ch => ch.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    location.href = 'index.html?q=' + encodeURIComponent(ch.dataset.q);
+  });
+}
+
+// ── 今日一抽 ──
+const QUOTES = [
+  '「只要球還沒落地，就還沒輸！」— 日向翔陽',
+  '「有我在，你就是最強的。」— 影山飛雄',
+  '「沒有比這更令人興奮的事了！」— 木兔光太郎',
+  '「我們是憑藉全員力量戰鬥的。」— 澤村大地',
+  '「垃圾場決戰，開打！」— 黑尾鐵朗',
+  '「捲土重來，未嘗不可。」— 烏養繫心',
+  '「要是輸了就太遜了吧。」— 宮侑',
+  '「平凡的我，也有平凡的戰鬥方式。」— 田中龍之介',
+];
+document.getElementById('gacha-ball').onclick = () => {
+  if (!VIDEOS.length) return;
+  const v = VIDEOS[Math.floor(Math.random() * VIDEOS.length)];
+  document.getElementById('gacha-quote').textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+  setTimeout(() => window.open('https://www.youtube.com/watch?v=' + v.videoId, '_blank', 'noopener'), 450);
+};
+
+// ── 新品渲染（日期倒序；最新一則 hero；7 天內 NEW）──
+function renderNews(){
+  const list = document.getElementById('news-list');
+  const items = (PROMO_NEWS.items||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  if (items.length===0){ list.innerHTML = '<div class="empty">目前沒有新品消息</div>'; return; }
+  const isNew = d => (Date.now() - new Date(d)) < 7*864e5;
+  const [hero, ...rest] = items;
+  let html = `
+    <a class="news-hero" href="${esc(hero.link)}" target="_blank" rel="noopener">
+      <div class="hero-img">${hero.img ? `<img src="${esc(hero.img)}" alt="">` : '🎴'}</div>
+      ${isNew(hero.date) ? '<div class="badge-new">NEW</div>' : ''}
+      <div class="news-body">
+        <div class="news-title">${esc(hero.title)}</div>
+        ${hero.desc ? `<div class="news-desc">${esc(hero.desc)}</div>` : ''}
+        <div class="news-foot">
+          <span class="news-date">${esc(hero.date)}</span>
+          <span class="btn-out">前往查看 ↗</span>
+        </div>
+      </div>
+    </a>`;
+  html += rest.map(n => `
+    <a class="news-card" href="${esc(n.link)}" target="_blank" rel="noopener">
+      <div class="thumb">${n.img ? `<img src="${esc(n.img)}" alt="">` : '🃏'}</div>
+      <div class="nc-body">
+        <div class="nc-title">${esc(n.title)}${isNew(n.date) ? '<span class="mini-new">NEW</span>' : ''}</div>
+        <div class="nc-meta">${esc(n.date)}${n.desc ? ' ・ ' + esc(n.desc) : ''}</div>
+      </div>
+      <span class="nc-link">↗</span>
+    </a>`).join('');
+  list.innerHTML = html;
+}
+
+// ── Tab 切換 ──
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('pane-vid').classList.toggle('hidden', t.dataset.tab !== 'vid');
+  document.getElementById('pane-news').classList.toggle('hidden', t.dataset.tab !== 'news');
+  document.getElementById('chips').style.display = t.dataset.tab === 'vid' ? 'flex' : 'none';
+});
+
+renderChips();
+renderVideos();
+renderNews();
+</script>
+</body>
+</html>
