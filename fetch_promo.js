@@ -70,7 +70,7 @@ function parseEntries(xml, channelName) {
     return {
       videoId:   pick(/<yt:videoId>([^<]*)<\/yt:videoId>/),
       title:     pick(/<title>([^<]*)<\/title>/),
-      published: pick(/<published>([^<]*)<\/published>/).slice(0, 10),
+      published: pick(/<published>([^<]*)<\/published>/),   // 完整 ISO 時間戳，前端轉當地時間顯示
       // 描述只用於分類，不輸出（控制檔案大小）
       _desc:     pick(/<media:description>([\s\S]*?)<\/media:description>/),
       channel:   channelName,

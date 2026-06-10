@@ -274,6 +274,14 @@ function enrich(v){
 const VIDEOS = (PROMO_DATA.videos||[]).map(enrich);
 const isHot = d => (Date.now() - new Date(d)) < 72*36e5;   // 72 小時內 = 環境速報
 
+// 發布時間 → 使用者當地時間顯示（24h 內顯示「N 小時前」）
+function fmtDate(iso){
+  const t = new Date(iso), diff = Date.now() - t;
+  if (diff < 36e5) return Math.max(1, Math.floor(diff/6e4)) + ' 分鐘前';
+  if (diff < 864e5) return Math.floor(diff/36e5) + ' 小時前';
+  return (t.getMonth()+1).toString().padStart(2,'0') + '-' + t.getDate().toString().padStart(2,'0');
+}
+
 // ── 影片渲染 ──
 function renderVideos(){
   const grid = document.getElementById('vid-grid');
@@ -294,7 +302,7 @@ function renderVideos(){
             <img loading="lazy" src="images/${esc(c.image_file)}" alt="">${esc(c.name)}
           </span>`).join('')}</div>` : ''}
         <div class="vid-meta">
-          <span class="vid-date">${esc(v.published.slice(5))}</span>
+          <span class="vid-date">${esc(fmtDate(v.published))}</span>
           <span class="s-tag">${esc(v.school)}</span>
         </div>
       </div>
