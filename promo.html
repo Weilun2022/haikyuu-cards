@@ -83,7 +83,7 @@
   .vid-title { font-size:13.5px; font-weight:700; line-height:1.4; display:-webkit-box;
     -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; min-height:38px; }
   .vid-meta { display:flex; align-items:center; justify-content:space-between; margin-top:8px; }
-  .vid-date { font-size:11.5px; color:var(--text-dim); }
+  .vid-date { font-size:11px; color:var(--text-dim); white-space:nowrap; }
   .s-tag {
     font-size:11px; font-weight:700; padding:3px 9px; border-radius:6px;
     background:color-mix(in srgb, var(--c) 20%, transparent); color:var(--c);
@@ -91,15 +91,15 @@
   }
   .s-link { cursor:pointer; }
   .s-link:hover { background:color-mix(in srgb, var(--c) 38%, transparent); }
-  /* 學校標籤疊縮圖左下（四方共識 C 案）：深色襯底確保任何底圖都可讀 */
-  .thumb-tags {
-    position:absolute; left:8px; bottom:8px; display:flex; gap:4px;
-    max-width:calc(100% - 50px); flex-wrap:wrap;
-  }
-  .thumb-tags .s-tag {
-    background:rgba(0,0,0,.62); color:var(--c);
-    border:1px solid color-mix(in srgb, var(--c) 70%, transparent);
-    text-shadow:0 1px 2px rgba(0,0,0,.8);
+  /* meta 列學校標籤（縮小版，硬塞一行；3校以上濃縮 +N 點擊展開）*/
+  .meta-tags { display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+  .meta-tags .s-tag { font-size:10px; padding:2px 5px; }
+  .meta-tags .s-tag.extra { display:none; }
+  .meta-tags.expanded .s-tag.extra { display:inline-block; }
+  .meta-tags.expanded .more-tags { display:none; }
+  .more-tags {
+    font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; cursor:pointer;
+    background:var(--surface2); color:var(--text-dim); border:1px solid var(--border);
   }
 
   .news-list { display:flex; flex-direction:column; gap:12px; max-width:680px; margin:0 auto; }
@@ -322,8 +322,8 @@ const isHot = d => (Date.now() - new Date(d)) < 72*36e5;   // 72 小時內 = 環
 // 發布時間 → 使用者當地時間顯示（24h 內顯示「N 小時前」）
 function fmtDate(iso){
   const t = new Date(iso), diff = Date.now() - t;
-  if (diff < 36e5) return Math.max(1, Math.floor(diff/6e4)) + ' 分鐘前';
-  if (diff < 864e5) return Math.floor(diff/36e5) + ' 小時前';
+  if (diff < 36e5) return Math.max(1, Math.floor(diff/6e4)) + '分鐘前';
+  if (diff < 864e5) return Math.floor(diff/36e5) + '小時前';
   return (t.getMonth()+1).toString().padStart(2,'0') + '-' + t.getDate().toString().padStart(2,'0');
 }
 
@@ -335,12 +335,7 @@ function renderVideos(){
     <a class="vid-card" style="--c:var(--s-${v.school})" href="https://www.youtube.com/watch?v=${esc(v.videoId)}" target="_blank" rel="noopener">
       <div class="vid-thumb">
         <img loading="lazy" src="https://i.ytimg.com/vi/${esc(v.videoId)}/mqdefault.jpg" alt="">
-        ${v.picked ? `<div class="badge-pick">★ 精選</div>` : ''}
         ${isHot(v.published) ? `<div class="badge-hot">⚡ 速報</div>` : ''}
-        <div class="thumb-tags">${v.schools.map(s => s==='綜合'
-          ? `<span class="s-tag" style="--c:var(--text-dim)">綜合</span>`
-          : `<span class="s-tag s-link" data-school="${esc(s)}" style="--c:var(--s-${esc(s)})">${esc(s)}</span>`
-        ).join('')}</div>
         <div class="play">▶</div>
       </div>
       <div class="vid-body">
@@ -352,6 +347,16 @@ function renderVideos(){
           </span>`).join('')}</div>` : ''}
         <div class="vid-meta">
           <span class="vid-date">${esc(fmtDate(v.published))}</span>
+          <span class="meta-tags">${(() => {
+            const tag = s => s==='綜合'
+              ? `<span class="s-tag" style="--c:var(--text-dim)">綜合</span>`
+              : `<span class="s-tag s-link" data-school="${esc(s)}" style="--c:var(--s-${esc(s)})">${esc(s)}</span>`;
+            if (v.schools.length <= 2) return v.schools.map(tag).join('');
+            // 3 校以上：顯示第 1 校 + 「+N」展開標記，其餘藏起來
+            return tag(v.schools[0])
+              + v.schools.slice(1).map(s => tag(s).replace('class="s-tag', 'class="s-tag extra')).join('')
+              + `<span class="more-tags">+${v.schools.length - 1}</span>`;
+          })()}</span>
         </div>
       </div>
     </a>`).join('');
@@ -366,9 +371,14 @@ function renderVideos(){
     e.preventDefault(); e.stopPropagation();
     location.href = 'index.html?q=' + encodeURIComponent(ch.dataset.school);
   });
+  // 「+N」→ 原地展開其餘學校標籤（不開播放器）
+  grid.querySelectorAll('.more-tags').forEach(mt => mt.onclick = e => {
+    e.preventDefault(); e.stopPropagation();
+    mt.closest('.meta-tags').classList.add('expanded');
+  });
   // 影片卡 → 浮動播放器（href 保留，長按/新分頁仍可用原連結）
   grid.querySelectorAll('.vid-card').forEach(a => a.addEventListener('click', e => {
-    if (e.target.closest('.card-chip, .s-link')) return;
+    if (e.target.closest('.card-chip, .s-link, .more-tags')) return;
     e.preventDefault();
     openPlayer(new URL(a.href).searchParams.get('v'));
   }));
