@@ -91,6 +91,16 @@
   }
   .s-link { cursor:pointer; }
   .s-link:hover { background:color-mix(in srgb, var(--c) 38%, transparent); }
+  /* 學校標籤疊縮圖左下（四方共識 C 案）：深色襯底確保任何底圖都可讀 */
+  .thumb-tags {
+    position:absolute; left:8px; bottom:8px; display:flex; gap:4px;
+    max-width:calc(100% - 50px); flex-wrap:wrap;
+  }
+  .thumb-tags .s-tag {
+    background:rgba(0,0,0,.62); color:var(--c);
+    border:1px solid color-mix(in srgb, var(--c) 70%, transparent);
+    text-shadow:0 1px 2px rgba(0,0,0,.8);
+  }
 
   .news-list { display:flex; flex-direction:column; gap:12px; max-width:680px; margin:0 auto; }
   .news-hero {
@@ -327,6 +337,10 @@ function renderVideos(){
         <img loading="lazy" src="https://i.ytimg.com/vi/${esc(v.videoId)}/mqdefault.jpg" alt="">
         ${v.picked ? `<div class="badge-pick">★ 精選</div>` : ''}
         ${isHot(v.published) ? `<div class="badge-hot">⚡ 速報</div>` : ''}
+        <div class="thumb-tags">${v.schools.map(s => s==='綜合'
+          ? `<span class="s-tag" style="--c:var(--text-dim)">綜合</span>`
+          : `<span class="s-tag s-link" data-school="${esc(s)}" style="--c:var(--s-${esc(s)})">${esc(s)}</span>`
+        ).join('')}</div>
         <div class="play">▶</div>
       </div>
       <div class="vid-body">
@@ -338,10 +352,6 @@ function renderVideos(){
           </span>`).join('')}</div>` : ''}
         <div class="vid-meta">
           <span class="vid-date">${esc(fmtDate(v.published))}</span>
-          <span>${v.schools.map(s => s==='綜合'
-            ? `<span class="s-tag">綜合</span>`
-            : `<span class="s-tag s-link" data-school="${esc(s)}" style="--c:var(--s-${esc(s)})">${esc(s)}</span>`
-          ).join(' ')}</span>
         </div>
       </div>
     </a>`).join('');
