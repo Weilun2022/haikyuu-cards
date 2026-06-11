@@ -2,7 +2,7 @@
 /**
  * fetch_promo.js — 情報站影片爬蟲
  * 抓取合作商家 YouTube 頻道 RSS → 過濾排球少年相關 → 按學校分類 → 產出 promo_data.js
- * 跑在 GitHub Actions（每 6 小時）或本地：node fetch_promo.js
+ * 跑在 GitHub Actions（每 4 小時）或本地：node fetch_promo.js
  */
 const https = require('https');
 const fs = require('fs');
