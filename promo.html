@@ -303,16 +303,23 @@ if (typeof CARDS_DATA !== 'undefined') {
   for (const c of CARDS_DATA.cards) if (!CARD_BY_NO[c.card_no]) CARD_BY_NO[c.card_no] = c;
 }
 
-// ── 合併站長標註：精選學校 > 自動分類（schools 陣列，第一個為主色）──
+// ── 合併站長標註：手動標註優先 > 爬蟲自動分類（schools 陣列，第一個為主色）──
 function enrich(v){
   const tag = (typeof PROMO_TAGS !== 'undefined' && PROMO_TAGS[v.videoId]) || null;
-  const schools = tag?.schools || (tag?.school ? [tag.school] : [v.school]);
+  const schools = tag?.schools || (tag?.school ? [tag.school] : (v.schools || (v.school ? [v.school] : ['綜合'])));
+  // 亮點文字：手動 note 優先；否則用爬蟲自動抓的（雙校→「A vs B 賽別」，單校→賽別）
+  let note = tag?.note || '';
+  if (!note) {
+    const real = schools.filter(s => s !== '綜合');
+    const vs = real.length === 2 ? real.join(' vs ') : '';
+    note = [vs, v.stage].filter(Boolean).join(' ');
+  }
   return {
     ...v,
     schools,
     school: schools[0],
     picked: !!tag,
-    note: tag?.note || '',
+    note,
     cards: (tag?.cards || []).map(no => CARD_BY_NO[no]).filter(Boolean),
   };
 }

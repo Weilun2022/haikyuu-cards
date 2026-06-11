@@ -83,13 +83,35 @@ function isRelevant(title) {
   return RELEVANT_KEYWORDS.some(k => t.includes(k.toUpperCase()));
 }
 
-function classifySchool(title) {
-  let best = null, bestHits = 0;
+// 全文掃描：抓出所有出現的學校（依命中數排序），無則回 ['綜合']
+// 位置無關 —— 學校名出現在標題或描述任何位置、第幾個 tag、有無 # 都認得
+function classifySchools(text) {
+  const hit = [];
   for (const [school, keys] of Object.entries(SCHOOL_KEYWORDS)) {
-    const hits = keys.filter(k => title.includes(k)).length;
-    if (hits > bestHits) { best = school; bestHits = hits; }
+    const n = keys.filter(k => text.includes(k)).length;
+    if (n > 0) hit.push({ school, n });
   }
-  return best || '綜合';
+  hit.sort((a, b) => b.n - a.n);
+  return hit.length ? hit.map(h => h.school) : ['綜合'];
+}
+
+// 賽別關鍵字（全文掃描，位置無關）。
+// ⚠️ 順序＝由具體到籠統：準々決勝/八強 必須排在 決勝/決賽 之前，
+//    否則「準決勝」會被 includes('決勝') 誤判成決賽。回傳第一個命中的賽別標籤。
+const STAGE_KEYWORDS = [
+  ['八強賽', ['八強', '八强', '8強', '準々決勝']],
+  ['四強賽', ['四強', '四强', '準決勝', '準決賽', '半決賽', '半决赛', '半決勝']],
+  ['季軍賽', ['季軍', '三四名', '3位決定']],
+  ['冠軍賽', ['冠軍', '冠军', '總決賽', '总决赛', '決勝', '決賽', '决赛', '優勝', '优胜']],
+  ['十六強賽', ['十六強', '16強', '16强']],
+  ['預選賽', ['預選', '预选', '預賽', '预赛', '初賽', '初赛', '資格賽', '予選']],
+  ['小組賽', ['小組賽', '分組賽', '循環賽']],
+];
+function extractStage(text) {
+  for (const [label, keys] of STAGE_KEYWORDS) {
+    if (keys.some(k => text.includes(k))) return label;
+  }
+  return '';
 }
 
 // ── 主流程 ────────────────────────────────────────────
@@ -110,11 +132,15 @@ function classifySchool(title) {
 
   const videos = all
     .filter(v => isRelevant(v.title + ' ' + v._desc))
-    .map(({ _desc, ...v }) => ({ ...v, school: classifySchool(v.title + ' ' + _desc) }))
+    .map(({ _desc, ...v }) => {
+      const text = v.title + ' ' + _desc;
+      const schools = classifySchools(text);
+      return { ...v, schools, school: schools[0], stage: extractStage(text) };
+    })
     .sort((a, b) => b.published.localeCompare(a.published));
 
   console.log(`相關影片 ${videos.length} / 全部 ${all.length}`);
-  videos.forEach(v => console.log(`  ${v.published} [${v.school}] ${v.title.slice(0, 40)}`));
+  videos.forEach(v => console.log(`  ${v.published} [${v.schools.join('/')}${v.stage ? ' '+v.stage : ''}] ${v.title.slice(0, 36)}`));
 
   if (all.length === 0) {
     console.error('所有頻道皆抓取失敗，保留舊 promo_data.js 不覆寫');

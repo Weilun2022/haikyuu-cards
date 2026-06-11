@@ -2036,7 +2036,7 @@ const SCHOOL_VIDEO_COUNT = (() => {
   if (typeof PROMO_DATA === 'undefined') return cnt;
   for (const v of (PROMO_DATA.videos || [])) {
     const tag = (typeof PROMO_TAGS !== 'undefined' && PROMO_TAGS[v.videoId]) || null;
-    const schools = tag?.schools || (tag?.school ? [tag.school] : [v.school]);
+    const schools = tag?.schools || (tag?.school ? [tag.school] : (v.schools || (v.school ? [v.school] : ['綜合'])));
     for (const s of schools) cnt[s] = (cnt[s] || 0) + 1;
   }
   return cnt;
