@@ -236,12 +236,38 @@
     .dc-features { grid-template-columns:1fr; }
   }
 
-  /* ── DC tab 未選中時閃爍吸引 ── */
-  @keyframes dc-tab-glow {
-    0%,100% { border-bottom-color:rgba(88,101,242,0); color:var(--text-dim); }
-    50% { border-bottom-color:#5865F2; color:#c4c8ff; text-shadow:0 0 10px rgba(88,101,242,.55); }
+  /* ── DC tab 未選中時閃爍吸引（橙色掃光版）── */
+  @keyframes dc-tab-pulse {
+    0%,100% { border-bottom-color:rgba(249,115,22,.15); color:var(--text-dim); }
+    50% { border-bottom-color:#f97316; color:#ffd0a0;
+          text-shadow:0 0 12px rgba(249,115,22,.75);
+          box-shadow:inset 0 -6px 10px -8px rgba(249,115,22,.55); }
   }
-  .tab[data-tab="dc"]:not(.active) { animation:dc-tab-glow 2s ease-in-out infinite; }
+  @keyframes dc-dot-pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:.5; transform:scale(1.5); }
+  }
+  @keyframes dc-tab-shine {
+    0% { left:-65%; opacity:0; }
+    15% { opacity:1; }
+    85% { opacity:1; }
+    100% { left:130%; opacity:0; }
+  }
+  .tab[data-tab="dc"]:not(.active) {
+    animation:dc-tab-pulse 2s ease-in-out infinite;
+    position:relative; overflow:hidden;
+  }
+  .tab[data-tab="dc"]:not(.active)::before {
+    content:''; position:absolute; top:9px; right:9px;
+    width:7px; height:7px; border-radius:50%;
+    background:#f97316; box-shadow:0 0 7px rgba(249,115,22,.9);
+    animation:dc-dot-pulse 1.5s ease-in-out infinite;
+  }
+  .tab[data-tab="dc"]:not(.active)::after {
+    content:''; position:absolute; inset:0; left:-65%; width:42%;
+    background:linear-gradient(90deg,transparent,rgba(249,115,22,.22),transparent);
+    animation:dc-tab-shine 3s ease-in-out infinite;
+  }
 
   /* ── Hero 向下滑提示（手機） ── */
   @keyframes dc-bounce { 0%,100%{transform:translateY(0)}50%{transform:translateY(5px)} }
