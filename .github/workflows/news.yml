@@ -1,0 +1,34 @@
+name: 新品資訊自動更新
+
+on:
+  schedule:
+    - cron: '0 2 * * *'   # 每天 UTC 02:00（台灣 10:00）
+  workflow_dispatch:        # 可手動觸發
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 抓取官方新品列表
+        run: node fetch_news.js
+
+      - name: 有變動才 commit + push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet promo_news.js; then
+            git add promo_news.js
+            git commit -m "chore(news): 自動更新新品資料 $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          else
+            echo "無變動，跳過 commit"
+          fi
