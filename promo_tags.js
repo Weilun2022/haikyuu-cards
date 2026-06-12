@@ -24,4 +24,12 @@ const PROMO_TAGS = {
     schools: ['稻荷崎', '烏野'],
     note: '稻荷崎 vs 烏野 預選賽',
   },
+  'QsEzntfKMKA': {  // 06-04 冠軍賽
+    schools: ['稻荷崎', '白鳥澤'],
+    note: '稻荷崎 vs 白鳥澤 冠軍賽',
+  },
+  'PKvIkIqeRRI': {  // 06-03 四強賽
+    schools: ['伊達工', '白鳥澤'],
+    note: '伊達工 vs 白鳥澤 四強賽',
+  },
 };
