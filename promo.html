@@ -542,7 +542,7 @@ function enrich(v){
   let note = tag?.note || '';
   if (!note) {
     const real = schools.filter(s => s !== '綜合');
-    const vs = real.length === 2 ? real.join(' vs ') : '';
+    const vs = real.length >= 2 ? real.join(' vs ') : real[0] || '';
     note = [vs, v.stage].filter(Boolean).join(' ');
   }
   return {
