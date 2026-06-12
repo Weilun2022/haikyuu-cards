@@ -32,4 +32,8 @@ const PROMO_TAGS = {
     schools: ['伊達工', '白鳥澤'],
     note: '伊達工 vs 白鳥澤 四強賽',
   },
+  'oYVR8P3pbzI': {  // 06-02
+    schools: ['稻荷崎', '音駒'],
+    note: '稻荷崎 vs 音駒',
+  },
 };
