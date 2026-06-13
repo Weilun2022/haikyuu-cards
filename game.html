@@ -2104,8 +2104,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <a href="#" onclick="clearConfig()" style="color:var(--text-dim)">重設 Firebase 設定</a>
     </div>
     <div style="text-align:center;font-size:11px;color:var(--text-dim);padding:8px 16px 16px;line-height:1.6;opacity:.7">
-      本作僅供同好交流，版權歸原作者及 TAKARA TOMY 所有，請支持正版。<br>
-      ハイキュー!! &copy; 古舘春一／集英社
+      非官方同好自製工具，版權歸原作者及 TAKARA TOMY 所有，請支持正版。<br>
+      ハイキュー!! &copy; 古舘春一／集英社　·　<a href="#" onclick="openDisclaimer();return false" style="color:var(--text-dim);text-decoration:underline">免責聲明</a>
     </div>
   </div>
 </div>
@@ -2496,6 +2496,23 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <button class="btn" id="gen-confirm-cancel-btn" onclick="_genConfirmClose(false)" style="flex:1;max-width:120px">取消</button>
       <button class="btn primary" id="gen-confirm-ok-btn" onclick="_genConfirmClose(true)" style="flex:1;max-width:160px">確認</button>
     </div>
+  </div>
+</div>
+
+<!-- Disclaimer Modal -->
+<div id="disclaimer-overlay" style="display:none;position:fixed;inset:0;z-index:6000;background:rgba(0,0,0,.6);align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="closeDisclaimer()">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 24px 18px;max-width:460px;width:92%;max-height:84vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.7)" onclick="event.stopPropagation()">
+    <div style="font-size:17px;font-weight:800;margin-bottom:4px">免責聲明</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">Disclaimer &amp; Copyright Notice</div>
+    <ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.75;color:var(--text)">
+      <li style="margin-bottom:11px"><b>非官方工具</b>　本網頁為《排球少年!! バボカ!!BREAK》愛好者自製之非官方線上對戰輔助工具，與原作者古舘春一、集英社及 TAKARA TOMY 無任何隸屬、授權或商業合作關係。</li>
+      <li style="margin-bottom:11px"><b>版權與商標</b>　站內引用之作品內容、角色、美術圖像及卡牌設計，相關著作權與商標均歸原權利人所有。ハイキュー!! &copy; 古舘春一／集英社；遊戲 &copy; TAKARA TOMY。</li>
+      <li style="margin-bottom:11px"><b>非營利</b>　本工具完全免費、無廣告、不販售任何實體或虛擬卡牌，僅供同好交流與技術實作之用。</li>
+      <li style="margin-bottom:11px"><b>卡圖使用</b>　站內卡牌圖像僅作為輔助實體對戰之用途。若權利人認為有侵權疑慮，請與作者聯繫，本站將立即移除相關內容。</li>
+      <li style="margin-bottom:11px"><b>連線與隱私</b>　本工具透過 Firebase 暫存對戰房間狀態（卡牌位置、自訂暱稱），無帳號系統，不蒐集任何個人識別資訊；房間資料於離線或閒置 4 小時後自動清除。</li>
+      <li><b>免責</b>　本工具不保證服務之穩定性或持續可用性，對於使用過程中之連線中斷、資料遺失或其他爭議，作者概不負責，使用者須自行承擔使用風險。</li>
+    </ol>
+    <button class="btn primary" onclick="closeDisclaimer()" style="width:100%;margin-top:18px">我已了解</button>
   </div>
 </div>
 
@@ -6254,6 +6271,14 @@ function showTutorial() {
 
 function closeTutorial() {
   document.getElementById('tutorial-overlay').style.display = 'none';
+}
+
+function openDisclaimer() {
+  document.getElementById('disclaimer-overlay').style.display = 'flex';
+}
+
+function closeDisclaimer() {
+  document.getElementById('disclaimer-overlay').style.display = 'none';
 }
 
 function switchTutTab(name, btn) {
