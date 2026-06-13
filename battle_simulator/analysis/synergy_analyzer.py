@@ -2,20 +2,22 @@
 技能連動性分析器
 
 偵測連動類型：
-  SYN_NAME         — 指名連動：技能文字直接提及隊友名稱
-  SYN_ENTER        — 登場觸發：「當X出場時 +N」此回合條件性加值
-  SYN_ZONE_COND    — 區域條件：要求指定角色在特定功能區（舉球/攻擊/接球/攔網/發球）
-  SYN_JOINT        — 聯合條件：EVENT 牌需要兩名指定角色同時在場才觸發強效
-  SYN_VIA_EVENT    — 事件部署：角色以特定 EVENT 牌的技能出場時才能解鎖強力效果
-  SYN_DISCARD      — 棄牌循環：從棄牌區召回指定角色
-  SYN_GUTS         — Guts 召喚：從 Guts 直接出場指定角色
-  SYN_EVENT        — 事件觸發：EVENT 牌觸發時惠及場上角色
-  SYN_CONDITION    — 條件解鎖：達到牌組條件（如墓地種類多樣性）才能解鎖的強力效果
-  SYN_MILL_FUEL    — 墓地填充：主動把牌送進棄牌區，餵養種類多樣性引擎
-  SYN_ROLE_RECOVER — 墓地回收：以角色/學校為條件從棄牌區回收（非指名）
+  SYN_NAME           — 指名連動：技能文字直接提及隊友名稱
+  SYN_ENTER          — 登場觸發：「當X出場時 +N」此回合條件性加值
+  SYN_ZONE_COND      — 區域條件：要求指定角色在特定功能區（舉球/攻擊/接球/攔網/發球）
+  SYN_JOINT          — 聯合條件：EVENT 牌需要兩名指定角色同時在場才觸發強效
+  SYN_VIA_EVENT      — 事件部署：角色以特定 EVENT 牌的技能出場時才能解鎖強力效果
+  SYN_DISCARD        — 棄牌循環：從棄牌區召回指定角色
+  SYN_GUTS           — Guts 召喚：從 Guts 直接出場指定角色
+  SYN_EVENT          — 事件觸發：EVENT 牌觸發時惠及場上角色
+  SYN_CONDITION      — 條件解鎖：達到牌組條件（如墓地種類多樣性）才能解鎖的強力效果
+  SYN_MILL_FUEL      — 墓地填充：主動把牌送進棄牌區，餵養種類多樣性引擎
+  SYN_ROLE_RECOVER   — 墓地回收：以角色/學校為條件從棄牌區回收（非指名）
+  SYN_EVENT_RECOVER  — Event區回收：從 Event 區取回已用事件牌至手牌，實現重複使用
 
 引擎偵測（detect_engines）：把上述邊組合成可運作的「核心機制」——
-  例如「墓地豐度引擎」= 填充牌 → 種類條件 → 收益牌 → 回收牌的閉環，
+  例如「墓地豐度引擎」= 填充牌 → 種類條件 → 收益牌 → 回收牌的閉環；
+  「Event區Loop引擎」= 事件發動→Event區→回收角色撿回→重複使用；
   並評估其完成度與運轉可靠度，指出補完方向。
 """
 from __future__ import annotations
@@ -47,6 +49,12 @@ _RE_MILL_FUEL = re.compile(r'(?:從(?:自己的)?手牌棄置|棄置此牌|牌�
 # the discard (not a specific named card), e.g. 「從棄牌區將稲荷崎的WS或MB角色牌…加入手牌」.
 # This is engine-sustain value: it refills the hand while the pile stays stocked.
 _RE_ROLE_RECOVER = re.compile(r'從(?:自己的)?棄牌區將.{0,16}?(?:角色牌|WS|MB).{0,10}?加入手牌')
+
+# Event Zone recovery — the key mechanism that enables event replay loops.
+# A character recovers a used event (which went to the Event Zone) back to hand.
+# Example: 北信介 P02-024 「從自己的Event區稲荷崎的牌最多加1張至手牌」
+# or D03-001 宮侑 「從自己的Event區將「今日 何をする？」最多1張加入手牌」
+_RE_EVENT_ZONE_RECOVER = re.compile(r'從(?:自己的)?Event區.{0,30}?(?:加入手牌|至手牌)')
 
 # "當自己的「X」出場時...+N" — enter-triggered buff attributed specifically to X
 _RE_ENTER_BOOST = re.compile(r'當自己的「([^」]+)」出場時[^。\n]*?[+＋](\d+)')
@@ -113,8 +121,9 @@ class SynergyAnalyzer:
         'SYN_GUTS':      2.5,
         'SYN_EVENT':     1.0,
         'SYN_CONDITION': 2.0,
-        'SYN_MILL_FUEL':    1.5,   # fills the discard pile — only useful with a payoff
-        'SYN_ROLE_RECOVER': 2.5,   # recurs any role/school card from discard (engine sustain)
+        'SYN_MILL_FUEL':      1.5,   # fills the discard pile — only useful with a payoff
+        'SYN_ROLE_RECOVER':   2.5,   # recurs any role/school card from discard (engine sustain)
+        'SYN_EVENT_RECOVER':  3.5,   # highest: enables event replay loops (e.g. どんぴしゃり loop)
     }
 
     def analyze(self, deck: list[Card]) -> DeckSynergyReport:
@@ -160,6 +169,9 @@ class SynergyAnalyzer:
             first.setdefault(c.card_no, c)
         uniq = list(first.values())
 
+        eng = self._detect_event_loop_engine(deck, uniq)
+        if eng:
+            engines.append(eng)
         eng = self._detect_diversity_engine(deck, uniq)
         if eng:
             engines.append(eng)
@@ -172,6 +184,63 @@ class SynergyAnalyzer:
 
         engines.sort(key=lambda e: e.coherence, reverse=True)
         return engines
+
+    def _detect_event_loop_engine(
+        self, deck: list[Card], uniq: list[Card],
+    ) -> DeckEngine | None:
+        """Detect the Event-Zone replay loop.
+
+        Pattern: event card activates → goes to Event Zone → a recovery character
+        (接球區) retrieves it back to hand → event replayed next turn.
+        The canonical example is: どんぴしゃり → Event區 → 北信介 P02-024 回收 → repeat.
+        """
+        recyclers = [c for c in uniq if _RE_EVENT_ZONE_RECOVER.search(c.skill_zh)]
+        if not recyclers:
+            return None
+
+        guts_events = [c for c in uniq
+                       if c.category == 'EVENT' and _RE_GUTS_REF.search(c.skill_zh)]
+        if not guts_events:
+            return None
+
+        via_chars = [c for c in uniq if _RE_VIA_EVENT.search(c.skill_zh)]
+
+        recycler_copies = sum(1 for c in deck if _RE_EVENT_ZONE_RECOVER.search(c.skill_zh))
+        event_copies    = sum(1 for c in deck
+                              if c.category == 'EVENT' and _RE_GUTS_REF.search(c.skill_zh))
+
+        recycler_cov = min(recycler_copies / 3, 1.0)
+        event_cov    = min(event_copies / 4, 1.0)
+        piece_cov    = min(len(via_chars) / 2, 1.0)
+        coherence    = round((recycler_cov + event_cov + piece_cov) / 3, 2)
+
+        advice: list[str] = []
+        if recycler_copies < 2:
+            advice.append(
+                f"Event回收角色（接球區）現有 {recycler_copies} 張，建議補到3張確保Loop穩定。"
+            )
+        if event_copies < 3:
+            advice.append(
+                f"Loop核心事件現有 {event_copies} 張，建議補到4張以提高首回觸發率。"
+            )
+        if not via_chars:
+            advice.append("缺少以事件技能出場解鎖加值的角色，Loop產出僅為基礎效果。")
+
+        return DeckEngine(
+            name="Event區Loop引擎",
+            summary=(
+                "事件牌發動後進入Event區；接球區角色（如北信介P02-024）"
+                "棄1張手牌+3 Guts，將其取回手牌，下回合重複發動。"
+                "每個Loop循環同時填充棄牌區，雙引擎聯動。"
+            ),
+            role_cards={
+                '回收核心（接球區）': [c.card_no for c in recyclers],
+                'Loop事件':           [c.card_no for c in guts_events],
+                '事件出場解鎖角色':   [c.card_no for c in via_chars],
+            },
+            coherence=coherence,
+            advice=advice,
+        )
 
     def _detect_diversity_engine(
         self, deck: list[Card], uniq: list[Card],
@@ -415,13 +484,25 @@ class SynergyAnalyzer:
                 w = self.WEIGHTS['SYN_NAME'] + min(boost * 0.1, 1.0)
                 edges.append(SynergyEdge(card.card_no, ref, 'SYN_NAME', w))
 
-        # 8a. SYN_ROLE_RECOVER — recover ANY role/school card from the discard pile.
+        # 8a. SYN_EVENT_RECOVER — recover a card from the EVENT ZONE back to hand.
+        #     This enables replay loops (e.g. どんぴしゃり Loop via 北信介 P02-024).
+        #     Only scored when the deck actually runs a Guts-deploy event to recover.
+        if _RE_EVENT_ZONE_RECOVER.search(skill):
+            has_loop_target = any(
+                c.category == 'EVENT' and _RE_GUTS_REF.search(c.skill_zh)
+                for c in deck
+            )
+            if has_loop_target:
+                edges.append(SynergyEdge(card.card_no, '__event_zone__', 'SYN_EVENT_RECOVER',
+                                         self.WEIGHTS['SYN_EVENT_RECOVER']))
+
+        # 8b. SYN_ROLE_RECOVER — recover ANY role/school card from the discard pile.
         #     Self-sustaining engine value, independent of which specific card is named.
         if _RE_ROLE_RECOVER.search(skill):
             edges.append(SynergyEdge(card.card_no, '__discard_pool__', 'SYN_ROLE_RECOVER',
                                      self.WEIGHTS['SYN_ROLE_RECOVER']))
 
-        # 8b. SYN_MILL_FUEL — actively feeds the discard pile. Only rewarded when the
+        # 8c. SYN_MILL_FUEL — actively feeds the discard pile. Only rewarded when the
         #     deck actually runs a diversity payoff (otherwise milling is pure downside).
         if _RE_MILL_FUEL.search(skill):
             has_payoff = any(_RE_DIVERSE_COND.search(c.skill_zh) for c in deck)
@@ -429,7 +510,7 @@ class SynergyAnalyzer:
                 edges.append(SynergyEdge(card.card_no, '__discard_pool__', 'SYN_MILL_FUEL',
                                          self.WEIGHTS['SYN_MILL_FUEL']))
 
-        # 8c. SYN_CONDITION — diverse discard-pile payoff. Coverage now reflects whether
+        # 8d. SYN_CONDITION — diverse discard-pile payoff. Coverage now reflects whether
         #     the deck can REALISTICALLY stock N unique names: it needs both enough unique
         #     character names AND fuel/draw to put them into the pile. A payoff with no
         #     way to fill the pile is a dead condition and scores near zero.
@@ -494,6 +575,8 @@ class SynergyAnalyzer:
             chains.append(f"[登場觸發] 「{e.target}」入場加值（強度 {e.weight:.1f}）")
         for e in (by_type.get('SYN_NAME', []))[:6]:
             chains.append(f"[指名連動] → 「{e.target}」（強度 {e.weight:.1f}）")
+        for e in by_type.get('SYN_EVENT_RECOVER', [])[:4]:
+            chains.append(f"[Event回收] {e.source} 從Event區取回事件牌→Loop（強度 {e.weight:.1f}）")
         for e in by_type.get('SYN_ROLE_RECOVER', [])[:4]:
             chains.append(f"[墓地回收] {e.source} 從棄牌區回收角色（強度 {e.weight:.1f}）")
         if by_type.get('SYN_MILL_FUEL'):
