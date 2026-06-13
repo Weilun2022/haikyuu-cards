@@ -181,6 +181,33 @@ def build_custom_deck(card_list: list[dict], seed: int | None = None) -> list[Ca
     return deck[:40]
 
 
+def load_exported_decks(json_path: str) -> dict[str, list[Card]]:
+    """Load decks from a BREAK deck-builder v2 export file.
+
+    Returns {deck_name: [Card, ...]} with card copies expanded by `count`.
+    Cards whose card_no is not found in cards_data.js are skipped.
+    """
+    import json
+    from pathlib import Path
+
+    raw_index = {c['card_no']: c for c in load_all_cards()}
+    data = json.loads(Path(json_path).read_text(encoding='utf-8'))
+
+    out: dict[str, list[Card]] = {}
+    for deck in data.get('decks', []):
+        name = deck.get('name', '(未命名)')
+        cards: list[Card] = []
+        for entry in deck.get('cards', []):
+            no = entry.get('card_no', '')
+            cnt = int(entry.get('count', 1))
+            if no not in raw_index:
+                continue
+            card = Card.from_dict(raw_index[no])
+            cards.extend(card for _ in range(cnt))
+        out[name] = cards
+    return out
+
+
 def analyze_deck_synergy(deck: list[Card]) -> str:
     """Return a human-readable synergy report for a deck."""
     report = _analyzer.analyze(deck)
@@ -199,3 +226,37 @@ def analyze_deck_synergy(deck: list[Card]) -> str:
         for card_no, score in top:
             lines.append(f"  {card_no}  +{score:.1f}")
     return "\n".join(lines)
+
+
+def analyze_deck_engines(deck: list[Card]) -> str:
+    """Return a human-readable core-mechanism (engine) report for a deck.
+
+    Names each engine, shows the cards filling each role, rates how reliably the
+    engine turns on, and lists concrete completion advice.
+    """
+    name_of = {c.card_no: c.name for c in deck}
+
+    def label(no: str) -> str:
+        return f"{no} {name_of.get(no, '')}".rstrip()
+
+    engines = _analyzer.detect_engines(deck)
+    if not engines:
+        return "未偵測到明確的核心引擎（牌組以單卡數值為主）。"
+
+    lines: list[str] = []
+    for i, eng in enumerate(engines, 1):
+        filled = round(eng.coherence * 10)
+        bar = '█' * filled + '░' * (10 - filled)
+        lines.append(f"【引擎 {i}】{eng.name}　運轉度 {bar} {eng.coherence:.0%}")
+        lines.append(f"  機制：{eng.summary}")
+        for role, nos in eng.role_cards.items():
+            if not nos:
+                continue
+            shown = [label(n) if n in name_of else n for n in nos]
+            lines.append(f"  • {role}：{ '、'.join(shown) }")
+        if eng.advice:
+            lines.append("  補完建議：")
+            for a in eng.advice:
+                lines.append(f"    - {a}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
