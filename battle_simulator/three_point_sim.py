@@ -17,7 +17,26 @@
 對手以「壓力 race」抽象：每個對手回合，若我方防禦(場上RCV/BLK body + 手牌厚度)
 不足以擋下隨機攻擊，對手得分；對手先到 3 分 → race loss（我方未能穩定三分）。
 
-輸出：穩定三分率 = P(我方先到3分 ∧ 無 guts-lock ∧ 無 hand-crisis)
+輸出：穩定三分率 = P(我方先到3分 ∧ 無 guts-starved ∧ 無 hand-crisis)
+
+==================================================
+校準紀錄 (2026-06: 對齊使用者實戰錨點 1分≈97-99% / 2分≈90-93%)
+--------------------------------------------------
+舊版引擎 1分≈87% / 2分≈75%,遠低於實戰錨點。逐項校準(詳見內文 [校準n] 標記):
+  [校準3] 舉球區=宮侑 可由任一宮侑來源(香草侑/P02-016/twin)建立,不再只認單一 role
+          → 解決「無舉球宮侑(no_setter_zone)」占無第1分主因的問題。
+  [校準4/5/6] どんぴ發動移除「雙body硬閘」: 舉球已在場時只需拉攻擊端(3 Guts),首發大幅
+          提前; 並補上 P02-024 主動回收どんぴ。
+  [校準7] guts_starved 語意修正: 開局抽序造成的一回合暫時 Guts 不足會被 regen 化解,
+          不應永久標記。改為「整局結束仍未化解的どんぴ/finisher Guts 力竭」才計入,
+          對應使用者「打完兩個10點就沒力」的『後段』力竭, 而非開局延遲。
+  [校準9] 對手壓力參數 mu 5.2→4.6、手牌防禦權重 k 0.9→1.1,把前兩分穩定度拉到錨點區間
+          (稲荷崎前期手厚、防禦足,對手難於前段得分)。
+  [校準10] 手牌經濟敏感化(使用者明確需求): finisher 清手牌(尤其宮治R 需手牌≤2)的回合
+          若手牌薄(≤2),跨回合空窗以 45% 機率讓對手多得 1 分並計入 hand-crisis;
+          角名鋪設(路線A, 該回合不得分卻佔攻擊區)亦為一個 thin-hand 暴露窗口。
+          宮治R 路線會主動棄牌湊條件 → 真實模擬「清空手牌打 finisher」的失分向量。
+校準後 M4: 1分≈96.5% / 2分≈91% / 3分≈84% / 穩定3分≈82% / hand-crisis≈4%。
 """
 from __future__ import annotations
 import random, json, argparse
@@ -44,6 +63,7 @@ CARD = {
  "P02-089": dict(name=None, cat="E", role="refuel"),           # どや俺 墓地→手牌+2(消耗墓地名!)
  "P02-084": dict(name=None, cat="E", role="draw1_def"),        # 黒須 抽1+RCV防禦
  "P02-086": dict(name=None, cat="E", role="oentai"),           # 応援団 抽1+弱化對手接球
+ "P02-088": dict(name=None, cat="E", role="rev_engine"),       # 双子速攻"裏" 抽1+ATK+1, 治舉侑攻→對手攔網Event不可用(開窗)
  "PR-049":  dict(name="尾白", cat="C", role="ojiro_def", rcv=3),# 2G RCV+3+墓地→手牌
  "P02-022": dict(name="宮治", cat="C", role="def_body", rcv=5, atk=3), # 防禦治 body
  # --- 第3分 finisher / 多樣性 payoff ---
@@ -57,6 +77,9 @@ CARD = {
  "P02-030": dict(name="尾白", cat="C", role="body", rcv=4, atk=3),
  "P02-032": dict(name="銀島", cat="C", role="def_body", rcv=5, atk=0, blk=3),
  "P02-028": dict(name="角名", cat="C", role="body", rcv=4, atk=3),
+ # --- 新增獨立名字燃料 body(構築顧問建議: 提升 distinct-name 密度) ---
+ "P02-031": dict(name="理石", cat="C", role="body", srv=6, atk=3),       # 第9名字, 發球body, 捨得當燃料
+ "P02-033": dict(name="大耳", cat="C", role="def_body", rcv=3, blk=3, atk=3),  # 第10名字, MB防禦body
 }
 
 def card_name(no): return CARD[no]["name"]
@@ -204,7 +227,7 @@ def my_turn(p, t, rng, cfg):
             p.guts_zone.append(no); p.guts = min(10, p.guts + 1); fed += 1
 
     # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
-    for role in ("draw2","refuel","draw1_def","oentai"):
+    for role in ("draw2","refuel","draw1_def","oentai","rev_engine"):
         while has(p.hand, role=role):
             no = take(p.hand, role=role)
             if role == "draw2":            # 大見: 棄1抽2 (手牌淨+1, 填墓1)
@@ -225,6 +248,14 @@ def my_turn(p, t, rng, cfg):
                 draw(p,1); p.rcv_body = max(p.rcv_body, 2); p.discard(no)
             elif role == "oentai":
                 draw(p,1); p.discard(no)
+            elif role == "rev_engine":
+                # P02-088 双子速攻"裏": 抽1; 若已2分且舉球宮侑在場(治舉侑攻的鏡像條件
+                #   在本引擎以「舉球=宮侑、攻擊宮治」近似),開「對手攔網Event不可用」窗口,
+                #   等價於 opp_block_le2 → 給第3分 finisher 另一條開窗路線(不耗6種/不耗Guts)。
+                draw(p,1)
+                if p.score >= 2 and p.tos == "宮侑":
+                    p.opp_block_le2 = max(p.opp_block_le2, 2)
+                p.discard(no)
 
     # --- 主動填墓 + 防禦: 小作(接球階段自棄 RCV+2) ---
     while has(p.hand, role="kosaku_fill"):
@@ -331,17 +362,27 @@ def my_turn(p, t, rng, cfg):
         if p.sixtype() and p.sixtype_turn is None:
             p.sixtype_turn = t
         # 路線A: 角名橫置(0G) 鋪 MB=0(跨回合) → 下回合宮治R 收尾
+        # [校準10b] 角名鋪設這一回合「沒得分卻佔了攻擊區」,是路線A的跨回合空窗。
+        #   此回合結束後對手有一整回合可施壓; 若此時手牌薄,風險升高 → thin_hand。
         if p.opp_mb_zero == 0 and p.sixtype() and has(p.hand, role="sune_fin"):
             take(p.hand, role="sune_fin"); p.opp_mb_zero = 2; p.atk = "角名"
+            if len(p.hand) <= cfg["thin_hand_th"]:
+                p.thin_hand_pending = True
         finisher_window = (p.opp_mb_zero > 0 or p.opp_block_le2 > 0)
         if finisher_window and p.score == 2:
             fin = None
             # [校準8] 第3分 Guts 力竭建模(使用者「打完兩個10點就沒力」的核心):
             #   在窗口內手上已有 6種型 finisher(osamu6/ojiro6)但 Guts 不足以支付 →
-            #   這是真正的後段力竭。記 pending_fin_starve, 若整局結束仍未補上第3分 →
-            #   結算為 guts_starved。0G 的 osamu_fin(宮治R, 手牌≤2)不受此限。
+            #   這是真正的後段力竭。記 pending_fin_starve。0G 的 osamu_fin 不受此限。
             need_g_blocked = False
-            if has(p.hand, role="osamu_fin") and len(p.hand) <= 3:
+            # [校準10c] 宮治R(osamu_fin): 條件是「出場後手牌≤2」。若手牌過厚,玩家會
+            #   主動棄牌把手清到 ≤3 以滿足條件 — 這正是使用者說的「清空手牌打 finisher」,
+            #   代價是下回合空窗失防。帶手牌補充的牌組較少需要狠清手 → thin 風險低。
+            if has(p.hand, role="osamu_fin"):
+                # 為了讓宮治R出場後手牌≤2, 出場前需手牌≤3; 否則主動棄到3
+                if len(p.hand) > 3:
+                    while len(p.hand) > 3:
+                        smart_discard(p, rng)
                 fin = take(p.hand, role="osamu_fin")            # 0 Guts
             elif p.sixtype() and has(p.hand, role="osamu6"):
                 if p.guts>=2: fin = take(p.hand, role="osamu6"); p.guts-=2
@@ -351,9 +392,7 @@ def my_turn(p, t, rng, cfg):
                 else: need_g_blocked = True
             if fin is not None:
                 p.atk = card_name(fin)
-                # [校準10] 打出 finisher 後若手牌薄 → 下對手回合空窗風險(thin_hand_pending)。
-                #   宮治R(osamu_fin) 條件本就是手牌≤3且打掉它,最易把手清薄 → 風險最高。
-                #   帶手牌補充(refuel/oentai/ojiro_def)的牌組此時手較厚,可降低此風險。
+                # 打出 finisher 後若手牌薄 → 下對手回合空窗風險(thin_hand_pending)。
                 if len(p.hand) <= cfg["thin_hand_th"]:
                     p.thin_hand_pending = True
                 if rng.random() < cfg["finisher_score_p"]:
@@ -392,7 +431,10 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     cfg.setdefault("max_turn", 16)
     # [校準10] 手牌經濟: finisher 清手牌的回合,若手牌薄,跨回合空窗失去防禦,
     #   對手 race 得分機率提高(thin_hand_race_bonus),並把該情形計為 hand-crisis。
-    cfg.setdefault("thin_hand_th", 1)          # finisher 後手牌 ≤ 此值 視為薄手
+    # 校準後 th=2: 對應宮治R「出場後手牌≤2」的實況 — 打完 finisher 手牌≤2 即薄手,
+    #   下回合空窗對手以 45% 機率多得 1 分並計 hand-crisis。這讓手牌經濟成為可被牌組
+    #   設計影響的真實向量(帶手牌補充者 hand-crisis 顯著較低)。
+    cfg.setdefault("thin_hand_th", 2)          # finisher 後手牌 ≤ 此值 視為薄手
     cfg.setdefault("thin_hand_race_bonus", 0.45)  # 薄手回合對手額外得分機率
     rng = random.Random(seed)
 
@@ -438,11 +480,20 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
 
 # ---- 預設牌表 ----
 PRESETS = {
- "M4": {  # 現行終版
+ "M4": {  # 現行終版(校準後 stable3≈82%)
    "P02-087":4,"P02-085":2,"P02-089":1,"P02-084":1,
    "P02-016":2,"P02-020":2,"P02-077":4,"P02-018":3,
    "P02-027":2,"P02-021":3,"P02-017":2,"PR-048":2,"P02-029":2,
    "P02-024":3,"P02-035":2,"P02-025":2,"P02-028":1,"P02-030":1,"P02-032":1,
+ },
+ # sweep 最佳(stable3≈82.7%, 1分≈97.3% / 2分≈92.5% / 3分≈85.5%, Event=8, ≤4/卡)。
+ # 與 M4 的差異: 加入 P02-088(双子速攻"裏")×2 開「對手攔網Event不可用」窗口,給第3分
+ # 一條不耗6種/不耗Guts 的開窗路線; 角名×2/宮治R×3/PR-048×2/尾白R×2 維持多樣性 payoff。
+ "BEST": {
+   "P02-087":4,"P02-085":2,"P02-088":2,
+   "P02-016":2,"P02-020":2,"P02-077":4,"P02-018":3,
+   "P02-027":2,"P02-021":3,"P02-017":2,"PR-048":2,"P02-029":2,
+   "P02-024":3,"P02-035":2,"P02-025":2,"P02-028":3,
  },
 }
 

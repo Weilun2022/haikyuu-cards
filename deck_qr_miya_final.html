@@ -3,18 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>稲荷崎 三決勝分 — M4 終版</title>
+<title>稲荷崎 三決勝分 — 三方協作終版</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0d0d0d; color: #e8e8e8; font-family: 'Noto Sans TC', sans-serif; padding: 24px; }
   h1 { color: #f7c948; font-size: 1.4rem; margin-bottom: 4px; }
   .subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 20px; }
   .layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
-  .qr-box { text-align: center; }
+  .qr-box { text-align: center; position: sticky; top: 24px; }
   .qr-box canvas { width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
   .qr-label { font-size: 0.7rem; color: #888; margin-top: 8px; }
-  .url-link { display: block; margin-top: 8px; color: #7bd3f7; font-size: 0.72rem; text-decoration: none; word-break: break-all; }
-  h2 { color: #f7c948; font-size: 1rem; margin: 18px 0 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+  .url-link { display: block; margin-top: 8px; color: #7bd3f7; font-size: 0.7rem; text-decoration: none; word-break: break-all; }
+  h2 { color: #f7c948; font-size: 1rem; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+
+  .agents { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .ag { background:#13131f; border-radius:6px; padding:10px 12px; border-top:3px solid #4a6fa5; }
+  .ag.a1{border-top-color:#42a5f5}.ag.a2{border-top-color:#66bb6a}.ag.a3{border-top-color:#ab47bc}
+  .ag h3 { font-size:0.8rem; color:#fff; margin-bottom:6px; }
+  .ag p { font-size:0.72rem; color:#bbb; line-height:1.5; }
+  .ag .em { color:#f7c948; }
 
   .timeline { display: flex; flex-direction: column; gap: 10px; }
   .pt { background: linear-gradient(135deg,#1a1a2e,#16213e); border-left: 3px solid #4a6fa5; border-radius: 6px; padding: 10px 14px; }
@@ -22,34 +29,32 @@
   .pt-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
   .pt-turn { font-size:0.7rem; color:#7bd3f7; font-weight:bold; }
   .pt-cost { font-size:0.7rem; padding:1px 7px; border-radius:3px; }
-  .cost-neg { background:#7b1f1f; color:#ffc9c9; }
-  .cost-pos { background:#1b5e20; color:#c8e6c9; }
+  .cost-neg { background:#7b1f1f; color:#ffc9c9; } .cost-pos { background:#1b5e20; color:#c8e6c9; }
   .cost-zero { background:#4a148c; color:#e1bee7; }
   .pt-title { font-size:0.85rem; color:#fff; font-weight:bold; }
   .pt-detail { font-size:0.75rem; color:#bbb; line-height:1.5; margin-top:3px; }
   .cr { color:#f7c948; }
 
-  .guts-table { width:100%; border-collapse:collapse; font-size:0.75rem; margin-top:6px; }
-  .guts-table th, .guts-table td { padding:4px 8px; border-bottom:1px solid #2a2a2a; text-align:center; }
-  .guts-table th { color:#888; background:#1a1a1a; }
-  .running.pos { color:#81c784; } .running.neg { color:#e57373; }
+  .gt { width:100%; border-collapse:collapse; font-size:0.75rem; margin-top:6px; }
+  .gt th, .gt td { padding:4px 8px; border-bottom:1px solid #2a2a2a; text-align:center; }
+  .gt th { color:#888; background:#1a1a1a; }
+  .pos { color:#81c784; } .neg { color:#e57373; }
 
   table.deck { width:100%; border-collapse:collapse; font-size:0.76rem; margin-top:8px; }
   table.deck th { background:#1e1e1e; color:#aaa; font-weight:normal; padding:5px 8px; text-align:left; }
   table.deck td { padding:4px 8px; border-bottom:1px solid #222; }
   .cnt { color:#f7c948; font-weight:bold; text-align:center; }
-  .key { background:#1a0a2e; }
-  .new { background:#0a2e0a; }
+  .key { background:#1a0a2e; } .new { background:#0a2e0a; }
   .tag { display:inline-block; font-size:0.62rem; padding:1px 5px; border-radius:3px; }
   .t-engine{background:#1565c0;color:#bbdefb} .t-guts{background:#4a148c;color:#e1bee7}
   .t-zero{background:#e65100;color:#ffe0b2} .t-fuel{background:#2e7d32;color:#c8e6c9}
   .t-recover{background:#7b1fa2;color:#e1bee7} .t-flex{background:#37474f;color:#cfd8dc}
-  .t-new{background:#1a5c1a;color:#b9f6ca}
+  .t-new{background:#1a5c1a;color:#b9f6ca} .t-def{background:#01579b;color:#b3e5fc}
 </style>
 </head>
 <body>
-<h1>稲荷崎 三決勝分 — M4 終版</h1>
-<p class="subtitle">5000場蒙地卡羅精算：3分達成率 32.7%（M2基準 29.6%）。墓地6種加速版：新增尾白N + 銀島 補齊第7個獨立名字。</p>
+<h1>稲荷崎 三決勝分 — 三方協作終版</h1>
+<p class="subtitle">機制驗證 × 數據模擬 × 構築最佳化 三方協作。納入「手牌差(裸手失分)」考量後重新最佳化。穩定3分率 81.3%→82.1%、手牌危機 3.8%→3.3%、墓地6種 60.0%→62.8%（同一校準引擎、N=20000）。</p>
 
 <div class="layout">
   <div class="qr-box">
@@ -59,92 +64,93 @@
   </div>
 
   <div>
-    <h2>三分時間軸 & Guts 收支</h2>
-    <div class="timeline">
-      <div class="pt">
-        <div class="pt-head"><span class="pt-turn">回合 1-2 ｜佈局</span><span class="pt-cost cost-pos">Guts 蓄積</span></div>
-        <div class="pt-title">塞宮兄弟進 Guts、部署香草宮侑(TOS=2)</div>
-        <div class="pt-detail"><span class="cr">P02-018 宮侑</span> 放舉球區，每回合 +2 Guts。<span class="cr">P02-025/小作/銀島/尾白N</span> 開始填墓地名字多樣性。</div>
+    <h2>三方協作結論</h2>
+    <div class="agents">
+      <div class="ag a1">
+        <h3>① 機制驗證官</h3>
+        <p><span class="em">攻擊區只能 1 人</span>是第3分的真瓶頸——任何新攻擊者都得等 P02-020 騰位。<span class="em">角名 P02-027 才是主線</span>（0 Guts 橫置、不碰手牌、附帶對手 MB 攔網=0）。<span class="em">宮治R P02-021 高風險</span>，強制清手牌正中「裸手失分」陷阱，須降量。</p>
       </div>
-      <div class="pt score">
-        <div class="pt-head"><span class="pt-turn">回合 3-4 ｜第 1 分</span><span class="pt-cost cost-neg">−9 Guts</span></div>
-        <div class="pt-title">どんぴしゃり 速攻</div>
-        <div class="pt-detail">場上侑(舉)+治(攻)→發動 <span class="cr">P02-087</span>。從 Guts 出 <span class="cr">P02-016</span>(舉球，否定對手一觸/接球手牌技能) + <span class="cr">P02-020</span>(攻擊 ATK+4，對手攔網≤2)。<span class="cr">P02-024 北信介</span>把どんぴしゃり撿回手牌。</div>
+      <div class="ag a2">
+        <h3>② 數據模擬官</h3>
+        <p>引擎校準到實戰錨點(1分97%/2分92%)。<span class="em">手牌補充假說成立</span>：控制變因下補手牌 +7.2% 穩3，但過度堆會擠掉6種 body。意外發現：<span class="em">P02-089 どや俺會把名字撈出墓地、反而拖慢6種</span>，故改用 P02-088 反向引擎開窗。</p>
       </div>
-      <div class="pt">
-        <div class="pt-head"><span class="pt-turn">回合 5-6 ｜回血</span><span class="pt-cost cost-pos">+4~6 Guts</span></div>
-        <div class="pt-title">香草宮侑回 Guts、P02-089 回收宮兄弟</div>
-        <div class="pt-detail">關鍵喘息期：<span class="cr">P02-018 ×TOS2</span> 連續 2 回合補滿 Guts。<span class="cr">P02-089</span>從墓地撿回侑/治/兄弟，重新填 Guts。墓地多樣性逼近 6 種（M4因尾白N+銀島更快達標）。</div>
-      </div>
-      <div class="pt score">
-        <div class="pt-head"><span class="pt-turn">回合 7-8 ｜第 2 分</span><span class="pt-cost cost-neg">−9 Guts</span></div>
-        <div class="pt-title">どんぴしゃり 速攻（第二次）</div>
-        <div class="pt-detail">用回收的 <span class="cr">P02-087</span> 再打一次。同樣 P02-016 + P02-020 雙層壓制。</div>
-      </div>
-      <div class="pt score">
-        <div class="pt-head"><span class="pt-turn">回合 9+ ｜第 3 分</span><span class="pt-cost cost-zero">0 Guts</span></div>
-        <div class="pt-title">零 Guts 多樣性殺手</div>
-        <div class="pt-detail">墓地已達 6 種（M4：宮侑/宮治/宮兄弟/北信介/角名/尾白/銀島 共7種可選6）：<span class="cr">角名 P02-027</span> 橫置免費出場 → 對手 MB 攔網值=0。攻擊手放 <span class="cr">宮治 P02-021</span>，此時手牌已被掏空≤2 → 自動 ATK+2，<b>完全不花 Guts</b>。</div>
+      <div class="ag a3">
+        <h3>③ 構築顧問</h3>
+        <p>超幾何計算：<span class="em">6種慢的真因是「名字太集中」</span>(32角色擠在4名字)，不是填墓不夠快(填墓2/回合即飽和)。每多1個獨立名字 ≈ 達標提早0.35回合。最大隱性損失：<span class="em">薄名字打上場而非丟墓 → 慢整整1回合</span>。</p>
       </div>
     </div>
 
-    <h2>Guts 收支總表</h2>
-    <table class="guts-table">
-      <tr><th>回合</th><th>行動</th><th>本回合</th><th>累計</th></tr>
-      <tr><td>1-2</td><td>佈局 (香草侑 TOS2)</td><td class="running pos">+4</td><td class="running pos">+4</td></tr>
-      <tr><td>3-4</td><td>第1分 どんぴしゃり</td><td class="running neg">−9</td><td class="running neg">−5</td></tr>
-      <tr><td>5-6</td><td>香草侑回血 ×2回合</td><td class="running pos">+6</td><td class="running pos">+1</td></tr>
-      <tr><td>7-8</td><td>第2分 どんぴしゃり</td><td class="running neg">−9</td><td class="running neg">−8…</td></tr>
-      <tr><td>9+</td><td>第3分 角名+宮治R</td><td class="running pos">0</td><td class="running pos">✓ 不需要 Guts</td></tr>
-    </table>
-    <p style="font-size:0.72rem;color:#888;margin-top:6px;">→ 關鍵在第3分零成本：角名橫置 + 宮治R 的條件(手牌≤2)在引擎運轉後自動成立，不與前兩分搶 Guts。</p>
+    <h2>第3分時間軸（修正後機制）</h2>
+    <div class="timeline">
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 1-2 ｜佈局</span><span class="pt-cost cost-pos">Guts/名字 蓄積</span></div>
+        <div class="pt-title">香草侑(TOS2)鋪舉球區、開始把薄名字丟墓地</div>
+        <div class="pt-detail"><span class="cr">P02-018</span> 進舉球區當 Guts 引擎。<span class="cr">小作/理石/大耳</span> 這些「捨得當燃料」的獨立名字優先丟墓地（不打上場），加速6種。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 3-5 ｜第 1、2 分</span><span class="pt-cost cost-neg">−Guts</span></div>
+        <div class="pt-title">🏐 どんぴしゃり 速攻 ×2</div>
+        <div class="pt-detail">舉球=宮侑、攻擊=宮治 → 發 <span class="cr">P02-087</span>，從 Guts 拉 <span class="cr">P02-016</span>(否定對手手牌技)+<span class="cr">P02-020</span>(ATK+4、對手攔網≤2)。<span class="cr">P02-024</span> 撿回どんぴ循環。用過的侑/治自動入墓 → 同時推進6種。</div>
+      </div>
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 6-7 ｜換位 & 補手</span><span class="pt-cost cost-pos">保留手牌</span></div>
+        <div class="pt-title">撤 P02-020、補手牌、確認墓地6種</div>
+        <div class="pt-detail"><span class="cr">PR-049 尾白</span> 接球區出場(RCV+3 防禦) + 從墓地撿角色回手 → 補足「跨回合空窗」的防禦與手牌。此時墓地多樣性達6種。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 7+ ｜第 3 分</span><span class="pt-cost cost-zero">0 Guts</span></div>
+        <div class="pt-title">🏐 角名 P02-027 橫置（主線）</div>
+        <div class="pt-detail">墓地6種 → <span class="cr">角名 P02-027</span> 進攻擊區、<b>橫置免費(0 Guts)</b>、ATK 2+2=4，且對手中間攔網手 BLK=0 → 打進第3分。<b>全程不需清手牌</b>，保留防禦。備援：<span class="cr">PR-048</span>(2G)、反向引擎 <span class="cr">P02-088</span> 開窗線。</div>
+      </div>
+    </div>
 
-    <h2>5000 場蒙地卡羅精算驗證</h2>
-    <table class="guts-table">
-      <tr><th>指標</th><th>M2 基準版</th><th>M4 終版 ★</th></tr>
-      <tr><td>打到 3 分</td><td class="running neg">29.6%</td><td class="running pos">32.7%</td></tr>
-      <tr><td>卡在 2 分</td><td>66.0%</td><td class="running pos">62.9%</td></tr>
-      <tr><td>墓地6種達標</td><td>~55%</td><td class="running pos">~62%</td></tr>
-      <tr><td>第1分 / 第2分</td><td colspan="2">99% / 93%（不變）</td></tr>
+    <h2>校準引擎驗證（N=20000，同一模型對照）</h2>
+    <table class="gt">
+      <tr><th>指標</th><th>M4 前版</th><th>三方協作終版 ★</th></tr>
+      <tr><td>穩定3分率<br><span style="font-size:.65rem;color:#666">(達3分∧無Guts力竭∧無手牌危機)</span></td><td>81.3%</td><td class="pos">82.1%</td></tr>
+      <tr><td>手牌危機率</td><td class="neg">3.8%</td><td class="pos">3.3%</td></tr>
+      <tr><td>墓地6種達標</td><td>60.0%</td><td class="pos">62.8%</td></tr>
+      <tr><td>第1分 / 第2分</td><td>96.5% / 91.0%</td><td class="pos">97.0% / 92.2%</td></tr>
+      <tr><td>平均第3分回合</td><td>9.2</td><td>9.2</td></tr>
     </table>
-    <p style="font-size:0.72rem;color:#888;margin-top:6px;">→ M4核心改動：加入尾白N(P02-030)×1 + 銀島(P02-032)×1，讓稲荷崎名字多樣性達7種，提前觸發角名P02-027的橫置免費條件。精算模型追蹤場地替換+宮兄弟入墓動態，比初版模擬更準確。</p>
+    <p style="font-size:0.7rem;color:#777;margin-top:6px;">※ 絕對數值來自校準後的抽象「對手壓力 race」模型，重點在<b>同一引擎下的相對對照</b>：終版在你在意的每一項(穩定3分、手牌危機、6種速度)皆勝過 M4。模型已開源於 <code>battle_simulator/three_point_sim.py</code>。</p>
 
-    <h2>牌組清單（40 張）</h2>
+    <h2>牌組清單（40 張 ｜ Event 8）</h2>
     <table class="deck">
       <tr><th>張</th><th>卡號</th><th>名稱</th><th>役割</th></tr>
       <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ EVENT (8)</td></tr>
       <tr><td class="cnt">4</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="tag t-engine">主引擎</span></td></tr>
-      <tr class="key"><td class="cnt">2</td><td>P02-085</td><td>大見太郎</td><td><span class="tag t-fuel">棄1抽2 填墓地★</span></td></tr>
-      <tr><td class="cnt">1</td><td>P02-089</td><td>どや俺…</td><td><span class="tag t-recover">手牌回收</span></td></tr>
-      <tr><td class="cnt">1</td><td>P02-084</td><td>黒須法宗</td><td><span class="tag t-fuel">接球抽牌</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 核心 (8)</td></tr>
-      <tr><td class="cnt">2</td><td>P02-016</td><td>宮 侑 (I)</td><td><span class="tag t-engine">舉球/否定</span></td></tr>
-      <tr><td class="cnt">2</td><td>P02-020</td><td>宮 治 (IP)</td><td><span class="tag t-engine">攻擊 ATK+4</span></td></tr>
-      <tr><td class="cnt">4</td><td>P02-077</td><td>宮兄弟 (S)</td><td><span class="tag t-flex">汎用Guts目標</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ Guts 回收引擎 (3) ★第2分的燃料</td></tr>
+      <tr><td class="cnt">2</td><td>P02-085</td><td>大見太郎</td><td><span class="tag t-fuel">棄1抽2 填墓</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>P02-088</td><td>双子速攻 "裏"</td><td><span class="tag t-new">★反向引擎 0費/0-6種開窗</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 核心 (11)</td></tr>
+      <tr><td class="cnt">2</td><td>P02-016</td><td>宮 侑 (S)</td><td><span class="tag t-engine">舉球/否定手牌技</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-020</td><td>宮 治 (WS)</td><td><span class="tag t-engine">ATK+4/壓攔網</span></td></tr>
+      <tr><td class="cnt">4</td><td>P02-077</td><td>宮兄弟</td><td><span class="tag t-flex">萬用侑/治種子</span></td></tr>
       <tr class="key"><td class="cnt">3</td><td>P02-018</td><td>宮 侑 (香草)</td><td><span class="tag t-guts">TOS=2 Guts引擎</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 0-Guts 殺手 (5) ★</td></tr>
-      <tr class="key"><td class="cnt">2</td><td>P02-027</td><td>角名倫太郎 (S)</td><td><span class="tag t-zero">6種橫置免費 MB=0</span></td></tr>
-      <tr class="key"><td class="cnt">3</td><td>P02-021</td><td>宮 治 (R)</td><td><span class="tag t-zero">手牌≤2 ATK+2 0費</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 多樣性 Payoff + 回收 (9)</td></tr>
-      <tr><td class="cnt">2</td><td>P02-017</td><td>宮 侑 (R)</td><td><span class="tag t-fuel">6種 SRV+2+回收</span></td></tr>
-      <tr><td class="cnt">2</td><td>PR-048</td><td>宮 治 (PR)</td><td><span class="tag t-fuel">6種 ATK+3</span></td></tr>
-      <tr><td class="cnt">2</td><td>P02-029</td><td>尾白アラン (R)</td><td><span class="tag t-fuel">6種 接球技能死</span></td></tr>
-      <tr class="key"><td class="cnt">3</td><td>P02-024</td><td>北 信介 (S)</td><td><span class="tag t-recover">Event區回收★</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 多樣性填充 + 數值 (7)</td></tr>
-      <tr><td class="cnt">2</td><td>P02-035</td><td>小作裕渡</td><td><span class="tag t-fuel">接球自棄·不佔場</span></td></tr>
-      <tr class="key"><td class="cnt">2</td><td>P02-025</td><td>北 信介 (R)</td><td><span class="tag t-fuel">2Guts抽1棄1 主動填墓★</span></td></tr>
-      <tr><td class="cnt">1</td><td>P02-028</td><td>角名倫太郎 (R)</td><td><span class="tag t-flex">數值+名字</span></td></tr>
-      <tr class="new"><td class="cnt">1</td><td>P02-030</td><td>尾白アラン (N)</td><td><span class="tag t-new">★新 第7種名字·快速入墓</span></td></tr>
-      <tr class="new"><td class="cnt">1</td><td>P02-032</td><td>銀 島 (N)</td><td><span class="tag t-new">★新 第7種名字·多樣性加速</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 finisher / 6種 payoff (10)</td></tr>
+      <tr class="key"><td class="cnt">2</td><td>P02-027</td><td>角名倫太郎 (MB)</td><td><span class="tag t-zero">★主線 6種橫置0G·對手MB=0</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-021</td><td>宮 治 (R)</td><td><span class="tag t-zero">手牌≤2·機會型(3→2減量)</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-017</td><td>宮 侑 (R)</td><td><span class="tag t-fuel">6種 TOS+2+墓地→手牌</span></td></tr>
+      <tr><td class="cnt">2</td><td>PR-048</td><td>宮 治 (PR)</td><td><span class="tag t-fuel">6種 ATK+3 (僅2G)</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-029</td><td>尾白アラン (R)</td><td><span class="tag t-fuel">6種 ATK+3+否定接球</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 迴圈 / 填墓 / 手牌經濟 (8)</td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-024</td><td>北 信介 (S)</td><td><span class="tag t-recover">Event區回收·棄1填墓</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-025</td><td>北 信介 (R)</td><td><span class="tag t-fuel">2G抽1棄1 主動填墓</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-035</td><td>小作裕渡</td><td><span class="tag t-fuel">自棄填墓+RCV(燃料名字)</span></td></tr>
+      <tr class="new"><td class="cnt">1</td><td>PR-049</td><td>尾白アラン (PR)</td><td><span class="tag t-new">★跨回合防禦+墓地→手牌</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 獨立名字燃料 + body (3)</td></tr>
+      <tr><td class="cnt">1</td><td>P02-028</td><td>角名倫太郎 (R)</td><td><span class="tag t-flex">換位攻擊body</span></td></tr>
+      <tr class="new"><td class="cnt">1</td><td>P02-031</td><td>理石平介 (N)</td><td><span class="tag t-new">★第9名字·發球燃料body</span></td></tr>
+      <tr class="new"><td class="cnt">1</td><td>P02-033</td><td>大耳 練 (N)</td><td><span class="tag t-new">★第10名字·MB防禦body</span></td></tr>
     </table>
-    <p style="font-size:0.72rem;color:#888;margin-top:8px;">★ vs M2 變更：P02-035 3→2；P02-028 2→1；<b>新增尾白N(P02-030)×1 + 銀島(P02-032)×1</b>。7種稲荷崎名字覆蓋，角名P02-027橫置免費觸發更早。3分達成率 29.6%→32.7%。</p>
+    <p style="font-size:0.72rem;color:#888;margin-top:8px;">★ vs M4 變更：移除 <b>P02-089 どや俺×1</b>(會撈出墓地名字、拖慢6種) + <b>P02-084×1</b> + <b>尾白N P02-030×1</b> + <b>銀島 P02-032×1</b>；<b>宮治R P02-021 3→2</b>(避裸手)；<b>新增 P02-088 反向引擎×2、PR-049 尾白×1、理石P02-031×1、大耳P02-033×1</b>。獨立名字 8→9(理石/大耳)，捨得當燃料的薄名字增多。</p>
+    <p style="font-size:0.7rem;color:#777;margin-top:6px;">打法要點：①香草侑優先進舉球區當引擎。②<b>薄名字(理石/大耳/小作)優先丟墓地，不要打上場</b>——這是6種速度的關鍵。③第3分走<b>角名橫置0費主線</b>，不為宮治R預先清空手牌；要清手牌只在能一擊終結時。④PR-049 補換位後的跨回合防禦。</p>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
-const ENC='N4IgdiBcKExejuwYOF0AEhIOUF42hdpUGBKSCyAWQIV9AJJxABoQBjKAbRpAAkA1AWgAUAGAJhY4A4A7CwDKAOgDuAUwBGAB3L4AumXrN23XnwCsLAHISZ8sl2WrWnHvwCcIg3PIBGU43Mb++PXaNOVL9ZYcANhYASS9yE181C14uDlDw42dotwEhMSl7MiUo1wC+T0yjAGZkvNj0xMizf1iHFgAlRNLc2o4HISaiiLL2Bt58ArYq3pjuGy7DHtaxrg8MqbIWmrHinX1upJm3Lh1JrOq-WYL971G3YviNxZ8Vi55rrKdFAF8gA';
+const ENC='N4IgdiBcKExejuwYOF1CQcoLxtC7SoMCUAETCdpoFWVAdeUCFfQCScQAaEAYygG06QAJANQFoAFABgCY2uAHAHY2AZQB0AdwCmAIwAOlACwBdCo1ade-AQFY2AOSlzFFHmo3tufQQMPGFlc+uZXtXAIwA2NgEkHps6WWjY8XH4BThauIfxCIhIyjhSqLprW-B52RkmmAMzR6e48CZFmhW6hHmwASmVBMRmeInW5UWlWNfxKdhz1FbG8AJy1-R2DPEpiZQXjTXn6OSbtwU08+q3L5XPFdpvJHgMcXVxKI31tFIc7NnnVSwdH7nl59peHKgC+QA';
 const url='https://weilun2022.github.io/haikyuu-cards/?deck='+ENC;
 document.getElementById('link').href=url;
 document.getElementById('link').textContent=url;
