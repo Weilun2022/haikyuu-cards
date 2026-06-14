@@ -179,21 +179,22 @@ def smart_discard(p, rng):
 # ---------------------------------------------------------------
 def opp_pressure(p, rng, mu, sigma, hand_def_k, cfg=None):
     atk = rng.gauss(mu, sigma)
-    # [校準11] P02-084 黒須(draw1_def) 是 [=接球] 事件 → 可在『對手攻擊時反應性打出』
-    #   當防禦使用。先前只在我方回合當靜態 rcv_body+2 處理,低估其反應性防禦價值。
-    #   真實打法: 手上留著黒須, 對手強攻(ATK≈8)時即時打出 → 抽1(補手) + 接球值+2
-    #   (Event區有2+稲荷崎觸發事件時, どんぴP02-087 即符合 → 條件達成給滿+2)。
-    #   此處: 若手上有黒須, 在判定前反應性消耗它 → defense+2 且抽1(補手economy)。
+    # [校準12] 規則修正(使用者指正): 攔網(BLK)與接球(RCV)是『分開的階段』,對同一次攻擊
+    #   不能相加。先前 defense = rcv_body + blk_body 把兩者疊加 → 高估防禦。
+    #   真實: 對手的一次得分嘗試, 防守方只能用其中一個防禦階段的數值去擋(攔網階段用BLK
+    #   擋扣球, 或接球階段用RCV承接), 取『單一最佳防禦body』而非兩者之和。
+    #   故 base_defense = max(blk_body, rcv_body)。手牌厚度仍提供額外可反應防禦事件的彈性。
+    def base_defense():
+        return max(p.blk_body, p.rcv_body) + len(p.hand) * hand_def_k
+    # [校準11] P02-084 黒須(draw1_def) 是 [=接球] 事件 → 可在『對手攻擊時反應性打出』。
+    #   留在手上, 對手強攻時即時打出 → 抽1(補手) + 接球值+2。
     if cfg and cfg.get("kurosu_reactive") and has(p.hand, role="draw1_def"):
-        # 僅在這一擊可能失守時才反應性使用(節省卡), 否則留著
-        base_def = p.rcv_body + p.blk_body + len(p.hand) * hand_def_k
-        if atk > base_def - 2:
+        if atk > base_defense() - 2:
             take(p.hand, role="draw1_def")
-            draw(p, 1)                 # 抽1 補手(也補回剛打掉的牌位)
-            p.rcv_body += 2            # 反應性接球值 +2
+            draw(p, 1)
+            p.rcv_body += 2
             p.discard("P02-084")
-    defense = p.rcv_body + p.blk_body + len(p.hand) * hand_def_k
-    if atk > defense:
+    if atk > base_defense():
         p.opp += 1
     # [校準10] 手牌經濟風險: 上個我方回合打 finisher 清空手牌 → 本對手回合空窗失防。
     #   thin_hand_pending 表示上回合 finisher 後手牌 ≤ thin_hand_th。此時對手以

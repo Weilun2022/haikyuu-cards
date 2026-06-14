@@ -54,7 +54,7 @@
 </head>
 <body>
 <h1>稲荷崎 三決勝分 — 三方協作終版 v2（銀島防禦強化）</h1>
-<p class="subtitle">機制驗證 × 數據模擬 × 構築最佳化 三方協作。v2 關鍵修正：<b>理石平介→銀島結</b>（BLK=3/RCV=5 防 ATK=8 主流環境）。Race-loss <b>3.2%→2.0%</b>（-1.2%）、穩定3分 81.6%→<b>81.8%</b>、手牌危機 3.3%→<b>3.2%</b>（N=20000，seed=0）。</p>
+<p class="subtitle">機制驗證 × 數據模擬 × 構築最佳化 三方協作。v2：<b>理石平介→銀島結</b>（兩個防禦階段都頂規 BLK=3／RCV=5 的靈活 body）。<b>防禦面更正</b>：攔網與接球是分開階段、不可相加，稲荷崎無法硬擋 ATK=8，靠干擾+賺速度取勝。Race-loss <b>2.9%→2.0%</b>、穩定3分 <b>81.8%</b>（N=20000，非疊加防禦模型）。</p>
 
 <div class="layout">
   <div class="qr-box">
@@ -104,34 +104,49 @@
       </div>
     </div>
 
-    <h2>理石→銀島：為何換？</h2>
+    <h2>防禦面正解：攔網與接球是「分開的階段」</h2>
+    <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
+      <div class="pt-title">⚠️ 重要規則更正</div>
+      <div class="pt-detail">攔網值(BLK)與接球值(RCV)<b>不能對同一次攻擊相加</b>——它們是兩個分開的階段(攔網階段／接球階段)。
+      所以「ATK 8 − BLK 3 = 5，再用 RCV 5 擋住」是<b>錯的</b>。對單次攻擊，你只能用其中一個防禦階段的數值去擋，等於取「單一最佳防禦 body」。<br>
+      更殘酷的事實：<b>全稲荷崎角色 BLK 最高只有 3，RCV 最高 6(赤木)</b>，兩者都搆不到 8。
+      <b>稲荷崎在數值上無法硬擋 ATK=8 的扣球。</b>這副牌的防禦不是靠 body 對拼，而是靠 ①<b>賺速度</b>(搶先到 3 分) + ②<b>干擾</b>(見下)。</div>
+    </div>
+    <div class="pt" style="border-left-color:#42a5f5;margin-bottom:10px;">
+      <div class="pt-title">🛡️ 這副牌真正的「防禦」= 干擾 + 賺速度</div>
+      <div class="pt-detail">
+      • <span class="cr">P02-016 宮侑</span>(經どんぴ出場)：對手下回合 <b>[=一觸] 與 [=接球階段][=手牌] 技能無效</b> → 封掉對手的接球補強手段。<br>
+      • <span class="cr">P02-020 宮治</span>：對手下回合 <b>手牌最多只能出場 2 名攔網角色</b> → 削弱對手對「你的攻擊」的防禦(助攻你得分)。<br>
+      • <span class="cr">P02-029 尾白</span>(6種)：攻擊時<b>否定對手接球</b> → 你的扣球更容易打穿。<br>
+      • 核心邏輯：與其守 ATK=8，不如<b>每回合穩定推進、搶在對手前到 3 分</b>(模擬平均第 9 回合達成第 3 分)。</div>
+    </div>
+
+    <h2>理石→銀島：為何還是要換？</h2>
     <div class="agents" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px;">
       <div class="ag" style="border-top-color:#e57373;">
         <h3>❌ 理石平介 P02-031（移除）</h3>
-        <p>技能：[=登場][=発球区] 支付<b>理石平介本身</b>作 1 Guts → SRV+6 + 下回合對手 setter 不可出場。<br>
-        <span class="em">問題①</span>：SRV 完全不在這副牌的勝利路線內（我們靠 ATK 得分，非發球）。<br>
-        <span class="em">問題②</span>：條件需要「自己已在 Guts 區」才能觸發，1 張 copy 難以規劃。<br>
-        <span class="em">問題③</span>：BLK=2 / RCV=2 — 對 ATK=8 主流環境完全擋不住（2-3=需 RCV≥5，而 RCV 只有 2）。<br>
-        <span class="em">實戰效果</span>：佔手牌位置，無法防守，技能幾乎不可能發動。</p>
+        <p>技能：[=登場][=発球区] 支付<b>理石本身</b>作 1 Guts → SRV+6。<br>
+        <span class="em">問題①</span>：SRV 不在這副牌的勝利路線內。<br>
+        <span class="em">問題②</span>：BLK=<b>2</b> / RCV=<b>2</b> — <b>兩個防禦階段都很弱</b>，放攔網或放接球都幫不上。<br>
+        <span class="em">問題③</span>：技能需「自己已在 Guts 區」才觸發，1 張難規劃。</p>
       </div>
       <div class="ag" style="border-top-color:#81c784;">
         <h3>✅ 銀島結 P02-032（換入）</h3>
         <p>無技能、BLK=<b>3</b> / RCV=<b>5</b>。<br>
-        <span class="em">對 ATK=8 計算</span>：ATK 8 − BLK 3 = <b>5</b>，RCV 5 ≥ 5 → 恰好擋住。<br>
-        <span class="em">diversity</span>：「銀島」是獨立稲荷崎名字，與理石同樣貢獻第9個 distinct name（6種條件無差）。<br>
-        <span class="em">role = def_body</span>：引擎優先部署進接球區，直接降低 race-loss。<br>
-        <span class="em">模擬</span>：換入後 race-loss <b>3.0% → 1.7%（-1.3%）</b>。</p>
+        <span class="em">正確理由</span>：它是稲荷崎<b>同時在兩個防禦階段都頂規的單一 body</b>——攔網階段給你最高的 BLK 3，接球階段給你 RCV 5。不論對手這次該用哪個階段擋，銀島都給你最佳值；理石 2/2 兩邊都廢。<br>
+        <span class="em">diversity</span>：「銀島」同樣是第 9 個獨立名字(6種條件無差)。<br>
+        <span class="em">模擬</span>：換入後 race-loss <b>2.9% → 2.0%</b>（修正後的非疊加防禦模型，仍勝）。</p>
       </div>
     </div>
 
-    <h2>校準引擎驗證（N=20000，seed=0，同一模型對照）</h2>
+    <h2>校準引擎驗證（N=20000，seed=0，非疊加防禦模型）</h2>
     <table class="gt">
       <tr><th>指標</th><th>M4 前版<br><span style="font-size:.6rem;color:#555">(含銀島×1)</span></th><th>三方協作終版<br><span style="font-size:.6rem;color:#555">(理石×1 ← 問題版)</span></th><th>★ v2 最終版<br><span style="font-size:.6rem;color:#555">(銀島×1 ← 修正)</span></th></tr>
-      <tr><td>穩定3分率<br><span style="font-size:.65rem;color:#666">(達3分∧無Guts力竭∧無手牌危機)</span></td><td>81.2%</td><td>81.6%</td><td class="pos">81.8%</td></tr>
-      <tr><td>手牌危機率</td><td class="neg">3.9%</td><td>3.3%</td><td class="pos">3.2%</td></tr>
-      <tr><td>Race-loss（對手先3分）</td><td>2.3%</td><td class="neg">3.2% ← 移除銀島代價</td><td class="pos">2.0%</td></tr>
-      <tr><td>墓地6種達標</td><td>60.3%</td><td>62.6%</td><td>62.6%</td></tr>
-      <tr><td>第1分 / 第2分</td><td>96.4% / 90.8%</td><td>96.9% / 91.8%</td><td class="pos">97.1% / 91.9%</td></tr>
+      <tr><td>穩定3分率<br><span style="font-size:.65rem;color:#666">(達3分∧無Guts力竭∧無手牌危機)</span></td><td>79.9%</td><td>81.7%</td><td class="pos">81.8%</td></tr>
+      <tr><td>手牌危機率</td><td class="neg">4.0%</td><td>3.3%</td><td class="pos">3.2%</td></tr>
+      <tr><td>Race-loss（對手先3分）</td><td>1.9%</td><td class="neg">2.9% ← 移除銀島代價</td><td class="pos">2.0%</td></tr>
+      <tr><td>墓地6種達標</td><td>58.6%</td><td>62.7%</td><td>62.6%</td></tr>
+      <tr><td>第1分 / 第2分</td><td>96.0% / 89.6%</td><td>97.0% / 91.7%</td><td class="pos">97.1% / 91.9%</td></tr>
       <tr><td>平均第3分回合</td><td>9.1</td><td>9.2</td><td>9.4</td></tr>
     </table>
     <p style="font-size:0.7rem;color:#777;margin-top:6px;">※ 關鍵發現：舊的「三方協作終版」為了加入理石的獨立名字，<b>移除了 M4 原本就有的銀島×1</b>，導致 race-loss 惡化 2.3%→3.2%。v2 把銀島換回來（同樣第9個 distinct name），在所有指標上均超越 M4。模型開源於 <code>battle_simulator/three_point_sim.py</code>。</p>
@@ -161,7 +176,7 @@
       <tr class="new"><td class="cnt">1</td><td>PR-049</td><td>尾白アラン (PR)</td><td><span class="tag t-new">★跨回合防禦+墓地→手牌</span></td></tr>
       <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 獨立名字燃料 + body (3)</td></tr>
       <tr><td class="cnt">1</td><td>P02-028</td><td>角名倫太郎 (R)</td><td><span class="tag t-flex">換位攻擊body</span></td></tr>
-      <tr class="new"><td class="cnt">1</td><td>P02-032</td><td>銀島 結 (N)</td><td><span class="tag t-def">★第9名字·BLK=3/RCV=5·防 ATK=8</span></td></tr>
+      <tr class="new"><td class="cnt">1</td><td>P02-032</td><td>銀島 結 (N)</td><td><span class="tag t-def">★第9名字·BLK=3/RCV=5 雙階段頂規 body</span></td></tr>
       <tr class="new"><td class="cnt">1</td><td>P02-033</td><td>大耳 練 (N)</td><td><span class="tag t-new">★第10名字·MB防禦body BLK=3</span></td></tr>
     </table>
     <p style="font-size:0.72rem;color:#888;margin-top:8px;">★ v2 vs M4 變更：移除 <b>P02-089 どや俺×1</b>(撈出墓地名字拖慢6種) + <b>P02-084×1</b> + <b>尾白N P02-030×1</b> + <b>理石 P02-031×1</b>（ v2 新修正）；<b>宮治R P02-021 3→2</b>(避裸手)；<b>新增 P02-088 反向引擎×2、PR-049 尾白×1、銀島P02-032×1、大耳P02-033×1</b>。獨立名字維持9種(銀島/大耳)，同時強化防守。</p>
