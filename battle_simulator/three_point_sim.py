@@ -166,9 +166,19 @@ def opp_pressure(p, rng, mu, sigma, hand_def_k):
 def my_turn(p, t, rng, cfg):
     draw(p, 1)
 
-    # --- 階段0: 鋪 香草侑 進舉球區當 Guts 引擎(優先級最高) ---
-    if p.tos is None and has(p.hand, role="guts_engine"):
-        take(p.hand, role="guts_engine"); p.tos = "宮侑"
+    # --- 階段0: 建立舉球區=宮侑(どんぴ前置) ---
+    # [校準3] 舉球區的「宮侑」不只香草侑(P02-018)可建立。官方卡池裡 P02-016(setter_dp,
+    #   TOS1 的宮侑) 與 P02-077(宮兄弟 twin, 可改名為宮侑) 同樣是合法的宮侑舉球來源。
+    #   先前版本只認 guts_engine 一個 role → 387 場無第1分中有 223 場卡在「無舉球宮侑」
+    #   (no_setter_zone),把第1分壓到 ~87%。現允許任何宮侑來源建立舉球區:
+    #     優先序 = 香草侑(同時是Guts引擎) > P02-016(setter_dp) > 宮兄弟twin。
+    #   建立 setter 後若用掉 twin/016, 仍會在下方餵 Guts 補回攻擊端 body。
+    if p.tos is None:
+        if has(p.hand, role="guts_engine"):
+            take(p.hand, role="guts_engine"); p.tos = "宮侑"
+        elif has(p.hand, role="setter_dp"):
+            # P02-016 雖然也可餵Guts,但建立舉球區的邊際價值更高
+            take(p.hand, role="setter_dp"); p.tos = "宮侑"
 
     # --- 餵 Guts 區: 把多餘的 宮侑/宮治/宮兄弟 body 放進 Guts 供どんぴ拉出 ---
     # [校準2] 規則修正: 放進 Guts 區的角色牌「本身就是 Guts 點」(官方 Guts 機制)。
@@ -212,6 +222,21 @@ def my_turn(p, t, rng, cfg):
         no = take(p.hand, role="kosaku_fill")
         p.discard(no); p.rcv_body = max(p.rcv_body, 2)
 
+    # --- 主動回收どんぴ: 若手上沒どんぴ但墓地有、且有 P02-024(event_recover, 3G) ---
+    # [校準6] P02-024 的本職就是「把どんぴ撈回手循環」。先前只在『防禦填空』與『發動後』
+    #   兩個窄口子觸發 → 132 場無第1分是『手上沒どんぴ』。真實玩家在前置已備妥(舉球+攻擊
+    #   body)卻缺どんぴ時,會主動花 3G 用 P02-024 撈回どんぴ。此處補上這條主動回收,
+    #   讓どんぴ可得性貼近實戰,第1分/第2分達錨點。
+    donpi_ready_to_fire = (p.tos == "宮侑") and any(
+        CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone)
+    if (donpi_ready_to_fire and not has(p.hand, role="donpi")
+            and "P02-087" in p.grave_list and has(p.hand, role="event_recover")
+            and p.guts >= 3):
+        take(p.hand, role="event_recover"); p.guts -= 3
+        smart_discard(p, rng)
+        p.grave_list.remove("P02-087"); p.hand.append("P02-087")
+        p.rcv_body = max(p.rcv_body, 5)
+
     # --- 防禦 body 部署到接球區(撐 race, 不破壞攻擊區) ---
     if p.rcv_body < 4:
         for role in ("def_body","ojiro_def","filter","event_recover","body"):
@@ -246,9 +271,17 @@ def my_turn(p, t, rng, cfg):
             ("setter_dp",) if nm=="宮侑" else ("attacker_dp",)) for x in p.guts_zone)
 
     if has(p.hand, role="donpi") and precondition():
-        have_setter = any(CARD[x]["role"] in ("setter_dp","twin") for x in p.guts_zone)
+        # [校準4] 發動需「舉球宮侑 + 攻擊宮治」。舉球端在階段0已可由 P02-016/香草侑/twin
+        #   建立在舉球區; 因此 have_setter 改為「舉球區已是宮侑(p.tos) 或 Guts區仍有
+        #   setter/twin body」皆可滿足 — 不再強制一定要在 Guts 區留一個 setter body。
+        #   這移除了先前的雙重硬閘(同時要兩個 body 都在 Guts 區)導致的首發拖延。
+        #   攻擊端(宮治)仍需一個 attacker/twin body 在 Guts 區供どんぴ拉出。
+        have_setter = (p.tos == "宮侑") or any(
+            CARD[x]["role"] in ("setter_dp","twin") for x in p.guts_zone)
         have_atkr   = any(CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone)
-        cost = 6   # P02-016(3)+P02-020(3) 經どんぴ拉出
+        # [校準5] Guts 成本依「實際需從 Guts 區拉出的 body 數」計:
+        #   舉球已在場(p.tos==宮侑) → 只拉攻擊端 → 3 Guts; 否則拉兩端 → 6 Guts。
+        cost = 3 if (p.tos == "宮侑") else 6
         if have_setter and have_atkr:
             if p.guts >= cost:
                 p.guts -= cost
@@ -256,8 +289,12 @@ def my_turn(p, t, rng, cfg):
                 draw(p, 2)                       # どんぴ抽1 + P02-016抽1
                 p.opp_block_le2 = 2              # P02-020: 對手攔網≤2
                 p.donpi_fired += 1
-                # 從 Guts 區消耗 setter+attacker body, 入墓(留名字)
-                for want in (("setter_dp","twin"), ("attacker_dp","twin")):
+                # 從 Guts 區消耗被拉出的 body, 入墓(留名字推進6種)
+                # 舉球已在場時只消耗攻擊端; 否則兩端都從 Guts 區拉。
+                wants = [("attacker_dp","twin")]
+                if p.tos != "宮侑":
+                    wants = [("setter_dp","twin"), ("attacker_dp","twin")]
+                for want in wants:
                     for i,x in enumerate(p.guts_zone):
                         if CARD[x]["role"] in want:
                             p.discard(p.guts_zone.pop(i)); break
