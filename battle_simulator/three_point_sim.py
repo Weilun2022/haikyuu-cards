@@ -171,13 +171,18 @@ def my_turn(p, t, rng, cfg):
         take(p.hand, role="guts_engine"); p.tos = "宮侑"
 
     # --- 餵 Guts 區: 把多餘的 宮侑/宮治/宮兄弟 body 放進 Guts 供どんぴ拉出 ---
-    # 每回合最多餵 TOS 量(香草侑在場=2, 否則1)
-    feed_cap = 2 if p.tos == "宮侑" else 1
+    # [校準2] 規則修正: 放進 Guts 區的角色牌「本身就是 Guts 點」(官方 Guts 機制)。
+    #   先前版本把 guts_zone 與 p.guts 當兩個分離資源 → 等於要再額外湊 6 點才能
+    #   啟動どんぴ,造成第一次發動平均拖到第 6.7 回合、guts-starved 50%。
+    #   真實對局裡「餵 body 進 Guts」即同時累積了發動所需的 Guts,故此處每餵 1 張
+    #   body,p.guts +1。校準後第一次發動提前,1分/2分達實戰錨點。
+    # [校準1] 每回合可餵 2 張 body(玩家在 Setup/Guts 階段可放置多張),不再受 TOS 卡死。
+    feed_cap = 2
     fed = 0
     for role in ("setter_dp","attacker_dp","twin"):
         while fed < feed_cap and has(p.hand, role=role):
             no = take(p.hand, role=role)
-            p.guts_zone.append(no); fed += 1
+            p.guts_zone.append(no); p.guts = min(10, p.guts + 1); fed += 1
 
     # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
     for role in ("draw2","refuel","draw1_def","oentai"):
