@@ -1,0 +1,385 @@
+"""
+稲荷崎「三決勝分」三資源 turn-by-turn 模擬引擎
+==================================================
+建模三大失分/失敗向量（含使用者新增的「手牌差」）：
+  1. Guts-lock   : Guts 不足無法啟動 どんぴしゃり 迴圈
+  2. hand-crisis : 手牌枯竭 → 無法佈防 → 對手賺牌差得分（race loss）
+  3. diversity   : 墓地6種太慢 → 第3分 finisher (角名/PR-048…) 開不出來
+
+第3分修正機制（已和使用者確認）：
+  - 攻擊區同時只能 1 名角色 → 角名 P02-027 與 宮治R P02-021 不可同框
+  - 角名 P02-027：墓地6種時橫置(0 Guts) → ATK+2 且「對手下回合」中間攔網手 BLK=0（跨回合）
+  - 宮治R P02-021：出場後手牌≤2 → ATK+2（0 Guts）。判定在「出場後」，即出場前手牌≤3
+  - 兩條路線：
+      路線A 兩回合：T_n 角名鋪 BLK=0 → T_n+1 宮治R 在 BLK=0 環境收尾
+      路線B 單張  ：宮治R 在前一次 P02-020 留下的「對手攔網≤2」遺產下單回合打穿
+
+對手以「壓力 race」抽象：每個對手回合，若我方防禦(場上RCV/BLK body + 手牌厚度)
+不足以擋下隨機攻擊，對手得分；對手先到 3 分 → race loss（我方未能穩定三分）。
+
+輸出：穩定三分率 = P(我方先到3分 ∧ 無 guts-lock ∧ 無 hand-crisis)
+"""
+from __future__ import annotations
+import random, json, argparse
+from dataclasses import dataclass, field
+
+# ---- 11 個合法稲荷崎牌名（角名 6 種判定用，依官方 Q&A）----
+NAMES = {"宮侑","宮治","北信介","角名","尾白","理石","銀島","大耳","赤木","小作","宮兄弟"}
+
+# ---- 卡牌行為表 ----
+# 每張卡: name(墓地計入的牌名), cat('C'/'E'),
+#   plus role flags used by the policy.
+CARD = {
+ # --- どんぴしゃり 引擎核心 ---
+ "P02-087": dict(name=None, cat="E", role="donpi"),            # 主引擎(攻擊事件)
+ "P02-016": dict(name="宮侑", cat="C", role="setter_dp"),      # 經Guts出場的舉球(否定+抽1)
+ "P02-020": dict(name="宮治", cat="C", role="attacker_dp"),    # 經Guts出場的攻擊(ATK+4,對手攔網≤2)
+ "P02-077": dict(name="宮兄弟", cat="C", role="twin", atk=3),  # 汎用Guts body, 改名侑/治
+ "P02-018": dict(name="宮侑", cat="C", role="guts_engine", tos=2),  # 香草侑 TOS2 Guts引擎
+ # --- Event 迴圈回收 ---
+ "P02-024": dict(name="北信介", cat="C", role="event_recover", rcv=5),  # 3G+棄1→撿回どんぴ
+ # --- 手牌/抽牌/防禦 ---
+ "P02-025": dict(name="北信介", cat="C", role="filter", rcv=5),  # 2G 抽1棄1(填墓1)
+ "P02-085": dict(name=None, cat="E", role="draw2"),            # 大見太郎 棄1抽2(手牌+1,填墓1)
+ "P02-089": dict(name=None, cat="E", role="refuel"),           # どや俺 墓地→手牌+2(消耗墓地名!)
+ "P02-084": dict(name=None, cat="E", role="draw1_def"),        # 黒須 抽1+RCV防禦
+ "P02-086": dict(name=None, cat="E", role="oentai"),           # 応援団 抽1+弱化對手接球
+ "PR-049":  dict(name="尾白", cat="C", role="ojiro_def", rcv=3),# 2G RCV+3+墓地→手牌
+ "P02-022": dict(name="宮治", cat="C", role="def_body", rcv=5, atk=3), # 防禦治 body
+ # --- 第3分 finisher / 多樣性 payoff ---
+ "P02-027": dict(name="角名", cat="C", role="sune_fin", atk=2),  # 6種橫置0G, 跨回合MB=0
+ "P02-021": dict(name="宮治", cat="C", role="osamu_fin", atk=2), # 手牌≤2 ATK+2 0G
+ "P02-017": dict(name="宮侑", cat="C", role=" atsumu6", tos=2),  # 6種 TOS+2+墓地→手牌
+ "PR-048":  dict(name="宮治", cat="C", role="osamu6", atk=3),    # 6種 ATK+3 (2G)
+ "P02-029": dict(name="尾白", cat="C", role="ojiro6", atk=3),    # 6種 ATK+3+否定接球
+ # --- 多樣性填充 / body ---
+ "P02-035": dict(name="小作", cat="C", role="kosaku_fill"),     # 接球階段自棄 RCV+2(防禦+填墓)
+ "P02-030": dict(name="尾白", cat="C", role="body", rcv=4, atk=3),
+ "P02-032": dict(name="銀島", cat="C", role="def_body", rcv=5, atk=0, blk=3),
+ "P02-028": dict(name="角名", cat="C", role="body", rcv=4, atk=3),
+}
+
+def card_name(no): return CARD[no]["name"]
+def is_event(no):  return CARD[no]["cat"] == "E"
+
+
+@dataclass
+class P:
+    deck: list
+    hand: list
+    guts: int = 3
+    score: int = 0
+    opp: int = 0
+    grave_names: set = field(default_factory=set)
+    grave_list: list = field(default_factory=list)   # 實際墓地內容(供 refuel 消耗)
+    guts_zone: list = field(default_factory=list)     # 餵進 Guts 的角色 body(供どんぴ拉出)
+    # 場上單佔位
+    tos: str = None      # 牌名 in 舉球區
+    atk: str = None      # 牌名 in 攻擊區
+    rcv_body: int = 0    # 接球區 body RCV
+    blk_body: int = 0    # 攔網區 body BLK
+    # 旗標
+    opp_block_le2: int = 0   # P02-020 遺產: 剩餘回合數 對手攔網≤2
+    opp_mb_zero: int = 0     # 角名遺產: 對手 MB BLK=0 回合數
+    donpi_fired: int = 0     # 成功發動どんぴ次數
+    guts_starved: bool = False  # 想打どんぴ但Guts不足而錯失
+    hand_crisis: bool = False
+    sixtype_turn: int = None
+    p1_turn: int = None
+    p2_turn: int = None
+    p3_turn: int = None
+
+    def discard(self, no):
+        self.grave_list.append(no)
+        n = card_name(no)
+        if n: self.grave_names.add(n)
+
+    def sixtype(self):
+        return len(self.grave_names & NAMES) >= 6
+
+
+def draw(p, k=1):
+    for _ in range(k):
+        if p.deck:
+            p.hand.append(p.deck.pop())
+
+
+def count(p_deck_or_hand, role=None, no=None):
+    if no:   return sum(1 for x in p_deck_or_hand if x == no)
+    return sum(1 for x in p_deck_or_hand if CARD[x]["role"] == role)
+
+
+def has(hand, no=None, role=None):
+    if no:   return no in hand
+    return any(CARD[x]["role"] == role for x in hand)
+
+
+def take(hand, no=None, role=None):
+    for i, x in enumerate(hand):
+        if (no and x == no) or (role and CARD[x]["role"] == role):
+            return hand.pop(i)
+    return None
+
+
+def smart_discard(p, rng):
+    """棄牌時的真實玩家選擇：優先棄『墓地尚未有的稲荷崎牌名』以推進6種；
+    其次棄重複的汎用牌；最後才棄隨機。回傳被棄卡號或 None。"""
+    if not p.hand:
+        return None
+    # 1) 能補新名字的角色牌
+    cur = p.grave_names & NAMES
+    best_i = None
+    for i, x in enumerate(p.hand):
+        nm = card_name(x)
+        if nm and nm in NAMES and nm not in cur:
+            # 不棄掉本回合進攻/finisher 關鍵件(donpi 引擎件除外)
+            if CARD[x]["role"] in ("donpi","guts_engine","setter_dp","attacker_dp","twin"):
+                continue
+            best_i = i; break
+    if best_i is None:
+        # 2) 棄重複事件或多餘汎用 body
+        for i, x in enumerate(p.hand):
+            if CARD[x]["role"] in ("body","def_body","draw1_def","oentai"):
+                best_i = i; break
+    if best_i is None:
+        best_i = rng.randrange(len(p.hand))
+    d = p.hand.pop(best_i)
+    p.discard(d)
+    return d
+
+
+# ---------------------------------------------------------------
+# 對手壓力模型：每對手回合的攻擊 vs 我方防禦
+# ---------------------------------------------------------------
+def opp_pressure(p, rng, mu, sigma, hand_def_k):
+    atk = rng.gauss(mu, sigma)
+    defense = p.rcv_body + p.blk_body + len(p.hand) * hand_def_k
+    if p.opp_mb_zero > 0:        # 我方剛打角名也可能影響(無關防禦,略)
+        pass
+    if atk > defense:
+        p.opp += 1
+
+
+# ---------------------------------------------------------------
+# 我方一回合策略 (greedy toward 3 points)
+# ---------------------------------------------------------------
+def my_turn(p, t, rng, cfg):
+    draw(p, 1)
+
+    # --- 階段0: 鋪 香草侑 進舉球區當 Guts 引擎(優先級最高) ---
+    if p.tos is None and has(p.hand, role="guts_engine"):
+        take(p.hand, role="guts_engine"); p.tos = "宮侑"
+
+    # --- 餵 Guts 區: 把多餘的 宮侑/宮治/宮兄弟 body 放進 Guts 供どんぴ拉出 ---
+    # 每回合最多餵 TOS 量(香草侑在場=2, 否則1)
+    feed_cap = 2 if p.tos == "宮侑" else 1
+    fed = 0
+    for role in ("setter_dp","attacker_dp","twin"):
+        while fed < feed_cap and has(p.hand, role=role):
+            no = take(p.hand, role=role)
+            p.guts_zone.append(no); fed += 1
+
+    # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
+    for role in ("draw2","refuel","draw1_def","oentai"):
+        while has(p.hand, role=role):
+            no = take(p.hand, role=role)
+            if role == "draw2":            # 大見: 棄1抽2 (手牌淨+1, 填墓1)
+                smart_discard(p, rng); draw(p, 2); p.discard(no)
+            elif role == "refuel":         # どや俺: 墓地撿侑/治/兄弟回手(+2)
+                got = 0
+                for target in ("宮侑","宮治","宮兄弟"):
+                    for i,gc in enumerate(p.grave_list):
+                        if card_name(gc) == target:
+                            p.hand.append(p.grave_list.pop(i)); got += 1
+                            if not any(card_name(x)==target for x in p.grave_list):
+                                p.grave_names.discard(target)   # 6種可能倒退!
+                            break
+                if got >= 3:
+                    smart_discard(p, rng)
+                p.discard(no)
+            elif role == "draw1_def":
+                draw(p,1); p.rcv_body = max(p.rcv_body, 2); p.discard(no)
+            elif role == "oentai":
+                draw(p,1); p.discard(no)
+
+    # --- 主動填墓 + 防禦: 小作(接球階段自棄 RCV+2) ---
+    while has(p.hand, role="kosaku_fill"):
+        no = take(p.hand, role="kosaku_fill")
+        p.discard(no); p.rcv_body = max(p.rcv_body, 2)
+
+    # --- 防禦 body 部署到接球區(撐 race, 不破壞攻擊區) ---
+    if p.rcv_body < 4:
+        for role in ("def_body","ojiro_def","filter","event_recover","body"):
+            if has(p.hand, role=role):
+                no = p.hand[[CARD[x]["role"] for x in p.hand].index(role)]
+                gcost = {"event_recover":3,"filter":2,"ojiro_def":2}.get(role,0)
+                if p.guts < gcost:
+                    continue
+                take(p.hand, role=role); p.guts -= gcost
+                p.rcv_body = max(p.rcv_body, CARD[no].get("rcv",0))
+                if role == "filter":               # 抽1棄1(智慧棄→填墓新名)
+                    draw(p,1); smart_discard(p, rng)
+                elif role == "event_recover":      # 棄1撿どんぴ回手
+                    smart_discard(p, rng); p.hand.append("P02-087")
+                elif role == "ojiro_def":          # 墓地角色→手牌(補手)
+                    for i,gc in enumerate(p.grave_list):
+                        if not is_event(gc):
+                            p.hand.append(p.grave_list.pop(i)); break
+                break
+
+    # ============ 進攻：どんぴしゃり 迴圈 ============
+    def precondition():
+        # 舉球=宮侑(香草) 且 攻擊=宮治(由 Guts 區 twin/治 改名上場)
+        if p.tos is None and has(p.hand, role="guts_engine"):
+            take(p.hand, role="guts_engine"); p.tos = "宮侑"
+        if p.atk in (None, "宮治"):
+            p.atk = "宮治"
+        return p.tos == "宮侑" and p.atk == "宮治"
+
+    def guts_has(nm):
+        return any(card_name(x)==nm or CARD[x]["role"] in (
+            ("setter_dp",) if nm=="宮侑" else ("attacker_dp",)) for x in p.guts_zone)
+
+    if has(p.hand, role="donpi") and precondition():
+        have_setter = any(CARD[x]["role"] in ("setter_dp","twin") for x in p.guts_zone)
+        have_atkr   = any(CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone)
+        cost = 6   # P02-016(3)+P02-020(3) 經どんぴ拉出
+        if have_setter and have_atkr:
+            if p.guts >= cost:
+                p.guts -= cost
+                take(p.hand, role="donpi")
+                draw(p, 2)                       # どんぴ抽1 + P02-016抽1
+                p.opp_block_le2 = 2              # P02-020: 對手攔網≤2
+                p.donpi_fired += 1
+                # 從 Guts 區消耗 setter+attacker body, 入墓(留名字)
+                for want in (("setter_dp","twin"), ("attacker_dp","twin")):
+                    for i,x in enumerate(p.guts_zone):
+                        if CARD[x]["role"] in want:
+                            p.discard(p.guts_zone.pop(i)); break
+                if rng.random() < cfg["donpi_score_p"]:
+                    p.score += 1
+                    if p.score==1 and p.p1_turn is None: p.p1_turn=t
+                    if p.score==2 and p.p2_turn is None: p.p2_turn=t
+                # P02-024 撿回どんぴ(3G+棄1) 維持迴圈
+                if has(p.hand, role="event_recover") and p.guts>=3:
+                    take(p.hand, role="event_recover"); p.guts-=3
+                    smart_discard(p, rng); p.hand.append("P02-087")
+                    p.rcv_body = max(p.rcv_body, 5)
+            else:
+                p.guts_starved = True
+
+    # ============ 第3分 finisher (僅在已 2 分後嘗試) ============
+    if p.score >= 2:
+        if p.sixtype() and p.sixtype_turn is None:
+            p.sixtype_turn = t
+        # 路線A: 角名橫置(0G) 鋪 MB=0(跨回合) → 下回合宮治R 收尾
+        if p.opp_mb_zero == 0 and p.sixtype() and has(p.hand, role="sune_fin"):
+            take(p.hand, role="sune_fin"); p.opp_mb_zero = 2; p.atk = "角名"
+        finisher_window = (p.opp_mb_zero > 0 or p.opp_block_le2 > 0)
+        if finisher_window and p.score == 2:
+            fin = None
+            if has(p.hand, role="osamu_fin") and len(p.hand) <= 3:
+                fin = take(p.hand, role="osamu_fin")            # 0 Guts
+            elif p.sixtype() and has(p.hand, role="osamu6") and p.guts>=2:
+                fin = take(p.hand, role="osamu6"); p.guts-=2
+            elif p.sixtype() and has(p.hand, role="ojiro6") and p.guts>=3:
+                fin = take(p.hand, role="ojiro6"); p.guts-=3
+            if fin is not None:
+                p.atk = card_name(fin)
+                if rng.random() < cfg["finisher_score_p"]:
+                    p.score = 3; p.p3_turn = t
+
+    # --- 回合末 Guts regen ---
+    regen = 2 + (2 if p.tos == "宮侑" else 0)
+    p.guts = min(10, p.guts + regen)
+    p.opp_block_le2 = max(0, p.opp_block_le2-1)
+    p.opp_mb_zero  = max(0, p.opp_mb_zero-1)
+    # 手牌危機: 手空且牌庫將盡且未達3分
+    if len(p.hand)==0 and len(p.deck)<=1 and p.score<3:
+        p.hand_crisis = True
+
+
+def build_deck(cfg_counts):
+    deck = []
+    for no,c in cfg_counts.items():
+        deck += [no]*c
+    return deck
+
+
+def simulate(cfg_counts, n=4000, cfg=None, seed=0):
+    cfg = cfg or {}
+    cfg.setdefault("donpi_score_p", 0.90)
+    cfg.setdefault("finisher_score_p", 0.85)
+    cfg.setdefault("opp_mu", 5.2)
+    cfg.setdefault("opp_sigma", 2.3)
+    cfg.setdefault("hand_def_k", 0.9)
+    cfg.setdefault("max_turn", 16)
+    rng = random.Random(seed)
+
+    res = dict(p1=0,p2=0,p3=0,stable3=0,guts_starved=0,hand_crisis=0,
+               race_loss=0,sixtype=0,sum3turn=0,n3=0)
+    base = build_deck(cfg_counts)
+    total = len(base)
+    if total != 40:
+        return {"ERROR": f"deck={total}張(需40)"}
+
+    for g in range(n):
+        d = base[:]
+        rng.shuffle(d)
+        hand = [d.pop() for _ in range(5)]
+        p = P(deck=d, hand=hand)
+        for t in range(1, cfg["max_turn"]+1):
+            my_turn(p, t, rng, cfg)
+            if p.score>=3: break
+            # 對手回合
+            opp_pressure(p, rng, cfg["opp_mu"], cfg["opp_sigma"], cfg["hand_def_k"])
+            if p.opp>=3:
+                res["race_loss"]+=1; break
+        if p.p1_turn: res["p1"]+=1
+        if p.p2_turn: res["p2"]+=1
+        if p.score>=3:
+            res["p3"]+=1
+            res["sum3turn"]+=p.p3_turn or t; res["n3"]+=1
+            if not p.guts_starved and not p.hand_crisis:
+                res["stable3"]+=1
+        if p.guts_starved: res["guts_starved"]+=1
+        if p.hand_crisis: res["hand_crisis"]+=1
+        if p.sixtype(): res["sixtype"]+=1
+
+    out = {k: (v/n if k not in("sum3turn","n3") else v) for k,v in res.items()}
+    out["avg3turn"] = (res["sum3turn"]/res["n3"]) if res["n3"] else None
+    out["deck_total"]=total
+    return out
+
+
+# ---- 預設牌表 ----
+PRESETS = {
+ "M4": {  # 現行終版
+   "P02-087":4,"P02-085":2,"P02-089":1,"P02-084":1,
+   "P02-016":2,"P02-020":2,"P02-077":4,"P02-018":3,
+   "P02-027":2,"P02-021":3,"P02-017":2,"PR-048":2,"P02-029":2,
+   "P02-024":3,"P02-035":2,"P02-025":2,"P02-028":1,"P02-030":1,"P02-032":1,
+ },
+}
+
+
+def fmt(o):
+    if "ERROR" in o: return o["ERROR"]
+    a3 = f"{o['avg3turn']:.1f}" if o['avg3turn'] else "—"
+    return (f"  1分 {o['p1']:.1%} | 2分 {o['p2']:.1%} | 3分 {o['p3']:.1%} "
+            f"| 穩定3分 {o['stable3']:.1%}\n"
+            f"  guts-starved {o['guts_starved']:.1%} | hand-crisis {o['hand_crisis']:.1%} "
+            f"| race-loss {o['race_loss']:.1%} | 6種達標 {o['sixtype']:.1%} "
+            f"| 平均第3分回合 {a3}")
+
+
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--preset", default="M4")
+    ap.add_argument("--deck", default=None, help="JSON {card_no:count}")
+    ap.add_argument("--n", type=int, default=4000)
+    a = ap.parse_args()
+    counts = json.loads(a.deck) if a.deck else PRESETS[a.preset]
+    o = simulate(counts, n=a.n)
+    print(f"[{a.preset if not a.deck else 'custom'}] N={a.n}")
+    print(fmt(o))
