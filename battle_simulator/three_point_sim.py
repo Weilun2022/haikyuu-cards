@@ -82,7 +82,10 @@ class P:
     opp_block_le2: int = 0   # P02-020 遺產: 剩餘回合數 對手攔網≤2
     opp_mb_zero: int = 0     # 角名遺產: 對手 MB BLK=0 回合數
     donpi_fired: int = 0     # 成功發動どんぴ次數
-    guts_starved: bool = False  # 想打どんぴ但Guts不足而錯失
+    pending_starve: bool = False  # 早期想發動どんぴ但Guts暫時不足(通常下回合化解)
+    pending_fin_starve: bool = False  # 第3分窗口內有finisher但Guts不足(後段力竭)
+    guts_starved: bool = False  # 真正的力竭: 整局結束仍卡在Guts不足且未達3分
+    thin_hand_pending: bool = False   # 上回合打finisher後手牌薄,本對手回合空窗失防
     hand_crisis: bool = False
     sixtype_turn: int = None
     p1_turn: int = None
@@ -151,13 +154,19 @@ def smart_discard(p, rng):
 # ---------------------------------------------------------------
 # 對手壓力模型：每對手回合的攻擊 vs 我方防禦
 # ---------------------------------------------------------------
-def opp_pressure(p, rng, mu, sigma, hand_def_k):
+def opp_pressure(p, rng, mu, sigma, hand_def_k, cfg=None):
     atk = rng.gauss(mu, sigma)
     defense = p.rcv_body + p.blk_body + len(p.hand) * hand_def_k
-    if p.opp_mb_zero > 0:        # 我方剛打角名也可能影響(無關防禦,略)
-        pass
     if atk > defense:
         p.opp += 1
+    # [校準10] 手牌經濟風險: 上個我方回合打 finisher 清空手牌 → 本對手回合空窗失防。
+    #   thin_hand_pending 表示上回合 finisher 後手牌 ≤ thin_hand_th。此時對手以
+    #   thin_hand_race_bonus 機率額外得分,並把該局標記為 hand-crisis(真實失分向量)。
+    if cfg and p.thin_hand_pending:
+        if rng.random() < cfg["thin_hand_race_bonus"]:
+            p.opp += 1
+            p.hand_crisis = True       # 因清手牌失防 → 計入手牌危機
+        p.thin_hand_pending = False
 
 
 # ---------------------------------------------------------------
@@ -298,6 +307,7 @@ def my_turn(p, t, rng, cfg):
                     for i,x in enumerate(p.guts_zone):
                         if CARD[x]["role"] in want:
                             p.discard(p.guts_zone.pop(i)); break
+                p.pending_starve = False    # 成功發動 → 清除暫時性 Guts 不足
                 if rng.random() < cfg["donpi_score_p"]:
                     p.score += 1
                     if p.score==1 and p.p1_turn is None: p.p1_turn=t
@@ -308,7 +318,13 @@ def my_turn(p, t, rng, cfg):
                     smart_discard(p, rng); p.hand.append("P02-087")
                     p.rcv_body = max(p.rcv_body, 5)
             else:
-                p.guts_starved = True
+                # [校準7] guts_starved 語意修正: 早期(turn 2-3)前置已備妥卻暫時 Guts 不足
+                #   只是「等一回合 regen」的暫時現象,下一回合通常就發動了 — 不應永久把整局
+                #   標記為 guts-starved(這會嚴重低估第1/2分穩定度)。改為設 pending_starve,
+                #   只有在「成功發動則清除」「整局結束仍未化解」時才算真正的 guts-starved。
+                #   這對應使用者實戰的「打完兩個10點就沒力」: 真正的力竭發生在後段無法再續力,
+                #   而非開局抽序造成的一回合延遲。
+                p.pending_starve = True
 
     # ============ 第3分 finisher (僅在已 2 分後嘗試) ============
     if p.score >= 2:
@@ -320,16 +336,30 @@ def my_turn(p, t, rng, cfg):
         finisher_window = (p.opp_mb_zero > 0 or p.opp_block_le2 > 0)
         if finisher_window and p.score == 2:
             fin = None
+            # [校準8] 第3分 Guts 力竭建模(使用者「打完兩個10點就沒力」的核心):
+            #   在窗口內手上已有 6種型 finisher(osamu6/ojiro6)但 Guts 不足以支付 →
+            #   這是真正的後段力竭。記 pending_fin_starve, 若整局結束仍未補上第3分 →
+            #   結算為 guts_starved。0G 的 osamu_fin(宮治R, 手牌≤2)不受此限。
+            need_g_blocked = False
             if has(p.hand, role="osamu_fin") and len(p.hand) <= 3:
                 fin = take(p.hand, role="osamu_fin")            # 0 Guts
-            elif p.sixtype() and has(p.hand, role="osamu6") and p.guts>=2:
-                fin = take(p.hand, role="osamu6"); p.guts-=2
-            elif p.sixtype() and has(p.hand, role="ojiro6") and p.guts>=3:
-                fin = take(p.hand, role="ojiro6"); p.guts-=3
+            elif p.sixtype() and has(p.hand, role="osamu6"):
+                if p.guts>=2: fin = take(p.hand, role="osamu6"); p.guts-=2
+                else: need_g_blocked = True
+            elif p.sixtype() and has(p.hand, role="ojiro6"):
+                if p.guts>=3: fin = take(p.hand, role="ojiro6"); p.guts-=3
+                else: need_g_blocked = True
             if fin is not None:
                 p.atk = card_name(fin)
+                # [校準10] 打出 finisher 後若手牌薄 → 下對手回合空窗風險(thin_hand_pending)。
+                #   宮治R(osamu_fin) 條件本就是手牌≤3且打掉它,最易把手清薄 → 風險最高。
+                #   帶手牌補充(refuel/oentai/ojiro_def)的牌組此時手較厚,可降低此風險。
+                if len(p.hand) <= cfg["thin_hand_th"]:
+                    p.thin_hand_pending = True
                 if rng.random() < cfg["finisher_score_p"]:
-                    p.score = 3; p.p3_turn = t
+                    p.score = 3; p.p3_turn = t; p.pending_fin_starve = False
+            elif need_g_blocked:
+                p.pending_fin_starve = True
 
     # --- 回合末 Guts regen ---
     regen = 2 + (2 if p.tos == "宮侑" else 0)
@@ -352,10 +382,18 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     cfg = cfg or {}
     cfg.setdefault("donpi_score_p", 0.90)
     cfg.setdefault("finisher_score_p", 0.85)
-    cfg.setdefault("opp_mu", 5.2)
+    # [校準9] 對手壓力參數校準至實戰錨點(1分≈97-99%,2分≈90-93%)。
+    #   先前 mu=5.2/k=0.9 把前兩分壓到 ~87/87%,與使用者「前兩分非常穩定」不符。
+    #   稲荷崎前期手牌厚、防禦body足,對手在前段難得分,故下調 mu→4.6、上調手牌防禦
+    #   權重 k→1.1。校準後 M4: 1分≈97%、2分≈91%,落在錨點區間。
+    cfg.setdefault("opp_mu", 4.6)
     cfg.setdefault("opp_sigma", 2.3)
-    cfg.setdefault("hand_def_k", 0.9)
+    cfg.setdefault("hand_def_k", 1.1)
     cfg.setdefault("max_turn", 16)
+    # [校準10] 手牌經濟: finisher 清手牌的回合,若手牌薄,跨回合空窗失去防禦,
+    #   對手 race 得分機率提高(thin_hand_race_bonus),並把該情形計為 hand-crisis。
+    cfg.setdefault("thin_hand_th", 1)          # finisher 後手牌 ≤ 此值 視為薄手
+    cfg.setdefault("thin_hand_race_bonus", 0.45)  # 薄手回合對手額外得分機率
     rng = random.Random(seed)
 
     res = dict(p1=0,p2=0,p3=0,stable3=0,guts_starved=0,hand_crisis=0,
@@ -374,9 +412,13 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
             my_turn(p, t, rng, cfg)
             if p.score>=3: break
             # 對手回合
-            opp_pressure(p, rng, cfg["opp_mu"], cfg["opp_sigma"], cfg["hand_def_k"])
+            opp_pressure(p, rng, cfg["opp_mu"], cfg["opp_sigma"], cfg["hand_def_k"], cfg)
             if p.opp>=3:
                 res["race_loss"]+=1; break
+        # [校準7] 結算: 未達3分 且(早期どんぴ力竭未化解 或 第3分finisher力竭未化解)
+        #   → 真正的 guts_starved。早期暫時不足若後來成功發動(pending_starve已清)則不計。
+        if p.score < 3 and (p.pending_starve or p.pending_fin_starve):
+            p.guts_starved = True
         if p.p1_turn: res["p1"]+=1
         if p.p2_turn: res["p2"]+=1
         if p.score>=3:
