@@ -179,6 +179,19 @@ def smart_discard(p, rng):
 # ---------------------------------------------------------------
 def opp_pressure(p, rng, mu, sigma, hand_def_k, cfg=None):
     atk = rng.gauss(mu, sigma)
+    # [校準11] P02-084 黒須(draw1_def) 是 [=接球] 事件 → 可在『對手攻擊時反應性打出』
+    #   當防禦使用。先前只在我方回合當靜態 rcv_body+2 處理,低估其反應性防禦價值。
+    #   真實打法: 手上留著黒須, 對手強攻(ATK≈8)時即時打出 → 抽1(補手) + 接球值+2
+    #   (Event區有2+稲荷崎觸發事件時, どんぴP02-087 即符合 → 條件達成給滿+2)。
+    #   此處: 若手上有黒須, 在判定前反應性消耗它 → defense+2 且抽1(補手economy)。
+    if cfg and cfg.get("kurosu_reactive") and has(p.hand, role="draw1_def"):
+        # 僅在這一擊可能失守時才反應性使用(節省卡), 否則留著
+        base_def = p.rcv_body + p.blk_body + len(p.hand) * hand_def_k
+        if atk > base_def - 2:
+            take(p.hand, role="draw1_def")
+            draw(p, 1)                 # 抽1 補手(也補回剛打掉的牌位)
+            p.rcv_body += 2            # 反應性接球值 +2
+            p.discard("P02-084")
     defense = p.rcv_body + p.blk_body + len(p.hand) * hand_def_k
     if atk > defense:
         p.opp += 1
@@ -227,7 +240,12 @@ def my_turn(p, t, rng, cfg):
             p.guts_zone.append(no); p.guts = min(10, p.guts + 1); fed += 1
 
     # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
-    for role in ("draw2","refuel","draw1_def","oentai","rev_engine"):
+    # [校準11] kurosu_reactive 開啟時, 黒須(draw1_def)『留在手上』供對手回合反應性防禦,
+    #   不在我方回合主動打掉; 故從主動抽牌循環中排除 draw1_def。
+    proactive_draw = ["draw2","refuel","oentai","rev_engine"]
+    if not (cfg and cfg.get("kurosu_reactive")):
+        proactive_draw.insert(2, "draw1_def")
+    for role in proactive_draw:
         while has(p.hand, role=role):
             no = take(p.hand, role=role)
             if role == "draw2":            # 大見: 棄1抽2 (手牌淨+1, 填墓1)
@@ -436,6 +454,8 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     #   設計影響的真實向量(帶手牌補充者 hand-crisis 顯著較低)。
     cfg.setdefault("thin_hand_th", 2)          # finisher 後手牌 ≤ 此值 視為薄手
     cfg.setdefault("thin_hand_race_bonus", 0.45)  # 薄手回合對手額外得分機率
+    # [校準11] 黒須 P02-084 反應性防禦建模(預設開). 牌組無 084 時為 no-op(不影響其他牌表)。
+    cfg.setdefault("kurosu_reactive", True)
     rng = random.Random(seed)
 
     res = dict(p1=0,p2=0,p3=0,stable3=0,guts_starved=0,hand_crisis=0,
@@ -499,6 +519,17 @@ PRESETS = {
  # 獨立名字數維持9種(銀島替換理石), 6種達標率63.0%(持平).
  "FINAL_V2": {
    "P02-087":4,"P02-085":2,"P02-088":2,
+   "P02-016":2,"P02-020":2,"P02-077":4,"P02-018":3,
+   "P02-027":2,"P02-021":2,"P02-017":2,"PR-048":2,"P02-029":2,
+   "P02-024":3,"P02-025":2,"P02-035":2,"PR-049":1,
+   "P02-028":1,"P02-032":1,"P02-033":1,
+ },
+ # 對「攻擊型 ATK≈8」場的 sideboard/flex: 砍 1 張 P02-088 → 加 1 張 P02-084 黒須。
+ # 黒須是 [=接球] 事件,可在對手強攻時反應性打出 → 抽1 + 接球值+2。
+ # 評估(N=20000): 一般 meta(mu=4.6) stable3 81.8%→80.3%(虧finisher窗口), 不主用;
+ #   但重壓 meta(mu=6.0, ATK≈8) race-loss 7.8%→6.1%(-1.7%) 且 stable3 持平 → 對 aggro flex。
+ "VS_AGGRO": {
+   "P02-087":4,"P02-085":2,"P02-088":1,"P02-084":1,
    "P02-016":2,"P02-020":2,"P02-077":4,"P02-018":3,
    "P02-027":2,"P02-021":2,"P02-017":2,"PR-048":2,"P02-029":2,
    "P02-024":3,"P02-025":2,"P02-035":2,"PR-049":1,
