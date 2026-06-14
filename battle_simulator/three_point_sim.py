@@ -37,6 +37,19 @@
           角名鋪設(路線A, 該回合不得分卻佔攻擊區)亦為一個 thin-hand 暴露窗口。
           宮治R 路線會主動棄牌湊條件 → 真實模擬「清空手牌打 finisher」的失分向量。
 校準後 M4: 1分≈96.5% / 2分≈91% / 3分≈84% / 穩定3分≈82% / hand-crisis≈4%。
+
+==================================================
+[校準13] 官方規則書修正 (2026-06: 讀 rules_general_v1.pdf 後)
+--------------------------------------------------
+重大修正 — Guts 經濟先前嚴重灌水:
+  • 防禦(校準12): 攔網(BLK)與接球(RCV)是分開的階段, 對單次攻擊不可相加 →
+    defense = max(BLK,RCV) 而非 sum。(規則: 5-7 ブロック / 5-9 レシーブ 分開)
+  • Guts(校準13): Guts = 疊在各區角色下方的卡(1-2-15); 唯一產生方式是「角色登場到
+    已占用區域→舊角色變Guts」(8-3-1-1); 付Guts=移到棄牌區消耗(1-4-8); 無免費充能。
+    どんぴ turn 為 Guts 中性 → 淨生成 ≈ +1/turn (guts_gen 預設1)。
+  • 先前 feed_cap=2 + regen +2~4 (≈+4~6 Guts/turn) 把穩定3分灌水到 ~82%。
+    規則正確模型下 (guts_gen=1): FINAL_V2 穩定3分 ≈ 77%, 第三分常因 Guts 力竭而慢/失敗,
+    對應使用者實戰「打完兩個10點就沒力」。第三分(非6種)才是真瓶頸 — 需往低Guts依賴優化。
 """
 from __future__ import annotations
 import random, json, argparse
@@ -226,19 +239,24 @@ def my_turn(p, t, rng, cfg):
             # P02-016 雖然也可餵Guts,但建立舉球區的邊際價值更高
             take(p.hand, role="setter_dp"); p.tos = "宮侑"
 
-    # --- 餵 Guts 區: 把多餘的 宮侑/宮治/宮兄弟 body 放進 Guts 供どんぴ拉出 ---
-    # [校準2] 規則修正: 放進 Guts 區的角色牌「本身就是 Guts 點」(官方 Guts 機制)。
-    #   先前版本把 guts_zone 與 p.guts 當兩個分離資源 → 等於要再額外湊 6 點才能
-    #   啟動どんぴ,造成第一次發動平均拖到第 6.7 回合、guts-starved 50%。
-    #   真實對局裡「餵 body 進 Guts」即同時累積了發動所需的 Guts,故此處每餵 1 張
-    #   body,p.guts +1。校準後第一次發動提前,1分/2分達實戰錨點。
-    # [校準1] 每回合可餵 2 張 body(玩家在 Setup/Guts 階段可放置多張),不再受 TOS 卡死。
-    feed_cap = 2
+    # --- Guts 充能 (依官方規則書) ---
+    # [校準13] 官方規則(已讀規則書 277daa92 確認):
+    #   • Guts = 疊在各區角色「下方」的卡 (1-2-15)。
+    #   • 唯一產生方式: 角色登場到「已占用的區域」時, 被壓在下方的舊角色變成 Guts
+    #     (8-3-1-1 + 1-4-5-4-2)。沒有免費的「每回合放1張Guts」步驟。
+    #   • 付 Guts = 從該區移 N 張到棄牌區 (1-4-8), 消耗型, 不回復。
+    #   進攻 turn 會在 舉球區/攻擊區 登場新角色 → 覆蓋產生 Guts。淨生成以 cfg.guts_gen 控制
+    #   (預設 2 = 覆蓋舉球+攻擊兩區), 對齊使用者錨點「前兩分穩、第三分沒力」。
+    #   先前 feed_cap=2 + regen +2~4 嚴重灌水(≈+4~6/turn), 此處改為規則導出的覆蓋生成。
+    guts_gen = (cfg or {}).get("guts_gen", 2)
+    # 把可用的 宮侑/宮治/宮兄弟 body 放進 Guts 區供 どんぴ 拉出 (最多用掉 guts_gen 次登場)
     fed = 0
     for role in ("setter_dp","attacker_dp","twin"):
-        while fed < feed_cap and has(p.hand, role=role):
+        while fed < guts_gen and has(p.hand, role=role):
             no = take(p.hand, role=role)
-            p.guts_zone.append(no); p.guts = min(10, p.guts + 1); fed += 1
+            p.guts_zone.append(no); fed += 1
+    # 每回合覆蓋登場淨生成 guts_gen 點 Guts (不論是否有 body 可餵, 進攻turn都會覆蓋區域)
+    p.guts = min(14, p.guts + guts_gen)
 
     # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
     # [校準11] kurosu_reactive 開啟時, 黒須(draw1_def)『留在手上』供對手回合反應性防禦,
@@ -419,9 +437,8 @@ def my_turn(p, t, rng, cfg):
             elif need_g_blocked:
                 p.pending_fin_starve = True
 
-    # --- 回合末 Guts regen ---
-    regen = 2 + (2 if p.tos == "宮侑" else 0)
-    p.guts = min(10, p.guts + regen)
+    # [校準13] 移除每回合 Guts regen(原 +2~4)。Guts 為消耗型資源, 唯一來源是回合開始
+    #   的 1 次充能(上方 feed)。香草侑 TOS 引擎不再被當成 Guts 來源(它的價值在前置/抽牌)。
     p.opp_block_le2 = max(0, p.opp_block_le2-1)
     p.opp_mb_zero  = max(0, p.opp_mb_zero-1)
     # 手牌危機: 手空且牌庫將盡且未達3分
@@ -448,6 +465,11 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     cfg.setdefault("opp_sigma", 2.3)
     cfg.setdefault("hand_def_k", 1.1)
     cfg.setdefault("max_turn", 16)
+    # [校準13] Guts 生成率(每進攻turn由「覆蓋登場」淨產生的 Guts)。依官方規則, どんぴ turn
+    #   為 Guts 中性(拉出侑/治 -2, 覆蓋舉球+攻擊 +2), 淨生成主要來自接球區覆蓋 ≈ +1/turn。
+    #   guts_gen=1 重現使用者實戰「打完兩個就沒力」(stable3≈77%, 第三分慢且常失敗);
+    #   =2 則幾乎無力竭(與體感不符)。預設 1。
+    cfg.setdefault("guts_gen", 1)
     # [校準10] 手牌經濟: finisher 清手牌的回合,若手牌薄,跨回合空窗失去防禦,
     #   對手 race 得分機率提高(thin_hand_race_bonus),並把該情形計為 hand-crisis。
     # 校準後 th=2: 對應宮治R「出場後手牌≤2」的實況 — 打完 finisher 手牌≤2 即薄手,
