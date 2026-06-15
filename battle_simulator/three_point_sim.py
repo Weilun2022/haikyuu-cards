@@ -115,6 +115,9 @@ CARD = {
  "D03-005": dict(name="宮治", cat="C", role="attacker_dp", atk=2),        # 宮治D vanilla WS ATK=2(どんぴGuts zone)
  "D03-011": dict(name="赤木", cat="C", role="akagi_def", rcv=5),          # 赤木D Li: 0G RCV=5 or 2G→RCV+2=7
  "D03-002": dict(name="宮治", cat="C", role="attacker_dp", atk=2),        # 宮治D WS: 舉球=宮侑時棄1→ATK+2
+ # --- D03 スターター 特效カード (V7新增) ---
+ "D03-001": dict(name="宮侑", cat="C", role="setter_d3"),   # D3 DP setter: 2G→TOS+1+fetch D03-013 from Event
+ "D03-013": dict(name=None,  cat="E", role="tos_pump"),      # [=舉球][=攻擊] setter=侑/治→draw1+TOS+1
 }
 
 def card_name(no): return CARD[no]["name"]
@@ -202,7 +205,7 @@ def smart_discard(p, rng):
         nm = card_name(x)
         if nm and nm in NAMES and nm not in cur:
             # 不棄掉本回合進攻/finisher 關鍵件(donpi 引擎件除外)
-            if CARD[x]["role"] in ("donpi","guts_engine","setter_dp","attacker_dp","twin","atsumu6"):
+            if CARD[x]["role"] in ("donpi","guts_engine","setter_dp","attacker_dp","twin","atsumu6","setter_d3","tos_pump"):
                 continue
             # 防禦体不棄掉: 若接球区防禦不足(rcv_body<3),留給佈陣
             if CARD[x]["role"] in ("def_body","akagi_def") and p.rcv_body < 3:
@@ -269,13 +272,21 @@ def my_turn(p, t, rng, cfg):
     #     優先序 = 香草侑(同時是Guts引擎) > P02-016(setter_dp) > 宮兄弟twin。
     #   建立 setter 後若用掉 twin/016, 仍會在下方餵 Guts 補回攻擊端 body。
     if p.tos is None:
-        for _role in ("guts_engine","setter_dp","atsumu6"):
+        for _role in ("guts_engine","setter_dp","atsumu6","setter_d3"):
             if has(p.hand, role=_role):
                 no = take(p.hand, role=_role); p.tos = "宮侑"
                 # 覆蓋登場名字追蹤: 舊body→Guts→最終入墓, 保守登記名字
                 if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
                 p.tos_zone_name = card_name(no)
                 if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)  # 本卡名也登記
+                # D03-001 入場效果: 2G→TOS+1, 從牌庫撈 D03-013 到手牌(模擬Event区fetch), 棄1
+                if CARD[no]["role"] == "setter_d3" and p.g_tos >= 2:
+                    p.g_tos -= 2
+                    for i, dk in enumerate(p.deck):
+                        if dk == "D03-013":
+                            p.hand.append(p.deck.pop(i))
+                            smart_discard(p, rng)  # D03-013 受保護不會被棄掉
+                            break
                 break
 
     # --- Guts 充能: 三個獨立池, 各自靠「該區覆蓋登場」生成 ---
@@ -291,7 +302,7 @@ def my_turn(p, t, rng, cfg):
     gen_rcv = (cfg or {}).get("gen_rcv", 1)
     # 把可用的 宮侑/宮治/宮兄弟 body 放進 Guts 區供 どんぴ 拉出
     fed = 0
-    for role in ("setter_dp","attacker_dp","twin"):
+    for role in ("setter_dp","attacker_dp","twin","setter_d3"):
         while fed < 2 and has(p.hand, role=role):
             no = take(p.hand, role=role)
             # guts_zone 裡的體牌最終都會入墓(Guts消耗時): 保守登記名字以推進6種
@@ -422,7 +433,7 @@ def my_turn(p, t, rng, cfg):
     def precondition():
         # 舉球=宮侑 且 攻擊=宮治(由 Guts 區 twin/治 改名上場)
         if p.tos is None:
-            for _r in ("guts_engine","setter_dp","atsumu6"):
+            for _r in ("guts_engine","setter_dp","atsumu6","setter_d3"):
                 if has(p.hand, role=_r):
                     _no = take(p.hand, role=_r); p.tos = "宮侑"
                     if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
@@ -467,6 +478,12 @@ def my_turn(p, t, rng, cfg):
                     attack_boost = cfg.get("rev_engine_boost", 0.06)
                     if p.score >= 2:             # 已2分: 額外開 finisher 窗口
                         p.opp_block_le2 = max(p.opp_block_le2, 2)
+                    p.discard(ev)
+                # D03-013 [=攻擊] tos_pump: setter=侑/治 → 抽1 + TOS+1
+                if has(p.hand, role="tos_pump") and p.tos in ("宮侑","宮治"):
+                    ev = take(p.hand, role="tos_pump")
+                    draw(p, 1)
+                    attack_boost += cfg.get("tos_pump_boost", 0.05)
                     p.discard(ev)
                 p.opp_block_le2 = 2              # P02-020: 對手攔網≤2
                 p.donpi_fired += 1
@@ -603,6 +620,7 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     # [V5校準15] P02-088 [=攻擊] 攻擊增強: 打出時若舉球=宮侑→對手攔網Event不可用,
     #   近似為 donpi 得分概率 +0.06(未開啟時舊牌組維持舊值,V5受益最大因有×3)。
     cfg.setdefault("rev_engine_boost", 0.06)
+    cfg.setdefault("tos_pump_boost", 0.05)  # D03-013 TOS+1 效果: 略低於 088 攔網封鎖
     rng = random.Random(seed)
 
     res = dict(p1=0,p2=0,p3=0,stable3=0,guts_starved=0,hand_crisis=0,
@@ -736,6 +754,18 @@ PRESETS = {
    "P02-024":2,"P02-034":3,"P02-027":3,"P02-020":2,
    "P02-077":3,"P02-035":2,"D03-011":2,"D03-005":2,
    "P02-032":3,"PR-048":3,"P02-017":3,"P02-018":2,"PR-049":2,
+ },
+ # ★★★★★★ V7 D03引擎試驗 (2026-06) ★★★★★★
+ # 核心: D03-001(宮侑DP setter, 2G→TOS+1+fetch D03-013) + D03-013(tos_pump事件)
+ #        + PR-048×3(6種 finisher) + P02-089×2(必放)
+ # 事件: 087×3 + 089×2 + D03-013×2 + 084×1 = 8張(上限)
+ # vs V6: 085×4全砍(089×2占位), 新增 D03-001×3, D03-013×2; P02-018×2→×1
+ # 預測: 089×2 拖累6種(~80%), TOS引擎部分補回donpi得分率; 089=必放限制下的最佳化嘗試
+ "FINAL_V7": {
+   "P02-087":3,"P02-089":2,"D03-013":2,"P02-084":1,
+   "D03-001":3,"P02-077":3,"P02-020":2,"PR-048":3,"P02-017":3,
+   "P02-032":3,"P02-034":3,"D03-011":2,"PR-049":2,
+   "P02-027":3,"P02-024":2,"P02-035":2,"P02-018":1,
  },
  # 參考: 真實賽場稲荷崎 NPR 牌組(D03シリーズ主體)
  "META_NPR": {
