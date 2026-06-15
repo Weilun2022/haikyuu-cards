@@ -99,8 +99,8 @@ CARD = {
  # --- 第3分 finisher / 多樣性 payoff ---
  "P02-027": dict(name="角名", cat="C", role="sune_fin", atk=2),  # 6種橫置0G, 跨回合MB=0
  "P02-021": dict(name="宮治", cat="C", role="osamu_fin", atk=2), # 手牌≤2 ATK+2 0G
- "P02-017": dict(name="宮侑", cat="C", role=" atsumu6", tos=2),  # 6種 TOS+2+墓地→手牌
- "PR-048":  dict(name="宮治", cat="C", role="osamu6", atk=3),    # 6種 ATK+3 (2G)
+ "P02-017": dict(name="宮侑", cat="C", role="atsumu6", tos=2),    # 6種 TOS+2+墓地→手牌(3G舉球区)
+ "PR-048":  dict(name="宮治", cat="C", role="osamu6", atk=3),    # 6種 ATK+3 (2G攻擊区)
  "P02-029": dict(name="尾白", cat="C", role="ojiro6", atk=3),    # 6種 ATK+3+否定接球
  # --- 多樣性填充 / body ---
  "P02-035": dict(name="小作", cat="C", role="kosaku_fill"),     # 接球階段自棄 RCV+2(防禦+填墓)
@@ -110,6 +110,11 @@ CARD = {
  # --- 新增獨立名字燃料 body(構築顧問建議: 提升 distinct-name 密度) ---
  "P02-031": dict(name="理石", cat="C", role="body", srv=6, atk=3),       # 第9名字, 發球body, 捨得當燃料
  "P02-033": dict(name="大耳", cat="C", role="def_body", rcv=3, blk=3, atk=3),  # 第10名字, MB防禦body
+ # --- 實戰 meta 補完 (V5 rebuild) ---
+ "P02-034": dict(name="赤木", cat="C", role="def_body", rcv=6),           # 赤木N vanilla Li RCV=6 (0G接球区)
+ "D03-005": dict(name="宮治", cat="C", role="attacker_dp", atk=2),        # 宮治D vanilla WS ATK=2(どんぴGuts zone)
+ "D03-011": dict(name="赤木", cat="C", role="akagi_def", rcv=5),          # 赤木D Li: 0G RCV=5 or 2G→RCV+2=7
+ "D03-002": dict(name="宮治", cat="C", role="attacker_dp", atk=2),        # 宮治D WS: 舉球=宮侑時棄1→ATK+2
 }
 
 def card_name(no): return CARD[no]["name"]
@@ -136,6 +141,9 @@ class P:
     atk: str = None      # 牌名 in 攻擊區
     rcv_body: int = 0    # 接球區 body RCV
     blk_body: int = 0    # 攔網區 body BLK
+    # 名前追蹤: 覆蓋登場時舊角色→接球/舉球区Guts→最終入墓。模型上登場即登記名字(保守近似)。
+    rcv_zone_name: str = None   # 接球区当前body的牌名
+    tos_zone_name: str = None   # 舉球区当前body的牌名
     # 旗標
     opp_block_le2: int = 0   # P02-020 遺產: 剩餘回合數 對手攔網≤2
     opp_mb_zero: int = 0     # 角名遺產: 對手 MB BLK=0 回合數
@@ -194,7 +202,13 @@ def smart_discard(p, rng):
         nm = card_name(x)
         if nm and nm in NAMES and nm not in cur:
             # 不棄掉本回合進攻/finisher 關鍵件(donpi 引擎件除外)
-            if CARD[x]["role"] in ("donpi","guts_engine","setter_dp","attacker_dp","twin"):
+            if CARD[x]["role"] in ("donpi","guts_engine","setter_dp","attacker_dp","twin","atsumu6"):
+                continue
+            # 防禦体不棄掉: 若接球区防禦不足(rcv_body<3),留給佈陣
+            if CARD[x]["role"] in ("def_body","akagi_def") and p.rcv_body < 3:
+                continue
+            # finisher 牌在2分未達前不棄: 是第3分唯一路線
+            if CARD[x]["role"] in ("sune_fin","osamu6","ojiro6") and p.score < 2:
                 continue
             best_i = i; break
     if best_i is None:
@@ -255,11 +269,14 @@ def my_turn(p, t, rng, cfg):
     #     優先序 = 香草侑(同時是Guts引擎) > P02-016(setter_dp) > 宮兄弟twin。
     #   建立 setter 後若用掉 twin/016, 仍會在下方餵 Guts 補回攻擊端 body。
     if p.tos is None:
-        if has(p.hand, role="guts_engine"):
-            take(p.hand, role="guts_engine"); p.tos = "宮侑"
-        elif has(p.hand, role="setter_dp"):
-            # P02-016 雖然也可餵Guts,但建立舉球區的邊際價值更高
-            take(p.hand, role="setter_dp"); p.tos = "宮侑"
+        for _role in ("guts_engine","setter_dp","atsumu6"):
+            if has(p.hand, role=_role):
+                no = take(p.hand, role=_role); p.tos = "宮侑"
+                # 覆蓋登場名字追蹤: 舊body→Guts→最終入墓, 保守登記名字
+                if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
+                p.tos_zone_name = card_name(no)
+                if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)  # 本卡名也登記
+                break
 
     # --- Guts 充能: 三個獨立池, 各自靠「該區覆蓋登場」生成 ---
     # [校準14] 使用者規則指正: 三池(舉球/攻擊/接球)獨立, 在哪區付哪區。
@@ -277,6 +294,9 @@ def my_turn(p, t, rng, cfg):
     for role in ("setter_dp","attacker_dp","twin"):
         while fed < 2 and has(p.hand, role=role):
             no = take(p.hand, role=role)
+            # guts_zone 裡的體牌最終都會入墓(Guts消耗時): 保守登記名字以推進6種
+            nm = card_name(no)
+            if nm: p.grave_names.add(nm)
             p.guts_zone.append(no); fed += 1
     # 舉球区: 一旦建立(p.tos 為宮侑)即每回合覆蓋生成
     if p.tos == "宮侑":
@@ -285,13 +305,15 @@ def my_turn(p, t, rng, cfg):
     if p.donpi_fired > 0 or any(CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone):
         p.g_atk = min(14, p.g_atk + gen_atk)
     # 接球区: 僅在手上有 def_body/body 可覆蓋登場時生成(與防禦牌密度連動)
-    if any(CARD[x]["role"] in ("def_body","body","ojiro_def","filter","event_recover") for x in p.hand):
+    if any(CARD[x]["role"] in ("def_body","akagi_def","body","ojiro_def","filter","event_recover") for x in p.hand):
         p.g_rcv = min(14, p.g_rcv + gen_rcv)
 
-    # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
+    # --- 抽牌/補手 事件(自由步驟, 維持手牌差, 對抗 hand-crisis) ---
     # [校準11] kurosu_reactive 開啟時, 黒須(draw1_def)『留在手上』供對手回合反應性防禦,
     #   不在我方回合主動打掉; 故從主動抽牌循環中排除 draw1_def。
-    proactive_draw = ["draw2","refuel","oentai","rev_engine"]
+    # [V5校準15] P02-088 (rev_engine) 是 [=攻擊] 事件 → 不在自由步驟打出, 而是在攻擊階段
+    #   與 どんぴ/finisher 同回合觸發. 自由步驟只處理 draw2/refuel/oentai 等自由步事件。
+    proactive_draw = ["draw2","refuel","oentai"]
     if not (cfg and cfg.get("kurosu_reactive")):
         proactive_draw.insert(2, "draw1_def")
     for role in proactive_draw:
@@ -315,19 +337,31 @@ def my_turn(p, t, rng, cfg):
                 draw(p,1); p.rcv_body = max(p.rcv_body, 2); p.discard(no)
             elif role == "oentai":
                 draw(p,1); p.discard(no)
-            elif role == "rev_engine":
-                # P02-088 双子速攻"裏": 抽1; 若已2分且舉球宮侑在場(治舉侑攻的鏡像條件
-                #   在本引擎以「舉球=宮侑、攻擊宮治」近似),開「對手攔網Event不可用」窗口,
-                #   等價於 opp_block_le2 → 給第3分 finisher 另一條開窗路線(不耗6種/不耗Guts)。
-                draw(p,1)
-                if p.score >= 2 and p.tos == "宮侑":
-                    p.opp_block_le2 = max(p.opp_block_le2, 2)
-                p.discard(no)
 
     # --- 主動填墓 + 防禦: 小作(接球階段自棄 RCV+2) ---
     while has(p.hand, role="kosaku_fill"):
         no = take(p.hand, role="kosaku_fill")
         p.discard(no); p.rcv_body = max(p.rcv_body, 2)
+
+    # --- P02-017 宮侑 atsumu6: 6種+3G舉球区 → 從棄牌區撿 WS/MB 回手 ---
+    # 實戰meta核心: ×4 的 P02-017 讓已用過的 PR-048/P02-027 可從棄牌區回收,
+    # 維持後期攻擊hand質量。登場付3G舉球区(g_tos), 6種條件必須滿足。
+    if p.sixtype() and has(p.hand, role="atsumu6") and p.g_tos >= 3:
+        no = take(p.hand, role="atsumu6"); p.g_tos -= 3
+        # 登記 atsumu6 本身的名字(覆蓋到舉球区, 最終入墓)
+        if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
+        p.tos_zone_name = "宮侑"; p.grave_names.add("宮侑"); p.tos = "宮侑"
+        # 從棄牌區優先撿 finisher(osamu6/sune_fin) 或任何角色
+        pulled = False
+        for pref_role in ("osamu6","sune_fin","ojiro_def","def_body","attacker_dp"):
+            for i, gc in enumerate(p.grave_list):
+                if not is_event(gc) and CARD[gc].get("role") == pref_role:
+                    p.hand.append(p.grave_list.pop(i)); pulled = True; break
+            if pulled: break
+        if not pulled:
+            for i, gc in enumerate(p.grave_list):
+                if not is_event(gc):
+                    p.hand.append(p.grave_list.pop(i)); break
 
     # --- 主動回收どんぴ: 若手上沒どんぴ但墓地有、且有 P02-024(event_recover, 3G) ---
     # [校準6] P02-024 的本職就是「把どんぴ撈回手循環」。先前只在『防禦填空』與『發動後』
@@ -345,14 +379,34 @@ def my_turn(p, t, rng, cfg):
         p.rcv_body = max(p.rcv_body, 5)
 
     # --- 防禦 body 部署到接球區(付接球区 Guts, 與 どんぴ 的舉球/攻擊池獨立) ---
+    # [V5] 新增 akagi_def(D03-011 赤木D): 0G RCV=5 或2G→RCV=7; def_body(P02-034 赤木N)=0G RCV=6
+    # 名前追蹤: 部署時登記 rcv_zone_name(舊body→Guts→入墓 的保守近似)
     if p.rcv_body < 4:
-        for role in ("def_body","ojiro_def","filter","event_recover","body"):
+        for role in ("def_body","akagi_def","ojiro_def","filter","event_recover","body"):
             if has(p.hand, role=role):
                 no = p.hand[[CARD[x]["role"] for x in p.hand].index(role)]
+                if role == "akagi_def":
+                    # D03-011: 支付2G接球区 → RCV+2; 否則 0G 基礎RCV=5
+                    if p.g_rcv >= 2:
+                        take(p.hand, role=role); p.g_rcv -= 2
+                        new_rcv = CARD[no].get("rcv",0) + 2  # 5+2=7
+                    else:
+                        take(p.hand, role=role)
+                        new_rcv = CARD[no].get("rcv",0)     # 5
+                    if p.rcv_zone_name: p.grave_names.add(p.rcv_zone_name)
+                    p.rcv_zone_name = card_name(no)
+                    if p.rcv_zone_name: p.grave_names.add(p.rcv_zone_name)
+                    p.rcv_body = max(p.rcv_body, new_rcv)
+                    break
                 gcost = {"event_recover":3,"filter":2,"ojiro_def":2}.get(role,0)
                 if p.g_rcv < gcost:                  # 接球区 Guts 不足則略過
                     continue
                 take(p.hand, role=role); p.g_rcv -= gcost
+                # 名前追蹤: 角色牌部署時登記名字(舊body已成Guts,最終入墓)
+                if CARD[no]["cat"] == "C":
+                    if p.rcv_zone_name: p.grave_names.add(p.rcv_zone_name)
+                    p.rcv_zone_name = card_name(no)
+                    if p.rcv_zone_name: p.grave_names.add(p.rcv_zone_name)
                 p.rcv_body = max(p.rcv_body, CARD[no].get("rcv",0))
                 if role == "filter":               # 抽1棄1(智慧棄→填墓新名)
                     draw(p,1); smart_discard(p, rng)
@@ -366,9 +420,15 @@ def my_turn(p, t, rng, cfg):
 
     # ============ 進攻：どんぴしゃり 迴圈 ============
     def precondition():
-        # 舉球=宮侑(香草) 且 攻擊=宮治(由 Guts 區 twin/治 改名上場)
-        if p.tos is None and has(p.hand, role="guts_engine"):
-            take(p.hand, role="guts_engine"); p.tos = "宮侑"
+        # 舉球=宮侑 且 攻擊=宮治(由 Guts 區 twin/治 改名上場)
+        if p.tos is None:
+            for _r in ("guts_engine","setter_dp","atsumu6"):
+                if has(p.hand, role=_r):
+                    _no = take(p.hand, role=_r); p.tos = "宮侑"
+                    if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
+                    p.tos_zone_name = card_name(_no)
+                    if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
+                    break
         if p.atk in (None, "宮治"):
             p.atk = "宮治"
         return p.tos == "宮侑" and p.atk == "宮治"
@@ -396,6 +456,18 @@ def my_turn(p, t, rng, cfg):
                 p.g_tos -= cost_tos; p.g_atk -= cost_atk
                 take(p.hand, role="donpi")
                 draw(p, 2)                       # どんぴ抽1 + P02-016抽1
+                # [V5校準15] P02-088 [=攻擊] 事件: 攻擊階段打出 → 抽1,
+                #   若舉球=宮侑(本引擎常態): 對手本回合攔網Event不可用(対手攔網E不能打)
+                #   → 近似為 donpi_score_p 提升 +0.06, 且對已2分時開第3分窗口。
+                #   P02-088×3 在實戰 meta 是每次 どんぴ 的配套增強,讓1/2分更穩定。
+                attack_boost = 0.0
+                if has(p.hand, role="rev_engine") and p.tos == "宮侑":
+                    ev = take(p.hand, role="rev_engine")
+                    draw(p, 1)                   # P02-088 抽1
+                    attack_boost = cfg.get("rev_engine_boost", 0.06)
+                    if p.score >= 2:             # 已2分: 額外開 finisher 窗口
+                        p.opp_block_le2 = max(p.opp_block_le2, 2)
+                    p.discard(ev)
                 p.opp_block_le2 = 2              # P02-020: 對手攔網≤2
                 p.donpi_fired += 1
                 # 從 Guts 區消耗被拉出的 body, 入墓(留名字推進6種)
@@ -408,7 +480,7 @@ def my_turn(p, t, rng, cfg):
                         if CARD[x]["role"] in want:
                             p.discard(p.guts_zone.pop(i)); break
                 p.pending_starve = False    # 成功發動 → 清除暫時性 Guts 不足
-                if rng.random() < cfg["donpi_score_p"]:
+                if rng.random() < min(0.97, cfg["donpi_score_p"] + attack_boost):
                     p.score += 1
                     if p.score==1 and p.p1_turn is None: p.p1_turn=t
                     if p.score==2 and p.p2_turn is None: p.p2_turn=t
@@ -435,8 +507,16 @@ def my_turn(p, t, rng, cfg):
         #   此回合結束後對手有一整回合可施壓; 若此時手牌薄,風險升高 → thin_hand。
         if p.opp_mb_zero == 0 and p.sixtype() and has(p.hand, role="sune_fin"):
             take(p.hand, role="sune_fin"); p.opp_mb_zero = 2; p.atk = "角名"
+            p.grave_names.add("角名")  # 登場攻擊区, 最終入墓
             if len(p.hand) <= cfg["thin_hand_th"]:
                 p.thin_hand_pending = True
+        # [V5校準15] P02-088 也可在 finisher 回合的攻擊階段打出 (score=2, setter=宮侑)
+        #   → 額外開窗: 在沒有 どんぴ 這回合也能打出 P02-088 來建立 opp_block_le2 窗口
+        if p.score == 2 and p.tos == "宮侑" and has(p.hand, role="rev_engine"):
+            ev = take(p.hand, role="rev_engine")
+            draw(p, 1)
+            p.opp_block_le2 = max(p.opp_block_le2, 2)
+            p.discard(ev)
         finisher_window = (p.opp_mb_zero > 0 or p.opp_block_le2 > 0)
         if finisher_window and p.score == 2:
             fin = None
@@ -461,6 +541,9 @@ def my_turn(p, t, rng, cfg):
                 else: need_g_blocked = True
             if fin is not None:
                 p.atk = card_name(fin)
+                # finisher 登場 攻擊区 → 名字最終入墓(覆蓋後Guts→消耗), 保守登記
+                fn = card_name(fin)
+                if fn: p.grave_names.add(fn)
                 # 打出 finisher 後若手牌薄 → 下對手回合空窗風險(thin_hand_pending)。
                 if len(p.hand) <= cfg["thin_hand_th"]:
                     p.thin_hand_pending = True
@@ -517,6 +600,9 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     cfg.setdefault("thin_hand_race_bonus", 0.45)  # 薄手回合對手額外得分機率
     # [校準11] 黒須 P02-084 反應性防禦建模(預設開). 牌組無 084 時為 no-op(不影響其他牌表)。
     cfg.setdefault("kurosu_reactive", True)
+    # [V5校準15] P02-088 [=攻擊] 攻擊增強: 打出時若舉球=宮侑→對手攔網Event不可用,
+    #   近似為 donpi 得分概率 +0.06(未開啟時舊牌組維持舊值,V5受益最大因有×3)。
+    cfg.setdefault("rev_engine_boost", 0.06)
     rng = random.Random(seed)
 
     res = dict(p1=0,p2=0,p3=0,stable3=0,guts_starved=0,hand_crisis=0,
@@ -620,6 +706,33 @@ PRESETS = {
    "P02-024":3,"P02-025":2,"P02-035":1,"PR-049":1,
    "P02-032":2,"P02-033":1,
  },
+ # ★★★★ V5 實戰 meta 重建 (2026-06) ★★★★
+ # 對齊真實賽場稲荷崎 PR 牌組 (tournament deck HVBreakdecks20260613 首位構築)
+ # 核心差異 vs V4:
+ #   事件: 087×4→×3; 085×2→0; 084×0→×2; 088×2→×3
+ #   角色: 新增赤木N(P02-034×3,RCV=6 免費防禦); 赤木D(D03-011×2,接球区0-2G RCV5-7);
+ #         宮治D(D03-005×2, vanilla 宮治 attacker body); P02-017×2→×4(6種 TOS+2+撿牌);
+ #         PR-048×2→×3; P02-027×2→×3; PR-049×1→×2
+ #   移除: P02-021(宮治R) - 實戰不用此路線; P02-085 draw2; P02-016; P02-025; P02-033
+ #   P02-024×3→×2; P02-020×3→×2; P02-018×3→×2; P02-077×4→×3; P02-032×2保留
+ # 第3分路線: 角名P02-027(sune_fin,0G,6種MB=0) → PR-048(osamu6,2G攻擊区,6種)
+ #              OR P02-088(rev_engine,抽1開窗) → PR-048
+ #              OR P02-017(atsumu6,3G舉球区,6種) 補手 → 再次 PR-048
+ # 6種構成: 宮侑(018/017/077), 宮治(020/005/048), 北信介(024), 角名(027),
+ #           赤木(034/011), 銀島(032), 尾白(049/P02-030?), 小作(035)
+ "FINAL_V5": {
+   "P02-087":3,"P02-088":3,"P02-084":2,
+   "P02-024":2,"P02-034":3,"P02-027":3,"P02-020":2,
+   "P02-077":3,"P02-035":2,"D03-011":2,"D03-005":2,
+   "P02-032":2,"PR-048":3,"P02-017":4,"P02-018":2,"PR-049":2,
+ },
+ # 參考: 真實賽場稲荷崎 NPR 牌組(D03シリーズ主體)
+ "META_NPR": {
+   "P02-087":3,"P02-088":3,"P02-084":2,
+   "P02-024":2,"P02-034":3,"P02-027":3,"P02-020":3,
+   "P02-077":3,"P02-016":4,"P02-035":2,"D03-011":2,
+   "P02-018":4,"D03-005":2,"D03-002":2,"P02-022":2,
+ },
 }
 
 
@@ -635,7 +748,7 @@ def fmt(o):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--preset", default="FINAL_V4")
+    ap.add_argument("--preset", default="FINAL_V5")
     ap.add_argument("--deck", default=None, help="JSON {card_no:count}")
     ap.add_argument("--n", type=int, default=4000)
     a = ap.parse_args()

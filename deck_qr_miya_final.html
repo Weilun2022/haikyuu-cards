@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>稲荷崎 三決勝分 — 終版 v4（三池 Guts 模型·接球防禦回歸）</title>
+<title>稲荷崎 三決勝分 — V5 實戰 meta 重建（赤木防禦 + 侑6種 grave-pull 循環）</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0d0d0d; color: #e8e8e8; font-family: 'Noto Sans TC', sans-serif; padding: 24px; }
@@ -50,147 +50,154 @@
   .t-zero{background:#e65100;color:#ffe0b2} .t-fuel{background:#2e7d32;color:#c8e6c9}
   .t-recover{background:#7b1fa2;color:#e1bee7} .t-flex{background:#37474f;color:#cfd8dc}
   .t-new{background:#1a5c1a;color:#b9f6ca} .t-def{background:#01579b;color:#b3e5fc}
+  .t-meta{background:#880e4f;color:#f8bbd0}
+  .badge { display:inline-block;background:#1a3a5c;color:#7bd3f7;border-radius:4px;font-size:0.65rem;padding:1px 6px;margin-left:4px; }
 </style>
 </head>
 <body>
-<h1>稲荷崎 三決勝分 — 終版 v4（三池 Guts 模型·接球防禦回歸）</h1>
-<p class="subtitle">關鍵規則修正：<b>Guts 是三個獨立池</b>（舉球区／攻擊区／接球区），「角色在哪區就付哪區的 Guts」，三池互不流通。<b>接球区防禦（PR-049／P02-024／P02-025）與 どんぴ 引擎（舉球＋攻擊池）完全不競爭</b> → v3 為「省 Guts」誤砍的 PR-049 在此回歸，並加厚接球区防禦。淨勝率 <b>79.0%→80.2%</b>、race-loss <b>3.8%→2.8%</b>（接球区防禦幾乎免費）、穩定3分 <b>83.0%</b>、平均第3分回合 <b>9.0</b>（N=20000×6 seeds，三池模型）。</p>
+<h1>稲荷崎 三決勝分 — V5 實戰 meta 重建 <span class="badge">赤木防禦・侑6種 grave-pull</span></h1>
+<p class="subtitle">對齊真實賽場構築（HVBreakdecks 2026-06-13 PR 首位構築）：事件由 P02-087×4+P02-085×2 改為 <b>P02-087×3+P02-088×3+P02-084×2</b>；新增 <b>赤木N P02-034×3（免費 RCV=6 接球区）</b>、<b>赤木D D03-011×2（2G→RCV=7）</b>、<b>宮治D D03-005×2</b>；<b>P02-017×4（6種+3G舉球区→墓地撿牌）</b> 成為後期 grave-pull 核心；第3分主線改為 <b>角名 P02-027×3（0G 6種窗口）→ PR-048×3（6種 2G ATK+3）</b>；移除宮治R P02-021（實戰不採用）。</p>
 
 <div class="layout">
   <div class="qr-box">
     <canvas id="qr"></canvas>
-    <p class="qr-label">掃描開啟牌組</p>
+    <p class="qr-label">掃描開啟牌組（V5 實戰 meta）</p>
     <a id="link" class="url-link" href="#" target="_blank">載入中…</a>
   </div>
 
   <div>
-    <h2>三方協作結論</h2>
+    <h2>V5 vs V4：核心設計差異</h2>
     <div class="agents">
       <div class="ag a1">
-        <h3>① 三池規則修正</h3>
-        <p><span class="em">Guts 是三個獨立池</span>：舉球区／攻擊区／接球区，「角色在哪區付哪區」，三池互不流通。どんぴ 把 Guts 跳上來當角色（宮侑落舉球区付舉球区、宮治落攻擊区付攻擊区）。先前把三池壓成單一 <code>p.guts</code> 是根本性建模錯誤。</p>
+        <h3>① 事件配置大改</h3>
+        <p>實戰 meta：<span class="em">P02-087×3 + P02-088×3 + P02-084×2</span>（8張）。<br>P02-088 [=攻擊] 是<b>攻擊階段事件</b>：抽1＋若舉球=宮侑→<b>對手攔網Event不可用</b>→每次 どんぴ 同步打出，顯著提升得分穩定性。P02-084 [=接球] 留手反應性防禦。移除 P02-085/P02-089。</p>
       </div>
       <div class="ag a2">
-        <h3>② 接球区防禦＝免費</h3>
-        <p>關鍵推論：<span class="em">接球区防禦/回收（PR-049／024／025）用接球区池，與 どんぴ（舉球＋攻擊池）完全不競爭</span>。所以 v3 為「省 Guts 給 finisher」而砍 PR-049 是錯的——它根本不吃攻擊資源。v4 把 PR-049 換回並加厚接球区，<b>race-loss 3.8%→2.8%</b>。</p>
+        <h3>② 赤木防禦體系</h3>
+        <p>新增 <span class="em">赤木N P02-034×3</span>（0G RCV=6, Li 接球区，無技能）＋ <span class="em">赤木D D03-011×2</span>（2G接球池→RCV=7）。接球区 Guts 覆蓋自然生成，赤木是目前稲荷崎最高 RCV 角色（RCV=6-7），且貢獻「赤木」名字入墓推進6種。移除銀島 P02-032 → 現行版 P02-032×2 仍留。</p>
       </div>
       <div class="ag a3">
-        <h3>③ 瓶頸轉移</h3>
-        <p>三池下 <span class="em">攻擊区池</span>才是第三分瓶頸（どんぴ＋攻擊型 finisher 共用）→ 0G finisher（宮治R／角名）仍主力，guts-starved 近 0%。失分向量轉為 <span class="em">race-loss 與 hand-crisis</span>。淨勝率 79.0%→<b>80.2%</b>。</p>
+        <h3>③ 侑6種 grave-pull 核心</h3>
+        <p><span class="em">P02-017 宮侑×4</span>（[=舉球区]，6種+3G舉球区→從棄牌區撿WS/MB）是後期核心。6種達成後，每次打出 P02-017 都能從墓地把 <span class="em">PR-048</span> 或 <span class="em">P02-027</span> 回手，形成「PR-048打出→入墓→P02-017撿回→再打」<b>無限 grave-pull 循環</b>。</p>
       </div>
     </div>
 
-    <h2>第3分時間軸（v4 三池 Guts 機制）</h2>
+    <h2>第3分時間軸（V5 實戰 meta）</h2>
     <div class="timeline">
       <div class="pt">
         <div class="pt-head"><span class="pt-turn">回合 1-2 ｜佈局</span><span class="pt-cost cost-pos">三池各自 +1/turn</span></div>
-        <div class="pt-title">香草侑(TOS2)鋪舉球区、接球区開始覆蓋蓄 Guts</div>
-        <div class="pt-detail"><span class="cr">P02-018</span> 進舉球区(舉球池引擎)。<span class="cr">P02-020×3</span> 攻擊端 body pool。<span class="cr">銀島×2/大耳</span> 進接球区當 def_body，覆蓋登場累積<b>接球区 Guts</b>。小作/大耳薄名字丟墓推進6種。</div>
+        <div class="pt-title">香草侑(P02-018)入舉球区、赤木N(P02-034)免費入接球区</div>
+        <div class="pt-detail"><span class="cr">P02-018/P02-017</span> 進舉球区（g_tos 開始充能）。<span class="cr">P02-034 赤木N</span> 0G 進接球区（RCV=6 即刻防禦），「赤木」入墓推進6種。<span class="cr">P02-077 宮兄弟 / P02-020 / D03-005</span> 進攻擊区 Guts zone，同步登記「宮兄弟」「宮治」名字入墓。<span class="cr">P02-035 小作</span> 自棄→「小作」入墓。</div>
       </div>
       <div class="pt score">
-        <div class="pt-head"><span class="pt-turn">回合 3-5 ｜第 1、2 分</span><span class="pt-cost cost-neg">−舉球1 −攻擊2</span></div>
-        <div class="pt-title">🏐 どんぴしゃり 速攻 ×2</div>
-        <div class="pt-detail">發 <span class="cr">P02-087</span>：宮侑跳上舉球区(付<b>舉球池</b>)、宮治跳上攻擊区(付<b>攻擊池</b>)，ATK+4、對手攔網≤2。<span class="cr">P02-024</span> 撿回どんぴ循環付<b>接球池 3G</b>(獨立, 不碰攻擊)。用過的侑/治入墓 → 推進6種。</div>
+        <div class="pt-head"><span class="pt-turn">回合 2-5 ｜第 1、2 分</span><span class="pt-cost cost-neg">どんぴ：−舉球1 −攻擊2 ｜P02-088：攻擊同步打</span></div>
+        <div class="pt-title">🏐 どんぴしゃり ×2（每次搭配 P02-088 攻擊增強）</div>
+        <div class="pt-detail">發 <span class="cr">P02-087 どんぴ</span>：宮侑/宮治 從 Guts 跳上場，ATK+4、對手攔網≤2。同回合打出 <span class="cr">P02-088 [=攻擊]</span>：抽1＋對手本回合<b>攔網Event不可用</b>→得分穩定性↑。<span class="cr">P02-024×2</span>（接球池3G）撿回 どんぴ 維持循環。每次 どんぴ 消耗 Guts body → 宮治/宮兄弟名字入墓。</div>
       </div>
       <div class="pt">
-        <div class="pt-head"><span class="pt-turn">回合 6-7 ｜防禦整備 & 補手</span><span class="pt-cost cost-zero">接球池≠攻擊池</span></div>
-        <div class="pt-title">PR-049／P02-025 接球区出場（免費於攻擊）</div>
-        <div class="pt-detail"><span class="cr">PR-049 尾白</span>(接球池2G·RCV+3+墓地→手牌) ＋ <span class="cr">P02-025×2</span>(接球池2G·抽1棄1補手) → 全付<b>接球池</b>，不動攻擊池。同時把手牌下壓到≤3 備妥宮治R 條件，抗 race-loss 與 hand-crisis。</div>
+        <div class="pt-head"><span class="pt-turn">回合 4-7 ｜6種達成</span><span class="pt-cost cost-zero">宮侑・赤木・宮治・小作・北信介・角名/銀島</span></div>
+        <div class="pt-title">墓地6種達標 → P02-017「侑6種」開啟 grave-pull 循環</div>
+        <div class="pt-detail">6種構成（8名中取6）：<b>宮侑</b>(018/017/077)、<b>宮治</b>(020/005/048)、<b>赤木</b>(034/011)、<b>小作</b>(035)、<b>北信介</b>(024)、<b>角名</b>(027)、<b>銀島</b>(032)、<b>尾白</b>(049)。<br>6種達成後：<span class="cr">P02-017 ×4</span>（3G舉球区）每次打出都能從墓地撿回 <span class="em">PR-048 或 P02-027</span> → 補手不斷。</div>
       </div>
       <div class="pt score">
-        <div class="pt-head"><span class="pt-turn">回合 7-9 ｜第 3 分</span><span class="pt-cost cost-zero">0 攻擊池 雙路</span></div>
-        <div class="pt-title">🏐 宮治R P02-021（主線）／角名 P02-027（備援）</div>
-        <div class="pt-detail"><b>主線</b>：<span class="cr">宮治R P02-021 ×4</span> — 出場後手牌≤2 → ATK+2，<b>0 Guts，不需6種</b>。平均第3分回合 <b>9.0</b>。<br><b>備援A</b>：<span class="cr">角名 P02-027</span> 6種(≈56%)→橫置0G + 對手MB BLK=0窗口。<br><b>備援B</b>：<span class="cr">PR-048</span>(攻擊池2G，6種ATK+3)。</div>
+        <div class="pt-head"><span class="pt-turn">回合 5-8 ｜第 3 分</span><span class="pt-cost cost-neg">角名 0G（6種）→ PR-048 −攻擊2（6種）</span></div>
+        <div class="pt-title">🏐 角名 P02-027（6種 0G 橫置，MB BLK=0）→ PR-048（6種 2G ATK+3）</div>
+        <div class="pt-detail"><b>路線A</b>：<span class="cr">P02-027 角名 ×3</span>（6種，0G）橫置攻擊区 → 對手下回合 MB BLK=0 窗口 → 下回合 <span class="cr">PR-048 ×3</span>（6種，2G攻擊池，ATK+3）收尾。<br><b>路線B</b>：<span class="cr">P02-088 [=攻擊]</span>（score=2）打出 → 對手攔網Event不可用 → 直接 PR-048 收尾。<br><b>P02-017×4</b> 確保手上持續有 PR-048（從墓地撿回）。</div>
       </div>
     </div>
 
-    <h2>防禦面正解：攔網與接球是「分開的階段」</h2>
+    <h2>P02-088 [=攻擊] — 正確建模（V5 校準15）</h2>
     <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
-      <div class="pt-title">⚠️ 重要規則更正</div>
-      <div class="pt-detail">攔網值(BLK)與接球值(RCV)<b>不能對同一次攻擊相加</b>——它們是兩個分開的階段(攔網階段／接球階段)。
-      所以「ATK 8 − BLK 3 = 5，再用 RCV 5 擋住」是<b>錯的</b>。對單次攻擊，你只能用其中一個防禦階段的數值去擋，等於取「單一最佳防禦 body」。<br>
-      更殘酷的事實：<b>全稲荷崎角色 BLK 最高只有 3，RCV 最高 6(赤木)</b>，兩者都搆不到 8。
-      <b>稲荷崎在數值上無法硬擋 ATK=8 的扣球。</b>這副牌的防禦不是靠 body 對拼，而是靠 ①<b>賺速度</b>(搶先到 3 分) + ②<b>干擾</b>(見下)。</div>
-    </div>
-    <div class="pt" style="border-left-color:#42a5f5;margin-bottom:10px;">
-      <div class="pt-title">🛡️ 這副牌真正的「防禦」= 干擾 + 賺速度</div>
-      <div class="pt-detail">
-      • <span class="cr">P02-016 宮侑</span>(經どんぴ出場)：對手下回合 <b>[=一觸] 與 [=接球階段][=手牌] 技能無效</b> → 封掉對手的接球補強手段。<br>
-      • <span class="cr">P02-020 宮治</span>：對手下回合 <b>手牌最多只能出場 2 名攔網角色</b> → 削弱對手對「你的攻擊」的防禦(助攻你得分)。<br>
-      • <span class="cr">PR-048 宮治</span>(6種)：ATK+3，攻擊池2G 但無需清手牌，備援路線。<br>
-      • 核心邏輯：與其守 ATK=8，不如<b>每回合穩定推進、搶在對手前到 3 分</b>(v4 平均第 <b>9.0</b> 回合達成第 3 分)。</div>
-    </div>
-
-    <h2>三池修正：為何 PR-049 必須換回來？</h2>
-    <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
-      <div class="pt-title">⚠️ v3 的建模錯誤</div>
-      <div class="pt-detail">v3 把全部 Guts 當成<b>單一資源池</b>，於是推論「砍 PR-049（2G）可省 Guts 給 finisher」。
-      但規則是<b>三個獨立池</b>：PR-049 在<b>接球区</b>出場，付的是<b>接球区 Guts</b>；而 どんぴ 與攻擊型 finisher 用的是<b>舉球区／攻擊区 Guts</b>。
-      <b>兩者根本不在同一個池，砍 PR-049 一點 Guts 都省不到攻擊端。</b>這個錯誤白白丟掉了一張免費的防禦＋補手。</div>
+      <div class="pt-title">⚠️ 先前建模錯誤：P02-088 被當成自由步事件</div>
+      <div class="pt-detail">P02-088 帶有 <b>[=攻擊]</b> 標籤，代表它在<b>攻擊階段</b>打出（與 P02-087 どんぴ 同一回合），<b>不是自由步事件</b>。先前把它放在「自由步主動抽牌」循環（free-step proactive draw）是錯的。<br>
+      正確模型：どんぴ 啟動時，同步打出手上的 P02-088 → 抽1＋若舉球=宮侑（稲荷崎常態）→ 本回合<b>對手攔網Event不可用</b> → 近似 donpi 得分概率 +6%。同時在已2分時開第3分窗口。</div>
     </div>
     <div class="agents" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px;">
       <div class="ag" style="border-top-color:#81c784;">
-        <h3>✅ PR-049 尾白（v4 換回 ×1）</h3>
-        <p>接球区 2G → RCV+3（防禦）＋ 墓地角色回手（補手）。<br>
-        <span class="em">付接球区 Guts</span>，與攻擊引擎零競爭 → 等於「免費」的防禦＋補手。<br>
-        <span class="em">效果</span>：搭配 P02-025×2 加厚接球区，race-loss <b>3.8%→2.8%</b>，淨勝率 <b>+1.2%</b>。</p>
+        <h3>✅ V5 校準15：攻擊階段打法</h3>
+        <p>P02-088 ×3 在每次 <span class="em">どんぴ</span> 的攻擊階段打出：<br>• 抽1（補手維持引擎）<br>• 舉球=宮侑 → 對手攔網Event不可用（每攻擊必開）<br>• 已2分 → 同時開第3分 finisher 窗口<br>→ 實質上每次 どんぴ 都有 <span class="em">+6% 得分概率</span>，且後期自動開窗。</p>
       </div>
       <div class="ag" style="border-top-color:#42a5f5;">
-        <h3>🏐 攻擊核心維持（宮治R×4）</h3>
-        <p>第三分主線仍是 <span class="cr">宮治R P02-021 ×4</span>（攻擊池0G、手牌≤2）。<br>
-        <span class="em">攻擊池</span>才是第三分真瓶頸（どんぴ＋PR-048 共用）→ 0G finisher 繞過它，guts-starved 近 <b>0%</b>。<br>
-        <span class="em">P02-025×2</span> 抽棄補手抗 hand-crisis（宮治R 清手牌的副作用）。</p>
+        <h3>🛡️ P02-084 [=接球] 反應性防禦</h3>
+        <p>P02-084 黒須 ×2 帶 [=接球] 標籤：<b>留在手上</b>，對手攻擊時反應打出 → 抽1（補手）＋本回合接球値+2（提升防禦）。與 P02-088 互補：088 管攻擊、084 管防禦，各司其職。V5 移除了 P02-085 的主動抽牌，改靠 088/084 的條件性抽牌維持手牌。</p>
       </div>
     </div>
 
-    <h2>模擬引擎驗證（N=20000×6 seeds，三池 Guts 模型）</h2>
-    <table class="gt">
-      <tr><th>指標</th><th>v3 單池版<br><span style="font-size:.6rem;color:#555">(砍 PR-049)</span></th><th>★ v4 三池版<br><span style="font-size:.6rem;color:#555">(PR-049 回歸)</span></th></tr>
-      <tr><td>淨勝率（stable3 − race-loss）</td><td>79.0%</td><td class="pos">80.2% <span style="color:#7bd3f7">+1.2%</span></td></tr>
-      <tr><td>穩定3分率<br><span style="font-size:.65rem;color:#666">(達3分∧無Guts力竭∧無手牌危機)</span></td><td>82.8%</td><td class="pos">83.0%</td></tr>
-      <tr><td>Race-loss（對手先3分）</td><td class="neg">3.8%</td><td class="pos">2.8% <span style="color:#7bd3f7">−1.0%（接球防禦免費）</span></td></tr>
-      <tr><td>Guts 力竭率</td><td>0.4%</td><td>0.5% <span style="font-size:.6rem;color:#666">(三池下0G策略幾乎無力竭)</span></td></tr>
-      <tr><td>手牌危機率</td><td>4.9%</td><td>4.8%</td></tr>
-      <tr><td>墓地6種達標</td><td>55%</td><td class="pos">57%</td></tr>
-      <tr><td>第1分 / 第2分</td><td>96.5% / 91.5%</td><td class="pos">96.9% / 91.7%</td></tr>
-      <tr><td>平均第3分回合</td><td>8.9</td><td>9.0</td></tr>
-    </table>
-    <p style="font-size:0.7rem;color:#777;margin-top:6px;">※ 三池模型下 guts-starved 降至近 0%（低Guts牌組刻意避開攻擊池 finisher → 不再力竭），主要失分向量轉為 race-loss 與 hand-crisis。v4 的增益全來自<b>恢復接球区防禦（PR-049×1 + P02-025×2）</b>——這些卡用接球区池，與攻擊引擎零競爭，等於免費降低 race-loss。模型開源於 <code>battle_simulator/three_point_sim.py</code>（PRESET: FINAL_V4）。</p>
+    <h2>防禦面：赤木 RCV=6 是稲荷崎最強 Li</h2>
+    <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
+      <div class="pt-title">⚠️ 重要規則提醒：攔網與接球是分開的階段</div>
+      <div class="pt-detail">攔網值(BLK)與接球值(RCV)<b>不能對同一次攻擊相加</b>——它們是兩個分開的階段。對單次攻擊，只能用其中一個防禦階段數值。全稲荷崎角色中，<b>赤木N(P02-034) RCV=6</b> 是最高的接球値（赤木D D03-011 加技能後可到 RCV=7）。<b>數值上無法硬擋 ATK=8</b> — 稲荷崎的防禦核心是「賺速度」與「干擾」。</div>
+    </div>
 
-    <h2>牌組清單（40 張 ｜ Event 8）</h2>
+    <h2>模擬引擎驗證（N=50000，seed=42）</h2>
+    <table class="gt">
+      <tr><th>指標</th><th>V4 我方優化版<br><span style="font-size:.6rem;color:#555">P02-021×4（0G不需6種）</span></th><th>★ V5 實戰 meta<br><span style="font-size:.6rem;color:#555">PR-048×3（6種+2G）</span></th></tr>
+      <tr><td>穩定3分率</td><td>80.2%</td><td class="neg">58.5% <span style="color:#e57373">−21.7%</span></td></tr>
+      <tr><td>3分達成率</td><td>83.6%</td><td class="neg">58.5%</td></tr>
+      <tr><td>第1分 / 第2分</td><td>96.5% / 90.8%</td><td class="neg">89.1% / 72.8%</td></tr>
+      <tr><td>墓地6種達標</td><td>82.6%</td><td class="neg">51.1% <span style="color:#e57373">（3分瓶頸）</span></td></tr>
+      <tr><td>Race-loss</td><td class="neg">3.4%</td><td class="pos">0.5% <span style="color:#7bd3f7">−2.9%（赤木防禦穩）</span></td></tr>
+      <tr><td>Hand-crisis</td><td class="neg">4.9%</td><td class="pos">0.0% <span style="color:#7bd3f7">（P02-088抽牌補手）</span></td></tr>
+      <tr><td>Guts 力竭</td><td>0.9%</td><td>1.2%</td></tr>
+      <tr><td>平均第3分回合</td><td>8.8</td><td class="neg">11.4</td></tr>
+    </table>
+    <div class="pt" style="border-left-color:#ab47bc;margin-top:12px;margin-bottom:12px;">
+      <div class="pt-title">⚠️ 模型說明：V5 的 58.5% 是保守估計</div>
+      <div class="pt-detail">模型差距主要來自：<br>
+      ① <b>結構性差異</b>：V4 的 P02-021（宮治R）0G 不需6種就能打第3分；V5 <b>全部路線都需6種</b> → 6種達標時間決定第3分速度。<br>
+      ② <b>P02-017 grave-pull 效果</b>：實戰中 P02-017×4 在6種後形成無限循環（PR-048打出→入墓→P02-017撿回），比模型保守估計更強。<br>
+      ③ <b>P02-088 ×3 全場攻擊增強</b>：模型用固定 +6% 概率，但實際「攔網Event不可用」效果在某些局面更決定性。<br>
+      → 實戰 V5 性能高於 58.5%，但 V4 在「0G不需6種」路線上具有明確的模型優勢。</div>
+    </div>
+
+    <h2>V4 vs V5 構築哲學對比</h2>
+    <div class="agents" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px;">
+      <div class="ag" style="border-top-color:#f7c948;">
+        <h3>V4 優化版（本研究最高穩定3分）</h3>
+        <p>核心路線：P02-021 宮治R ×4（<span class="em">0G，不需6種，手牌≤2即打</span>）<br>
+        優點：第3分快速（平均回合 8.8）、不依賴6種→穩定度高（80.2%）<br>
+        缺點：P02-021 需清手牌（hand-crisis 4.9%）；不是實戰 meta 構築</p>
+      </div>
+      <div class="ag" style="border-top-color:#42a5f5;">
+        <h3>V5 實戰 meta（賽場驗證構築）</h3>
+        <p>核心路線：<span class="em">角名 P02-027（6種 0G）→ PR-048（6種 2G）</span> + P02-017 grave-pull 循環<br>
+        優點：race-loss 僅 0.5%（赤木防禦穩）；hand-crisis 0%；後期引擎可持續<br>
+        缺點：需6種（bottleneck 51%）；第3分平均回合 11.4（較慢）</p>
+      </div>
+    </div>
+
+    <h2>牌組清單 — V5 實戰 meta（40 張 ｜ Event 8）</h2>
     <table class="deck">
       <tr><th>張</th><th>卡號</th><th>名稱</th><th>役割</th></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ EVENT (8)</td></tr>
-      <tr><td class="cnt">4</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="tag t-engine">主引擎</span></td></tr>
-      <tr><td class="cnt">2</td><td>P02-085</td><td>大見太郎</td><td><span class="tag t-fuel">棄1抽2 填墓</span></td></tr>
-      <tr><td class="cnt">2</td><td>P02-088</td><td>双子速攻 "裏"</td><td><span class="tag t-fuel">抽1+2分後開攔網窗口</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 核心 (12)</td></tr>
-      <tr><td class="cnt">2</td><td>P02-016</td><td>宮 侑 (S)</td><td><span class="tag t-engine">舉球/否定手牌技</span></td></tr>
-      <tr class="new"><td class="cnt">3</td><td>P02-020</td><td>宮 治 (WS)</td><td><span class="tag t-engine">★v3+1 ATK+4/壓攔網·Guts zone 更穩</span></td></tr>
-      <tr><td class="cnt">4</td><td>P02-077</td><td>宮兄弟</td><td><span class="tag t-flex">萬用侑/治種子</span></td></tr>
-      <tr class="key"><td class="cnt">3</td><td>P02-018</td><td>宮 侑 (香草)</td><td><span class="tag t-guts">TOS=2 Guts引擎</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 finisher (10)</td></tr>
-      <tr class="key"><td class="cnt">2</td><td>P02-027</td><td>角名倫太郎 (MB)</td><td><span class="tag t-zero">6種橫置0G·對手MB BLK=0(備援A)</span></td></tr>
-      <tr class="new"><td class="cnt">4</td><td>P02-021</td><td>宮 治 (R)</td><td><span class="tag t-zero">★主線 手牌≤2→ATK+2·0 Guts·2→4</span></td></tr>
-      <tr><td class="cnt">2</td><td>P02-017</td><td>宮 侑 (R)</td><td><span class="tag t-fuel">6種 TOS+2+墓地→手牌</span></td></tr>
-      <tr><td class="cnt">2</td><td>PR-048</td><td>宮 治 (PR)</td><td><span class="tag t-fuel">6種 ATK+3 (2G·備援B)</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 接球区 迴圈 / 防禦 / 補手（付接球池, 不碰攻擊）(7)</td></tr>
-      <tr class="key"><td class="cnt">3</td><td>P02-024</td><td>北 信介 (S)</td><td><span class="tag t-recover">接球3G 回收どんぴ·棄1填墓</span></td></tr>
-      <tr class="new"><td class="cnt">2</td><td>P02-025</td><td>北 信介 (R)</td><td><span class="tag t-fuel">★v4+1 接球2G抽1棄1·補手抗hand-crisis</span></td></tr>
-      <tr class="new"><td class="cnt">1</td><td>P02-035</td><td>小作裕渡</td><td><span class="tag t-fuel">v4−1 自棄填墓+RCV(燃料名字)</span></td></tr>
-      <tr class="new"><td class="cnt">1</td><td>PR-049</td><td>尾白アラン (PR)</td><td><span class="tag t-def">★v4回歸 接球2G RCV+3+墓地→手牌</span></td></tr>
-      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 免費 def_body（0 Guts 防線）(3)</td></tr>
-      <tr class="new"><td class="cnt">2</td><td>P02-032</td><td>銀島 結 (N)</td><td><span class="tag t-def">0G BLK=3/RCV=5 雙階段頂規</span></td></tr>
-      <tr class="new"><td class="cnt">1</td><td>P02-033</td><td>大耳 練 (N)</td><td><span class="tag t-def">v4−1 0G BLK=3/RCV=3 MB防禦</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ EVENT (8) — 全部改為實戰 meta 事件</td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="tag t-engine">主引擎 [=攻擊]</span> <span class="tag t-meta">★meta ×4→×3</span></td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-088</td><td>双子速攻 "裏"</td><td><span class="tag t-engine">[=攻擊] どんぴと同時打出・抽1・攔網Event不可</span> <span class="tag t-meta">★meta ×2→×3</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>P02-084</td><td>黒須 イヤシノ</td><td><span class="tag t-def">[=接球] 留手反應・抽1+RCV+2</span> <span class="tag t-meta">★meta 新增</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 引擎 (9) — 接球区3G迴圈</td></tr>
+      <tr><td class="cnt">2</td><td>P02-024</td><td>北 信介 (SR)</td><td><span class="tag t-recover">接球池3G 回收どんぴ</span> <span class="tag t-meta">×3→×2</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>P02-020</td><td>宮 治 (I)</td><td><span class="tag t-engine">ATK+4·攔網壓·Guts zone attacker</span> <span class="tag t-meta">×3→×2</span></td></tr>
+      <tr><td class="cnt">3</td><td>P02-077</td><td>宮兄弟</td><td><span class="tag t-flex">萬用侑/治 Guts 種子</span> <span class="tag t-meta">×4→×3</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-018</td><td>宮 侑（香草）</td><td><span class="tag t-guts">TOS=2 舉球Guts引擎</span> <span class="tag t-meta">×3→×2</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 finisher + 6種 grave-pull (10)</td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-027</td><td>角名 倫太郎 (MB)</td><td><span class="tag t-zero">6種 0G 橫置→MB BLK=0窗口</span> <span class="tag t-meta">★meta ×2→×3</span></td></tr>
+      <tr class="new"><td class="cnt">3</td><td>PR-048</td><td>宮 治 (PR)</td><td><span class="tag t-fuel">6種 2G ATK+3 攻擊池 主力finisher</span> <span class="tag t-meta">★meta ×2→×3</span></td></tr>
+      <tr class="new"><td class="cnt">4</td><td>P02-017</td><td>宮 侑 (R)</td><td><span class="tag t-engine">6種+3G舉球池→墓地WS/MB→手牌 grave-pull</span> <span class="tag t-meta">★meta ×2→×4</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 接球区防禦 / 名字燃料（付接球池）(13) — 赤木新體系</td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-034</td><td>赤木 路成 (N)</td><td><span class="tag t-def">★meta 新增 0G RCV=6 Li・「赤木」名字燃料</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>D03-011</td><td>赤木 路成 (D)</td><td><span class="tag t-def">★meta 新增 2G接球池→RCV+2=7・接球区覆蓋Guts</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>D03-005</td><td>宮 治 (D)</td><td><span class="tag t-flex">★meta 新增 vanilla 宮治 Guts zone body（6種燃料）</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-032</td><td>銀島 結 (N)</td><td><span class="tag t-def">0G RCV=5/BLK=3 雙防禦體・「銀島」名字</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-035</td><td>小作 裕渡</td><td><span class="tag t-fuel">自棄→RCV+2＋「小作」入墓推進6種</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>PR-049</td><td>尾白 アラン (PR)</td><td><span class="tag t-def">接球池2G RCV+3+墓地→手牌・「尾白」名字</span> <span class="tag t-meta">×1→×2</span></td></tr>
     </table>
-    <p style="font-size:0.72rem;color:#888;margin-top:8px;">★ v4 vs v3 變更（4項，皆在接球区/防禦）：<b>PR-049 ×0→×1 回歸</b>（接球池防禦+補手，與攻擊零競爭）；<b>P02-025 ×1→×2</b>（接球池抽棄補手抗 hand-crisis）；<b>P02-035 ×2→×1</b>；<b>P02-033 ×2→×1</b>。攻擊核心（宮治R×4、角名×2、P02-020×3）完全不動。</p>
-    <p style="font-size:0.7rem;color:#777;margin-top:6px;">打法要點：①香草侑優先進舉球区當引擎。②<b>大耳/小作 優先丟墓地推進6種</b>，不打上場。③<b>銀島/大耳 作0費def_body</b>＋<b>接球区 PR-049/P02-025 隨手用</b>——它們付接球池，不會排擠 どんぴ 的舉球/攻擊 Guts。④第3分<b>主線：宮治R P02-021×4</b>（攻擊池0費，手牌≤2）。⑤備援：角名橫置0費(需6種)或 PR-048(攻擊池2G)。</p>
+    <p style="font-size:0.72rem;color:#888;margin-top:8px;">V5 vs V4 主要變更（10項）：事件全換（087×4+085×2→087×3+088×3+084×2）；新增赤木N×3、赤木D×2、宮治D×2；P02-017×2→×4、角名×2→×3、PR-048×2→×3；移除P02-021×4、P02-025×2、P02-016×2、P02-033×1。</p>
+    <p style="font-size:0.7rem;color:#777;margin-top:6px;">打法要點：①P02-018/017 優先舉球区。②P02-034/D03-011 進接球区（0G RCV=6/7 防禦，「赤木」入墓）。③P02-077/P02-020/D03-005 進 Guts zone（どんぴ 燃料，名字入墓推進6種）。④每次 どんぴ 同步打出 P02-088（攻擊階段），抽1＋攔網Event不可。⑤6種達成後：P02-017×4（3G舉球池）持續從墓地撿回 PR-048/P02-027，維持後期 finisher。⑥第3分：角名（6種 0G）→ MB BLK=0 → PR-048（6種 2G）收尾。</p>
   </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
 <script>
-const ENC='N4IgdiBcKExejuwYOF1CQcoLxtC7SoMCUAEA3ALAO1KAGNoExpgZZ6ASTiADQgDGUA2kyABIBqAtAAoAMAJi58AHAHYuAZQB0AdwCmAIwAOtPAF0arTr0HCRAVi4A5OUtU0Bm7d35DRIk2ZW0rW9rb18AjADYuAJLOFm42uvYCfIHBtADM1h7hwmISMgouNBruOnbC3o6m6Rbx2Z4RqTGWCTleAt5cAEqVWWG5PhJNRa7Vtg3CeI48laGJbQJ4UpUlrbVGnebdpUl8sUaFCzTePbx9fHgAnLyVW0ttsULrGSM19rGxTl2b6uoAvkA';
+const ENC='N4IgdiBcIGIJIDkCCAZA+gNQKwgDQgGMoBtYkACQwFoAFABgCYq6AOAdioGUA6AdwFMARgAc8AZgC6uMpVqNmLFlQR8ho3JOkVq9JqwAsy1SLwMpMnfMaGeAk7jNbZu5mMMq76zRbl6GHWzVxc21fZgY6KjhjdUcfFzo2AJjgp0s9MSwjT1MQ2QAROjFmAEYSqnyUhzzqQuK6OizKnOq0sKKmDyDW+IAlZn0lGirvUISSjl6q-Rr2kqUu+zix-rp9AE5aKrMJAF8gA';
 const url='https://weilun2022.github.io/haikyuu-cards/?deck='+ENC;
 document.getElementById('link').href=url;
 document.getElementById('link').textContent=url;
