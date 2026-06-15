@@ -250,14 +250,18 @@ def opp_pressure(p, rng, mu, sigma, hand_def_k, cfg=None):
     def base_defense():
         return max(p.blk_body, p.rcv_body) + len(p.hand) * hand_def_k
     # [校準11] P02-084 黒須(draw1_def) 是 [=接球] 事件 → 可在『對手攻擊時反應性打出』。
-    #   留在手上, 對手強攻時即時打出 → 抽1(補手) + 接球值+2。
+    #   留在手上, 對手強攻時即時打出 → 抽1(補手) + 接球値+2。
+    # [校準17] 使用者指正: 084 是單次事件, 打出後去墓地 → 只對本次攻擊有效。
+    #   原本 p.rcv_body += 2 永久殘留 → 高估第2/3次對手攻擊的防禦。
+    #   修正為暫時性的 kurosu_boost, 僅計入當次攻擊判定, 不改變 rcv_body。
+    kurosu_boost = 0
     if cfg and cfg.get("kurosu_reactive") and has(p.hand, role="draw1_def"):
         if atk > base_defense() - 2:
             take(p.hand, role="draw1_def")
             draw(p, 1)
-            p.rcv_body += 2
+            kurosu_boost = 2          # 臨時+2, 只影響下一行的判定
             p.discard("P02-084")
-    if atk > base_defense():
+    if atk > base_defense() + kurosu_boost:
         p.opp += 1
     # [校準10] 手牌經濟風險: 上個我方回合打 finisher 清空手牌 → 本對手回合空窗失防。
     #   thin_hand_pending 表示上回合 finisher 後手牌 ≤ thin_hand_th。此時對手以
