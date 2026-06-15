@@ -50,6 +50,23 @@
   • 先前 feed_cap=2 + regen +2~4 (≈+4~6 Guts/turn) 把穩定3分灌水到 ~82%。
     規則正確模型下 (guts_gen=1): FINAL_V2 穩定3分 ≈ 77%, 第三分常因 Guts 力竭而慢/失敗,
     對應使用者實戰「打完兩個10點就沒力」。第三分(非6種)才是真瓶頸 — 需往低Guts依賴優化。
+
+==================================================
+[校準14] 三個獨立 Guts 池 (2026-06: 使用者規則指正)
+--------------------------------------------------
+重大修正 — 先前把 Guts 當成單一資源池 (p.guts) 是錯的:
+  • 規則: 每個區域(舉球/攻擊/接球)各有自己的 Guts 堆疊, 三池互不流通。
+    「該角色在哪個區域, 就付哪個區域的 Guts」。
+  • どんぴ(P02-087): 把任一區的 Guts「跳上來」當角色 — 宮侑落舉球区(付舉球区 Guts)、
+    宮治落攻擊区(付攻擊区 Guts)。大部分情況是該區自己的 Guts 跳上來。
+  • 各池生成: 該區「覆蓋登場」→ 舊角色變該區 Guts。舉球(gen_tos)/攻擊(gen_atk)/接球(gen_rcv)。
+  • 牌→池對應: P02-016=舉球; どんぴ攻擊側/PR-048(2G)/P02-029(3G)=攻擊;
+    P02-024(3G)/P02-025(2G)/PR-049(2G)=接球。
+  • 關鍵結論: 接球区防禦/回收 與 どんぴ 引擎(舉球+攻擊) 用不同池, 完全不競爭!
+    → v3 為「省 Guts」而砍 PR-049 是基於單池誤解的錯誤決策。三池模型下接球区防禦
+    幾乎免費 → FINAL_V4 恢復 PR-049 並加厚接球区, race-loss 3.8%→2.8%, 淨勝率→80.2%。
+  • 三池下 guts-starved 近 0% (低Guts牌組刻意避開攻擊池 finisher → 不再力竭),
+    主要失分向量轉為 race-loss 與 hand-crisis(宮治R×4 清手牌)。
 """
 from __future__ import annotations
 import random, json, argparse
@@ -103,7 +120,12 @@ def is_event(no):  return CARD[no]["cat"] == "E"
 class P:
     deck: list
     hand: list
-    guts: int = 3
+    # [校準14] 三個獨立 Guts 池(使用者規則指正): 每張卡在哪個區域就付哪個區域的 Guts,
+    #   三池互不流通。舉球区/攻擊区 養 どんぴ 引擎與攻擊型 finisher; 接球区 養防禦/回收。
+    #   どんぴ(P02-087) 把 Guts「跳上來」當角色: 落在哪區就付哪區的 Guts。
+    g_tos: int = 1       # 舉球区 Guts 池
+    g_atk: int = 1       # 攻擊区 Guts 池
+    g_rcv: int = 1       # 接球区 Guts 池
     score: int = 0
     opp: int = 0
     grave_names: set = field(default_factory=set)
@@ -239,24 +261,32 @@ def my_turn(p, t, rng, cfg):
             # P02-016 雖然也可餵Guts,但建立舉球區的邊際價值更高
             take(p.hand, role="setter_dp"); p.tos = "宮侑"
 
-    # --- Guts 充能 (依官方規則書) ---
-    # [校準13] 官方規則(已讀規則書 277daa92 確認):
-    #   • Guts = 疊在各區角色「下方」的卡 (1-2-15)。
-    #   • 唯一產生方式: 角色登場到「已占用的區域」時, 被壓在下方的舊角色變成 Guts
-    #     (8-3-1-1 + 1-4-5-4-2)。沒有免費的「每回合放1張Guts」步驟。
-    #   • 付 Guts = 從該區移 N 張到棄牌區 (1-4-8), 消耗型, 不回復。
-    #   進攻 turn 會在 舉球區/攻擊區 登場新角色 → 覆蓋產生 Guts。淨生成以 cfg.guts_gen 控制
-    #   (預設 2 = 覆蓋舉球+攻擊兩區), 對齊使用者錨點「前兩分穩、第三分沒力」。
-    #   先前 feed_cap=2 + regen +2~4 嚴重灌水(≈+4~6/turn), 此處改為規則導出的覆蓋生成。
-    guts_gen = (cfg or {}).get("guts_gen", 2)
-    # 把可用的 宮侑/宮治/宮兄弟 body 放進 Guts 區供 どんぴ 拉出 (最多用掉 guts_gen 次登場)
+    # --- Guts 充能: 三個獨立池, 各自靠「該區覆蓋登場」生成 ---
+    # [校準14] 使用者規則指正: 三池(舉球/攻擊/接球)獨立, 在哪區付哪區。
+    #   • 各區 Guts 唯一來源 = 角色覆蓋登場到「已占用的同區」→ 舊角色變該區 Guts。
+    #   • 舉球区: 香草侑/016/twin 持續覆蓋 → +gen_tos/turn(舉球区一旦建立即穩定生成)。
+    #   • 攻擊区: 宮治/twin/body 覆蓋 → +gen_atk/turn(攻擊区被使用即生成)。
+    #   • 接球区: def_body 覆蓋 → +gen_rcv/turn, 但需手上有 def_body/body 可登場才生成
+    #     (沒在跑接球区防禦body時不產 → 接球区 Guts 與防禦牌密度連動, 不再免費)。
+    #   先前把三池壓成單一 p.guts → 誤判 PR-049(接球区) 與 どんぴ(舉球/攻擊) 競爭, 屬重大錯誤。
+    gen_tos = (cfg or {}).get("gen_tos", 1)
+    gen_atk = (cfg or {}).get("gen_atk", 1)
+    gen_rcv = (cfg or {}).get("gen_rcv", 1)
+    # 把可用的 宮侑/宮治/宮兄弟 body 放進 Guts 區供 どんぴ 拉出
     fed = 0
     for role in ("setter_dp","attacker_dp","twin"):
-        while fed < guts_gen and has(p.hand, role=role):
+        while fed < 2 and has(p.hand, role=role):
             no = take(p.hand, role=role)
             p.guts_zone.append(no); fed += 1
-    # 每回合覆蓋登場淨生成 guts_gen 點 Guts (不論是否有 body 可餵, 進攻turn都會覆蓋區域)
-    p.guts = min(14, p.guts + guts_gen)
+    # 舉球区: 一旦建立(p.tos 為宮侑)即每回合覆蓋生成
+    if p.tos == "宮侑":
+        p.g_tos = min(14, p.g_tos + gen_tos)
+    # 攻擊区: 攻擊区被使用(已發過どんぴ 或 Guts區有attacker body)即生成
+    if p.donpi_fired > 0 or any(CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone):
+        p.g_atk = min(14, p.g_atk + gen_atk)
+    # 接球区: 僅在手上有 def_body/body 可覆蓋登場時生成(與防禦牌密度連動)
+    if any(CARD[x]["role"] in ("def_body","body","ojiro_def","filter","event_recover") for x in p.hand):
+        p.g_rcv = min(14, p.g_rcv + gen_rcv)
 
     # --- 抽牌/補手 事件(維持手牌差, 對抗 hand-crisis) ---
     # [校準11] kurosu_reactive 開啟時, 黒須(draw1_def)『留在手上』供對手回合反應性防禦,
@@ -308,21 +338,21 @@ def my_turn(p, t, rng, cfg):
         CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone)
     if (donpi_ready_to_fire and not has(p.hand, role="donpi")
             and "P02-087" in p.grave_list and has(p.hand, role="event_recover")
-            and p.guts >= 3):
-        take(p.hand, role="event_recover"); p.guts -= 3
+            and p.g_rcv >= 3):                       # P02-024 在接球区 → 付接球区 Guts
+        take(p.hand, role="event_recover"); p.g_rcv -= 3
         smart_discard(p, rng)
         p.grave_list.remove("P02-087"); p.hand.append("P02-087")
         p.rcv_body = max(p.rcv_body, 5)
 
-    # --- 防禦 body 部署到接球區(撐 race, 不破壞攻擊區) ---
+    # --- 防禦 body 部署到接球區(付接球区 Guts, 與 どんぴ 的舉球/攻擊池獨立) ---
     if p.rcv_body < 4:
         for role in ("def_body","ojiro_def","filter","event_recover","body"):
             if has(p.hand, role=role):
                 no = p.hand[[CARD[x]["role"] for x in p.hand].index(role)]
                 gcost = {"event_recover":3,"filter":2,"ojiro_def":2}.get(role,0)
-                if p.guts < gcost:
+                if p.g_rcv < gcost:                  # 接球区 Guts 不足則略過
                     continue
-                take(p.hand, role=role); p.guts -= gcost
+                take(p.hand, role=role); p.g_rcv -= gcost
                 p.rcv_body = max(p.rcv_body, CARD[no].get("rcv",0))
                 if role == "filter":               # 抽1棄1(智慧棄→填墓新名)
                     draw(p,1); smart_discard(p, rng)
@@ -356,12 +386,14 @@ def my_turn(p, t, rng, cfg):
         have_setter = (p.tos == "宮侑") or any(
             CARD[x]["role"] in ("setter_dp","twin") for x in p.guts_zone)
         have_atkr   = any(CARD[x]["role"] in ("attacker_dp","twin") for x in p.guts_zone)
-        # [校準5] Guts 成本依「實際需從 Guts 區拉出的 body 數」計:
-        #   舉球已在場(p.tos==宮侑) → 只拉攻擊端 → 3 Guts; 否則拉兩端 → 6 Guts。
-        cost = 3 if (p.tos == "宮侑") else 6
+        # [校準14] どんぴ 把 Guts 跳上來當角色: 宮侑落舉球区 → 付舉球区 Guts(cost_tos);
+        #   宮治落攻擊区 → 付攻擊区 Guts(cost_atk)。兩池獨立扣。舉球已在場時舉球側成本減半。
+        cost_atk = (cfg or {}).get("donpi_atk_cost", 2)
+        cost_tos = (cfg or {}).get("donpi_tos_cost", 1) if (p.tos == "宮侑") else \
+                   (cfg or {}).get("donpi_tos_cost", 1) + 1
         if have_setter and have_atkr:
-            if p.guts >= cost:
-                p.guts -= cost
+            if p.g_tos >= cost_tos and p.g_atk >= cost_atk:
+                p.g_tos -= cost_tos; p.g_atk -= cost_atk
                 take(p.hand, role="donpi")
                 draw(p, 2)                       # どんぴ抽1 + P02-016抽1
                 p.opp_block_le2 = 2              # P02-020: 對手攔網≤2
@@ -380,9 +412,9 @@ def my_turn(p, t, rng, cfg):
                     p.score += 1
                     if p.score==1 and p.p1_turn is None: p.p1_turn=t
                     if p.score==2 and p.p2_turn is None: p.p2_turn=t
-                # P02-024 撿回どんぴ(3G+棄1) 維持迴圈
-                if has(p.hand, role="event_recover") and p.guts>=3:
-                    take(p.hand, role="event_recover"); p.guts-=3
+                # P02-024 撿回どんぴ(接球区 3G + 棄1) 維持迴圈
+                if has(p.hand, role="event_recover") and p.g_rcv>=3:
+                    take(p.hand, role="event_recover"); p.g_rcv-=3
                     smart_discard(p, rng); p.hand.append("P02-087")
                     p.rcv_body = max(p.rcv_body, 5)
             else:
@@ -421,11 +453,11 @@ def my_turn(p, t, rng, cfg):
                     while len(p.hand) > 3:
                         smart_discard(p, rng)
                 fin = take(p.hand, role="osamu_fin")            # 0 Guts
-            elif p.sixtype() and has(p.hand, role="osamu6"):
-                if p.guts>=2: fin = take(p.hand, role="osamu6"); p.guts-=2
+            elif p.sixtype() and has(p.hand, role="osamu6"):    # PR-048 攻擊区 2G
+                if p.g_atk>=2: fin = take(p.hand, role="osamu6"); p.g_atk-=2
                 else: need_g_blocked = True
-            elif p.sixtype() and has(p.hand, role="ojiro6"):
-                if p.guts>=3: fin = take(p.hand, role="ojiro6"); p.guts-=3
+            elif p.sixtype() and has(p.hand, role="ojiro6"):    # P02-029 攻擊区 3G
+                if p.g_atk>=3: fin = take(p.hand, role="ojiro6"); p.g_atk-=3
                 else: need_g_blocked = True
             if fin is not None:
                 p.atk = card_name(fin)
@@ -465,11 +497,17 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     cfg.setdefault("opp_sigma", 2.3)
     cfg.setdefault("hand_def_k", 1.1)
     cfg.setdefault("max_turn", 16)
-    # [校準13] Guts 生成率(每進攻turn由「覆蓋登場」淨產生的 Guts)。依官方規則, どんぴ turn
-    #   為 Guts 中性(拉出侑/治 -2, 覆蓋舉球+攻擊 +2), 淨生成主要來自接球區覆蓋 ≈ +1/turn。
-    #   guts_gen=1 重現使用者實戰「打完兩個就沒力」(stable3≈77%, 第三分慢且常失敗);
-    #   =2 則幾乎無力竭(與體感不符)。預設 1。
-    cfg.setdefault("guts_gen", 1)
+    # [校準14] 三個獨立 Guts 池的每回合生成率(各區覆蓋登場)。三池互不流通:
+    #   • gen_tos(舉球区): 養 どんぴ 的設置側。舉球区一建立即穩定生成。
+    #   • gen_atk(攻擊区): 養 どんぴ 攻擊側 + 攻擊型 finisher(PR-048 2G / P02-029 3G)。
+    #     這是第三分的真瓶頸池 — 前兩分どんぴ 把它耗掉 → Guts型 finisher 易力竭。
+    #   • gen_rcv(接球区): 養防禦/回收(P02-024/025, PR-049)。與 どんぴ 無關! 故 PR-049
+    #     的成本完全不與どんぴ競爭 — 先前單池模型誤砍 PR-049 是錯誤,已修正。
+    cfg.setdefault("gen_tos", 1)
+    cfg.setdefault("gen_atk", 1)
+    cfg.setdefault("gen_rcv", 1)
+    cfg.setdefault("donpi_atk_cost", 2)
+    cfg.setdefault("donpi_tos_cost", 1)
     # [校準10] 手牌經濟: finisher 清手牌的回合,若手牌薄,跨回合空窗失去防禦,
     #   對手 race 得分機率提高(thin_hand_race_bonus),並把該情形計為 hand-crisis。
     # 校準後 th=2: 對應宮治R「出場後手牌≤2」的實況 — 打完 finisher 手牌≤2 即薄手,
@@ -568,6 +606,20 @@ PRESETS = {
    "P02-024":3,"P02-025":1,"P02-035":2,
    "P02-032":2,"P02-033":2,
  },
+ # ★★★ v4 三池模型版 (2026-06, 校準14: 三個獨立 Guts 池) ★★★
+ # 使用者規則指正: 舉球/攻擊/接球三池獨立, 在哪區付哪區。接球区防禦(PR-049/024/025)
+ #   與 どんぴ(舉球/攻擊池) 完全不競爭 → v3 誤砍的 PR-049 應恢復, 並可加厚接球区防禦。
+ # 核心調整 (vs v3): 恢復 PR-049×1; P02-025 ×1→×2(接球区抽棄補手抗hand-crisis);
+ #   P02-035 ×2→×1; P02-033 ×2→×1. 接球区防禦加厚但完全不拖累攻擊引擎。
+ # 效果(N=20000×6 seeds): 淨勝率 79.0%→80.2%, race-loss 3.8%→2.8%(接球区防禦免費),
+ #   stable3 83.0%, 6種 57%, 平均第3分回合 9.0. (三池模型, guts-starved 已近0)
+ "FINAL_V4": {
+   "P02-087":4,"P02-085":2,"P02-088":2,
+   "P02-016":2,"P02-020":3,"P02-077":4,"P02-018":3,
+   "P02-027":2,"P02-021":4,"P02-017":2,"PR-048":2,
+   "P02-024":3,"P02-025":2,"P02-035":1,"PR-049":1,
+   "P02-032":2,"P02-033":1,
+ },
 }
 
 
@@ -583,7 +635,7 @@ def fmt(o):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--preset", default="FINAL_V3")
+    ap.add_argument("--preset", default="FINAL_V4")
     ap.add_argument("--deck", default=None, help="JSON {card_no:count}")
     ap.add_argument("--n", type=int, default=4000)
     a = ap.parse_args()
