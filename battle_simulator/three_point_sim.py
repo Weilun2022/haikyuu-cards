@@ -124,6 +124,17 @@ def card_name(no): return CARD[no]["name"]
 def is_event(no):  return CARD[no]["cat"] == "E"
 
 
+def name_returns_to_grave(p, nm):
+    """[校準16] 使用者規則指正: P02-089 撿回 宮侑/宮治/宮兄弟 不代表該名字「永久」
+    離開墓地。這些牌會被重新打出疊到區域下方當 Guts, 消耗 Guts 時又噴回墓地 → 名字回歸。
+    因此判斷 nm 是否仍以「場上body(舉球/攻擊區) 或 Guts区body」形式存在 —
+    若存在, 終將回到墓地, 089 撿走墓地最後一張時不應從 grave_names 移除。"""
+    if nm == p.tos or nm == p.atk: return True
+    if nm == p.tos_zone_name or nm == p.rcv_zone_name: return True
+    if any(card_name(x) == nm for x in p.guts_zone): return True
+    return False
+
+
 @dataclass
 class P:
     deck: list
@@ -338,8 +349,12 @@ def my_turn(p, t, rng, cfg):
                     for i,gc in enumerate(p.grave_list):
                         if card_name(gc) == target:
                             p.hand.append(p.grave_list.pop(i)); got += 1
-                            if not any(card_name(x)==target for x in p.grave_list):
-                                p.grave_names.discard(target)   # 6種可能倒退!
+                            # [校準16] 墓地已無此名 → 僅當該名字也不在場上/Guts区(終將回墓)
+                            #   時才從 6種 移除。使用者指正: 場上當Guts的侑/治/兄弟噴回墓地
+                            #   會讓名字回歸, 故不一定完全消失。
+                            if (not any(card_name(x)==target for x in p.grave_list)
+                                    and not name_returns_to_grave(p, target)):
+                                p.grave_names.discard(target)   # 真正暫時消失才倒退
                             break
                 if got >= 3:
                     smart_discard(p, rng)
