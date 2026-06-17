@@ -648,6 +648,9 @@ def simulate(cfg_counts, n=4000, cfg=None, seed=0):
     total = len(base)
     if total != 40:
         return {"ERROR": f"deck={total}張(需40)"}
+    event_count = sum(1 for c in base if is_event(c))
+    if event_count > 8:
+        return {"ERROR": f"事件牌={event_count}張(上限8)"}
 
     for g in range(n):
         d = base[:]
