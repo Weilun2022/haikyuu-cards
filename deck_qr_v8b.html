@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>稲荷崎 SPEED_V8b — 最速三分（不需6種）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0d; color: #e8e8e8; font-family: 'Noto Sans TC', sans-serif; padding: 24px; }
+  h1 { color: #f7c948; font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 20px; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+  .qr-box { text-align: center; position: sticky; top: 24px; }
+  .qr-box canvas { width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
+  .qr-label { font-size: 0.7rem; color: #888; margin-top: 8px; }
+  .url-link { display: block; margin-top: 8px; color: #7bd3f7; font-size: 0.7rem; text-decoration: none; word-break: break-all; }
+  h2 { color: #f7c948; font-size: 1rem; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+
+  .agents { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .ag { background:#13131f; border-radius:6px; padding:10px 12px; border-top:3px solid #4a6fa5; }
+  .ag.a1{border-top-color:#42a5f5}.ag.a2{border-top-color:#66bb6a}.ag.a3{border-top-color:#ab47bc}
+  .ag h3 { font-size:0.8rem; color:#fff; margin-bottom:6px; }
+  .ag p { font-size:0.72rem; color:#bbb; line-height:1.5; }
+  .ag .em { color:#f7c948; }
+
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+  .pt { background: linear-gradient(135deg,#1a1a2e,#16213e); border-left: 3px solid #4a6fa5; border-radius: 6px; padding: 10px 14px; }
+  .pt.score { border-left-color: #f7c948; background: linear-gradient(135deg,#2e2410,#3e3216); }
+  .pt-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .pt-turn { font-size:0.7rem; color:#7bd3f7; font-weight:bold; }
+  .pt-cost { font-size:0.7rem; padding:1px 7px; border-radius:3px; }
+  .cost-neg { background:#7b1f1f; color:#ffc9c9; } .cost-pos { background:#1b5e20; color:#c8e6c9; }
+  .cost-zero { background:#4a148c; color:#e1bee7; }
+  .pt-title { font-size:0.85rem; color:#fff; font-weight:bold; }
+  .pt-detail { font-size:0.75rem; color:#bbb; line-height:1.5; margin-top:3px; }
+  .cr { color:#f7c948; }
+
+  .gt { width:100%; border-collapse:collapse; font-size:0.75rem; margin-top:6px; }
+  .gt th, .gt td { padding:4px 8px; border-bottom:1px solid #2a2a2a; text-align:center; }
+  .gt th { color:#888; background:#1a1a1a; }
+  .pos { color:#81c784; } .neg { color:#e57373; }
+
+  table.deck { width:100%; border-collapse:collapse; font-size:0.76rem; margin-top:8px; }
+  table.deck th { background:#1e1e1e; color:#aaa; font-weight:normal; padding:5px 8px; text-align:left; }
+  table.deck td { padding:4px 8px; border-bottom:1px solid #222; }
+  .cnt { color:#f7c948; font-weight:bold; text-align:center; }
+  .key { background:#1a0a2e; }
+  .tag { display:inline-block; font-size:0.62rem; padding:1px 5px; border-radius:3px; }
+  .t-engine{background:#1565c0;color:#bbdefb} .t-guts{background:#4a148c;color:#e1bee7}
+  .t-zero{background:#e65100;color:#ffe0b2} .t-fuel{background:#2e7d32;color:#c8e6c9}
+  .t-recover{background:#7b1fa2;color:#e1bee7} .t-flex{background:#37474f;color:#cfd8dc}
+  .t-def{background:#01579b;color:#b3e5fc}
+  .badge { display:inline-block;background:#1a3a5c;color:#7bd3f7;border-radius:4px;font-size:0.65rem;padding:1px 6px;margin-left:4px; }
+  .badge2 { display:inline-block;background:#2e1a00;color:#f7c948;border-radius:4px;font-size:0.65rem;padding:1px 6px;margin-left:4px; }
+</style>
+</head>
+<body>
+<h1>稲荷崎 SPEED_V8b — 最速三分 <span class="badge">不需6種</span><span class="badge2">N=60000: 穩定3分 87.5% | T8.5</span></h1>
+<p class="subtitle">P02-021 宮治R（0G・手牌≤2・<b>不需6種</b>）為唯一 finisher。核心：087×4（どんぴ MAX）＋085×4（棄1抽2 手牌流）＋021×4（速攻收尾）。V8 原版移除6種時代遺留牌（032/033/025），改用 034×4（最強接球body）＋024×4（どんぴ回收 MAX）＋018×4（舉球引擎 MAX）。三維度同步提升：穩定3分 85.6%→<b>87.5%</b>、T8.7→<b>T8.5</b>、race-loss 1.7%→<b>1.5%</b>。</p>
+
+<div class="layout">
+  <div class="qr-box">
+    <canvas id="qr"></canvas>
+    <p class="qr-label">掃描開啟牌組（SPEED_V8b）</p>
+    <a id="link" class="url-link" href="#" target="_blank">載入中…</a>
+  </div>
+
+  <div>
+    <h2>三引擎設計</h2>
+    <div class="agents">
+      <div class="ag a1">
+        <h3>① 事件引擎（8張）：087×4 + 085×4</h3>
+        <p><span class="em">P02-087 どんぴしゃり ×4</span>（主攻擊引擎 MAX）＋ <span class="em">P02-085 大見太郎 ×4</span>（棄1抽2，手牌+1、填墓同步進行）。8張合法上限全部灌注最高價值事件。085 在每個自由步打出，確保手牌厚度、抵抗 hand-crisis。</p>
+      </div>
+      <div class="ag a2">
+        <h3>② どんぴ循環支援（18張）</h3>
+        <p><span class="em">077 宮兄弟 ×4</span>（舉球/攻撃兩用）＋ <span class="em">020 宮治 ×4</span>（攻擊端）＋ <span class="em">018 香草侑 ×4</span>（舉球引擎）＋ <span class="em">016 宮侑 setter ×2</span>（舉球保險）＋ <span class="em">024 北信介 ×4</span>（接球池3G 撈回どんぴ，循環心臟）</p>
+      </div>
+      <div class="ag a3">
+        <h3>③ 第3分收尾（4張）+ 防禦（10張）</h3>
+        <p><span class="em">P02-021 宮治R ×4</span>：0G、出場後手牌≤2 → ATK+2。<b>不需6種，可在第2分どんぴ同回合收尾</b>。防禦：<span class="em">034 赤木N ×4</span>（0G RCV=6最強）＋<span class="em">D03-011 ×2</span>（2G→RCV=7）＋<span class="em">035 ×2</span>＋<span class="em">PR-049 ×2</span></p>
+      </div>
+    </div>
+
+    <h2>V8b vs 各版本比較（N=60000）</h2>
+    <table class="gt">
+      <tr><th>版本</th><th>穩定3分</th><th>平均第3分回合</th><th>race-loss</th><th>hand-crisis</th><th>6種達標</th></tr>
+      <tr><td>V6 均衡強化（6種路線）</td><td>76.6%</td><td>10.5</td><td>0.5%</td><td>0.1%</td><td>83%</td></tr>
+      <tr><td>SPEED_V8 原版</td><td>85.6%</td><td>8.7</td><td>1.7%</td><td>4.7%</td><td>94%</td></tr>
+      <tr style="background:#0a2e0a"><td>★ <b>SPEED_V8b 最終版</b></td><td class="pos"><b>87.5%</b></td><td class="pos"><b>8.5</b></td><td class="pos"><b>1.5%</b></td><td class="pos"><b>4.2%</b></td><td>81%（不需要）</td></tr>
+    </table>
+
+    <h2>第3分時間軸（SPEED_V8b）</h2>
+    <div class="timeline">
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 1-2 ｜佈局</span><span class="pt-cost cost-pos">各池 +1/turn 生成</span></div>
+        <div class="pt-title">018/016/077 建立舉球區宮侑 → 020/077 進 Guts zone</div>
+        <div class="pt-detail"><span class="cr">P02-018 香草侑 ×4</span>（TOS=2）優先入舉球区，立刻開始生成 g_tos。<span class="cr">P02-034 赤木N</span> 0G 入接球区（RCV=6 防禦）。<span class="cr">P02-077/020</span> 入攻擊 Guts zone。<span class="cr">P02-085</span> 在自由步棄1抽2，補手兼填墓。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 2-4 ｜第 1、2 分</span><span class="pt-cost cost-neg">どんぴ：−舉球1 −攻擊2</span></div>
+        <div class="pt-title">🏐 どんぴしゃり ×2（P02-024 撈回どんぴ 維持循環）</div>
+        <div class="pt-detail"><span class="cr">P02-087 どんぴ</span>：宮侑（舉球池 Guts 跳出）＋宮治（攻擊池 Guts 跳出），ATK+4、對手攔網≤2。發動後：<span class="cr">P02-024 ×4</span>（接球池 3G）立刻撈回どんぴ。第2分 どんぴ 完成後，攻擊 Guts zone 還有 body → 可在<b>同回合</b>接著打 021 收尾。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 4-6 ｜第 3 分</span><span class="pt-cost cost-zero">P02-021：0 Guts（不需6種）</span></div>
+        <div class="pt-title">🏐 宮治R P02-021（手牌≤2 → ATK+2）收尾</div>
+        <div class="pt-detail"><span class="cr">P02-021 宮治R ×4</span>：出場後若手牌≤2 → ATK=2+2=<b>4</b>、0 Guts 不消耗資源。<b>不需墓地6種</b>，可在 どんぴ 第2分的<b>同回合</b>接著出場收尾（085×4 幫忙清手牌到≤2）。對手攔網≤2 遺產下（020 效果）更容易打穿。</div>
+      </div>
+    </div>
+
+    <h2>為什麼移除 032/033/025（V8→V8b 的關鍵）</h2>
+    <table class="gt" style="margin-bottom:10px;">
+      <tr><th>砍掉的牌</th><th>理由</th><th>換入</th><th>效果</th></tr>
+      <tr><td>P02-033 大耳 ×1</td><td class="neg">RCV=3 最弱接球body<br>純粹6種第10名字燃料</td><td>P02-018 ×4（+1）</td><td class="pos">舉球引擎更穩定<br>p1 97.7%→98.1%</td></tr>
+      <tr><td>P02-032 銀島 ×2</td><td class="neg">RCV=5 不如 034 的 RCV=6<br>6種時代習慣性留下</td><td>P02-034 ×4（+2）</td><td class="pos">接球防禦最強化<br>race-loss 1.7%→1.5%</td></tr>
+      <tr><td>P02-025 北信介filter ×1</td><td class="neg">抽1棄1填墓<br>6種時代才有價值</td><td>P02-024 ×4（+1）</td><td class="pos">どんぴ回収 MAX化<br>循環更穩定</td></tr>
+    </table>
+
+    <h2>牌組清單 — SPEED_V8b（40 張 ｜ Event 8）</h2>
+    <table class="deck">
+      <tr><th>張</th><th>卡號</th><th>名稱</th><th>役割</th></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ EVENT (8) — 上限 8 張</td></tr>
+      <tr class="key"><td class="cnt">4</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="tag t-engine">主引擎 [=攻擊] MAX</span></td></tr>
+      <tr class="key"><td class="cnt">4</td><td>P02-085</td><td>大見 太郎</td><td><span class="tag t-fuel">棄1抽2（手牌+1，填墓）自由步</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 引擎 (18)</td></tr>
+      <tr><td class="cnt">4</td><td>P02-077</td><td>宮兄弟</td><td><span class="tag t-flex">舉球/攻擊兩用 Guts body</span></td></tr>
+      <tr><td class="cnt">4</td><td>P02-020</td><td>宮 治 (I)</td><td><span class="tag t-engine">ATK+4 攔網壓 攻擊端 Guts</span></td></tr>
+      <tr class="key"><td class="cnt">4</td><td>P02-018</td><td>宮 侑（香草）</td><td><span class="tag t-guts">TOS=2 舉球Guts引擎 MAX</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-016</td><td>宮 侑 setter</td><td><span class="tag t-guts">舉球区専用 保險</span></td></tr>
+      <tr class="key"><td class="cnt">4</td><td>P02-024</td><td>北 信介 (SR)</td><td><span class="tag t-recover">接球池3G 撈どんぴ MAX</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 finisher (4)</td></tr>
+      <tr class="key"><td class="cnt">4</td><td>P02-021</td><td>宮 治R</td><td><span class="tag t-zero">0G・手牌≤2→ATK+2・不需6種 ★</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 接球区防禦 (10)</td></tr>
+      <tr class="key"><td class="cnt">4</td><td>P02-034</td><td>赤木 路成 (N)</td><td><span class="tag t-def">0G RCV=6 最強接球body MAX</span></td></tr>
+      <tr><td class="cnt">2</td><td>D03-011</td><td>赤木 路成 (D)</td><td><span class="tag t-def">2G接球池→RCV=7</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-035</td><td>小作 裕渡</td><td><span class="tag t-fuel">自棄RCV+2・名字燃料</span></td></tr>
+      <tr><td class="cnt">2</td><td>PR-049</td><td>尾白 アラン (PR)</td><td><span class="tag t-def">接球池2G RCV+3・尾白名字</span></td></tr>
+    </table>
+    <p style="font-size:0.72rem;color:#888;margin-top:8px;">vs V8 原版變更（3項）：P02-032×2 → P02-034×4（+2）；P02-033×1 → P02-018×4（+1）；P02-025×1 → P02-024×4（+1）。032/033/025 皆為6種時代遺留，在不需6種的 V8b 路線無不可替代價值。</p>
+    <p style="font-size:0.7rem;color:#777;margin-top:6px;">打法要點：①018/016 優先舉球区建立宮侑。②034/011 進接球区（0G RCV=6/7）。③077/020 進攻擊 Guts zone。④085 每回合自由步棄1抽2。⑤どんぴ 打完 → 立刻 024（接球池3G）撈回どんぴ。⑥第2分どんぴ後，若手牌≤3 → 出場 021（出場後手牌≤2）→ ATK+2 收尾。</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+const ENC='N4IgdiBcIMoAoFEEBED6A1AHAIwAQApAAc0HwEwSDlAwJQEoQAaEAYygG0mQAJdAWjgAYAmTj0wB2TjAB0AdwCm2AA60ALAF0arDt36DMAVk4A5KbIU0Va9l14D+ARk4AlI-KWr1lrT2GiJM56dcWmtZ8PJwAkk4mZm5BgjaYBpEu5hpWcQBs4Uk0fAGpHnyKYtnRgWk8AMxFhr5Ree7WFXo1xrS5KZb2gooAnNzZ7THIlXF2yAPKygC+QA';
+const url='https://weilun2022.github.io/haikyuu-cards/?deck='+ENC;
+document.getElementById('link').href=url;
+document.getElementById('link').textContent=url;
+QRCode.toCanvas(document.getElementById('qr'), url, {width:200,margin:1}, e=>{if(e)console.error(e)});
+</script>
+</body>
+</html>
