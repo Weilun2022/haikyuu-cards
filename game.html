@@ -2054,18 +2054,13 @@ input[type=text]::placeholder { color: var(--text-dim); }
     position: relative;
     align-items: center;
   }
-  /* 不用 transform（會造成 layout 空白），直接縮小格子 */
+  /* 不用 transform（會造成 layout 空白），與自己場等大 */
   #opp-area .board-court {
     transform: none;
     width: 100%;
   }
-  #opp-area .z-slot {
-    min-width: 34px !important;
-    min-height: 34px !important;
-    font-size: 8px;
-  }
-  #opp-area .court-row { gap: 2px; margin-bottom: 2px; }
-  #opp-area .z-empty { font-size: 8px; }
+  /* opp slot 與 self 等大（同 .z-slot 44×44px）*/
+  #opp-area .court-row { gap: 3px; margin-bottom: 3px; }
   #opp-area .board-side {
     flex-direction: row;
     gap: 6px;
@@ -2106,16 +2101,16 @@ input[type=text]::placeholder { color: var(--text-dim); }
   .info-tile .t-val   { font-size: 13px; }
   .set-pool-loss-btn  { font-size: 9px; padding: 2px 5px; }
 
-  /* ── 手牌區：更高，讓卡牌看得清楚 ── */
+  /* ── 手牌區：6 張可見 ── */
   #hand-area {
     flex-shrink: 0;
     height: auto;
-    min-height: 150px;
-    max-height: 180px;
-    flex-direction: row;   /* 橫排：手牌 | END TURN */
+    min-height: 100px;
+    max-height: 120px;
+    flex-direction: row;
     align-items: center;
-    padding: 6px 4px;
-    gap: 6px;
+    padding: 4px 2px;
+    gap: 2px;
   }
   #hand-cards {
     flex: 1;
@@ -2123,42 +2118,33 @@ input[type=text]::placeholder { color: var(--text-dim); }
     touch-action: pan-x;
     height: 100%;
     align-items: center;
+    gap: 3px;
   }
-  /* 每張手牌放大 */
+  /* 6 張手牌可見：(375-4-2-60-5×3)÷6 ≈ 49px */
   .hand-card {
-    width: 72px !important;
-    height: 108px !important;
+    width: 49px !important;
+    height: 71px !important;
     flex-shrink: 0;
   }
-  /* hand 區左側 meta/label 隱藏 */
+  /* hand 區 label / meta / undo 全隱藏 */
   .hand-lbl, #hand-meta { display: none !important; }
-  /* undo 按鈕縮小 */
-  #hand-area #undo-btn {
-    flex: 0 0 48px !important;
-    width: 48px !important;
+  #hand-area #undo-btn   { display: none !important; }
+  /* END TURN 按鈕：右側緊湊 */
+  #hand-area #end-turn-btn {
+    flex: 0 0 60px !important;
+    width: 60px !important;
     min-width: 0 !important;
-    max-width: 48px !important;
-    height: 108px !important;
+    max-width: 60px !important;
+    height: 90px !important;
     font-size: 10px;
     padding: 4px 2px;
-    align-self: center;
-  }
-  /* END TURN 按鈕：固定寬度在右側 */
-  #hand-area #end-turn-btn {
-    flex: 0 0 76px !important;
-    width: 76px !important;
-    min-width: 0 !important;
-    max-width: 76px !important;
-    height: 108px !important;
-    font-size: 11px;
-    padding: 6px 4px;
-    border-radius: 10px;
+    border-radius: 8px;
     align-self: center;
     flex-direction: column;
     margin: 0 !important;
   }
-  #hand-end-icon { font-size: 18px; }
-  #hand-end-label { font-size: 10px; letter-spacing: 0; }
+  #hand-end-icon { font-size: 16px; }
+  #hand-end-label { font-size: 9px; letter-spacing: 0; }
   #hand-end-sub { display: none; }
 
   /* ── 空格子：半透明虛線，隱藏文字 ── */
@@ -2178,18 +2164,13 @@ input[type=text]::placeholder { color: var(--text-dim); }
     background: transparent !important;
   }
 
-  /* ── 自己場：攻擊位放大 ── */
-  #self-area .zone-w:has(.z-atk) {
-    flex: 1.7;
-  }
-  #self-area .z-atk {
-    border-color: rgba(255, 100, 100, 0.6) !important;
-  }
-
-  /* ── 對手場：攻擊位突出顯示 ── */
+  /* ── 雙方攻擊位：等大、等邊框突出 ── */
+  #self-area .zone-w:has(.z-atk),
+  #opp-area .zone-w:has(.z-atk) { flex: 1.4; }
+  #self-area .z-atk,
   #opp-area .z-atk {
-    border: 1.5px solid rgba(255, 80, 80, 0.7) !important;
-    background: rgba(255, 80, 80, 0.08) !important;
+    border: 1.5px solid rgba(255, 90, 90, 0.65) !important;
+    background: rgba(255, 50, 50, 0.06) !important;
   }
 
   /* ── 隱藏電腦版專屬 ── */
@@ -2226,6 +2207,40 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #mobile-topbar .mtb-item { display: flex; align-items: center; gap: 4px; color: var(--text-dim); }
 #mobile-topbar .mtb-val  { color: var(--text); font-weight: 700; font-size: 13px; }
 #mobile-topbar .mtb-spacer { flex: 1; }
+
+/* ── Mobile Slot Modal（格子放大移動）── */
+#msm { display: none; position: fixed; inset: 0; z-index: 4000; flex-direction: column; align-items: center; justify-content: flex-end; }
+#msm.open { display: flex; }
+#msm-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+#msm-sheet {
+  position: relative; z-index: 1;
+  background: var(--surface2, #1a1a2e);
+  border-radius: 18px 18px 0 0;
+  padding: 16px 12px 24px;
+  width: 100%; max-width: 480px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+}
+#msm-card-wrap { display: flex; align-items: center; justify-content: center; min-height: 80px; }
+#msm-label { font-size: 11px; color: rgba(255,255,255,.5); letter-spacing: 1px; text-transform: uppercase; }
+#msm-dest-label { font-size: 12px; color: rgba(255,255,255,.7); align-self: flex-start; }
+#msm-dest-grid {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center; width: 100%;
+}
+.msm-dest-btn {
+  background: rgba(255,255,255,.07);
+  border: 1.5px dashed rgba(255,255,255,.25);
+  border-radius: 8px; padding: 4px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  transition: background .15s;
+}
+.msm-dest-btn:active { background: rgba(255,255,255,.18); }
+.msm-dest-btn .msm-btn-lbl { font-size: 9px; color: rgba(255,255,255,.5); }
+#msm-cancel {
+  width: 100%; padding: 10px; border-radius: 10px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  color: rgba(255,255,255,.7); font-size: 14px; cursor: pointer;
+}
 
 /* ── Mobile FAB（電腦版隱藏）── */
 #mobile-fab {
@@ -7031,6 +7046,108 @@ function closeMobileDrawer() {
   document.readyState === 'loading'
     ? document.addEventListener('DOMContentLoaded', initTopbarSync)
     : initTopbarSync();
+})();
+
+// ── 手機格子放大移動 Modal（A5）──────────────────────────
+(function _mobileSlotModal() {
+  if (!window.matchMedia('(pointer: coarse)').matches) return;
+
+  /* 建立 modal DOM */
+  const modal = document.createElement('div');
+  modal.id = 'msm';
+  modal.innerHTML = `
+    <div id="msm-backdrop"></div>
+    <div id="msm-sheet">
+      <div id="msm-card-wrap"></div>
+      <div id="msm-label"></div>
+      <div id="msm-dest-label">移到：</div>
+      <div id="msm-dest-grid"></div>
+      <button id="msm-cancel">✕ 取消</button>
+    </div>`;
+  const sg = document.getElementById('screen-game');
+  if (sg) sg.appendChild(modal); else document.body.appendChild(modal);
+
+  let srcZone = null;
+
+  function closeModal() {
+    modal.classList.remove('open');
+    srcZone = null;
+  }
+
+  document.getElementById('msm-backdrop').onclick = closeModal;
+  document.getElementById('msm-cancel').onclick   = closeModal;
+
+  const ZONE_NAMES = {
+    attack:'攻擊', receive:'接球', toss:'舉球',
+    'block:0':'攔網①', 'block:1':'攔網②', 'block:2':'攔網③',
+    serve:'發球', event:'事件'
+  };
+
+  function openModal(slotEl) {
+    srcZone = slotEl.dataset.zone;
+    if (!srcZone) return;
+
+    /* 顯示當前格子的卡牌 */
+    const img = slotEl.querySelector('img');
+    const wrap = document.getElementById('msm-card-wrap');
+    wrap.innerHTML = img
+      ? `<img src="${img.src}" style="width:100px;height:140px;object-fit:cover;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.6)">`
+      : `<div style="width:80px;height:112px;border:2px dashed rgba(255,255,255,.25);border-radius:8px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3);font-size:28px">＋</div>`;
+    document.getElementById('msm-label').textContent = ZONE_NAMES[srcZone] || srcZone;
+
+    /* 目標格子按鈕 */
+    const grid = document.getElementById('msm-dest-grid');
+    grid.innerHTML = '';
+    document.querySelectorAll('#self-area .z-slot[data-zone]').forEach(dest => {
+      const dz = dest.dataset.zone;
+      if (dz === srcZone) return;
+      const di = dest.querySelector('img');
+      const btn = document.createElement('button');
+      btn.className = 'msm-dest-btn';
+      btn.innerHTML = di
+        ? `<img src="${di.src}" style="width:44px;height:62px;object-fit:cover;border-radius:5px;">`
+        : `<div style="width:44px;height:62px;border:1.5px dashed rgba(255,255,255,.25);border-radius:5px;display:flex;align-items:center;justify-content:center;opacity:.5;font-size:8px">${ZONE_NAMES[dz]||dz}</div>`;
+      const lbl = document.createElement('div');
+      lbl.className = 'msm-btn-lbl';
+      lbl.textContent = ZONE_NAMES[dz] || dz;
+      btn.appendChild(lbl);
+      btn.onclick = () => execMove(dz, !!di);
+      grid.appendChild(btn);
+    });
+
+    modal.classList.add('open');
+  }
+
+  function execMove(destZone, hasCards) {
+    if (!srcZone) return;
+    try {
+      const zones = myZonesCopy();
+      const cardData = getZoneCard(zones, srcZone);
+      if (cardData) {
+        window.dragData = { src: 'zone', zoneName: srcZone, cardData };
+        handleDrop(destZone, hasCards);
+      }
+    } catch(e) { console.warn('[msm] execMove error', e); }
+    closeModal();
+  }
+
+  /* 附加 click 監聽（tap 後觸發，drag 不會觸發 click） */
+  function attachListeners() {
+    document.querySelectorAll('#self-area .z-slot[data-zone]').forEach(slot => {
+      if (slot._msmBound) return;
+      slot._msmBound = true;
+      slot.addEventListener('click', e => {
+        /* 若 A3 手牌 tap 模式已選牌，讓 A3 onZoneTap 處理，不開 modal */
+        if (typeof tapSelectedIdx !== 'undefined' && tapSelectedIdx !== null) return;
+        e.stopPropagation();
+        openModal(slot);
+      });
+    });
+  }
+
+  attachListeners();
+  const board = document.getElementById('game-board');
+  if (board) new MutationObserver(attachListeners).observe(board, { childList: true, subtree: true });
 })();
 </script>
 </body>
