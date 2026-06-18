@@ -2095,60 +2095,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   .z-slot img { width: 100%; height: 100%; object-fit: cover; }
   .z-empty  { font-size: 9px; }
 
-  /* ── 手機堆疊顯示：只露出 top card（MiniMax + hy3 方案）── */
-  /* hstack 撐滿格子，作為定位錨 */
-  .z-hstack {
-    position: relative !important;
-    display: block !important;
-    width: 100%; height: 100%;
-  }
-  /* 所有 card 絕對疊放 */
-  .z-hstack-card {
-    position: absolute !important;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    margin: 0 !important;
-  }
-  /* 非 top card：移除 z-index stacking context 讓 name 能浮到頂 */
-  .z-hstack-card:not(:last-child) { z-index: auto !important; }
-  .z-hstack-card:last-child { z-index: 2; }
-  /* 非 top card：圖片隱藏，名字側邊顯示 */
-  .z-hstack-card:not(:last-child) img { visibility: hidden; }
-  .z-hstack-card:not(:last-child) .z-hstack-name {
-    position: absolute;
-    right: 2px; top: 4%;
-    writing-mode: vertical-rl;
-    font-size: 8px; line-height: 1.1;
-    background: rgba(0,0,0,.65);
-    color: #ddd;
-    padding: 2px 1px;
-    border-radius: 2px;
-    z-index: 20;
-    max-height: 70%; overflow: hidden;
-    white-space: nowrap;
-  }
-  /* 多張底牌依 nth-last-child 分散位置 */
-  .z-hstack-card:nth-last-child(2) .z-hstack-name { top:  4%; }
-  .z-hstack-card:nth-last-child(3) .z-hstack-name { top: 28%; }
-  .z-hstack-card:nth-last-child(4) .z-hstack-name { top: 52%; }
-  .z-hstack-card:nth-last-child(5) .z-hstack-name { top: 68%; }
-  /* Top card 自己的名字隱藏（由卡牌圖片代替） */
-  .z-hstack-card:last-child .z-hstack-name { display: none; }
-  /* 張數角標（CSS counter，僅多於 1 張時顯示）*/
-  .z-hstack { counter-reset: hstack-cnt; }
-  .z-hstack-card { counter-increment: hstack-cnt; }
-  .z-hstack-card:last-child:not(:only-child)::before {
-    content: "×" counter(hstack-cnt);
-    position: absolute;
-    top: 2px; left: 2px;
-    background: rgba(0,0,0,.75);
-    color: #fff;
-    font-size: 10px; line-height: 1;
-    padding: 1px 4px;
-    border-radius: 3px;
-    z-index: 25;
-    pointer-events: none;
-  }
+  /* ── 手機版 hstack：恢復桌面版 flex 排列，補最小寬度防止過窄（MiMo + MiniMax 方案）── */
+  .z-hstack-card { min-width: 36px; }
 
   /* ── board-side 橫向收納 ── */
   .board-side      { flex-direction: row; flex-wrap: wrap; gap: 4px; flex-shrink: 0; width: auto; min-width: 0; }
