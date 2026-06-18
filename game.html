@@ -6057,6 +6057,7 @@ function hideCardHover() {
 
 // Pin hover to follow mouse globally (used when entering move mode by click)
 function pinCardHover(img, e) {
+  if (window.matchMedia('(pointer: coarse)').matches) return;
   clearTimeout(_hoverTimer);
   _fillHoverContent(img);
   _hoverPinned = true;
@@ -6994,6 +6995,7 @@ function closeMobileDrawer() {
     handCards.addEventListener('pointerdown', onPD, { passive: false });
     window.addEventListener('pointermove', onPM, { passive: false });
     window.addEventListener('pointerup', onPU, { passive: false });
+    window.addEventListener('pointercancel', onPC);
     const board = document.getElementById('game-board');
     if (board) board.addEventListener('pointerdown', onZoneTap, { passive: false });
   }
@@ -7027,6 +7029,12 @@ function closeMobileDrawer() {
     } else {
       setTapSelect(mDragCardIdx);
     }
+    mDragging = false; mDragCardIdx = null; mDragImg = null;
+  }
+  function onPC(e) {
+    if (mDragCardIdx === null) return;
+    removeGhost(); highlightZones(false);
+    clearTapSelect();
     mDragging = false; mDragCardIdx = null; mDragImg = null;
   }
   function onZoneTap(e) {
