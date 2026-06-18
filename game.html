@@ -49,7 +49,7 @@ body {
 /* ── Screens ── */
 .screen { display: none; width: 100%; min-height: 100vh; }
 .screen.active { display: flex; flex-direction: column; }
-#screen-game.active { height: 100vh; overflow: hidden; }
+#screen-game.active { height: calc(var(--dvh, 1vh) * 100); height: 100dvh; overflow: hidden; }
 
 /* ── Buttons ── */
 .btn {
@@ -2005,6 +2005,270 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .tut-no-show { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
 .tut-no-show input { accent-color: var(--accent); }
+
+/* ══════════════════════════════════════════
+   MOBILE LAYOUT  (max-width: 768px)
+   A1 骨架 + A2 球場佈局 合併
+   ══════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ── 手機專用元素顯示 ── */
+  #mobile-topbar { display: flex !important; }
+  #mobile-drawer { display: flex !important; }
+  #mobile-fab    { display: flex !important; }
+  #sidebar       { display: none !important; }
+
+  /* ── 整體 game 畫面 ── */
+  #screen-game.active {
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Game body 縱向 ── */
+  #game-body {
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ── 球場板 ── */
+  #game-board {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+    width: 100%;
+    touch-action: none;
+  }
+
+  /* ── 對手區：上方縮小，auto 高度讓 court 決定 ── */
+  #opp-area {
+    flex: 0 0 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 2px 4px;
+    position: relative;
+    align-items: center;
+  }
+  /* 不用 transform（會造成 layout 空白），直接縮小格子 */
+  #opp-area .board-court {
+    transform: none;
+    width: 100%;
+  }
+  #opp-area .z-slot {
+    min-width: 34px !important;
+    min-height: 34px !important;
+    font-size: 8px;
+  }
+  #opp-area .court-row { gap: 2px; margin-bottom: 2px; }
+  #opp-area .z-empty { font-size: 8px; }
+  #opp-area .board-side {
+    flex-direction: row;
+    gap: 6px;
+    align-items: center;
+  }
+  #opp-area .info-tile { min-width: 36px; padding: 3px 6px; font-size: 10px; }
+  #opp-area .t-val    { font-size: 13px; }
+  #opp-area .area-name { font-size: 10px; top: 2px; left: 4px; }
+
+  /* ── NET 壓縮 ── */
+  .net-div { flex: 0 0 auto; padding: 2px 8px; min-height: 0; }
+  .net-div .net-line { height: 1px; }
+  .net-div .net-text { font-size: 9px; padding: 0 6px; }
+
+  /* ── 自己區：下方主操作 ── */
+  #self-area {
+    flex: 0 0 55%;
+    min-height: 0;
+    overflow: hidden;
+    padding: 2px 4px;
+  }
+  #self-area .board-court { transform: none; width: 100%; }
+  #self-area .info-tile { min-width: 40px; padding: 4px 8px; }
+
+  /* ── player-area 縱向 ── */
+  .player-area { flex-direction: column; align-items: stretch; gap: 2px; }
+
+  /* ── 格子手機化（touch target ≥ 44px）── */
+  .court-row { gap: 3px; margin-bottom: 3px; }
+  .zone-w    { flex: 1; }
+  .z-slot    { min-width: 44px; min-height: 44px; border-radius: 6px; padding: 2px; touch-action: none; }
+  .z-slot img { width: 100%; height: 100%; object-fit: cover; }
+  .z-empty  { font-size: 9px; }
+
+  /* ── board-side 橫向收納 ── */
+  .board-side      { flex-direction: row; flex-wrap: wrap; gap: 4px; flex-shrink: 0; width: auto; min-width: 0; }
+  .info-tile .t-label { font-size: 8px; }
+  .info-tile .t-val   { font-size: 13px; }
+  .set-pool-loss-btn  { font-size: 9px; padding: 2px 5px; }
+
+  /* ── 手牌區：更高，讓卡牌看得清楚 ── */
+  #hand-area {
+    flex-shrink: 0;
+    height: auto;
+    min-height: 150px;
+    max-height: 180px;
+    flex-direction: row;   /* 橫排：手牌 | END TURN */
+    align-items: center;
+    padding: 6px 4px;
+    gap: 6px;
+  }
+  #hand-cards {
+    flex: 1;
+    min-width: 0;
+    touch-action: pan-x;
+    height: 100%;
+    align-items: center;
+  }
+  /* 每張手牌放大 */
+  .hand-card {
+    width: 72px !important;
+    height: 108px !important;
+    flex-shrink: 0;
+  }
+  /* hand 區左側 meta/label 隱藏 */
+  .hand-lbl, #hand-meta { display: none !important; }
+  /* undo 按鈕縮小 */
+  #hand-area #undo-btn {
+    flex: 0 0 48px !important;
+    width: 48px !important;
+    min-width: 0 !important;
+    max-width: 48px !important;
+    height: 108px !important;
+    font-size: 10px;
+    padding: 4px 2px;
+    align-self: center;
+  }
+  /* END TURN 按鈕：固定寬度在右側 */
+  #hand-area #end-turn-btn {
+    flex: 0 0 76px !important;
+    width: 76px !important;
+    min-width: 0 !important;
+    max-width: 76px !important;
+    height: 108px !important;
+    font-size: 11px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    align-self: center;
+    flex-direction: column;
+    margin: 0 !important;
+  }
+  #hand-end-icon { font-size: 18px; }
+  #hand-end-label { font-size: 10px; letter-spacing: 0; }
+  #hand-end-sub { display: none; }
+
+  /* ── 空格子：半透明虛線，隱藏文字 ── */
+  .z-slot {
+    background: rgba(255,255,255,0.03) !important;
+    border: 1.5px dashed rgba(255,255,255,0.25) !important;
+    box-shadow: none !important;
+  }
+  /* 隱藏 ::after 產生的區域名稱文字（BLOCK / ATTACK 等）*/
+  .z-slot::after { content: none !important; display: none !important; }
+  /* 空格的 — 符號隱藏 */
+  .z-empty { display: none !important; }
+  /* 有卡牌時恢復輪廓 */
+  .z-slot.filled,
+  .z-slot:has(img) {
+    border: 1px solid rgba(255,255,255,0.5) !important;
+    background: transparent !important;
+  }
+
+  /* ── 自己場：攻擊位放大 ── */
+  #self-area .zone-w:has(.z-atk) {
+    flex: 1.7;
+  }
+  #self-area .z-atk {
+    border-color: rgba(255, 100, 100, 0.6) !important;
+  }
+
+  /* ── 對手場：攻擊位突出顯示 ── */
+  #opp-area .z-atk {
+    border: 1.5px solid rgba(255, 80, 80, 0.7) !important;
+    background: rgba(255, 80, 80, 0.08) !important;
+  }
+
+  /* ── 隱藏電腦版專屬 ── */
+  .shuffle-btn { display: none; }
+
+  /* ── 對手區：隱藏 board-sides，只留 court ── */
+  #opp-area .board-side { display: none !important; }
+  #opp-area .area-name  { position: static !important; font-size: 10px; margin-bottom: 2px; padding: 0 4px; }
+
+  /* ── 自己區：court 優先，board-sides 移到後面 ── */
+  #self-area { flex: 1 1 auto; }
+  #self-area .board-court            { order: 1; }
+  #self-area .board-side:first-of-type { order: 2; }  /* SET pool */
+  #self-area .board-side:last-of-type  { order: 3; }  /* 牌組/棄牌 */
+  /* board-sides 在 court 下方橫向排列 */
+  #self-area .board-side { flex-direction: row; gap: 8px; padding: 3px 4px; }
+  #self-area .set-pool-loss-btn { display: none; } /* 輸一球移到抽屜 */
+}
+
+/* ── Mobile Topbar（電腦版隱藏，flex 流內）── */
+#mobile-topbar {
+  display: none;
+  height: 36px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+  padding: 0 12px;
+  gap: 14px;
+  font-size: 12px;
+  flex-shrink: 0;
+  z-index: 100;
+  width: 100%;
+}
+#mobile-topbar .mtb-item { display: flex; align-items: center; gap: 4px; color: var(--text-dim); }
+#mobile-topbar .mtb-val  { color: var(--text); font-weight: 700; font-size: 13px; }
+#mobile-topbar .mtb-spacer { flex: 1; }
+
+/* ── Mobile FAB（電腦版隱藏）── */
+#mobile-fab {
+  display: none;
+  position: fixed;
+  bottom: 152px;
+  right: 12px;
+  width: 44px; height: 44px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  box-shadow: 0 4px 14px rgba(108,99,255,.5);
+}
+
+/* ── Mobile Drawer（電腦版隱藏）── */
+#mobile-drawer {
+  display: none;
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(85vw, 320px);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  flex-direction: column;
+  z-index: 500;
+  transform: translateX(100%);
+  transition: transform .25s ease;
+  overflow-y: auto;
+}
+#mobile-drawer.open { transform: translateX(0); }
+#mobile-drawer-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 499;
+}
+#mobile-drawer-overlay.open { display: block; }
 </style>
 </head>
 <body>
@@ -2156,6 +2420,28 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
 <!-- ══════════════════════ SCREEN: GAME ══════════════════════ -->
 <div id="screen-game" class="screen">
+
+<!-- ── MOBILE: Topbar（在 flex 流內，36px）── -->
+<div id="mobile-topbar">
+  <div class="mtb-item">🏆 <span class="mtb-val" id="mtb-sets">0-0</span></div>
+  <div class="mtb-item">⚡ <span class="mtb-val" id="mtb-atk">0</span></div>
+  <div class="mtb-item">🃏 <span class="mtb-val" id="mtb-hand">0</span></div>
+  <div class="mtb-spacer"></div>
+  <div class="mtb-item" id="mtb-turn" style="color:var(--accent);font-weight:700;font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+</div>
+<!-- ── MOBILE: Drawer overlay ── -->
+<div id="mobile-drawer-overlay" onclick="closeMobileDrawer()"></div>
+<!-- ── MOBILE: Drawer ── -->
+<div id="mobile-drawer">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <span style="font-weight:700;font-size:15px">詳細資訊</span>
+    <button class="btn xs" onclick="closeMobileDrawer()">✕</button>
+  </div>
+  <div id="mobile-drawer-content" style="padding:12px;flex:1"></div>
+</div>
+<!-- ── MOBILE: FAB ── -->
+<button id="mobile-fab" onclick="openMobileDrawer()" title="更多資訊">☰</button>
+
 <!-- Spectator banner -->
 <div id="spectator-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:4000;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;padding:6px 16px;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.4)">
   <span>👁 觀戰模式 — 無法看到雙方手牌</span>
@@ -6548,6 +6834,204 @@ document.getElementById('player-name').addEventListener('keydown', e => { if (e.
 // BOOT
 // ══════════════════════════════════════════════════════
 init().then(checkUrlJoin);
+
+// ════════════════════════════════════════════
+//  MOBILE: Drawer 控制 + 100dvh fallback（A1）
+// ════════════════════════════════════════════
+function openMobileDrawer() {
+  document.getElementById('mobile-drawer').classList.add('open');
+  document.getElementById('mobile-drawer-overlay').classList.add('open');
+}
+function closeMobileDrawer() {
+  document.getElementById('mobile-drawer').classList.remove('open');
+  document.getElementById('mobile-drawer-overlay').classList.remove('open');
+}
+(function _dvhFallback() {
+  function set() { document.documentElement.style.setProperty('--dvh', (window.innerHeight * 0.01) + 'px'); }
+  set();
+  window.addEventListener('resize', set);
+})();
+
+// ════════════════════════════════════════════
+//  MOBILE TOUCH INPUT（A3）
+//  Pointer Events drag-drop + tap 備援
+//  只在 pointer:coarse（觸控裝置）啟用
+// ════════════════════════════════════════════
+(function () {
+  if (!('PointerEvent' in window)) return;
+
+  let ghost = null;
+  function createGhost(imgSrc, x, y) {
+    ghost = document.createElement('div');
+    ghost.style.cssText = 'position:fixed;width:64px;height:90px;border-radius:6px;overflow:hidden;opacity:0.75;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.6);left:' + (x-32) + 'px;top:' + (y-45) + 'px';
+    if (imgSrc) { const img = document.createElement('img'); img.src = imgSrc; img.style.cssText = 'width:100%;height:100%;object-fit:cover'; ghost.appendChild(img); }
+    else { ghost.style.background = 'var(--accent)'; }
+    document.body.appendChild(ghost);
+  }
+  function moveGhost(x, y) { if (ghost) { ghost.style.left=(x-32)+'px'; ghost.style.top=(y-45)+'px'; } }
+  function removeGhost() { if (ghost) { ghost.remove(); ghost = null; } }
+
+  let mDragging = false, mDragCardIdx = null, mDragImg = null, mDragStartX = 0, mDragStartY = 0;
+  const DRAG_THRESHOLD = 8;
+  let tapSelectedIdx = null;
+
+  function getZoneAtPoint(x, y) {
+    for (const el of document.elementsFromPoint(x, y)) {
+      if (el.classList && el.classList.contains('z-slot') && !el.closest('#opp-area')) return el;
+    }
+    return null;
+  }
+  function highlightZones(on) {
+    document.querySelectorAll('#self-area .z-slot').forEach(sl => sl.classList.toggle('mobile-drop-target', on));
+  }
+  function triggerPlace(zoneEl, cardIdx) {
+    // 直接呼叫現有 handleDrop，dragData 是全域物件
+    const zone = zoneEl.dataset.zone;
+    if (!zone) return;
+    if (typeof dragData !== 'undefined') { dragData.src = 'hand'; dragData.idx = parseInt(cardIdx); }
+    const hasCards = zoneEl.querySelector('img') !== null;
+    if (typeof handleDrop === 'function') handleDrop(zone, hasCards);
+  }
+
+  function bindMobileInput() {
+    const handCards = document.getElementById('hand-cards');
+    if (!handCards || handCards._mbBound) return;
+    handCards._mbBound = true;
+    handCards.addEventListener('pointerdown', onPD, { passive: false });
+    window.addEventListener('pointermove', onPM, { passive: false });
+    window.addEventListener('pointerup', onPU, { passive: false });
+    const board = document.getElementById('game-board');
+    if (board) board.addEventListener('pointerdown', onZoneTap, { passive: false });
+  }
+
+  function onPD(e) {
+    const card = e.target.closest('.hand-card');
+    if (!card) return;
+    mDragCardIdx = card.dataset.idx;
+    mDragImg = card.querySelector('img')?.src || null;
+    mDragStartX = e.clientX; mDragStartY = e.clientY;
+    mDragging = false;
+    e.preventDefault();
+  }
+  function onPM(e) {
+    if (mDragCardIdx === null) return;
+    const dx = Math.abs(e.clientX - mDragStartX), dy = Math.abs(e.clientY - mDragStartY);
+    if (!mDragging && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
+      mDragging = true;
+      createGhost(mDragImg, mDragStartX, mDragStartY);
+      highlightZones(true);
+      clearTapSelect();
+    }
+    if (mDragging) { moveGhost(e.clientX, e.clientY); e.preventDefault(); }
+  }
+  function onPU(e) {
+    if (mDragCardIdx === null) return;
+    if (mDragging) {
+      removeGhost(); highlightZones(false);
+      const zone = getZoneAtPoint(e.clientX, e.clientY);
+      if (zone) triggerPlace(zone, mDragCardIdx);
+    } else {
+      setTapSelect(mDragCardIdx);
+    }
+    mDragging = false; mDragCardIdx = null; mDragImg = null;
+  }
+  function onZoneTap(e) {
+    if (tapSelectedIdx === null || mDragging) return;
+    const zone = e.target.closest('.z-slot');
+    if (!zone || zone.closest('#opp-area')) return;
+    e.preventDefault();
+    triggerPlace(zone, tapSelectedIdx);
+    clearTapSelect();
+  }
+  function setTapSelect(idx) {
+    clearTapSelect();
+    tapSelectedIdx = idx;
+    const card = document.querySelector('.hand-card[data-idx="' + idx + '"]');
+    if (card) card.classList.add('mobile-tap-selected');
+    highlightZones(true);
+  }
+  function clearTapSelect() {
+    tapSelectedIdx = null;
+    document.querySelectorAll('.mobile-tap-selected').forEach(el => el.classList.remove('mobile-tap-selected'));
+    highlightZones(false);
+  }
+
+  const mStyle = document.createElement('style');
+  mStyle.textContent = '.mobile-drop-target{outline:2px dashed var(--accent)!important;background:rgba(108,99,255,.15)!important}.mobile-tap-selected{outline:2px solid var(--accent2)!important;transform:translateY(-8px)!important}';
+  document.head.appendChild(mStyle);
+
+  function init() {
+    if (!window.matchMedia('(pointer: coarse)').matches) return;
+    if (document.getElementById('hand-cards')) { bindMobileInput(); return; }
+    const obs = new MutationObserver(() => { if (document.getElementById('hand-cards')) { obs.disconnect(); bindMobileInput(); } });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+  document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+})();
+
+// ════════════════════════════════════════════
+//  MOBILE TOPBAR SYNC + DRAWER CONTENT（A4）
+//  MutationObserver 監聽 renderBoard 更新的 DOM
+// ════════════════════════════════════════════
+(function () {
+  function initTopbarSync() {
+    const topbar = document.getElementById('mobile-topbar');
+    if (!topbar) return;
+    const mtbSets = document.getElementById('mtb-sets');
+    const mtbAtk  = document.getElementById('mtb-atk');
+    const mtbHand = document.getElementById('mtb-hand');
+    const mtbTurn = document.getElementById('mtb-turn');
+
+    const srcHostSets  = document.getElementById('sb-host-sets');
+    const srcGuestSets = document.getElementById('sb-guest-sets');
+    const srcAtkHost   = document.getElementById('net-score-host-val');
+    const srcAtkGuest  = document.getElementById('net-score-guest-val');
+    const srcHandHost  = document.getElementById('sb-hand-host-val');
+    const srcHandGuest = document.getElementById('sb-hand-guest-val');
+    const srcTurn      = document.getElementById('turn-indicator');
+
+    function syncTopbar() {
+      if (srcHostSets && srcGuestSets && mtbSets)
+        mtbSets.textContent = (srcHostSets.textContent||'0') + '-' + (srcGuestSets.textContent||'0');
+      if (srcAtkHost && srcAtkGuest && mtbAtk)
+        mtbAtk.textContent = (srcAtkHost.textContent||'0') + '/' + (srcAtkGuest.textContent||'0');
+      if (srcHandHost && srcHandGuest && mtbHand)
+        mtbHand.textContent = (srcHandHost.textContent||'0') + '/' + (srcHandGuest.textContent||'0');
+      if (srcTurn && mtbTurn) {
+        const t = srcTurn.textContent || '';
+        mtbTurn.textContent = t.length > 14 ? t.slice(0, 14) + '…' : t;
+        mtbTurn.style.color = window.getComputedStyle(srcTurn).color;
+      }
+    }
+    const obs = new MutationObserver(syncTopbar);
+    const cfg = { childList: true, characterData: true, subtree: true };
+    [srcHostSets,srcGuestSets,srcAtkHost,srcAtkGuest,srcHandHost,srcHandGuest,srcTurn]
+      .forEach(el => { if (el) obs.observe(el, cfg); });
+    syncTopbar();
+  }
+
+  function buildDrawerContent() {
+    const sb = document.getElementById('sidebar');
+    const dc = document.getElementById('mobile-drawer-content');
+    if (!sb || !dc) return;
+    dc.innerHTML = '';
+    const clone = sb.cloneNode(true);
+    clone.removeAttribute('id');
+    clone.style.cssText = 'display:block;width:100%';
+    dc.appendChild(clone);
+  }
+
+  // 包裝 openMobileDrawer，加入 buildDrawerContent
+  const _origOpen = window.openMobileDrawer;
+  window.openMobileDrawer = function () {
+    if (_origOpen) _origOpen();
+    buildDrawerContent();
+  };
+
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', initTopbarSync)
+    : initTopbarSync();
+})();
 </script>
 </body>
 </html>
