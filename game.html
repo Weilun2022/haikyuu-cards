@@ -2045,9 +2045,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
     touch-action: none;
   }
 
-  /* ── 對手區：上方縮小，auto 高度讓 court 決定 ── */
+  /* ── 對手區：等分空間與自己區等高（MiMo 方案）── */
   #opp-area {
-    flex: 0 0 auto;
+    flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
     padding: 2px 4px;
@@ -2075,9 +2075,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   .net-div .net-line { height: 1px; }
   .net-div .net-text { font-size: 9px; padding: 0 6px; }
 
-  /* ── 自己區：下方主操作 ── */
+  /* ── 自己區：等分空間（與 opp-area 各 flex:1 1 0）── */
   #self-area {
-    flex: 0 0 55%;
+    flex: 1 1 0;
     min-height: 0;
     overflow: hidden;
     padding: 2px 4px;
@@ -2090,10 +2090,65 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── 格子手機化（touch target ≥ 44px）── */
   .court-row { gap: 3px; margin-bottom: 3px; }
-  .zone-w    { flex: 1; }
-  .z-slot    { min-width: 44px; min-height: 44px; border-radius: 6px; padding: 2px; touch-action: none; }
+  .zone-w    { flex: 1; min-width: 0; }
+  .z-slot    { min-width: 44px; min-height: 44px; border-radius: 6px; padding: 2px; touch-action: none; position: relative; }
   .z-slot img { width: 100%; height: 100%; object-fit: cover; }
   .z-empty  { font-size: 9px; }
+
+  /* ── 手機堆疊顯示：只露出 top card（MiniMax + hy3 方案）── */
+  /* hstack 撐滿格子，作為定位錨 */
+  .z-hstack {
+    position: relative !important;
+    display: block !important;
+    width: 100%; height: 100%;
+  }
+  /* 所有 card 絕對疊放 */
+  .z-hstack-card {
+    position: absolute !important;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    margin: 0 !important;
+  }
+  /* 非 top card：移除 z-index stacking context 讓 name 能浮到頂 */
+  .z-hstack-card:not(:last-child) { z-index: auto !important; }
+  .z-hstack-card:last-child { z-index: 2; }
+  /* 非 top card：圖片隱藏，名字側邊顯示 */
+  .z-hstack-card:not(:last-child) img { visibility: hidden; }
+  .z-hstack-card:not(:last-child) .z-hstack-name {
+    position: absolute;
+    right: 2px; top: 4%;
+    writing-mode: vertical-rl;
+    font-size: 8px; line-height: 1.1;
+    background: rgba(0,0,0,.65);
+    color: #ddd;
+    padding: 2px 1px;
+    border-radius: 2px;
+    z-index: 20;
+    max-height: 70%; overflow: hidden;
+    white-space: nowrap;
+  }
+  /* 多張底牌依 nth-last-child 分散位置 */
+  .z-hstack-card:nth-last-child(2) .z-hstack-name { top:  4%; }
+  .z-hstack-card:nth-last-child(3) .z-hstack-name { top: 28%; }
+  .z-hstack-card:nth-last-child(4) .z-hstack-name { top: 52%; }
+  .z-hstack-card:nth-last-child(5) .z-hstack-name { top: 68%; }
+  /* Top card 自己的名字隱藏（由卡牌圖片代替） */
+  .z-hstack-card:last-child .z-hstack-name { display: none; }
+  /* 張數角標（CSS counter，僅多於 1 張時顯示）*/
+  .z-hstack { counter-reset: hstack-cnt; }
+  .z-hstack-card { counter-increment: hstack-cnt; }
+  .z-hstack-card:last-child:not(:only-child)::before {
+    content: "×" counter(hstack-cnt);
+    position: absolute;
+    top: 2px; left: 2px;
+    background: rgba(0,0,0,.75);
+    color: #fff;
+    font-size: 10px; line-height: 1;
+    padding: 1px 4px;
+    border-radius: 3px;
+    z-index: 25;
+    pointer-events: none;
+  }
 
   /* ── board-side 橫向收納 ── */
   .board-side      { flex-direction: row; flex-wrap: wrap; gap: 4px; flex-shrink: 0; width: auto; min-width: 0; }
@@ -2181,7 +2236,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   #opp-area .area-name  { position: static !important; font-size: 10px; margin-bottom: 2px; padding: 0 4px; }
 
   /* ── 自己區：court 優先，board-sides 移到後面 ── */
-  #self-area { flex: 1 1 auto; }
+  #self-area { flex: 1 1 0; }
   #self-area .board-court            { order: 1; }
   #self-area .board-side:first-of-type { order: 2; }  /* SET pool */
   #self-area .board-side:last-of-type  { order: 3; }  /* 牌組/棄牌 */
@@ -6385,6 +6440,30 @@ async function reorderStack(zoneName, movedImg, targetImg, insertAfter, useFirst
   await resetCounterDelta(zoneName);
 }
 
+// ── 手機版：將 GUTS 牌放到最上面（DeepSeek 方案 + hy3 syncScoreToBase 補充）──
+async function moveGutsToTop(zoneName, cardData, gutsImg) {
+  saveUndo();
+  const zones = myZonesCopy();
+  const zc = getZoneCard(zones, zoneName);
+  if (!zc) return;
+  const gi = (zc.guts || []).lastIndexOf(gutsImg);
+  if (gi === -1) { toast('找不到該牌'); return; }
+  // 移出 gutsImg
+  zc.guts = [...zc.guts.slice(0, gi), ...zc.guts.slice(gi + 1)];
+  // 現有 top → 降為 guts 末尾（just-below-top）
+  if (zc.img) zc.guts.push(zc.img);
+  // gutsImg 成為新 top
+  zc.img = gutsImg;
+  setZoneCard(zones, zoneName, zc);
+  await pushZones(zones);
+  // 若是得分區需同步（hy3 建議）
+  const scoreZones = ['attack', 'receive', 'toss'];
+  if (scoreZones.includes(zoneName.split(':')[0])) {
+    await syncScoreToBase(zones, zoneName.split(':')[0]);
+  }
+  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 移至堆頂`);
+}
+
 async function moveGutsCard(zoneName, cardData, gutsImg, target) {
   saveUndo();
   const zones = myZonesCopy();
@@ -7048,9 +7127,15 @@ function closeMobileDrawer() {
     : initTopbarSync();
 })();
 
-// ── 手機格子放大移動 Modal（A5）──────────────────────────
+// ── 手機格子放大移動 Modal（A5 v2：事件代理 + GUTS 操作）─────────────
 (function _mobileSlotModal() {
   if (!window.matchMedia('(pointer: coarse)').matches) return;
+
+  const ZONE_NAMES = {
+    attack:'攻擊', receive:'接球', toss:'舉球',
+    'block:0':'攔網①', 'block:1':'攔網②', 'block:2':'攔網③',
+    serve:'發球', event:'事件'
+  };
 
   /* 建立 modal DOM */
   const modal = document.createElement('div');
@@ -7062,37 +7147,41 @@ function closeMobileDrawer() {
       <div id="msm-label"></div>
       <div id="msm-dest-label">移到：</div>
       <div id="msm-dest-grid"></div>
+      <div id="msm-guts-section" style="display:none;width:100%">
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">堆疊內容</div>
+        <div id="msm-guts-list"></div>
+      </div>
       <button id="msm-cancel">✕ 取消</button>
     </div>`;
   const sg = document.getElementById('screen-game');
   if (sg) sg.appendChild(modal); else document.body.appendChild(modal);
 
-  let srcZone = null;
+  let srcZone = null, srcCardData = null;
 
   function closeModal() {
     modal.classList.remove('open');
-    srcZone = null;
+    srcZone = null; srcCardData = null;
   }
 
   document.getElementById('msm-backdrop').onclick = closeModal;
   document.getElementById('msm-cancel').onclick   = closeModal;
 
-  const ZONE_NAMES = {
-    attack:'攻擊', receive:'接球', toss:'舉球',
-    'block:0':'攔網①', 'block:1':'攔網②', 'block:2':'攔網③',
-    serve:'發球', event:'事件'
-  };
-
   function openModal(slotEl) {
     srcZone = slotEl.dataset.zone;
     if (!srcZone) return;
 
-    /* 顯示當前格子的卡牌 */
-    const img = slotEl.querySelector('img');
+    /* 取當前 cardData（從遊戲狀態）*/
+    try {
+      const zones = myZonesCopy();
+      srcCardData = getZoneCard(zones, srcZone) || null;
+    } catch(e) { srcCardData = null; }
+
+    /* 頂部卡牌大圖 */
+    const topImg = slotEl.querySelector('.z-hstack-card:last-child img, img');
     const wrap = document.getElementById('msm-card-wrap');
-    wrap.innerHTML = img
-      ? `<img src="${img.src}" style="width:100px;height:140px;object-fit:cover;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.6)">`
-      : `<div style="width:80px;height:112px;border:2px dashed rgba(255,255,255,.25);border-radius:8px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3);font-size:28px">＋</div>`;
+    wrap.innerHTML = topImg
+      ? `<img src="${topImg.src}" style="width:90px;height:126px;object-fit:cover;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.6)">`
+      : `<div style="width:72px;height:100px;border:2px dashed rgba(255,255,255,.25);border-radius:8px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.3);font-size:24px">＋</div>`;
     document.getElementById('msm-label').textContent = ZONE_NAMES[srcZone] || srcZone;
 
     /* 目標格子按鈕 */
@@ -7101,12 +7190,12 @@ function closeMobileDrawer() {
     document.querySelectorAll('#self-area .z-slot[data-zone]').forEach(dest => {
       const dz = dest.dataset.zone;
       if (dz === srcZone) return;
-      const di = dest.querySelector('img');
+      const di = dest.querySelector('.z-hstack-card:last-child img, img');
       const btn = document.createElement('button');
       btn.className = 'msm-dest-btn';
       btn.innerHTML = di
-        ? `<img src="${di.src}" style="width:44px;height:62px;object-fit:cover;border-radius:5px;">`
-        : `<div style="width:44px;height:62px;border:1.5px dashed rgba(255,255,255,.25);border-radius:5px;display:flex;align-items:center;justify-content:center;opacity:.5;font-size:8px">${ZONE_NAMES[dz]||dz}</div>`;
+        ? `<img src="${di.src}" style="width:40px;height:56px;object-fit:cover;border-radius:4px;">`
+        : `<div style="width:40px;height:56px;border:1.5px dashed rgba(255,255,255,.2);border-radius:4px;display:flex;align-items:center;justify-content:center;opacity:.4;font-size:8px">${ZONE_NAMES[dz]||dz}</div>`;
       const lbl = document.createElement('div');
       lbl.className = 'msm-btn-lbl';
       lbl.textContent = ZONE_NAMES[dz] || dz;
@@ -7115,39 +7204,64 @@ function closeMobileDrawer() {
       grid.appendChild(btn);
     });
 
+    /* GUTS 堆疊列表 */
+    const gutsSection = document.getElementById('msm-guts-section');
+    const gutsList    = document.getElementById('msm-guts-list');
+    const guts = srcCardData?.guts || [];
+    if (guts.length > 0) {
+      gutsList.innerHTML = '';
+      // guts[] index 0 = 最底部，最後一個 = just-below-top
+      [...guts].reverse().forEach(gutsImg => {
+        const cardName = (typeof allCards !== 'undefined' && allCards[gutsImg]?.name) || gutsImg;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.1)';
+        row.innerHTML = `<span style="flex:1;font-size:12px;color:#ccc">${cardName}</span>`;
+        const btnTop = document.createElement('button');
+        btnTop.textContent = '↑ 頂';
+        btnTop.style.cssText = 'font-size:11px;padding:4px 8px;background:rgba(255,180,0,.2);border:1px solid rgba(255,180,0,.5);border-radius:6px;color:#ffd;cursor:pointer';
+        btnTop.onclick = async () => {
+          closeModal();
+          await moveGutsToTop(srcZone, srcCardData, gutsImg);
+        };
+        const btnHand = document.createElement('button');
+        btnHand.textContent = '→手牌';
+        btnHand.style.cssText = 'font-size:11px;padding:4px 8px;background:rgba(80,180,255,.2);border:1px solid rgba(80,180,255,.5);border-radius:6px;color:#adf;cursor:pointer';
+        btnHand.onclick = async () => {
+          closeModal();
+          await moveGutsCard(srcZone, srcCardData, gutsImg, 'hand');
+        };
+        row.appendChild(btnTop);
+        row.appendChild(btnHand);
+        gutsList.appendChild(row);
+      });
+      gutsSection.style.display = 'block';
+    } else {
+      gutsSection.style.display = 'none';
+    }
+
     modal.classList.add('open');
   }
 
   function execMove(destZone, hasCards) {
-    if (!srcZone) return;
+    if (!srcZone || !srcCardData) { closeModal(); return; }
     try {
-      const zones = myZonesCopy();
-      const cardData = getZoneCard(zones, srcZone);
-      if (cardData) {
-        window.dragData = { src: 'zone', zoneName: srcZone, cardData };
-        handleDrop(destZone, hasCards);
-      }
+      window.dragData = { src: 'zone', zoneName: srcZone, cardData: srcCardData };
+      handleDrop(destZone, hasCards);
     } catch(e) { console.warn('[msm] execMove error', e); }
     closeModal();
   }
 
-  /* 附加 click 監聽（tap 後觸發，drag 不會觸發 click） */
-  function attachListeners() {
-    document.querySelectorAll('#self-area .z-slot[data-zone]').forEach(slot => {
-      if (slot._msmBound) return;
-      slot._msmBound = true;
-      slot.addEventListener('click', e => {
-        /* 若 A3 手牌 tap 模式已選牌，讓 A3 onZoneTap 處理，不開 modal */
-        if (typeof tapSelectedIdx !== 'undefined' && tapSelectedIdx !== null) return;
-        e.stopPropagation();
-        openModal(slot);
-      });
+  /* 事件代理：在 #self-area 層監聽（hy3 建議，避免 DOM 重建後脫落）*/
+  const selfArea = document.getElementById('self-area');
+  if (selfArea) {
+    selfArea.addEventListener('click', e => {
+      if (typeof tapSelectedIdx !== 'undefined' && tapSelectedIdx !== null) return;
+      const slot = e.target.closest('.z-slot[data-zone]');
+      if (!slot) return;
+      e.stopPropagation();
+      openModal(slot);
     });
   }
-
-  attachListeners();
-  const board = document.getElementById('game-board');
-  if (board) new MutationObserver(attachListeners).observe(board, { childList: true, subtree: true });
 })();
 </script>
 </body>
