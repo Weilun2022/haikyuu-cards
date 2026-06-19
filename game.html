@@ -2217,10 +2217,24 @@ input[type=text]::placeholder { color: var(--text-dim); }
   #self-area .board-side:last-of-type  { order: 3; }  /* 牌組/棄牌 */
   /* board-sides 在 court 下方橫向排列 */
   #self-area .board-side { flex-direction: row; gap: 8px; padding: 3px 4px; }
-  #self-area .set-pool-loss-btn { display: none; } /* 輸一球移到抽屜 */
-
-  /* ── 問題1：隱藏 SET pool board-side（資訊已在 mobile-topbar；操作移至 FAB 抽屜）── */
+  /* ── 問題1：隱藏（已搬空的）SET board-side 容器；SET tile 由 JS 搬到牌組列 ── */
   #self-area .board-side:first-of-type { display: none !important; }
+
+  /* ── SET tile 搬入牌組/棄牌列後緊湊化（44px，與牌組/棄牌等高 → court 維持對稱）── */
+  .info-tile.mobile-set-inline {
+    height: 44px !important; max-height: 44px !important; min-width: 0;
+    display: flex !important; flex-direction: row; align-items: center;
+    gap: 5px; padding: 4px 8px; order: -1;   /* 最左 */
+    width: auto !important;
+  }
+  .info-tile.mobile-set-inline .t-label { font-size: 9px; line-height: 1; margin: 0; }
+  .info-tile.mobile-set-inline .t-val   { font-size: 18px; line-height: 1; margin: 0; }
+  /* self SET tile 的「輸一球」按鈕：手機版場上顯示（桌面版功能同步）*/
+  .info-tile.mobile-set-inline .set-pool-loss-btn {
+    display: inline-block !important; width: auto !important;
+    font-size: 9px !important; padding: 2px 5px !important; margin: 0 0 0 2px !important;
+    line-height: 1.2;
+  }
 
   /* ── 問題A：pile-tile 與棄牌 tile 同高 44px，避免撐開 board-side ── */
   #pile-tile {
@@ -4104,6 +4118,36 @@ function renderBoard(data) {
   // L.hand is pure local state — every function that modifies it already calls renderHand() itself.
   // Calling it here on every Firebase sync caused a race condition where hand cards were
   // destroyed/recreated mid-click, making card play fail during atkAlert.
+  adjustMobileSetPosition();
+}
+
+// ── 手機版：把雙方 SET tile 搬到牌組/棄牌同一列的最左（DeepSeek 方案B）──
+//    desktop 不動；resize 跨斷點時雙向還原。board-side 為靜態 HTML（renderBoard 不重建），故需自行還原。
+function adjustMobileSetPosition() {
+  const isPhone = window.matchMedia('(max-width: 768px)').matches;
+  function relocate(areaId, setIsLast) {
+    const sides = document.querySelectorAll('#' + areaId + ' > .board-side');
+    if (sides.length < 2) return;
+    const setSide  = setIsLast ? sides[sides.length - 1] : sides[0];   // SET 所在 board-side
+    const deckSide = setIsLast ? sides[0] : sides[sides.length - 1];   // 牌組/棄牌 board-side
+    // SET tile = 含 #self-set / #opp-set 的 info-tile
+    const setTile = setSide.querySelector('.info-tile') ||
+                    deckSide.querySelector('.info-tile.mobile-set-inline');
+    if (!setTile) return;
+    if (isPhone) {
+      if (setTile.parentNode !== deckSide) {
+        setTile.classList.add('mobile-set-inline');
+        deckSide.insertBefore(setTile, deckSide.firstChild);  // 置於最左
+      }
+    } else {
+      if (setTile.parentNode !== setSide) {
+        setTile.classList.remove('mobile-set-inline');
+        setSide.insertBefore(setTile, setSide.firstChild);    // 還原回 desktop board-side
+      }
+    }
+  }
+  relocate('self-area', false);  // self：SET 在 first board-side
+  relocate('opp-area',  true);   // opp：SET 在 last board-side
 }
 
 function countDrop(zones) { return zones?.drop?.length ?? 0; }
@@ -7009,8 +7053,9 @@ function closeMobileDrawer() {
     document.documentElement.style.setProperty('--dvh', (h * 0.01) + 'px');
   }
   set();
-  window.addEventListener('resize', set);
-  window.addEventListener('orientationchange', set);
+  function onResize() { set(); if (typeof adjustMobileSetPosition === 'function') adjustMobileSetPosition(); }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', onResize);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', set);
 })();
 
