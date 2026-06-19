@@ -712,6 +712,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .set-pool-val { cursor: pointer; color: var(--accent); transition: transform .12s; }
 .set-pool-val:hover { transform: scale(1.12); }
 .set-pool-loss-btn { font-size: 9px !important; padding: 2px 6px !important; background: rgba(220,38,38,.15) !important; border-color: rgba(220,38,38,.4) !important; color: #f87171 !important; width: 100%; }
+/* R4（四方共識）：牌庫為 0 時視覺灰化提示（僅視覺，不擋 pointer-events，因牌組 tile 仍是「放回牌庫」的拖放目標）*/
+#pile-tile.deck-empty { opacity: .45; filter: grayscale(.7) brightness(.85); }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
@@ -7064,6 +7066,27 @@ function closeMobileDrawer() {
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', onResize);
   if (window.visualViewport) window.visualViewport.addEventListener('resize', set);
+})();
+
+// R4：牌庫為 0 時將牌組 tile 灰化（獨立 observer，監看 #self-deck 數字變化，涵蓋所有更新路徑）
+(function _deckEmptyWatch() {
+  function apply() {
+    const v = document.getElementById('self-deck');
+    const tile = document.getElementById('pile-tile');
+    if (!v || !tile) return;
+    tile.classList.toggle('deck-empty', (parseInt(v.textContent, 10) || 0) === 0);
+  }
+  function start() {
+    const v = document.getElementById('self-deck');
+    if (!v) return false;
+    apply();
+    new MutationObserver(apply).observe(v, { childList: true, characterData: true, subtree: true });
+    return true;
+  }
+  if (!start()) {
+    const o = new MutationObserver(() => { if (start()) o.disconnect(); });
+    o.observe(document.body, { childList: true, subtree: true });
+  }
 })();
 
 // ════════════════════════════════════════════
