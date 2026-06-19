@@ -2231,6 +2231,60 @@ input[type=text]::placeholder { color: var(--text-dim); }
   #move-banner { display: none !important; }
 }
 
+/* ══════════════════════════════════════════
+   大廳頁面手機版（四方協作：MiMo+MiniMax+DeepSeek+hy3）
+   主要修正：setup-col/join-row 的 min-width 撐爆 + letter-spacing 溢出
+   ══════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* ── 安全網：防水平溢出 ── */
+  #screen-lobby { overflow-x: hidden; width: 100%; }
+
+  /* ── Hero 壓縮（52px → 20px 上下 padding，emoji 52px → 34px）── */
+  .lobby-hero { padding: 20px 16px 14px; }
+  .hero-icon { font-size: 34px; }
+  .hero-icon-2 { font-size: 28px; }
+  .lobby-hero h1 { font-size: 22px; margin: 4px 0; }
+  .lobby-hero p { font-size: 12px; margin-top: 3px; }
+  .hero-icons { gap: 10px; margin-bottom: 8px; }
+
+  /* ── lobby-body 縮小 padding/gap ── */
+  .lobby-body { max-width: 100%; padding: 12px 12px 16px; gap: 10px; }
+
+  /* ── lobby-card 精簡 ── */
+  .lobby-card-head { padding: 9px 14px; font-size: 11px; }
+  .lobby-card-body { padding: 10px 14px 14px; }
+
+  /* ── Avatar 縮小至 36px ── */
+  .avatar-opt { width: 36px; height: 36px; font-size: 18px; border-radius: 9px; }
+  .avatar-row { gap: 6px; margin-bottom: 10px; }
+
+  /* ── Setup row 強制同行，移除 min-width（根因修正）── */
+  .setup-row { flex-wrap: nowrap; gap: 8px; }
+  .setup-col { min-width: 0; flex: 1 1 0; }
+  .setup-col label { font-size: 11px; }
+  .setup-col input, .setup-col select { font-size: 14px; padding: 8px; min-height: 44px; box-sizing: border-box; }
+
+  /* ── Actions 單行，移除 min-width（根因修正）── */
+  .lobby-actions { flex-wrap: nowrap; gap: 8px; }
+  .lobby-actions > .btn.primary { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 12px 8px; font-size: 13px; white-space: nowrap; }
+  .join-row { flex: 1 1 0; min-width: 0; gap: 6px; }
+  .join-row input {
+    flex: 1 1 0; min-width: 0; width: 0; /* 防止 input 撐開 */
+    font-size: 16px; letter-spacing: 2px; /* 原 6px 是溢出主因 */
+    min-height: 44px; padding: 8px 4px; box-sizing: border-box;
+  }
+  .join-row .btn { flex: 0 0 auto; min-height: 44px; min-width: 52px; padding: 8px 12px; }
+
+  /* ── 房間列表高度壓縮至 100px，確保整頁可見 ── */
+  .room-list-header { padding: 8px 14px; font-size: 12px; }
+  #room-list { min-height: 56px; max-height: 100px; }
+  .room-item { padding: 8px 14px; font-size: 13px; }
+  .room-empty { padding: 12px 14px; font-size: 12px; }
+
+  /* ── Footer ── */
+  .lobby-footer { font-size: 11px; padding: 6px 4px; }
+}
+
 /* ── Mobile Topbar（電腦版隱藏，flex 流內）── */
 #mobile-topbar {
   display: none;
