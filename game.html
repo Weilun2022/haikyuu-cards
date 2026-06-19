@@ -7047,10 +7047,15 @@ function closeMobileDrawer() {
     document.querySelectorAll('#self-area .z-slot').forEach(sl => sl.classList.toggle('mobile-drop-target', on));
   }
   function triggerPlace(zoneEl, cardIdx) {
-    // 直接呼叫現有 handleDrop，dragData 是全域物件
+    // 直接呼叫現有 handleDrop，dragData 是全域 let（同 script 作用域可直接賦值）
     const zone = zoneEl.dataset.zone;
     if (!zone) return;
-    if (typeof dragData !== 'undefined') { dragData.src = 'hand'; dragData.idx = parseInt(cardIdx); }
+    const idx = parseInt(cardIdx);
+    if (isNaN(idx) || idx < 0) return;
+    // 修正：原本 `if (typeof dragData !== 'undefined')` 因 typeof null==='object' 通過，
+    //       對 null 設屬性拋 TypeError → handleDrop 收不到 → 卡片放不上去。
+    //       改為直接建立完整 dragData 物件，與 dragstart（4373行）結構一致（img 為檔名字串）。
+    dragData = { src: 'hand', idx: idx, img: (typeof L !== 'undefined' && L.hand) ? L.hand[idx] : null };
     const hasCards = zoneEl.querySelector('img') !== null;
     if (typeof handleDrop === 'function') handleDrop(zone, hasCards);
   }
