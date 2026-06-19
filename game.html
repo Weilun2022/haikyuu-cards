@@ -2112,14 +2112,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── 手牌區：6 張可見 ── */
   #hand-area {
-    flex-shrink: 0;
-    height: auto;
+    flex: 0 0 100px;           /* 明確告知 flex 演算法佔 100px，修正原 flex-basis:85px 誤差 */
+    height: 100px;
     min-height: 100px;
-    max-height: 120px;
+    max-height: 100px;
     flex-direction: row;
     align-items: center;
     padding: 4px 2px;
     gap: 2px;
+    overflow: hidden;
   }
   #hand-cards {
     flex: 1;
@@ -2198,8 +2199,18 @@ input[type=text]::placeholder { color: var(--text-dim); }
   #self-area .board-side { flex-direction: row; gap: 8px; padding: 3px 4px; }
   #self-area .set-pool-loss-btn { display: none; } /* 輸一球移到抽屜 */
 
-  /* ── 問題1：隱藏 SET pool board-side（資訊已在 mobile-topbar）── */
+  /* ── 問題1：隱藏 SET pool board-side（資訊已在 mobile-topbar；操作移至 FAB 抽屜）── */
   #self-area .board-side:first-of-type { display: none !important; }
+
+  /* ── 問題A：pile-tile 與棄牌 tile 同高 44px，避免撐開 board-side ── */
+  #pile-tile {
+    height: 44px !important; max-height: 44px !important;
+    display: flex !important; flex-direction: row !important;
+    align-items: center !important; gap: 6px !important;
+    padding: 4px 8px !important;
+  }
+  #pile-tile .t-label { font-size: 9px; line-height: 1; margin: 0; }
+  #pile-tile .t-val   { font-size: 18px; line-height: 1; margin: 0; }
 
   /* ── 問題2：棄牌 tile 固定高度，縮圖與數字同排（MiMo + MiniMax 方案）── */
   #self-area .board-side:last-of-type .info-tile:last-of-type {
@@ -2481,6 +2492,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
   <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
     <span style="font-weight:700;font-size:15px">詳細資訊</span>
     <button class="btn xs" onclick="closeMobileDrawer()">✕</button>
+  </div>
+  <!-- SET Pool 快速操作（FAB 抽屜方案，僅手機版顯示；桌面版在 board-side 操作）-->
+  <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <span style="font-size:12px;color:var(--text-dim);flex:1">SET Pool：<span id="drawer-set-val">—</span></span>
+    <button class="btn xs" onclick="addToSetPool();closeMobileDrawer()" style="background:var(--accent);color:#fff;padding:4px 12px;border-radius:8px;font-size:12px">＋加入池</button>
   </div>
   <div id="mobile-drawer-content" style="padding:12px;flex:1"></div>
 </div>
@@ -7025,6 +7041,8 @@ function closeMobileDrawer() {
     tapSelectedIdx = null;
     document.querySelectorAll('.mobile-tap-selected').forEach(el => el.classList.remove('mobile-tap-selected'));
     highlightZones(false);
+    // 同時清除 enterMoveMode 加上的 .target class（iOS 上 click 事件仍會觸發 onHandClick）
+    if (typeof clearZoneHighlights === 'function') clearZoneHighlights();
   }
 
   const mStyle = document.createElement('style');
@@ -7092,11 +7110,15 @@ function closeMobileDrawer() {
     dc.appendChild(clone);
   }
 
-  // 包裝 openMobileDrawer，加入 buildDrawerContent
+  // 包裝 openMobileDrawer：建立 sidebar clone + 同步 SET pool 計數
   const _origOpen = window.openMobileDrawer;
   window.openMobileDrawer = function () {
     if (_origOpen) _origOpen();
     buildDrawerContent();
+    // 同步 drawer 內的 SET pool 數字
+    const setEl = document.getElementById('self-set');
+    const drawerSetEl = document.getElementById('drawer-set-val');
+    if (setEl && drawerSetEl) drawerSetEl.textContent = setEl.textContent;
   };
 
   document.readyState === 'loading'
