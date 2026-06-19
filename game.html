@@ -49,7 +49,7 @@ body {
 /* ── Screens ── */
 .screen { display: none; width: 100%; min-height: 100vh; }
 .screen.active { display: flex; flex-direction: column; }
-#screen-game.active { height: 100vh; height: calc(var(--dvh, 1svh) * 100); overflow: hidden; }
+#screen-game.active { height: 100vh; height: 100svh; overflow: hidden; }
 
 /* ── Buttons ── */
 .btn {
@@ -2019,8 +2019,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── 整體 game 畫面 ── */
   #screen-game.active {
-    height: 100vh;                              /* iOS 15.0–15.3 fallback */
-    height: calc(var(--dvh, 1svh) * 100);      /* 主用：JS window.innerHeight，無 100dvh */
+    height: 100vh;    /* fallback: 舊版瀏覽器 */
+    height: 100svh;   /* 主用：small viewport height，iOS 15.4+ / Chrome 108+，含 address bar + bottom nav */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2114,10 +2114,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── 手牌區：6 張可見 ── */
   #hand-area {
-    flex: 0 0 100px;           /* 明確告知 flex 演算法佔 100px，修正原 flex-basis:85px 誤差 */
-    height: 100px;
-    min-height: 100px;
-    max-height: 100px;
+    flex: 0 0 clamp(72px, 14svh, 110px);   /* 動態比例：SE≈72px, 14:98px, ProMax≈110px */
+    height: clamp(72px, 14svh, 110px);
+    min-height: clamp(72px, 14svh, 110px);
+    max-height: clamp(72px, 14svh, 110px);
     flex-direction: row;
     align-items: center;
     padding: 4px 2px;
@@ -2176,9 +2176,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     background: transparent !important;
   }
 
-  /* ── 雙方攻擊位：等大、等邊框突出 ── */
-  #self-area .zone-w:has(.z-atk),
-  #opp-area .zone-w:has(.z-atk) { flex: 1.4; }
+  /* ── 雙方攻擊位：與其他格等大，只保留紅框識別（MiMo+DeepSeek 共識：移除 flex:1.4）── */
   #self-area .z-atk,
   #opp-area .z-atk {
     border: 1.5px solid rgba(255, 90, 90, 0.65) !important;
@@ -6985,10 +6983,15 @@ function closeMobileDrawer() {
   document.getElementById('mobile-drawer-overlay').classList.remove('open');
 }
 (function _dvhFallback() {
-  function set() { document.documentElement.style.setProperty('--dvh', (window.innerHeight * 0.01) + 'px'); }
+  function set() {
+    // 用 visualViewport.height 取得真實可見高度（iOS chrome bar 不計入）
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--dvh', (h * 0.01) + 'px');
+  }
   set();
   window.addEventListener('resize', set);
   window.addEventListener('orientationchange', set);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', set);
 })();
 
 // ════════════════════════════════════════════
