@@ -2197,6 +2197,27 @@ input[type=text]::placeholder { color: var(--text-dim); }
   /* board-sides 在 court 下方橫向排列 */
   #self-area .board-side { flex-direction: row; gap: 8px; padding: 3px 4px; }
   #self-area .set-pool-loss-btn { display: none; } /* 輸一球移到抽屜 */
+
+  /* ── 問題1：隱藏 SET pool board-side（資訊已在 mobile-topbar）── */
+  #self-area .board-side:first-of-type { display: none !important; }
+
+  /* ── 問題2：棄牌 tile 固定高度，縮圖與數字同排（MiMo + MiniMax 方案）── */
+  #self-area .board-side:last-of-type .info-tile:last-of-type {
+    height: 44px; max-height: 44px;
+    display: flex; flex-direction: row; align-items: center;
+    gap: 5px; padding: 4px 8px; overflow: hidden;
+  }
+  #self-area .board-side:last-of-type .info-tile:last-of-type .t-label { font-size: 9px; line-height: 1; margin: 0; }
+  #self-area .board-side:last-of-type .info-tile:last-of-type .t-val   { font-size: 18px; line-height: 1; margin: 0; }
+  #self-drop-img {
+    max-width: 26px !important; max-height: 34px !important;
+    width: auto !important; height: auto !important;
+    flex-shrink: 0 !important; border-radius: 3px !important;
+    object-fit: cover !important;
+  }
+
+  /* ── 問題3：手機版多選說明欄隱藏（多選功能已 comment out）── */
+  #move-banner { display: none !important; }
 }
 
 /* ── Mobile Topbar（電腦版隱藏，flex 流內）── */
@@ -4402,13 +4423,12 @@ function updateHandMeta() {
     : `${L.hand.length} 張`;
 }
 
+/* MULTI-SELECT DISABLED — 起手洗牌用，手機版佔版面，未來視情況恢復
 async function placeMultiCards(idxs, targetZone) {
-  // Place in descending index order so each splice doesn't shift remaining indices
   const sorted = [...idxs].sort((a, b) => b - a);
-  for (const idx of sorted) {
-    await placeCard(idx, targetZone, false);
-  }
+  for (const idx of sorted) { await placeCard(idx, targetZone, false); }
 }
+*/
 
 // ── Place-confirm helpers ─────────────────────────────
 function showPlaceConfirm(title, onTop, onGuts) {
@@ -4448,10 +4468,13 @@ function _onPileTileClick(e) {
     const pos = e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom';
     const m = moveMode;
     if (m.type === 'hand') {
-      // Multi-select: return primary + all additionally selected cards
+      /* MULTI-SELECT DISABLED
       const allIdxs = [m.idx, ...multiSelect];
-      exitMoveMode(); // clears multiSelect
+      exitMoveMode();
       allIdxs.sort((a, b) => b - a).forEach(idx => returnHandToPile(idx, pos));
+      */
+      exitMoveMode();
+      returnHandToPile(m.idx, pos);
     } else {
       exitMoveMode();
       _executePileReturn(m, pos);
@@ -4463,10 +4486,13 @@ function _onPileTileClick(e) {
 function _doReturnToPile(dd, pos) {
   if (dd.src === 'hand') {
     if (moveMode?.type === 'hand') {
-      // Drag while in hand moveMode: return dragged card + all multi-selected cards
+      /* MULTI-SELECT DISABLED
       const allIdxs = [...new Set([moveMode.idx, ...multiSelect, dd.idx])];
-      exitMoveMode(); // clears multiSelect
+      exitMoveMode();
       allIdxs.sort((a, b) => b - a).forEach(idx => returnHandToPile(idx, pos));
+      */
+      exitMoveMode();
+      returnHandToPile(dd.idx, pos);
     } else {
       returnHandToPile(dd.idx, pos);
     }
@@ -4571,20 +4597,14 @@ function onHandClick(idx, el, e) {
   // Same card while in moveMode → cancel
   if (moveMode?.type === 'hand' && moveMode?.idx === idx) { exitMoveMode(); return; }
 
-  // Already in hand moveMode → multi-select: add or remove
+  /* MULTI-SELECT DISABLED — 已在手牌 moveMode 時繼續點牌不累加，改為取消重選
   if (moveMode?.type === 'hand') {
     const pos = multiSelect.indexOf(idx);
-    if (pos !== -1) {
-      multiSelect.splice(pos, 1);
-      el.classList.remove('selected');
-    } else {
-      multiSelect.push(idx);
-      el.classList.add('selected');
-    }
-    updateHandMeta();
-    _updateMoveBanner();
-    return;
+    if (pos !== -1) { multiSelect.splice(pos, 1); el.classList.remove('selected'); }
+    else { multiSelect.push(idx); el.classList.add('selected'); }
+    updateHandMeta(); _updateMoveBanner(); return;
   }
+  */
 
   // Fresh selection: enter move mode
   multiSelect = [];
@@ -6142,15 +6162,10 @@ function _updateMoveBanner() {
   if (moveMode.type === 'hand') {
     const img = L.hand[moveMode.idx];
     const card = allCards[img];
-    const selCount = 1 + multiSelect.length;
+    /* MULTI-SELECT DISABLED: const selCount = 1 + multiSelect.length; */
     icon = '🃏';
-    if (selCount > 1) {
-      label = `已選 ${selCount} 張手牌`;
-      hint = '點牌組上半放牌頂 / 下半放牌底 · 繼續點手牌累加 · Esc 取消';
-    } else {
-      label = card?.name ? `「${card.name}」已選取` : '手牌已選取';
-      hint = '點場上空格放置 · 右鍵更多選項 · Esc 取消';
-    }
+    label = card?.name ? `「${card.name}」已選取` : '手牌已選取';
+    hint = '點場上空格放置 · 右鍵更多選項 · Esc 取消';
   } else if (moveMode.type === 'zone') {
     const card = allCards[moveMode.cardData?.img];
     icon = '🔄';
