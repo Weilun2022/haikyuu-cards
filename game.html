@@ -2091,7 +2091,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   /* ── 格子手機化（touch target ≥ 44px）── */
   .court-row { gap: 3px; margin-bottom: 3px; }
   .zone-w    { flex: 1; min-width: 0; }
-  .z-slot    { min-width: 44px; min-height: 44px; border-radius: 6px; padding: 2px; touch-action: none; position: relative; }
+  .z-slot    { min-width: 0; min-height: 0 !important; height: 100%; flex: 1 1 0 !important; border-radius: 6px; padding: 2px; touch-action: none; position: relative; }
+  .zone-w    { min-height: 0; height: 100%; }
+  .court-row { min-height: 0; }
   .z-slot img { width: 100%; height: 100%; object-fit: cover; }
   .z-empty  { font-size: 9px; }
 
@@ -4664,6 +4666,8 @@ async function handleDrop(targetZone, hasCards) {
 }
 
 function onHandClick(idx, el, e) {
+  // 手機：A3 IIFE pointer events 全權接管，iOS 延遲觸發的 click 不應進入 enterMoveMode
+  if (window.matchMedia('(pointer:coarse)').matches) return;
   // Same card while in moveMode → cancel
   if (moveMode?.type === 'hand' && moveMode?.idx === idx) { exitMoveMode(); return; }
 
@@ -7097,6 +7101,10 @@ function closeMobileDrawer() {
     highlightZones(false);
     // 同時清除 enterMoveMode 加上的 .target class（iOS 上 click 事件仍會觸發 onHandClick）
     if (typeof clearZoneHighlights === 'function') clearZoneHighlights();
+    // MiniMax+DeepSeek 保險：microtask 後再清一次，確保贏過延遲的 iOS click
+    if (window.matchMedia('(pointer:coarse)').matches) {
+      Promise.resolve().then(() => { if (typeof clearZoneHighlights === 'function') clearZoneHighlights(); });
+    }
   }
 
   const mStyle = document.createElement('style');
