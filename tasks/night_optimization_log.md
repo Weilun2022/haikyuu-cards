@@ -42,4 +42,12 @@
 - 輸一球 改獨立 FAB 浮動按鈕（MiMo 建議）
 - 事件/發球格 180px → 拆成獨立 82px 格（改變牌桌結構）
 
+### Round 2+3 ✅ 回合發光增強 + 修選中卡裁切 bug（commit 已推）
+- R2 回合提示：my-turn-glow 在手機 alpha 0.06→inset 0.16+0.38 邊框，明顯但不外擴（不裁切/不擠 court）。驗證：glow 套用、court 仍 82px 對稱
+- R3 真 bug：選中手牌 translateY(-8px) 被 #hand-area overflow:hidden 裁掉、outline 在 z-slot 被祖先裁。四方一致改 scale(1.06)+box-shadow 環。驗證（關 transition 量測）：49→51.94px 放大、box-shadow 環生效、不被裁
+- 註：preview fine-pointer 模擬，getComputedStyle 在 transition 進行中會回插值，量測需關 transition
+
+### R4 評估：空牌庫已有功能防呆（drawCard toast「牌庫已空」），純視覺灰化為低優先，暫緩
+### 高風險項（保留待使用者決定）：輸一球改FAB、事件/發球格拆分、頂欄字級
+
 (以下為夜間各 round 紀錄)
