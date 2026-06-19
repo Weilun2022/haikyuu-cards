@@ -2195,7 +2195,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     padding: 3px 4px;
     order: 1;                /* 置於 opp court 上方（遠離 NET，鏡像自己場底部）*/
     flex: 0 0 auto;
-    justify-content: center;
+    align-self: stretch;     /* 撐滿整列寬（覆蓋 #opp-area 的 align-items:center），與自己場 tile 寬一致 */
     align-items: center;
     width: auto;
   }
