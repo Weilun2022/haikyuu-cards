@@ -101,6 +101,16 @@
 
 ---
 
+### Round 8 ✅ 手機手牌放回牌組（tap 版，已推待實機）
+- BUG：手機點手牌(選牌)再點牌組 → 走 `drawCard()` 變抽牌，沒有放回。教學 (game.html:3039) 早設計此功能但只實作「拖曳」版，tap 版沒接。
+- 修法（四方協作，全到齊）：`_onPileTileClick` 在 drawCard 前插入手機選牌分支——讀 `.hand-card.mobile-tap-selected` 的 data-idx，用 `clientY-rect`（minimax 確認比 offsetY 穩，因 e.target 可能是 .t-val 子元素）判上半=牌頂/下半=牌底 → `returnHandToPile(idx,pos)` → `window.__clearMobileTapSelect()`。
+- A3：setTapSelect/clearTapSelect toggle `#pile-tile.pile-return-mode`，並暴露 `window.__clearMobileTapSelect=clearTapSelect`。
+- CSS：`.pile-return-mode` ::before='牌頂'(上半)/::after='牌底'(下半) 文字標籤 + 分隔線 + 淡化原數字；pointer-events:none 點擊穿透。class 只由 coarse A3 加，桌面不出現故不需 media gate；與桌面拖曳 .pile-top/.pile-bottom 不同 class 不衝突。
+- 整合修正：四方多給 demo/佔位碼，Claude 用真實 setTapSelect/clearTapSelect/_onPileTileClick 整合。
+- 驗證（preview，需給 pile-tile 真實高度否則 rect 塌縮誤判）：上半→return top、下半→return bottom、每次連帶 clear、無選取→draw；牌頂/牌底渲染、pointer-events none、暴露 OK；桌面無 .mobile-tap-selected 故分支跳過不受影響。**實機待驗收。**
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。

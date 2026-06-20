@@ -714,6 +714,21 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .set-pool-loss-btn { font-size: 9px !important; padding: 2px 6px !important; background: rgba(220,38,38,.15) !important; border-color: rgba(220,38,38,.4) !important; color: #f87171 !important; width: 100%; }
 /* R4（四方共識）：牌庫為 0 時視覺灰化提示（僅視覺，不擋 pointer-events，因牌組 tile 仍是「放回牌庫」的拖放目標）*/
 #pile-tile.deck-empty { opacity: .45; filter: grayscale(.7) brightness(.85); }
+/* 手機選牌模式：牌組切上下半並寫「牌頂/牌底」，點上半=放回牌頂、下半=放回牌底（四方協作）。
+   .pile-return-mode 只由 coarse-gated A3 setTapSelect 加上，桌面不會出現，故不需 media gate。
+   與桌面拖曳的 .pile-top/.pile-bottom 是不同 class，不衝突。*/
+#pile-tile.pile-return-mode { position: relative; overflow: hidden; }
+#pile-tile.pile-return-mode::before,
+#pile-tile.pile-return-mode::after {
+  position: absolute; left: 0; right: 0; height: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #fff;
+  pointer-events: none; z-index: 2;
+}
+#pile-tile.pile-return-mode::before { content: '牌頂'; top: 0; background: rgba(108,99,255,.82); border-bottom: 1px solid rgba(255,255,255,.6); border-radius: 6px 6px 0 0; }
+#pile-tile.pile-return-mode::after  { content: '牌底'; bottom: 0; background: rgba(255,107,165,.82); border-radius: 0 0 6px 6px; }
+#pile-tile.pile-return-mode .t-label,
+#pile-tile.pile-return-mode .t-val { opacity: .22; }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
@@ -4655,6 +4670,18 @@ function _onPileTileClick(e) {
     }
     return;
   }
+  // 手機選牌模式：點牌組上半=放回牌頂、下半=放回牌底（銜接桌面放回牌庫功能，四方協作）
+  const _selCard = document.querySelector('.hand-card.mobile-tap-selected');
+  if (_selCard) {
+    const tile = e.currentTarget;
+    const rect = tile.getBoundingClientRect();
+    // 用 clientY-rect 而非 e.offsetY：e.target 可能是 .t-val 子元素，offsetY 會誤判上下半
+    const pos = (e.clientY - rect.top) < tile.offsetHeight / 2 ? 'top' : 'bottom';
+    const idx = parseInt(_selCard.dataset.idx, 10);
+    if (!isNaN(idx)) returnHandToPile(idx, pos);
+    if (typeof window.__clearMobileTapSelect === 'function') window.__clearMobileTapSelect();
+    return;
+  }
   drawCard();
 }
 function _doReturnToPile(dd, pos) {
@@ -7289,11 +7316,13 @@ function closeMobileDrawer() {
     const card = document.querySelector('.hand-card[data-idx="' + idx + '"]');
     if (card) card.classList.add('mobile-tap-selected');
     highlightZones(true);
+    const _pt = document.getElementById('pile-tile'); if (_pt) _pt.classList.add('pile-return-mode');  // 牌組切半顯示 牌頂/牌底
   }
   function clearTapSelect() {
     tapSelectedIdx = null;
     document.querySelectorAll('.mobile-tap-selected').forEach(el => el.classList.remove('mobile-tap-selected'));
     highlightZones(false);
+    const _pt = document.getElementById('pile-tile'); if (_pt) _pt.classList.remove('pile-return-mode');
     // 同時清除 enterMoveMode 加上的 .target class（iOS 上 click 事件仍會觸發 onHandClick）
     if (typeof clearZoneHighlights === 'function') clearZoneHighlights();
     // MiniMax+DeepSeek 保險：microtask 後再清一次，確保贏過延遲的 iOS click
@@ -7301,6 +7330,8 @@ function closeMobileDrawer() {
       Promise.resolve().then(() => { if (typeof clearZoneHighlights === 'function') clearZoneHighlights(); });
     }
   }
+  // 暴露給全域，讓 _onPileTileClick 放回後能清掉手機選取狀態 + 牌組切半樣式（四方協作）
+  window.__clearMobileTapSelect = clearTapSelect;
 
   const mStyle = document.createElement('style');
   // R3（四方共識）：選中手牌原本 translateY(-8px) 會被 #hand-area overflow:hidden 裁掉、
