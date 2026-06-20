@@ -148,6 +148,15 @@
 
 ---
 
+### Round 13 ✅✅ 重大 bug：放牌→整手牌消失 根因修復（已推待實機）
+- 症狀：手機穩定連線、非主動重置，放一張牌後整手牌全不見、牌庫變~40。
+- 根因（Explore agent 搜尋 + 四方確認）：`_processedRoundReset` 初始=0（game.html:3747），`rejoinRoom` 有對齊它（3682）防誤觸，但 `enterGame/create/join/start` 正常進場**都沒初始化**。若這場 Firebase 已有舊 `roundReset` 時戳（稍早任一方重置過），進場後放牌觸發的首次 'value' 回呼 → handleRoundReset 見 rv(舊時戳)≠0 → 誤判新重置 → L.hand=[]、手牌洗回牌庫（self-deck→~40）。
+- 修法（Option C，四方一致最周全）：在 listenGame（所有進場路徑唯一監聽樞紐）加閉包旗標 `_firstSync`，首次回呼即 `_processedRoundReset = data.roundReset || 0`，把進場當下既有 roundReset 視為已處理。涵蓋 host/guest/觀戰/重連，與 rejoinRoom 冪等，不吞真正的新重置（非首次回呼）。
+- 驗證（preview，indirect eval 直測 handleRoundReset）：**未對齊→手牌3變0（重現bug）；對齊後→維持3（修復生效）**；修法碼在 listenGame；無 console 錯誤。實機待驗收。
+- 註：「整區像被選取」確認是 tap 選牌的 .mobile-drop-target 放置提示（正常）+ R12 已改的回合發光，與本 bug 無關。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。

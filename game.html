@@ -3722,6 +3722,7 @@ function copyCode() {
 // GAME LISTENER
 // ══════════════════════════════════════════════════════
 function listenGame() {
+  let _firstSync = true;   // 進場首次同步旗標（閉包，每次進場重建）
   gameRef.on('value', snap => {
     const data = snap.val();
     if (!data) {
@@ -3737,6 +3738,11 @@ function listenGame() {
       }
       return;
     }
+
+    // ★ 根因修復(R13)：正常進場(enterGame/create/join/start)未初始化 _processedRoundReset，
+    //   若這場 Firebase 已有舊 roundReset 時戳，放牌觸發的首次回呼會誤判成新重置→清空整手牌（手牌洗回牌庫、self-deck 變~40）。
+    //   首次同步即把當前 roundReset 對齊為「已處理」，涵蓋所有進場路徑。對手「之後」按重置仍正常觸發（非首次回呼）。
+    if (_firstSync) { _firstSync = false; _processedRoundReset = data.roundReset || 0; }
 
     const prevState = gameState;
     gameState = data;
