@@ -7416,7 +7416,8 @@ function closeMobileDrawer() {
   mStyle.textContent =
     '.mobile-drop-target{outline:2px dashed var(--accent)!important;background:rgba(108,99,255,.18)!important}' +
     '.mobile-tap-selected{transform:scale(1.06)!important;z-index:10!important;box-shadow:0 0 0 2px var(--accent2),0 4px 14px rgba(255,107,165,.45)!important;filter:brightness(1.06)!important}' +
-    '.lp-fire{transform:scale(1.08)!important;filter:brightness(1.18)!important;box-shadow:0 0 14px rgba(108,99,255,.75)!important;z-index:20!important}';
+    '.lp-fire{transform:scale(1.08)!important;filter:brightness(1.18)!important;box-shadow:0 0 14px rgba(108,99,255,.75)!important;z-index:20!important}' +
+    '@media(pointer:coarse){.z-slot.target,.z-slot.guts-target{outline:2px dashed var(--accent)!important;background:rgba(108,99,255,.18)!important;border-color:transparent!important;animation:none!important}}';
   document.head.appendChild(mStyle);
 
   function init() {
