@@ -6474,12 +6474,12 @@ function executeMoveToZone(targetZone, targetImg = null) {
         () => {
           exitMoveMode();
           if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, false);
-          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone, false);
         },
         () => {
           exitMoveMode();
           if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, true);
-          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone);
+          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone, true);
         }
       );
     }
@@ -6684,7 +6684,7 @@ async function moveGutsToTop(zoneName, cardData, gutsImg) {
   addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 移至堆頂`);
 }
 
-async function moveGutsCard(zoneName, cardData, gutsImg, target) {
+async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false) {
   saveUndo();
   const zones = myZonesCopy();
   const zc = getZoneCard(zones, zoneName);
@@ -6740,9 +6740,14 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target) {
       zones.event.push(gutsImg);
     } else {
       const old = zones[baseZone];
-      zones[baseZone] = old?.img
-        ? { img: gutsImg, guts: [...(old.guts || []), old.img] }
-        : { img: gutsImg, guts: [] };
+      if (old?.img) {
+        // 修正：guts 牌移到占用格依選擇放上方/當guts（原本永遠放上方、忽略選擇）四方協作R14
+        zones[baseZone] = asGuts
+          ? { img: old.img, guts: [...(old.guts || []), gutsImg] }   // 當 Guts：墊到下面
+          : { img: gutsImg, guts: [...(old.guts || []), old.img] };  // 最上方：疊到上面
+      } else {
+        zones[baseZone] = { img: gutsImg, guts: [] };
+      }
     }
     await pushZones(zones);
     if (_needsSync) await syncScoreToBase(zones, _modeZone);

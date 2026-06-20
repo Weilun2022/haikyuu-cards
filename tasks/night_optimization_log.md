@@ -157,6 +157,15 @@
 
 ---
 
+### Round 14 ✅ bug：移動 guts 牌選「當 Guts」仍放最上方（已推待實機）
+- 症狀：選場上 guts 牌移到占用格，選「當 Guts」結果還是放最上方。
+- 根因：executeMoveToZone（game.html:6473）對 m.type==='guts' 的「最上方」「當 Guts」兩 callback 呼叫同一個 moveGutsCard（無區分），而 moveGutsCard（6687）目標格分支永遠 `{img:gutsImg, guts:[...,old]}`（移動牌恆在上）、無 top/guts 參數。對照頂牌移動 moveCard(asGuts) 邏輯本來就對。
+- 修（四方一致）：moveGutsCard 加 `asGuts=false` 參數，目標一般格分支區分（asGuts? 原牌留上、移動牌墊下 : 移動牌上、原牌墊下）；executeMoveToZone 兩 callback 分別傳 false/true。其他呼叫者（handleDrop guts→drop、_peekPlace）走 hand/pile/drop target 不進此分支，默認 false 行為不變。
+- 驗證（preview，stub Firebase 攔截 zones）：asGuts=false→{img:移動牌,guts:[原牌]}（上）；asGuts=true→{img:原牌,guts:[移動牌]}（下）；correctTop/correctGuts 皆 true；無 console 錯誤。實機待驗收。
+- 重設計（top/guts 更順手）：四方分歧——DeepSeek/MiniMax 傾向格子切上下半 inline；MiMo/Hunyuan 反對（場上格~44px 太小、切半22px 易誤觸），主張改良 modal（底部 sheet + 圖示預覽 + 大按鈕）。屬主觀 UX，回報使用者定方向（未動）。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
