@@ -190,6 +190,14 @@
 
 ---
 
+### Round 18 ✅ 場上移動改兩段式 + 根因比對（已推待實機）
+- 回報：占用格左右切「都卡在左邊」，要兩段式（第一階段整區亮燈、第二階段點某格才切左右）。使用者要求多 agent 獨立搜尋比對。
+- **根因比對（兩 agent 不一致）**：Explore agent（讀碼）說 CSS `.z-slot::after{display:none!important}` 蓋掉「角色」；Claude（preview 實測）說「角色」其實有顯示（兩 class+!important，specificity 高者勝），真因＝卡片 48px 靠左(佔格 6%-46%)+所有占用格同時切。**四方一致裁決 B(Claude) 正確**，A 漏算 specificity。
+- 修（四方一致兩段式狀態機，Claude 用真實碼整合——source 資料已在 moveMode 不需另存）：新增 `movePendingZone`。enterMoveMode 只加 .target 不加 zone-split-hint。executeMoveToZone 占用格分支：無 pending 或別格→設 pending+只給該格加 zone-split-hint+return 不放；同格第二次→clientX 判左右 moveCard/moveGutsCard(asGuts) 後 exitMoveMode。exitMoveMode/clearZoneHighlights 清 movePendingZone。空格分支既有 exitMoveMode 自動清。
+- 驗證（preview 狀態機）：進入 8格亮燈/0切；點占用→pending設+該格切+不放+仍移動模式；切別格→pending轉移；同格左半→moveCard(true)、右半→moveCard(false)+退出；pending中點空格→直接放+清pending；無 console 錯誤。實機待驗收。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。

@@ -4630,6 +4630,7 @@ function clearZoneHighlights() {
   document.querySelectorAll('.z-slot.target').forEach(s => s.classList.remove('target'));
   document.querySelectorAll('.z-slot.guts-target').forEach(s => s.classList.remove('guts-target'));
   document.querySelectorAll('.z-slot.zone-split-hint').forEach(s => s.classList.remove('zone-split-hint'));
+  movePendingZone = null;   // R18：兩段式 pending 一併清（涵蓋 A3 clearTapSelect 等呼叫路徑）
 }
 function highlightGutsTargets() {
   clearZoneHighlights();
@@ -6377,6 +6378,7 @@ function closeHandAction() {
 
 // ── Move Mode ─────────────────────────────────────────
 let moveMode = null;
+let movePendingZone = null;   // 兩段式移動：第一階段已選的占用目標格 { zoneName, slotEl }（四方協作R18）
 
 function enterMoveMode(mode) {
   moveMode = mode;
@@ -6388,10 +6390,8 @@ function enterMoveMode(mode) {
     updateHandMeta();
   } else {
     // zone / guts: all self zones are valid targets
-    document.querySelectorAll('#self-court .z-slot').forEach(s => {
-      s.classList.add('target');
-      if (s.querySelector('img')) s.classList.add('zone-split-hint');   // 占用格顯示左右切（左Guts/右角色）R15
-    });
+    // 兩段式（R18）：第一階段只高亮可放置格，不立刻對占用格切左右——避免所有占用格同時切造成雜亂
+    document.querySelectorAll('#self-court .z-slot').forEach(s => s.classList.add('target'));
     // also highlight hand area so user can return to hand
     document.getElementById('hand-area').classList.add('move-target-hand');
     document.getElementById('hand-area').onclick = () => { executeMoveToHand(); };
@@ -6409,6 +6409,7 @@ function enterMoveMode(mode) {
 
 function exitMoveMode() {
   moveMode = null;
+  if (movePendingZone) { if (movePendingZone.slotEl) movePendingZone.slotEl.classList.remove('zone-split-hint'); movePendingZone = null; }   // R18 清兩段式 pending
   multiSelect = [];
   unpinCardHover();
   clearZoneHighlights();
@@ -6485,15 +6486,24 @@ function executeMoveToZone(targetZone, targetImg = null, e = null) {
       exitMoveMode();
       _dropPlaceToZone(m.img, targetZone);
     } else {
-      // Zone/guts → 占用格：左右切（左半=Guts墊下、右半=角色最上方）取代 modal。四方協作R15
-      exitMoveMode();
-      let asGuts = false;   // fallback（無事件座標時）：右=角色/最上方
-      const slotEl = e && ((e.currentTarget && e.currentTarget.closest && e.currentTarget.closest('.z-slot')) ||
-                           (e.target && e.target.closest && e.target.closest('.z-slot')));
+      // Zone/guts → 占用格：兩段式（四方協作R18）。第一次點此格只切左右、不放；第二次點同格才依左右執行
+      const slotEl = (e && ((e.currentTarget && e.currentTarget.closest && e.currentTarget.closest('.z-slot')) ||
+                            (e.target && e.target.closest && e.target.closest('.z-slot'))))
+                     || document.querySelector('#self-court .z-slot[data-zone="' + targetZone + '"]');
+      if (!movePendingZone || movePendingZone.zoneName !== targetZone) {
+        // 第一階段（或從別格切換）：設 pending、只給此格切左右、不放、不退出移動模式
+        if (movePendingZone && movePendingZone.slotEl) movePendingZone.slotEl.classList.remove('zone-split-hint');
+        movePendingZone = { zoneName: targetZone, slotEl: slotEl };
+        if (slotEl) slotEl.classList.add('zone-split-hint');
+        return;
+      }
+      // 第二階段：點同一占用格 → 依左右執行（左半=Guts墊下、右半=角色最上方）
+      let asGuts = false;
       if (e && typeof e.clientX === 'number' && slotEl) {
         const rect = slotEl.getBoundingClientRect();
         asGuts = (e.clientX - rect.left) < rect.width / 2;   // 左半=Guts(true)、右半=角色(false)
       }
+      exitMoveMode();   // 內含清 movePendingZone + 移除 .zone-split-hint
       if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, asGuts);
       else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone, asGuts);
     }
