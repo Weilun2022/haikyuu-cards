@@ -174,6 +174,14 @@
 
 ---
 
+### Round 16 ✅ 占用格左右切只看到「角色」修正（已推待實機）
+- 回報：R15 占用格左右切只看到右「角色」，看不到左「Guts」；要整個區域明確左右切。
+- 根因（preview 實測）：stat 計數器 .z-stat-overlay 在格子右側 74-96%、z-index:5，而 zone-split-hint 標籤 z-index 只有 3 → 被計數器壓住、加上卡圖對比，左半 Guts 不明顯。
+- 修：zone-split-hint ::before/::after z-index 3→6（高於計數器 5）、底色 .42→.55 加濃、中間改 2px 實心白分隔線、字陰影加強。整個格子明確兩半、標籤都在最上。
+- 驗證（preview attack 占用格）：Guts/角色 都 z-index 6、labelsAboveOverlay:true、底色 .55、無 console 錯誤。實機待驗收。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
