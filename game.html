@@ -720,15 +720,17 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #pile-tile.pile-return-mode { position: relative; overflow: hidden; }
 #pile-tile.pile-return-mode::before,
 #pile-tile.pile-return-mode::after {
-  position: absolute; left: 0; right: 0; height: 50%;
+  position: absolute; top: 0; bottom: 0; width: 50%;   /* 左右切（四方：tile 偏寬，左右比上下好點）*/
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #fff;
   pointer-events: none; z-index: 2;
 }
-#pile-tile.pile-return-mode::before { content: '牌頂'; top: 0; background: rgba(108,99,255,.82); border-bottom: 1px solid rgba(255,255,255,.6); border-radius: 6px 6px 0 0; }
-#pile-tile.pile-return-mode::after  { content: '牌底'; bottom: 0; background: rgba(255,107,165,.82); border-radius: 0 0 6px 6px; }
+#pile-tile.pile-return-mode::before { content: '牌頂'; left: 0;  background: rgba(108,99,255,.82); border-right: 1px solid rgba(255,255,255,.6); border-radius: 6px 0 0 6px; }
+#pile-tile.pile-return-mode::after  { content: '牌底'; right: 0; background: rgba(255,107,165,.82); border-radius: 0 6px 6px 0; }
 #pile-tile.pile-return-mode .t-label,
 #pile-tile.pile-return-mode .t-val { opacity: .22; }
+/* 棄牌 tile 在手機選牌模式的提示：靜態紅框（不用 pulse 動畫，避免分心/耗電）*/
+.info-tile.drop-tap-hint { box-shadow: 0 0 0 2px #ef4444, 0 0 9px rgba(239,68,68,.45) !important; border-color: #ef4444 !important; }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
@@ -2726,7 +2728,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div>
           </div>
           <button class="btn xs shuffle-btn" onclick="shufflePile()" title="洗牌（僅洗牌庫順序）">🔀 洗牌</button>
-          <div class="info-tile clickable" onclick="openDropViewer('self')" oncontextmenu="event.preventDefault();openDropViewer('self')" title="點擊／右鍵查看棄牌區"
+          <div class="info-tile clickable" onclick="_onSelfDropTileClick(event)" oncontextmenu="event.preventDefault();openDropViewer('self')" title="點擊／右鍵查看棄牌區"
                ondragover="event.preventDefault(); this.classList.add('target')"
                ondragleave="this.classList.remove('target')"
                ondrop="event.preventDefault(); this.classList.remove('target'); handleDrop('drop',false)">
@@ -4675,14 +4677,29 @@ function _onPileTileClick(e) {
   if (_selCard) {
     const tile = e.currentTarget;
     const rect = tile.getBoundingClientRect();
-    // 用 clientY-rect 而非 e.offsetY：e.target 可能是 .t-val 子元素，offsetY 會誤判上下半
-    const pos = (e.clientY - rect.top) < tile.offsetHeight / 2 ? 'top' : 'bottom';
+    // 左右切：用 clientX-rect（非 e.offsetX，因 e.target 可能是 .t-val 子元素會誤判）。左半=牌頂、右半=牌底
+    const pos = (e.clientX - rect.left) < tile.offsetWidth / 2 ? 'top' : 'bottom';
     const idx = parseInt(_selCard.dataset.idx, 10);
     if (!isNaN(idx)) returnHandToPile(idx, pos);
     if (typeof window.__clearMobileTapSelect === 'function') window.__clearMobileTapSelect();
     return;
   }
   drawCard();
+}
+// 手機選牌模式：點棄牌 tile → 沿用桌面確認框棄牌（四方協作）。無選取則維持開檢視器
+function _onSelfDropTileClick(e) {
+  const sel = document.querySelector('.hand-card.mobile-tap-selected');
+  if (sel) {
+    e.stopPropagation();
+    const idx = parseInt(sel.dataset.idx, 10);
+    if (!isNaN(idx) && typeof L !== 'undefined' && L.hand && idx < L.hand.length) {
+      dragData = { src: 'hand', idx: idx, img: L.hand[idx] };  // dragData 是模組級 let，bare 賦值（勿用 window.）
+      handleDrop('drop', false);   // 跳「確定送入棄牌區？」確認框 → discardFromHand
+    }
+    if (typeof window.__clearMobileTapSelect === 'function') window.__clearMobileTapSelect();
+    return;
+  }
+  openDropViewer('self');
 }
 function _doReturnToPile(dd, pos) {
   if (dd.src === 'hand') {
@@ -7317,12 +7334,14 @@ function closeMobileDrawer() {
     if (card) card.classList.add('mobile-tap-selected');
     highlightZones(true);
     const _pt = document.getElementById('pile-tile'); if (_pt) _pt.classList.add('pile-return-mode');  // 牌組切半顯示 牌頂/牌底
+    const _dt = document.getElementById('self-drop'), _dtTile = _dt && _dt.closest('.info-tile'); if (_dtTile) _dtTile.classList.add('drop-tap-hint');  // 棄牌 tile 紅框提示
   }
   function clearTapSelect() {
     tapSelectedIdx = null;
     document.querySelectorAll('.mobile-tap-selected').forEach(el => el.classList.remove('mobile-tap-selected'));
     highlightZones(false);
     const _pt = document.getElementById('pile-tile'); if (_pt) _pt.classList.remove('pile-return-mode');
+    const _dt = document.getElementById('self-drop'), _dtTile = _dt && _dt.closest('.info-tile'); if (_dtTile) _dtTile.classList.remove('drop-tap-hint');
     // 同時清除 enterMoveMode 加上的 .target class（iOS 上 click 事件仍會觸發 onHandClick）
     if (typeof clearZoneHighlights === 'function') clearZoneHighlights();
     // MiniMax+DeepSeek 保險：microtask 後再清一次，確保贏過延遲的 iOS click

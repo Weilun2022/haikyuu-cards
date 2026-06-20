@@ -111,6 +111,17 @@
 
 ---
 
+### Round 9 ✅ 牌組改左右切 + 點手牌再點棄牌可棄牌（已推待實機）
+- 回報1：R8 牌組切上下，但 tile 偏寬 → 改左右切。回報2：點手牌再點棄牌不會棄。
+- 修1（四方一致）：`.pile-return-mode::before/::after` 由上下半(height:50%)改左右半(width:50%,top/bottom:0)，左=牌頂/右=牌底；`_onPileTileClick` 判定由 `clientY-rect/offsetHeight` 改 `clientX-rect/offsetWidth`（左半=top、右半=bottom，returnHandToPile 語意不變）。
+- 修2（同 R8 模式）：棄牌 tile（game.html:2729）onclick `openDropViewer('self')` 只開檢視器、桌面靠 ondrop→handleDrop('drop')。新增 `_onSelfDropTileClick(e)`：有 `.hand-card.mobile-tap-selected` 就 `dragData={src:'hand',idx,img:L.hand[idx]}; handleDrop('drop',false)`（沿用桌面「確定送入棄牌區？」確認框）+ `__clearMobileTapSelect()`；否則 openDropViewer。HTML onclick 改呼叫它。
+- 取捨 D：四方一致沿用確認框（防誤觸/與桌面一致/不可逆）。
+- 提示 C：A3 setTapSelect/clearTapSelect 順手 toggle 棄牌 tile `.drop-tap-hint`（靜態紅框；**不用 mimo 的 pulse 動畫**，因 MiniMax 早反對分心耗電；也不加會被裁的文字 tooltip）。
+- 整合修正：四方多寫 `window.dragData=` 與假 fetch API → 錯。`dragData`/`L` 是模組級（L 還是 const），須 bare 賦值。preview indirect eval 讀 dragData 確認 bare 賦值生效。
+- 驗證（preview）：CSS 牌頂左半/牌底右半；clientX 左→top 右→bottom；棄牌有選取→dragData 正確(hand:3:d.webp)+真實 handleDrop 跳出確認框「確定送入棄牌區？」+清選取，無選取→openDropViewer；無 console 錯誤。**實機待驗收。**
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
