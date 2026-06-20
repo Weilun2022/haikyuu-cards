@@ -91,6 +91,16 @@
 
 ---
 
+### Round 7 ✅ 手機詳情視窗直向堆疊 + 點圖看原圖（已推，待實機）
+- 回報：長按開的 #detail-overlay（IMG_6602）左圖寫死 200px、橫向 flex，手機 box 僅 ~359px，文字被擠到 ~135px 看不清。無任何手機 media query。
+- 使用者要：左圖盡量縮、文字給足；點圖→跳原圖。
+- 四方一致（deepseek/mimo/minimax/hunyuan 全到齊）建議**直向堆疊**（圖縮上方置中、文字滿寬）優於「小圖留左」，因橫向縮圖後 5 格數值+技能仍擠。**回報使用者，使用者拍板直向堆疊。**
+- 四方出碼但 showDetail 改寫都用假資料欄位（cardData.stats 等），與實際不符；Claude 只加「手機 CSS + lightbox + _detailImg 綁定」，**不動 showDetail 既有資料邏輯**（c.name/affiliation/5格srv-atk/skill_zh）。
+- 實作：(A) @media max-width:768px #detail-box flex-direction:column、#d-img 96px 置中、.detail-info 滿寬、數值/技能放大；(B) 新增 #img-lightbox（z-1100，點任意處/✕ 關）；showDetail 設 _detailImg 並綁 #d-img onclick→openLightbox(img)；closeDetail 連帶 closeLightbox。
+- 驗證（preview）：手機 box=column/圖96px/文字329px(原~135)；lightbox 開啟載入正確原圖、z-1100、開關正常、關詳情連帶關 lightbox；桌面 1280 仍 row/圖200px 不受影響；無 console 錯誤。**實機待驗收。**
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。

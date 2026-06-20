@@ -1397,6 +1397,26 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .detail-annot-title { font-size: 11px; color: var(--text-dim); font-weight: 700; letter-spacing: .5px; margin: 12px 0 4px; }
 .detail-annot { font-size: 12px; color: var(--text-dim); line-height: 1.6; white-space: pre-wrap; border-left: 3px solid #f59e0b; padding: 8px 10px; background: rgba(245,158,11,.08); border-radius: 6px; max-height: 140px; overflow-y: auto; }
 
+/* 手機詳情視窗：直向堆疊（四方共識）——圖縮到上方置中、文字拿回滿寬，數值/技能好讀。點圖看原圖 */
+@media (max-width: 768px) {
+  #detail-box { flex-direction: column; align-items: center; gap: 14px; padding: 20px 18px; width: 94%; max-height: 90vh; overflow-y: auto; }
+  #detail-box img { width: 96px; align-self: center; cursor: pointer; }
+  .detail-info { width: 100%; flex: none; }
+  .detail-name { font-size: 19px; text-align: center; }
+  .detail-sub  { text-align: center; margin-bottom: 12px; }
+  .detail-stats { gap: 5px; }
+  .d-stat { padding: 6px 2px; }
+  .d-stat .dv { font-size: 16px; }
+  .detail-skill { font-size: 14px; max-height: 34vh; }
+  .detail-annot { max-height: 26vh; }
+}
+
+/* 原圖 lightbox（點詳情卡圖開啟，疊在詳情 930 之上）*/
+#img-lightbox { position: fixed; inset: 0; z-index: 1100; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
+#img-lightbox.open { display: flex; }
+#img-lightbox img { max-width: 94vw; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 12px 48px rgba(0,0,0,.7); }
+#img-lightbox .lb-close { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 16px; width: 40px; height: 40px; border-radius: 50%; border: none; background: rgba(255,255,255,.16); color: #fff; font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
 /* ══════════════════════════════════════
    HAND ACTION MODAL
 ══════════════════════════════════════ */
@@ -2836,6 +2856,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <button class="btn sm" onclick="closeDetail()" style="width:100%;margin-top:12px">關閉</button>
     </div>
   </div>
+</div>
+
+<!-- 原圖 lightbox（點詳情卡圖放大；點任意處或 ✕ 關閉）-->
+<div id="img-lightbox" onclick="closeLightbox()">
+  <button class="lb-close" onclick="event.stopPropagation();closeLightbox()" aria-label="關閉原圖">✕</button>
+  <img id="lb-img" src="" alt="">
 </div>
 
 <!-- Hand card action modal -->
@@ -6096,10 +6122,14 @@ function closeDropViewer() { document.getElementById('drop-overlay').classList.r
 // ══════════════════════════════════════════════════════
 // CARD DETAIL
 // ══════════════════════════════════════════════════════
+let _detailImg = null;
 function showDetail(img) {
   const c = allCards[img];
   if (!c) { toast('無卡片資訊'); return; }
-  document.getElementById('d-img').src = `images/${img}`;
+  _detailImg = img;
+  const _dImg = document.getElementById('d-img');
+  _dImg.src = `images/${img}`;
+  _dImg.onclick = e => { e.stopPropagation(); openLightbox(img); };  // 點卡圖 → 原圖 lightbox
   document.getElementById('d-name').textContent = c.name || img;
   document.getElementById('d-sub').textContent = [c.affiliation, c.position_zh || c.category_zh].filter(Boolean).join(' · ');
   const stats = document.getElementById('d-stats');
@@ -6125,7 +6155,12 @@ function showDetail(img) {
   }
   document.getElementById('detail-overlay').classList.add('open');
 }
-function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); }
+function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); closeLightbox(); }
+function openLightbox(img) {
+  document.getElementById('lb-img').src = `images/${img || _detailImg}`;
+  document.getElementById('img-lightbox').classList.add('open');
+}
+function closeLightbox() { document.getElementById('img-lightbox').classList.remove('open'); }
 
 // ── Card hover preview ────────────────────────────────
 let _hoverTimer  = null;
