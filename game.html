@@ -2275,9 +2275,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── R2（四方共識）：手機版「我的回合」場地發光增強（純 inset，不外擴避免 overflow 裁切/擠壓 court）── */
   #self-area.my-turn-glow {
-    border-color: var(--accent) !important;
-    box-shadow: inset 0 0 30px rgba(108,99,255,.16),
-                inset 0 0 0 2px rgba(108,99,255,.38) !important;
+    /* 回合指示改「底邊光條」而非整框 2px 內環——避免看起來像被選取（四方共識，使用者回報 R12）*/
+    border-color: transparent !important;
+    box-shadow: inset 0 -4px 10px rgba(108,99,255,.22),
+                inset 0 -2px 0   rgba(108,99,255,.55) !important;
   }
 
   /* ── 自己區：court 優先，board-sides 移到後面 ── */

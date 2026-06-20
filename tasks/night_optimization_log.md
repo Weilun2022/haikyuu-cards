@@ -138,6 +138,16 @@
 
 ---
 
+### Round 12 ✅ 回合發光改底邊光條（不再像「整區被選取」）（已推待實機）
+- 回報：手機「整個區域一直是選擇起來的狀態很怪」。診斷：那是 R2 加強版 my-turn-glow（#self-area.my-turn-glow，game.html:2277）的 `border-color:var(--accent)` + `inset 0 0 0 2px .38` 全環，看起來就像被框選，且整個回合常駐。
+- 修（四方分 a 純柔光 / b 底邊光條；採 b，因純柔光仍是整框、底邊條徹底破除「框」感）：改成 `border-color:transparent` + `inset 0 -4px 10px .22`（底邊光暈）+ `inset 0 -2px 0 .55`（底邊細線）。無動畫/無新元素/無 layout 改動。只在 @media≤768 的 #self-area.my-turn-glow，桌面 .player-area.my-turn-glow（game.html:654）不動。
+- 驗證（preview）：box-shadow 已底邊版、全環2px消失、border 透明、無 console 錯誤。實機待驗收。
+
+### 另案待查：手牌消失（非本次改動造成）
+- 回報「放一張卡手牌全不見」。查全專案：唯一清空整手牌的是 handleRoundReset（重置本局，由 declareLost 經 Firebase roundReset 觸發，對手按也會清你的）。placeCard 放牌只 splice 一張、不清空。輸一球(loseRallySetPool) 也不觸發 roundReset。使用者稱非重置/穩定連線 → 程式上無法重現，需實機錄影/完整截圖（含是否跳 toast、是否換局）才能定位。**未改動。**
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
