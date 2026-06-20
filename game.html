@@ -1915,6 +1915,25 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .peek-card-actions button:hover { background: var(--surface3); color: var(--text); border-color: var(--accent); }
 .peek-card-actions button.red:hover { border-color: var(--accent2); color: var(--accent2); }
 .peek-done-row { display: flex; gap: 8px; justify-content: flex-end; }
+/* 手機 peek（翻牌頂）觸控優化：放大觸控目標，沿用深色主題與真實 selector（四方協作 R10）*/
+@media (max-width: 768px) {
+  #peek-setup { width: 86vw; max-width: 320px; padding: 20px 18px 16px; gap: 16px; }
+  .peek-stepper-label { font-size: 14px; }
+  .peek-step-btn { width: 44px; height: 44px; font-size: 22px; border-radius: 10px; }
+  .peek-step-val { font-size: 26px; min-width: 40px; }
+  .peek-mode-btn { padding: 12px 0; font-size: 14px; min-height: 44px; }
+  .peek-mode-desc { font-size: 12px; }
+  #peek-panel { width: 96vw; padding: 14px 12px; }
+  .peek-panel-title { font-size: 15px; }
+  .peek-panel-close { width: 36px; height: 36px; font-size: 18px; }
+  .peek-cards-row { gap: 12px; }
+  .peek-card { width: calc(50% - 6px); max-width: 150px; }
+  .peek-card-order { font-size: 12px; }
+  .peek-card-name { font-size: 12px; }
+  .peek-card-actions { gap: 5px; }
+  .peek-card-actions button { font-size: 13px; padding: 9px 0; min-height: 40px; border-radius: 7px; }
+  .peek-done-row .btn { padding: 11px 16px; font-size: 14px; min-height: 44px; }
+}
 /* Opponent public peek banner */
 #opp-peek-banner {
   display: none;
@@ -4748,25 +4767,17 @@ async function handleDrop(targetZone, hasCards) {
   }
 
   // ── Drag to discard zone: only move the TOP card ──
+  // 使用者要求：直接棄牌，不跳確認框（桌面+手機一致）。四方協作 R10
   if (targetZone === 'drop') {
-    const doDiscard = () => {
-      if (dd.src === 'hand') {
-        discardFromHand(dd.idx);
-      } else if (dd.src === 'zone') {
-        const zones = myZonesCopy();
-        const cd = getZoneCard(zones, dd.zoneName);
-        if (cd) discardTopFromZone(dd.zoneName, cd);
-      } else if (dd.src === 'guts') {
-        moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
-      }
-    };
-    // Use confirm-top as "discard", confirm-guts as "cancel"
-    document.getElementById('place-confirm-title').textContent = '確定送入棄牌區？';
-    document.getElementById('place-confirm-top-btn').textContent = '✓ 確認棄牌';
-    document.getElementById('place-confirm-guts-btn').textContent = '✕ 取消';
-    document.getElementById('place-confirm-top-btn').onclick  = () => { closePlaceConfirm(); doDiscard(); };
-    document.getElementById('place-confirm-guts-btn').onclick = () => closePlaceConfirm();
-    document.getElementById('place-confirm-overlay').classList.add('open');
+    if (dd.src === 'hand') {
+      discardFromHand(dd.idx);
+    } else if (dd.src === 'zone') {
+      const zones = myZonesCopy();
+      const cd = getZoneCard(zones, dd.zoneName);
+      if (cd) discardTopFromZone(dd.zoneName, cd);
+    } else if (dd.src === 'guts') {
+      moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, 'drop');
+    }
     return;
   }
 
@@ -7213,6 +7224,11 @@ function closeMobileDrawer() {
       if (fn && typeof showDetail === 'function') { _lpFired = true; showDetail(fn); _lpFeedback(feedbackEl); }
     }, LONGPRESS_MS);
   }
+  // 通用 action 版長按（複用同一 _lpFired，讓既有 window capture 吞掉隨後 click）。用於牌組長按→翻牌頂
+  function _lpStartAction(action, feedbackEl) {
+    _lpFired = false; clearTimeout(_lpTimer);
+    _lpTimer = setTimeout(() => { _lpFired = true; action(); _lpFeedback(feedbackEl); }, LONGPRESS_MS);
+  }
   function _lpCancel() { clearTimeout(_lpTimer); }
   function _lpFilenameFromImg(im) {
     const s = im.getAttribute('src') || im.src || '';
@@ -7256,6 +7272,12 @@ function closeMobileDrawer() {
       board.addEventListener('pointerdown', onZoneTap, { passive: false });
       // 場上卡片長按 → 詳情（委派；不 preventDefault 以保留自己場卡 tap→移動模式）
       board.addEventListener('pointerdown', e => {
+        const pileTile = e.target.closest('#pile-tile');
+        if (pileTile) {   // 牌組長按 → 翻牌頂 openPeekSetup；短按仍由 _onPileTileClick 處理（抽牌/放回），_lpFired 會吞掉該 click
+          _lpSX = e.clientX; _lpSY = e.clientY;
+          _lpStartAction(() => { if (typeof openPeekSetup === 'function') openPeekSetup(); }, pileTile);
+          return;
+        }
         const hcard = e.target.closest('.z-hstack-card');
         const slot  = e.target.closest('.z-slot');
         const im = hcard ? hcard.querySelector('img') : (slot ? slot.querySelector('img') : null);

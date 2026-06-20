@@ -122,6 +122,15 @@
 
 ---
 
+### Round 10 ✅ 棄牌免確認 + 長按牌組翻牌頂(手機版面) （已推待實機）
+- 需求1：棄牌移除確認框（桌面+手機都直接送棄牌區）。改 handleDrop('drop') 把確認框那段刪掉，直接 hand→discardFromHand / zone→discardTopFromZone / guts→moveGutsCard 後 return。place-confirm-overlay 仍供放回牌堆用，不孤兒。
+- 需求2A：手機長按牌組 → 開桌面 openPeekSetup（翻牌頂 N 張，公開/私下）。桌面靠右鍵 oncontextmenu，手機無右鍵 → 接進 A3 長按框架：新增 `_lpStartAction(action,el)`（複用 IIFE 既有 _lpFired/_lpTimer/_lpSX/Y + 既有 board pointermove 取消 + window capture 吞 click），board pointerdown 加 `#pile-tile` 分支 → 長按 openPeekSetup、短按仍 _onPileTileClick（抽牌/放回，click 被 _lpFired 吞）。
+- 需求2B：peek 手機觸控優化（@media≤768px，真實 selector + 深色主題）：peek-step-btn 44×44、peek-mode-btn ≥44、peek-card 兩欄(150px)、peek-card-actions button 13px/40px（原 10px 太小）、peek-panel-close 36px。
+- 整合修正：四方（deepseek/hunyuan，mimo/minimax 空）的 _lpStartAction 用 window 全域 + 自加重複 listener → 改用 A3 IIFE 既有變數最小版；CSS 用了不存在 class（.stepper-group/.to-hand…）+ 淺色背景 → 改真實 selector + 深色主題。
+- 驗證（preview 手機寬）：棄牌 discardFromHand 直接呼叫且確認框不開；openPeekSetup 開啟、step 鈕44/模式鈕47；面板 3 卡渲染、操作鈕40px/13px、4 鈕齊；無 console 錯誤；桌面（@media 外）不受影響。長按手勢實機待驗收。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
