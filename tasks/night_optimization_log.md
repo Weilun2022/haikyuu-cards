@@ -131,6 +131,13 @@
 
 ---
 
+### Round 11 ✅ 翻牌面板一排 3 張（已推待實機）
+- 回報：R10 翻牌面板手機一排只 2 張，要至少 3 張。
+- 修（四方一致推 Grid 最穩）：`.peek-cards-row` 手機改 `display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px`，`.peek-card` width:auto/max-width:none；操作鈕收緊 font12/min-height38/padding7 避免 3 欄擠裁。
+- 驗證（preview 390）：5 張→3+2（首列 3 張），卡寬 111px、操作鈕 54×38px 文字無裁切、無 console 錯誤、桌面（@media 外）不受影響。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。

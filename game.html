@@ -1926,12 +1926,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
   #peek-panel { width: 96vw; padding: 14px 12px; }
   .peek-panel-title { font-size: 15px; }
   .peek-panel-close { width: 36px; height: 36px; font-size: 18px; }
-  .peek-cards-row { gap: 12px; }
-  .peek-card { width: calc(50% - 6px); max-width: 150px; }
+  .peek-cards-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }   /* 一排至少 3 張（Grid 最穩，四方共識）*/
+  .peek-card { width: auto; max-width: none; }
   .peek-card-order { font-size: 12px; }
   .peek-card-name { font-size: 12px; }
-  .peek-card-actions { gap: 5px; }
-  .peek-card-actions button { font-size: 13px; padding: 9px 0; min-height: 40px; border-radius: 7px; }
+  .peek-card-actions { gap: 4px; }
+  .peek-card-actions button { font-size: 12px; padding: 7px 0; min-height: 38px; border-radius: 7px; }
   .peek-done-row .btn { padding: 11px 16px; font-size: 14px; min-height: 44px; }
 }
 /* Opponent public peek banner */
