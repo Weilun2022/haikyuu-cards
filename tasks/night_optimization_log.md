@@ -76,7 +76,22 @@
 - 四方抓出原案 bug：fallback 若用 `1vh`，--dvh 未設時第三行解析成有效的 100vh(lvh) 會蓋掉 100svh、更糟 → 改用 `1svh`（MiniMax+Hunyuan）。
 - 幾何驗證再抓真兇：`.screen{min-height:100vh}`(game.html:50) 繼承到 #screen-game 把高度頂回滿高、容器不縮 → 補 `min-height:0` + `max-height:calc(...)`。
 - 驗證（390 寬，模擬工具列佔位）：可見 844/704/620 → 容器 844/704/620、手牌底部齊可見下緣、皆不裁、無 console 錯誤。改動全在 @media max-width:768px，桌面版不受影響。
-- 分歧待決（見下）：body min-height:100vh 底部多出空白，DeepSeek/MiniMax 想鎖、MiMo 認為可接受；MiniMax 全域寫法會誤傷 lobby 捲動，正解需 body:has(#screen-game.active) 或加 class。
+- **✅ 使用者 13 Pro / Chrome 實機驗收通過，手牌已正常顯示。**
+- 分歧（見下）：body min-height:100vh 底部多出空白，DeepSeek/MiniMax 想鎖、MiMo 認為可接受；MiniMax 全域寫法會誤傷 lobby 捲動，正解需 body:has(#screen-game.active) 或加 class。**使用者決定：先不動，實機觀察是否會被滑到再說。**
+
+---
+
+## 📘 版面開發經驗教訓（給後續 session）
+
+1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
+2. **iOS viewport 單位順序陷阱**：CSS 同屬性多行「後者覆蓋前者，但僅限有效值才覆蓋」。`calc(var(--X, 1vh)*100)` 在 --X 未設時是**有效**的 100vh，會蓋掉上一行 100svh；fallback 要用 `1svh` 才安全。iOS：`100vh=lvh(最大)` > `100svh(最小)` > 真實可見(`--dvh`)。
+3. **改了高度沒反應 → 先找 min-height 繼承**：`#screen-game` 改 height 卻不縮，真兇是 `.screen{min-height:100vh}`(line 50) 繼承上來頂住。**幾何驗證才抓得到**——光看 CSS 容易漏掉跨規則繼承。改容器高度時必同查 min-height/max-height 來源。
+4. **節錄 snippet 給四方審的盲點**：第一輪只貼了目標規則，沒貼 `.screen` 繼承規則，四方因此沒抓到 min-height 真兇。**發審時要連同祖先/繼承相關規則一起貼**，否則審查有結構性盲區。
+5. **preview 驗證手法（補充 [[reference-game-preview-testing]]）**：驗 viewport/高度類改動，用「停用其他 #screen-* + 啟用 #screen-game.active + 在同一個 eval 內掃多個 --dvh 值量 getBoundingClientRect」最可靠，能模擬不同工具列佔位、且避開狀態被 showScreen 重設。先用 probe div 套同一 calc 表達式可快速判斷「是表達式無效還是被別的規則頂住」。
+6. **四方分歧 + 對方方案有副作用時**：不盲從多數決（MiniMax 全域 body 鎖會誤傷 lobby），先查證副作用，回報使用者並給出無副作用的正解選項。
+
+## 待使用者早上決定（高風險/改互動模型/主觀，未自動做）
+0. 【R5 後續，使用者暫定不動】body 底部空白（僅遊戲畫面、真機工具列存在時）若日後想鎖，用 `body:has(#screen-game.active){height:calc(var(--dvh,1svh)*100);overflow:hidden}` 只鎖遊戲畫面，不傷 lobby/設定捲動。次要美觀問題。
 
 ## 待使用者早上決定（高風險/改互動模型/主觀，未自動做）
 0. 【R5 後續】body 底部 224px 空白（僅遊戲畫面、真機工具列存在時）是否要鎖捲動。建議用 `body:has(#screen-game.active){height:calc(var(--dvh)*100);overflow:hidden}` 只鎖遊戲畫面，不傷 lobby/設定捲動。次要美觀問題。
