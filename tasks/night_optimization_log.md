@@ -166,6 +166,14 @@
 
 ---
 
+### Round 15 ✅ 重設計：場上占用格移動改「左右切」取代彈窗（已推待實機）
+- 使用者定案：跟牌組一致，左=Guts(墊下)、右=角色(最上方)，免 modal。
+- 實作（四方 hunyuan/mimo 設計，Claude 對接真實碼）：executeMoveToZone 加 e 參數，占用格 zone/guts 分支不跳 showPlaceConfirm，改用 `(e.clientX-rect.left)<width/2` 判左右→moveCard/moveGutsCard(asGuts)。呼叫點 cardEl.onclick(4390)/slot.onclick(4450) 傳 e（onEmptyZoneClick 是空格不需）。視覺：enterMoveMode 對占用 z-slot 加 .zone-split-hint，clearZoneHighlights 移除。CSS .zone-split-hint ::before左Guts(綠)/::after右角色(紫) 半透明覆蓋、pointer-events穿透。
+- 整合修正：四方用佔位(game[zoneName]/自製modal/#self-court 假設)，改用真實 m=moveMode/getZoneCard/既有 #self-court .z-slot/clearZoneHighlights。CSS ::after 被既有 `.z-slot::after{content:none!important;display:none!important}`(手機隱藏區域名)蓋掉→加 !important 覆蓋。
+- 驗證（preview）：左半→moveCard(true) 右半→moveCard(false)；Guts/角色 標籤都顯示；真實 z-slot 119×82px、半邊59px 觸控充裕；無 console 錯誤。實機待驗收。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。

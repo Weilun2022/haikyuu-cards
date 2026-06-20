@@ -731,6 +731,17 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #pile-tile.pile-return-mode .t-val { opacity: .22; }
 /* 棄牌 tile 在手機選牌模式的提示：靜態紅框（不用 pulse 動畫，避免分心/耗電）*/
 .info-tile.drop-tap-hint { box-shadow: 0 0 0 2px #ef4444, 0 0 9px rgba(239,68,68,.45) !important; border-color: #ef4444 !important; }
+/* 移動模式：占用格左右切提示——左半 Guts(墊下)、右半 角色(最上方)，跟牌組左右切一致。半透明覆蓋不全擋卡圖、pointer-events 穿透。四方協作R15 */
+.z-slot.zone-split-hint { position: relative; }
+.z-slot.zone-split-hint::before,
+.z-slot.zone-split-hint::after {
+  position: absolute; top: 0; bottom: 0; width: 50%;
+  display: flex !important; align-items: center; justify-content: center;   /* !important 覆蓋手機版 .z-slot::after{display:none!important} */
+  font-size: 12px; font-weight: 800; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.85);
+  pointer-events: none; z-index: 3;
+}
+.z-slot.zone-split-hint::before { content: 'Guts' !important; left: 0;  background: rgba(74,222,128,.42); border-right: 1.5px dashed rgba(255,255,255,.7); border-radius: 6px 0 0 6px; }
+.z-slot.zone-split-hint::after  { content: '角色' !important; right: 0; background: rgba(108,99,255,.42); border-radius: 0 6px 6px 0; }
 
 .board-court {
   flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
@@ -4387,7 +4398,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       cardEl.onclick = e => {
         e.stopPropagation();
         if (gutsHandIdx !== null) { hideCardHover(); applyGuts(gutsHandIdx, zoneName); return; }
-        if (moveMode && !isOpp) { executeMoveToZone(zoneName, img); return; }
+        if (moveMode && !isOpp) { executeMoveToZone(zoneName, img, e); return; }
         if (!isOpp && selectedHandIdx !== null) { hideCardHover(); placeCard(selectedHandIdx, zoneName); return; }
         if (isOpp) { hideCardHover(); showDetail(img); return; }
         // Own card: enter move mode with pinned hover (no modal)
@@ -4447,7 +4458,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       e.stopPropagation();
       // 主動放置：slot 內任意位置點擊都生效（卡片/按鈕自己有 stopPropagation 不會誤觸）
       if (gutsHandIdx !== null) { applyGuts(gutsHandIdx, zoneName); return; }
-      if (moveMode && !isOpp) { executeMoveToZone(zoneName, null); return; }
+      if (moveMode && !isOpp) { executeMoveToZone(zoneName, null, e); return; }
       if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
       // 進入移動模式：只在直接點到 slot 背景時觸發
       if (e.target !== slot) return;
@@ -4615,6 +4626,7 @@ function highlightTargetZones(category) {
 function clearZoneHighlights() {
   document.querySelectorAll('.z-slot.target').forEach(s => s.classList.remove('target'));
   document.querySelectorAll('.z-slot.guts-target').forEach(s => s.classList.remove('guts-target'));
+  document.querySelectorAll('.z-slot.zone-split-hint').forEach(s => s.classList.remove('zone-split-hint'));
 }
 function highlightGutsTargets() {
   clearZoneHighlights();
@@ -6373,7 +6385,10 @@ function enterMoveMode(mode) {
     updateHandMeta();
   } else {
     // zone / guts: all self zones are valid targets
-    document.querySelectorAll('#self-court .z-slot').forEach(s => s.classList.add('target'));
+    document.querySelectorAll('#self-court .z-slot').forEach(s => {
+      s.classList.add('target');
+      if (s.querySelector('img')) s.classList.add('zone-split-hint');   // 占用格顯示左右切（左Guts/右角色）R15
+    });
     // also highlight hand area so user can return to hand
     document.getElementById('hand-area').classList.add('move-target-hand');
     document.getElementById('hand-area').onclick = () => { executeMoveToHand(); };
@@ -6437,7 +6452,7 @@ function _updateMoveBanner() {
   banner.classList.add('show');
 }
 
-function executeMoveToZone(targetZone, targetImg = null) {
+function executeMoveToZone(targetZone, targetImg = null, e = null) {
   const m = moveMode;
 
   // Same-zone click: reorder if possible, else cancel
@@ -6467,21 +6482,17 @@ function executeMoveToZone(targetZone, targetImg = null) {
       exitMoveMode();
       _dropPlaceToZone(m.img, targetZone);
     } else {
-      // Zone/guts → occupied zone: ask top or guts
-      document.getElementById('place-confirm-top-btn').textContent = '最上方';
-      document.getElementById('place-confirm-guts-btn').textContent = '當 Guts';
-      showPlaceConfirm('選擇放置方式',
-        () => {
-          exitMoveMode();
-          if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, false);
-          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone, false);
-        },
-        () => {
-          exitMoveMode();
-          if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, true);
-          else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone, true);
-        }
-      );
+      // Zone/guts → 占用格：左右切（左半=Guts墊下、右半=角色最上方）取代 modal。四方協作R15
+      exitMoveMode();
+      let asGuts = false;   // fallback（無事件座標時）：右=角色/最上方
+      const slotEl = e && ((e.currentTarget && e.currentTarget.closest && e.currentTarget.closest('.z-slot')) ||
+                           (e.target && e.target.closest && e.target.closest('.z-slot')));
+      if (e && typeof e.clientX === 'number' && slotEl) {
+        const rect = slotEl.getBoundingClientRect();
+        asGuts = (e.clientX - rect.left) < rect.width / 2;   // 左半=Guts(true)、右半=角色(false)
+      }
+      if (m.type === 'zone') moveCard(m.zoneName, targetZone, m.cardData, asGuts);
+      else if (m.type === 'guts') moveGutsCard(m.zoneName, m.cardData, m.gutsImg, targetZone, asGuts);
     }
   } else {
     if (m.type === 'hand') {
