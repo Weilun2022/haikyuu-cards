@@ -6164,6 +6164,9 @@ function _fillHoverContent(img) {
 }
 
 function showCardHover(img, e) {
+  // 手機（coarse pointer）停用小提示：#card-hover 寬 490px 在窄螢幕會翻到畫面外，
+  // iOS 合成 mouseenter 又會誤觸發。手機改用長按 500ms → showDetail 全螢幕詳情。
+  if (window.matchMedia('(pointer: coarse)').matches) return;
   if (_hoverPinned) return; // move mode owns the preview
   clearTimeout(_hoverTimer);
   _hoverTimer = setTimeout(() => {
@@ -7117,6 +7120,27 @@ function closeMobileDrawer() {
   const DRAG_THRESHOLD = 8;
   let tapSelectedIdx = null;
 
+  // ── 長按 500ms 叫出全螢幕詳情/翻譯（四方協作：deepseek/mimo 設計，Claude 整合修正）──
+  const LONGPRESS_MS = 500;
+  let _lpTimer = null, _lpFired = false, _lpSX = 0, _lpSY = 0;
+  function _lpFeedback(el) {
+    if (el) { el.classList.add('lp-fire'); setTimeout(() => el.classList.remove('lp-fire'), 200); }
+    if ('vibrate' in navigator) { try { navigator.vibrate(20); } catch (_) {} }  // iOS 無效，Android 有效，純選配
+  }
+  function _lpStart(getFilename, feedbackEl) {
+    _lpFired = false; clearTimeout(_lpTimer);
+    _lpTimer = setTimeout(() => {
+      const fn = getFilename();
+      if (fn && typeof showDetail === 'function') { _lpFired = true; showDetail(fn); _lpFeedback(feedbackEl); }
+    }, LONGPRESS_MS);
+  }
+  function _lpCancel() { clearTimeout(_lpTimer); }
+  function _lpFilenameFromImg(im) {
+    const s = im.getAttribute('src') || im.src || '';
+    const base = s.split('/').pop();           // showDetail 的 key 是「含副檔名」的檔名（allCards[img]），勿去副檔名
+    try { return decodeURIComponent(base); } catch (_) { return base; }
+  }
+
   function getZoneAtPoint(x, y) {
     for (const el of document.elementsFromPoint(x, y)) {
       if (el.classList && el.classList.contains('z-slot') && !el.closest('#opp-area')) return el;
@@ -7149,7 +7173,27 @@ function closeMobileDrawer() {
     window.addEventListener('pointerup', onPU, { passive: false });
     window.addEventListener('pointercancel', onPC);
     const board = document.getElementById('game-board');
-    if (board) board.addEventListener('pointerdown', onZoneTap, { passive: false });
+    if (board) {
+      board.addEventListener('pointerdown', onZoneTap, { passive: false });
+      // 場上卡片長按 → 詳情（委派；不 preventDefault 以保留自己場卡 tap→移動模式）
+      board.addEventListener('pointerdown', e => {
+        const hcard = e.target.closest('.z-hstack-card');
+        const slot  = e.target.closest('.z-slot');
+        const im = hcard ? hcard.querySelector('img') : (slot ? slot.querySelector('img') : null);
+        if (!im) return;   // 空格或非卡片，不長按
+        _lpSX = e.clientX; _lpSY = e.clientY;
+        _lpStart(() => _lpFilenameFromImg(im), hcard || slot);
+      }, { passive: true });
+      board.addEventListener('pointermove', e => {
+        if (Math.abs(e.clientX - _lpSX) > DRAG_THRESHOLD || Math.abs(e.clientY - _lpSY) > DRAG_THRESHOLD) _lpCancel();
+      }, { passive: true });
+      board.addEventListener('pointerup',     _lpCancel, { passive: true });
+      board.addEventListener('pointercancel', _lpCancel, { passive: true });
+    }
+    // 長按觸發後，吞掉 iOS 補發的合成 click（capture 階段），避免又選牌/進移動模式
+    window.addEventListener('click', e => {
+      if (_lpFired) { e.stopPropagation(); e.preventDefault(); _lpFired = false; }
+    }, true);
   }
 
   function onPD(e) {
@@ -7159,6 +7203,8 @@ function closeMobileDrawer() {
     mDragImg = card.querySelector('img')?.src || null;
     mDragStartX = e.clientX; mDragStartY = e.clientY;
     mDragging = false;
+    // 長按 → 詳情；手牌檔名優先用 data-img（含副檔名），退回 L.hand[idx]
+    _lpStart(() => card.dataset.img || ((typeof L !== 'undefined' && L.hand) ? L.hand[parseInt(mDragCardIdx)] : null), card);
     e.preventDefault();
   }
   function onPM(e) {
@@ -7166,6 +7212,7 @@ function closeMobileDrawer() {
     const dx = Math.abs(e.clientX - mDragStartX), dy = Math.abs(e.clientY - mDragStartY);
     if (!mDragging && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
       mDragging = true;
+      _lpCancel();   // 進入拖曳 → 取消長按
       createGhost(mDragImg, mDragStartX, mDragStartY);
       highlightZones(true);
       clearTapSelect();
@@ -7174,6 +7221,9 @@ function closeMobileDrawer() {
   }
   function onPU(e) {
     if (mDragCardIdx === null) return;
+    _lpCancel();
+    // 長按已觸發 → 不選牌；保留 _lpFired 讓 capture click 吞掉隨後的合成 click，350ms 後保險清除
+    if (_lpFired) { mDragging = false; mDragCardIdx = null; mDragImg = null; setTimeout(() => { _lpFired = false; }, 350); return; }
     if (mDragging) {
       removeGhost(); highlightZones(false);
       const zone = getZoneAtPoint(e.clientX, e.clientY);
@@ -7185,6 +7235,7 @@ function closeMobileDrawer() {
   }
   function onPC(e) {
     if (mDragCardIdx === null) return;
+    _lpCancel();
     removeGhost(); highlightZones(false);
     clearTapSelect();
     mDragging = false; mDragCardIdx = null; mDragImg = null;
@@ -7221,7 +7272,8 @@ function closeMobileDrawer() {
   //   outline 在 z-slot 也會被祖先 overflow 裁切。改用 scale + box-shadow 環，不位移、不被裁。
   mStyle.textContent =
     '.mobile-drop-target{outline:2px dashed var(--accent)!important;background:rgba(108,99,255,.18)!important}' +
-    '.mobile-tap-selected{transform:scale(1.06)!important;z-index:10!important;box-shadow:0 0 0 2px var(--accent2),0 4px 14px rgba(255,107,165,.45)!important;filter:brightness(1.06)!important}';
+    '.mobile-tap-selected{transform:scale(1.06)!important;z-index:10!important;box-shadow:0 0 0 2px var(--accent2),0 4px 14px rgba(255,107,165,.45)!important;filter:brightness(1.06)!important}' +
+    '.lp-fire{transform:scale(1.08)!important;filter:brightness(1.18)!important;box-shadow:0 0 14px rgba(108,99,255,.75)!important;z-index:20!important}';
   document.head.appendChild(mStyle);
 
   function init() {

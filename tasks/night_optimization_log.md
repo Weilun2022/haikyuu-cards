@@ -81,6 +81,16 @@
 
 ---
 
+### Round 6 ✅ 手機卡片：停用跑出畫面的小提示 + 長按 500ms 叫翻譯詳情（已推，待實機）
+- 回報：手機點卡片時小提示 #card-hover 跑到畫面左外被切掉。
+- 根因：#card-hover 原是桌面 hover（綁 mouseenter），iOS 合成 mouseenter 漏出；寬 490px 在 390 螢幕必翻到左界外。
+- 四方討論定案：時長 500ms（四方一致否決使用者原提的 1.5s，太久像沒反應）；移動>8px 取消長按改拖曳；所有卡片統一長按；手機停用 #card-hover；視覺回饋為主（震動 iOS 無效選配）；整合進現有 pointer 流程。**使用者拍板 500ms。**
+- 四方出碼（deepseek/mimo），Claude 整合修正了 4 個佔位錯誤：場上卡 class 是 .z-hstack-card/.z-slot 非 .card；showDetail 的 key 含副檔名不可去；用真實 onPD/PM/PU 簽名；board pointerdown 不 preventDefault 以保留 tap→移動模式。
+- 實作：(A) showCardHover 加 coarse guard 停用手機小提示；(B) 手牌 A3 長按用 data-img；(C) #game-board 委派長按 .z-slot img；(D) 單一 _lpFired 旗標 + window capture 吞掉 iOS 合成 click（避免長按後又選牌/進移動模式）；視覺 .lp-fire scale1.08。
+- 驗證（preview，coarse-gated 無法模擬真觸控，改驗邏輯鏈）：載入無 console 錯誤；coarse 桌面=false（桌面 hover/排版不受影響）；檔名抽取 roundtrip 與 allCards(364) 對得上；showDetail 開/填/關正常。**真實長按手勢待使用者實機驗收。**
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
