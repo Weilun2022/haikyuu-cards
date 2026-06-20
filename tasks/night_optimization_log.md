@@ -67,7 +67,19 @@
 完成（已 commit+push，4 個 commit）：R1 牌組列對稱、R2 回合發光增強、R3 修選中卡裁切 bug、R4 空牌庫灰化。
 全部四方協作設計 + preview 幾何驗證 + 三解析度回歸。
 
+---
+
+### Round 5 ✅ 手機版看不到手牌 — 接上死碼 --dvh（commit 已推）
+- 回報：iPhone 13 Pro / Chrome iOS，手牌列被瀏覽器底部工具列蓋住看不到
+- 根因：遊戲畫面用 `height:100svh`，但 iOS 上 100svh 比真實可見高度高，最底的 #hand-area 被推到工具列下又被 overflow:hidden 裁。專案早寫了 visualViewport 量真高的 JS 寫進 `--dvh`，但 CSS 從沒用到（死碼）。
+- 四方協作設計：#screen-game.active 高度三層降級 `100vh→100svh→calc(var(--dvh,1svh)*100)`；#hand-area 同步 `14svh→calc(14*var(--dvh,1svh))` 保持基準一致。
+- 四方抓出原案 bug：fallback 若用 `1vh`，--dvh 未設時第三行解析成有效的 100vh(lvh) 會蓋掉 100svh、更糟 → 改用 `1svh`（MiniMax+Hunyuan）。
+- 幾何驗證再抓真兇：`.screen{min-height:100vh}`(game.html:50) 繼承到 #screen-game 把高度頂回滿高、容器不縮 → 補 `min-height:0` + `max-height:calc(...)`。
+- 驗證（390 寬，模擬工具列佔位）：可見 844/704/620 → 容器 844/704/620、手牌底部齊可見下緣、皆不裁、無 console 錯誤。改動全在 @media max-width:768px，桌面版不受影響。
+- 分歧待決（見下）：body min-height:100vh 底部多出空白，DeepSeek/MiniMax 想鎖、MiMo 認為可接受；MiniMax 全域寫法會誤傷 lobby 捲動，正解需 body:has(#screen-game.active) 或加 class。
+
 ## 待使用者早上決定（高風險/改互動模型/主觀，未自動做）
+0. 【R5 後續】body 底部 224px 空白（僅遊戲畫面、真機工具列存在時）是否要鎖捲動。建議用 `body:has(#screen-game.active){height:calc(var(--dvh)*100);overflow:hidden}` 只鎖遊戲畫面，不傷 lobby/設定捲動。次要美觀問題。
 1. 輸一球 → 獨立浮動 FAB 按鈕（MiMo 建議，改互動模型）
 2. 事件/發球格 180px → 拆成獨立 82px 格（改牌桌結構）
 3. 可放置格 pulse 呼吸動畫（MiniMax 反對：分心耗電；其他可選）

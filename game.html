@@ -2021,8 +2021,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── 整體 game 畫面 ── */
   #screen-game.active {
-    height: 100vh;    /* fallback: 舊版瀏覽器 */
-    height: 100svh;   /* 主用：small viewport height，iOS 15.4+ / Chrome 108+，含 address bar + bottom nav */
+    height: 100vh;     /* fallback: 舊版瀏覽器 */
+    height: 100svh;    /* 次選：支援 svh 但 --dvh 未及設定時 */
+    height: calc(var(--dvh, 1svh) * 100);  /* 主用：JS 以 visualViewport 量真實可見高度（iOS 工具列不計入）。fallback 用 1svh 確保 --dvh 未設時退回 100svh 而非更糟的 100vh/lvh */
+    /* 覆蓋 .screen 繼承的 min-height:100vh，否則 100vh(lvh) 會把上面的 height 頂回去、容器不縮、手牌仍被工具列蓋住 */
+    min-height: 0;
+    max-height: calc(var(--dvh, 1svh) * 100);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2116,10 +2120,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
   /* ── 手牌區：6 張可見 ── */
   #hand-area {
-    flex: 0 0 clamp(72px, 14svh, 110px);   /* 動態比例：SE≈72px, 14:98px, ProMax≈110px */
-    height: clamp(72px, 14svh, 110px);
-    min-height: clamp(72px, 14svh, 110px);
-    max-height: clamp(72px, 14svh, 110px);
+    /* 與外層 #screen-game 統一用 --dvh，避免 svh/dvh 基準不一致再次溢出；clamp 保留 72/110 上下限防鍵盤彈出時過度壓縮 */
+    flex: 0 0 clamp(72px, calc(14 * var(--dvh, 1svh)), 110px);   /* 動態比例：SE≈72px, 14:98px, ProMax≈110px */
+    height: clamp(72px, calc(14 * var(--dvh, 1svh)), 110px);
+    min-height: clamp(72px, calc(14 * var(--dvh, 1svh)), 110px);
+    max-height: clamp(72px, calc(14 * var(--dvh, 1svh)), 110px);
     flex-direction: row;
     align-items: center;
     padding: 4px 2px;
