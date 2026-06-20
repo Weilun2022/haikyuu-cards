@@ -182,6 +182,14 @@
 
 ---
 
+### Round 17 ✅ 移動模式隱藏 stat 計數器，左右切乾淨（已推待實機）
+- 回報：占用格左右切「左半看到角色、右邊空的」，行為其實正確（左guts右置頂），是顯示亂。優化建議：移動選位置時隱藏 +/− 計數器專注左右半。
+- 查證（preview）：標籤沒搞反——左 ::before=Guts、右 ::after=角色 都 z-6。亂的主因是右側 stat 計數器 .z-stat-overlay（z-5，74-96%彩色塊）遮蔽右半「角色」造成「右邊空」錯覺。
+- 修（四方一致，CSS 一行）：`.z-slot.zone-split-hint .z-stat-overlay { display:none !important; }`。只隱藏占用格（移動模式）計數器，其他格保留作參考；退出移動模式 class 移除即恢復。
+- 驗證（preview）：計數器 移動前flex→移動中none→退出flex（恢復正常、無副作用）；hint 啟用時 left=Guts/right=角色；無 console 錯誤。實機待驗收。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
