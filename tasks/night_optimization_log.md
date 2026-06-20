@@ -122,3 +122,17 @@
 5. 手牌 mask 漸層提示（>6張時，可選；靜態 mask 會淡化邊緣卡）
 6. landscape 橫向：寬>768px 會走桌面版佈局（既有行為，非本次改動）
 備註：截圖工具與本頁不相容（7+ 次 timeout），改用 getBoundingClientRect 幾何量測驗證。
+
+---
+
+## Session 總結（2026-06-20 日間）
+手機版多方協力：四方協作（mimo/minimax/deepseek/hunyuan）設計 → Claude 整合 → preview 驗證 → commit/push。三項皆**使用者 13 Pro / Chrome 實機驗收通過**。
+
+| 輪 | 成果 | commit |
+|---|---|---|
+| R5 | 接上死碼 `--dvh` 修手機看不到手牌（含 `.screen{min-height:100vh}` 真兇 → `min-height:0`） | `e5ac1bb` |
+| R6 | 卡片長按 500ms → showDetail 詳情；停用跑出畫面的 `#card-hover` 小提示 | `32fa577` |
+| R7 | 詳情視窗手機直向堆疊（圖縮上方、文字滿寬）+ 點卡圖看原圖 lightbox | `5ea68bf` |
+
+待決（使用者暫不動）：body 底部空白只在真機工具列存在時出現，正解 `body:has(#screen-game.active){overflow:hidden}`（只鎖遊戲畫面，不傷 lobby）。
+手機互動模型與彈窗清單已存入 memory `reference_game_mobile_ui`。
