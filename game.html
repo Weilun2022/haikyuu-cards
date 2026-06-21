@@ -7460,6 +7460,7 @@ function closeMobileDrawer() {
     clearTapSelect();
   }
   function setTapSelect(idx) {
+    if (tapSelectedIdx !== null && String(tapSelectedIdx) === String(idx)) { clearTapSelect(); return; }
     clearTapSelect();
     tapSelectedIdx = idx;
     const card = document.querySelector('.hand-card[data-idx="' + idx + '"]');
