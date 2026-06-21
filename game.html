@@ -506,7 +506,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   }
 
   .lobby-body > .lobby-card:not(.lobby-room-card) { grid-area: user; }
-  .lobby-actions-block  { grid-area: actions; width: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
+  .lobby-actions-block  { grid-area: actions; width: 100%; display: flex; flex-wrap: nowrap; gap: 10px; }
+  .lobby-actions-block > .btn.primary { flex: 0 0 auto; white-space: nowrap; }
+  .lobby-actions-block > .join-row    { flex: 1 1 0; min-width: 0; }
   #rejoin-banner        { grid-area: banner; }
   .lobby-room-card      { grid-area: rooms; min-width: 0; display: flex; flex-direction: column; }
   #room-list            { flex: 1; max-height: none; min-height: 300px; }
