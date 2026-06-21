@@ -2922,7 +2922,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <button class="ha-close-btn" onclick="closeHandAction()">✕</button>
     <!-- Left: card image -->
     <div class="ha-modal-img">
-      <img id="ha-img" src="" alt="" onclick="showDetail(_haImg)">
+      <img id="ha-img" src="" alt="" onclick="openLightbox(_haImg)">
     </div>
     <!-- Right: rich info only -->
     <div class="ha-modal-body">
@@ -6206,39 +6206,23 @@ function closeDropViewer() { document.getElementById('drop-overlay').classList.r
 // CARD DETAIL
 // ══════════════════════════════════════════════════════
 let _detailImg = null;
+// showDetail：統一使用 #hand-action-overlay 顯示卡片詳情（隱藏移動按鈕）
 function showDetail(img) {
-  const c = allCards[img];
-  if (!c) { toast('無卡片資訊'); return; }
+  if (!_fillModalCardInfo(img)) { toast('無卡片資訊'); return; }
   _detailImg = img;
-  const _dImg = document.getElementById('d-img');
-  _dImg.src = `images/${img}`;
-  _dImg.onclick = e => { e.stopPropagation(); openLightbox(img); };  // 點卡圖 → 原圖 lightbox
-  document.getElementById('d-name').textContent = c.name || img;
-  document.getElementById('d-sub').textContent = [c.affiliation, c.position_zh || c.category_zh].filter(Boolean).join(' · ');
-  const stats = document.getElementById('d-stats');
-  stats.innerHTML = '';
-  [['srv','發球'],['blk','攔網'],['rcv','接球'],['tos','舉球'],['atk','攻擊']].forEach(([k,l]) => {
-    const v = c[k];
-    const d = document.createElement('div'); d.className = 'd-stat';
-    d.innerHTML = `<div class="dl">${l}</div><div class="dv">${(v==='-'||v===null||v===undefined)?'—':v}</div>`;
-    stats.appendChild(d);
-  });
-  document.getElementById('d-skill').textContent = c.skill_zh || c.skill_jp || '（無技能）';
-  const annotZh = (c.annotation_zh || '').trim();
-  const annotJp = (c.annotation_jp || '').trim();
-  const annotEl = document.getElementById('d-annot');
-  const annotTitle = document.getElementById('d-annot-title');
-  if (annotZh || annotJp) {
-    annotEl.textContent = annotZh || annotJp;
-    annotEl.style.display = 'block';
-    annotTitle.style.display = 'block';
-  } else {
-    annotEl.style.display = 'none';
-    annotTitle.style.display = 'none';
-  }
-  document.getElementById('detail-overlay').classList.add('open');
+  document.getElementById('ha-move-btn').style.display = 'none';
+  document.getElementById('hand-action-overlay').classList.add('open');
 }
-function closeDetail() { document.getElementById('detail-overlay').classList.remove('open'); closeLightbox(); }
+// closeDetail：輕量關閉，不清 selection/zoneHighlights（escape handler 另行處理）
+function closeDetail() {
+  const overlay = document.getElementById('hand-action-overlay');
+  if (overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+    document.getElementById('ha-move-btn').style.display = '';
+    _haImg = null;
+  }
+  closeLightbox();
+}
 function openLightbox(img) {
   document.getElementById('lb-img').src = `images/${img || _detailImg}`;
   document.getElementById('img-lightbox').classList.add('open');
@@ -6659,7 +6643,9 @@ function _fillModalCardInfo(img) {
 
 function showGutsAction(zoneName, cardData, gutsImg) {
   if (!_fillModalCardInfo(gutsImg)) return;
-  document.getElementById('ha-move-btn').onclick = () => {
+  const moveBtn = document.getElementById('ha-move-btn');
+  moveBtn.style.display = '';  // 確保 showDetail 隱藏後能恢復
+  moveBtn.onclick = () => {
     closeHandAction();
     enterMoveMode({ type: 'guts', zoneName, cardData, gutsImg });
   };
@@ -7327,7 +7313,7 @@ function closeMobileDrawer() {
         // 非頂牌 guts：長按 → showGutsAction（modal）；其他 → showDetail
         if (hcard && hcard._gutsActionData && document.contains(hcard)) {
           const d = hcard._gutsActionData;
-          _lpStartAction(() => { if (document.contains(hcard)) showGutsAction(d.zoneName, d.cardData, d.img); }, hcard);
+          _lpStartAction(() => { if (document.contains(hcard)) showDetail(d.img); }, hcard);
         } else {
           _lpStart(() => _lpFilenameFromImg(im), hcard || slot);
         }
