@@ -572,6 +572,49 @@ input[type=text]::placeholder { color: var(--text-dim); }
 @keyframes badgeFadeIn { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
 .waiting-footer { display: flex; gap: 10px; justify-content: center; margin-top: 24px; }
 
+/* ── 等待畫面手機版優化（Gemini 設計 R25）── */
+@media (max-width: 768px) {
+  #screen-waiting {
+    padding: 12px;
+    align-items: flex-start;
+    overflow-y: auto;
+  }
+  .waiting-box {
+    padding: 20px 16px !important;
+    margin: auto !important;
+  }
+  .room-code-big {
+    font-size: 48px !important;
+    padding: 8px 0 !important;
+    letter-spacing: 8px !important;
+  }
+  .qr-section {
+    margin: 6px 0 !important;
+  }
+  .qr-section p { display: none; }
+  #qr-canvas img, #qr-canvas canvas {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  #qr-canvas { padding: 6px !important; }
+  .waiting-players {
+    margin: 10px 0 !important;
+    gap: 10px !important;
+  }
+  .waiting-player { padding: 10px 8px !important; }
+  .wp-avatar { font-size: 22px !important; margin-bottom: 4px !important; }
+  .waiting-dots { margin: 6px 0 !important; }
+  .waiting-footer {
+    margin-top: 14px !important;
+    gap: 8px !important;
+  }
+  .waiting-footer .btn {
+    flex: 1;
+    padding: 12px 0 !important;
+    font-size: 15px !important;
+  }
+}
+
 /* ══════════════════════════════════════
    SCREEN: GAME
 ══════════════════════════════════════ */
@@ -4017,6 +4060,7 @@ function enterGame() {
 
   showScreen('game');
   renderBoard(gameState);
+  renderHand();
   syncPileCount();
   // Init handCount = 0 so the opponent's sidebar count is populated from game start
   db.ref(`games/${roomId}/players/${myRole}/handCount`).set(0);
