@@ -484,38 +484,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .lobby-footer a { color: var(--accent); text-decoration: none; }
 .lobby-footer a:hover { text-decoration: underline; }
 
-/* ── 大廳桌面版雙欄佈局（Gemini 修正版 R26b）── */
-@media (min-width: 900px) {
-  .lobby-hero h1 { font-size: 36px; margin-bottom: 8px; }
-
-  .lobby-body {
-    width: 100%;
-    max-width: min(1100px, 95vw) !important;
-    display: grid !important;
-    grid-template-columns: 380px 1fr;
-    grid-template-areas:
-      "user    rooms"
-      "actions rooms"
-      "banner  rooms"
-      "footer  footer"
-      "copy    copy";
-    column-gap: 30px;
-    row-gap: 20px;
-    align-items: start;
-    margin: 0 auto;
-  }
-
-  .lobby-body > .lobby-card:not(.lobby-room-card) { grid-area: user; }
-  .lobby-actions-block  { grid-area: actions; width: 100%; display: flex; flex-wrap: wrap; gap: 10px; }
-  #rejoin-banner        { grid-area: banner; }
-  .lobby-room-card      { grid-area: rooms; min-width: 0; display: flex; flex-direction: column; }
-  #room-list            { flex: 1; max-height: none; min-height: 300px; }
-  .lobby-footer         { grid-area: footer; border-top: 1px solid rgba(255,255,255,.1); padding-top: 20px; }
-  .lobby-body > div:last-child { grid-area: copy; }
-
-  .lobby-actions-block input { flex: 1; min-width: 100px; }
-}
-
 /* ══════════════════════════════════════
    SCREEN: WAITING
 ══════════════════════════════════════ */
@@ -2655,7 +2623,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     </div>
 
     <!-- Actions -->
-    <div class="lobby-actions lobby-actions-block">
+    <div class="lobby-actions">
       <button class="btn primary" onclick="createRoom()" style="gap:6px;display:flex;align-items:center;justify-content:center">
         <span>＋</span><span>建立新房間</span>
       </button>
@@ -2679,7 +2647,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     </div>
 
     <!-- Room list -->
-    <div class="lobby-card lobby-room-card" style="padding:0">
+    <div class="lobby-card" style="padding:0">
       <div class="room-list-header">
         <span><span class="live-dot"></span>公開房間</span>
         <span id="room-count" style="font-size:11px;color:var(--text-dim)"></span>
