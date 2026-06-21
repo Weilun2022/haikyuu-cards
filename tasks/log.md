@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-06-21（Session 25）
+
+### game.html：手牌殘留修復 + 等待畫面手機版優化（`97cc015`）
+
+**Bug fix — 加入新局後手牌未清空**
+- `enterGame()` 在 `L.hand = []` 後補上 `renderHand()` 呼叫
+- 根因：資料清了但 DOM 未同步，導致上一局卡片殘留顯示
+- 六方 AI 共識確認（Grok / Gemini / 混元 / DeepSeek / MiniMax / MiMo）
+
+**手機版等待畫面優化（Gemini 設計 R25）**
+- 新增 `@media (max-width:768px)` CSS 覆寫等待畫面
+- `.waiting-box` padding 40→20px、`.room-code-big` 64→48px、letter-spacing 縮減
+- QR Code 說明文字隱藏、canvas 縮至 80px、`.waiting-players` margin 縮半
+- 「開始對戰」按鈕確認在手機視口內可見（按鈕底部 665px，視口 812px）
+
+---
+
 ## 2026-05-07（Session 12）
 
 ### game.html：版面 CYBER 風格化 + 效能優化
