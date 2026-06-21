@@ -5913,7 +5913,18 @@ function layoutHstack(hstack) {
     if (cards.length < 2) return;
     const cardW = cards[0].offsetWidth;
     if (!cardW) return;
-    const zoneW = hstack.offsetWidth - 8;
+    // 扣除右側 stat overlay 佔用的空間（overlay 是 slot 的 absolute 子元素）
+    const slot = hstack.parentElement;
+    const overlayEl = slot?.querySelector(':scope > .z-stat-overlay');
+    let zoneW;
+    if (overlayEl && overlayEl.offsetWidth > 0) {
+      const slotRect = slot.getBoundingClientRect();
+      const overlayRect = overlayEl.getBoundingClientRect();
+      zoneW = overlayRect.left - slotRect.left - 4; // 4 = hstack padding-left
+    } else {
+      zoneW = hstack.offsetWidth - 8;
+    }
+    zoneW = Math.max(zoneW, 0);
     const idealOverlap = Math.floor(cardW * 0.40);
     const totalAtIdeal = cardW + (cards.length - 1) * (cardW - idealOverlap);
     let overlap;
