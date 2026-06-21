@@ -2619,17 +2619,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
             <select id="deck-select"><option value="">— 請選擇 —</option></select>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Actions -->
-    <div class="lobby-actions">
-      <button class="btn primary" onclick="createRoom()" style="gap:6px;display:flex;align-items:center;justify-content:center">
-        <span>＋</span><span>建立新房間</span>
-      </button>
-      <div class="join-row">
-        <input id="join-code" type="text" placeholder="房號" maxlength="4">
-        <button class="btn" onclick="joinByCode()">加入</button>
+        <div class="lobby-actions" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+          <button class="btn primary" onclick="createRoom()" style="gap:6px;display:flex;align-items:center;justify-content:center">
+            <span>＋</span><span>建立新房間</span>
+          </button>
+          <div class="join-row">
+            <input id="join-code" type="text" placeholder="房號" maxlength="4">
+            <button class="btn" onclick="joinByCode()">加入</button>
+          </div>
+        </div>
       </div>
     </div>
 
