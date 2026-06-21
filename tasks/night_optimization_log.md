@@ -240,6 +240,20 @@
 
 ---
 
+## Session 總結（2026-06-21，手機大廳三項優化）
+五方協作（gemini/hunyuan/deepseek/minimax/mimo）設計 → Claude 整合 → preview 驗證 → commit+push。
+
+| 輪 | 成果 | commit |
+|---|---|---|
+| R24 | 手機大廳三項：①鎖住整頁 overscroll ②頭像改橫向單列滑動 ③公開房間 panel 拉高 66svh | `85295ec` |
+
+**R24 重點**：
+- **鎖捲動**：`showScreen` 加一行 `body.classList.toggle('lobby-scroll-locked', name==='lobby')`，CSS `overflow:hidden + overscroll-behavior:none + touch-action:none`（iOS Safari 需兩者雙保險，僅 overscroll-behavior 不夠）。不用 `position:fixed`（會破壞 SPA screen stack）。
+- **頭像橫滑**：`flex-wrap:nowrap + overflow-x:auto + scroll-snap-type:x mandatory + padding:0 12px 4px`；scrollbar 隱藏需雙套 `::-webkit-scrollbar{display:none}` + `scrollbar-width:none`（Firefox/新版 Safari 用後者）。
+- **房間拉高**：`max-height:66svh`（two-line fallback `66vh`），`overflow-y:auto` 而非 `scroll`（內容少時不出現空白 scrollbar）。
+
+---
+
 ## Session 總結（2026-06-21，卡片詳情 modal 重構）
 四方協作（deepseek/minimax/hunyuan/mimo）設計 → Claude 整合 → preview 邏輯/幾何驗證 → commit+push。
 
@@ -249,6 +263,9 @@
 | R20 | `showDetail` 統一改顯示 `#hand-action-overlay`（移除 `#detail-overlay` 路徑）；`#ha-img` 改 `openLightbox`；`closeDetail` 輕量化不清 selection | `8b2b6b2` |
 | R21 | `.ha-modal-img` 圖片改 flex stretch + `object-position:top center` 裁底部（仿翻譯網站效果）；修正手機 media query 順序 | `f1102bd` |
 | R22 | lightbox z-index 1100→4000，確保蓋過 `#hand-action-overlay`(3500) | `5c83fa8` |
+| R23 | `layoutHstack` 改用 `getBoundingClientRect` 幾何法扣除右側 stat overlay 空間，修正場上卡片壓在計數器上的問題；補 `Math.max(zoneW, 0)` 防負值 | `9bdea0b` |
+
+**R23 重點**：`.z-stat-overlay` 是 `slot.appendChild` 的 absolute 子元素（`right:4px`），但原本 `zoneW = hstack.offsetWidth - 8` 未知其存在，導致卡片排版蓋進計數器右側。改為 `overlayRect.left - slotRect.left - 4`（4 = hstack padding-left），直接以幾何距離計算安全寬度，無 magic number。七方審查共識 → DeepSeek/MiMo 條件通過，補 `Math.max` 後確認。
 
 **R20 重點**：`showDetail(img)` 重寫為呼叫 `_fillModalCardInfo` + 隱藏移動按鈕 + 開 `#hand-action-overlay`，桌面/手機統一入口。`closeDetail` 改為輕量關閉，不呼叫 `clearSelection/clearZoneHighlights`（escape handler 另行處理，避免清掉 peek 狀態）。
 
