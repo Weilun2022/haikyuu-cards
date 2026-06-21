@@ -1492,11 +1492,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   justify-content: center; z-index: 2; transition: background .15s;
 }
 .ha-close-btn:hover { background: var(--border); }
-@media (max-width: 768px) {
-  .ha-modal-img { width: 25%; min-width: 80px; height: auto; aspect-ratio: 1; }
-}
 .ha-modal-img {
-  width: 130px; height: 130px;  /* 正方形裁切，顯示卡片頂部角色區域（~71%） */
+  width: 130px; /* flex stretch 自然撐滿高度，object-position:top 裁底部 */
   flex-shrink: 0; background: var(--surface2); overflow: hidden;
 }
 .ha-modal-img img {
@@ -1505,6 +1502,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   cursor: zoom-in; transition: opacity .15s;
 }
 .ha-modal-img img:hover { opacity: .88; }
+@media (max-width: 768px) {
+  .ha-modal-img { width: 25%; min-width: 80px; }
+}
 .ha-modal-body {
   flex: 1; padding: 18px 18px 16px; overflow-y: auto;
   display: flex; flex-direction: column; gap: 0; min-width: 0;
