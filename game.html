@@ -2378,9 +2378,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
   .lobby-card-head { padding: 9px 14px; font-size: 11px; }
   .lobby-card-body { padding: 10px 14px 14px; }
 
-  /* ── Avatar 縮小至 36px ── */
-  .avatar-opt { width: 36px; height: 36px; font-size: 18px; border-radius: 9px; }
-  .avatar-row { gap: 6px; margin-bottom: 10px; }
+  /* ── Avatar 縮小至 36px，橫向單列可滑動（五方共識）── */
+  .avatar-opt { width: 36px; height: 36px; font-size: 18px; border-radius: 9px; flex-shrink: 0; scroll-snap-align: center; }
+  .avatar-row {
+    flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding: 0 12px 4px; gap: 6px; margin-bottom: 10px;
+    scrollbar-width: none;
+  }
+  .avatar-row::-webkit-scrollbar { display: none; }
 
   /* ── Setup row 強制同行，移除 min-width（根因修正）── */
   .setup-row { flex-wrap: nowrap; gap: 8px; }
@@ -2399,14 +2405,24 @@ input[type=text]::placeholder { color: var(--text-dim); }
   }
   .join-row .btn { flex: 0 0 auto; min-height: 44px; min-width: 52px; padding: 8px 12px; }
 
-  /* ── 房間列表高度壓縮至 100px，確保整頁可見 ── */
+  /* ── 房間列表拉高至畫面 2/3（五方共識：66svh fallback 66vh）── */
   .room-list-header { padding: 8px 14px; font-size: 12px; }
-  #room-list { min-height: 56px; max-height: 100px; }
+  #room-list { min-height: 56px; max-height: 66vh; max-height: 66svh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .room-item { padding: 8px 14px; font-size: 13px; }
   .room-empty { padding: 12px 14px; font-size: 12px; }
 
   /* ── Footer ── */
   .lobby-footer { font-size: 11px; padding: 6px 4px; }
+}
+
+/* ── 大廳時鎖住整頁 overscroll（手機 iOS Safari 雙保險，五方共識）── */
+@media (max-width: 768px) {
+  body.lobby-scroll-locked {
+    overflow: hidden;
+    height: 100%;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
 }
 
 /* ── Mobile Topbar（電腦版隱藏，flex 流內）── */
@@ -3387,6 +3403,7 @@ function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.body.classList.toggle('game-lock', name === 'game');
+  document.body.classList.toggle('lobby-scroll-locked', name === 'lobby');
 }
 
 // ══════════════════════════════════════════════════════
