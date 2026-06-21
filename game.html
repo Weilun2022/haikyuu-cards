@@ -2726,10 +2726,10 @@ input[type=text]::placeholder { color: var(--text-dim); }
     <span style="font-weight:700;font-size:15px">詳細資訊</span>
     <button class="btn xs" onclick="closeMobileDrawer()">✕</button>
   </div>
-  <!-- SET Pool 快速操作（FAB 抽屜方案，僅手機版顯示；桌面版在 board-side 操作）-->
-  <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0">
-    <span style="font-size:12px;color:var(--text-dim);flex:1">SET Pool：<span id="drawer-set-val">—</span></span>
-    <button class="btn xs" onclick="addToSetPool();closeMobileDrawer()" style="background:var(--accent);color:#fff;padding:4px 12px;border-radius:8px;font-size:12px">＋加入池</button>
+  <!-- 手機版快捷操作：洗牌 + 復原 -->
+  <div style="padding:10px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-shrink:0">
+    <button class="btn xs" onclick="mobileShuffle()" style="flex:1;padding:10px 4px;font-size:13px">🔀 洗牌</button>
+    <button id="mobile-undo-btn" class="btn xs" onclick="mobileUndo()" style="flex:1;padding:10px 4px;font-size:13px" disabled>↩ 復原</button>
   </div>
   <div id="mobile-drawer-content" style="padding:12px;flex:1"></div>
 </div>
@@ -5258,7 +5258,12 @@ function updateUndoBtn() {
   if (lbl) lbl.textContent = n ? `復原(${n})` : '復原';
   btn.disabled = (n === 0);
   btn.classList.toggle('has-undo', n > 0);
+  const mobileBtn = document.getElementById('mobile-undo-btn');
+  if (mobileBtn) mobileBtn.disabled = (n === 0);
 }
+
+function mobileShuffle() { shufflePile(); closeMobileDrawer(); }
+function mobileUndo() { undoLastAction(); }
 
 // ══════════════════════════════════════════════════════
 // GAME CONTROLS
