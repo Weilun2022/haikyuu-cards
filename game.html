@@ -4280,8 +4280,8 @@ function renderZones(prefix, zones, isOpp) {
 }
 
 function fillSlot(slot, cardData, isOpp, zoneName) {
-  // Always clear drag-state classes
-  slot.classList.remove('target', 'guts-target');
+  // Clear drag-state classes — skip while move/guts mode is active to avoid Firebase re-render flash
+  if (!moveMode && gutsHandIdx === null) slot.classList.remove('target', 'guts-target');
 
   // Bail-early: skip full rebuild if content unchanged
   const _si = ZONE_STAT_INFO[zoneName];
