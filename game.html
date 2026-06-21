@@ -742,7 +742,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   pointer-events: none; z-index: 6;   /* 高於 stat 計數器 overlay(z-index:5)，確保兩半標籤都不被蓋住 */
 }
 .z-slot.zone-split-hint::before { content: 'Guts' !important; left: 0;  background: rgba(74,222,128,.55); border-right: 2px solid rgba(255,255,255,.85); border-radius: 6px 0 0 6px; }
-.z-slot.zone-split-hint::after  { content: '角色' !important; right: 0; background: rgba(108,99,255,.55); border-radius: 0 6px 6px 0; }
+.z-slot.zone-split-hint::after  { content: '角色' !important; left: auto !important; right: 0; background: rgba(108,99,255,.55); border-radius: 0 6px 6px 0; }
 /* 移動模式占用格：隱藏 +/− stat 計數器（z-5 彩色塊會遮蔽右半「角色」），專注顯示左右切。退出移動模式 class 移除即恢復。四方協作R17 */
 .z-slot.zone-split-hint .z-stat-overlay { display: none !important; }
 
@@ -7404,7 +7404,7 @@ function closeMobileDrawer() {
     if (typeof clearZoneHighlights === 'function') clearZoneHighlights();
     // MiniMax+DeepSeek 保險：microtask 後再清一次，確保贏過延遲的 iOS click
     if (window.matchMedia('(pointer:coarse)').matches) {
-      Promise.resolve().then(() => { if (typeof clearZoneHighlights === 'function') clearZoneHighlights(); });
+      Promise.resolve().then(() => { if (typeof clearZoneHighlights === 'function' && !moveMode) clearZoneHighlights(); });
     }
   }
   // 暴露給全域，讓 _onPileTileClick 放回後能清掉手機選取狀態 + 牌組切半樣式（四方協作）
