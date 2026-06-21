@@ -4408,8 +4408,11 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (isOpp) { hideCardHover(); showDetail(img); return; }
         // Own card: enter move mode with pinned hover (no modal)
         if (isTop) { onZoneClick(zoneName, cardData, slot, e); }
-        else        { hideCardHover(); showGutsAction(zoneName, cardData, img); }
+        else        { hideCardHover(); enterMoveMode({ type: 'guts', zoneName, cardData, gutsImg: img }); }
       };
+
+      // 長按時可透過 _gutsActionData 找回 guts 牌的 zone 上下文（A3 scope 無法取得閉包）
+      if (!isOpp && !isTop) cardEl._gutsActionData = { zoneName, cardData, img };
 
       if (!isOpp) {
         cardEl.draggable = true;
@@ -7321,7 +7324,13 @@ function closeMobileDrawer() {
         const im = hcard ? hcard.querySelector('img') : (slot ? slot.querySelector('img') : null);
         if (!im) return;   // 空格或非卡片，不長按
         _lpSX = e.clientX; _lpSY = e.clientY;
-        _lpStart(() => _lpFilenameFromImg(im), hcard || slot);
+        // 非頂牌 guts：長按 → showGutsAction（modal）；其他 → showDetail
+        if (hcard && hcard._gutsActionData && document.contains(hcard)) {
+          const d = hcard._gutsActionData;
+          _lpStartAction(() => { if (document.contains(hcard)) showGutsAction(d.zoneName, d.cardData, d.img); }, hcard);
+        } else {
+          _lpStart(() => _lpFilenameFromImg(im), hcard || slot);
+        }
       }, { passive: true });
       board.addEventListener('pointermove', e => {
         if (Math.abs(e.clientX - _lpSX) > DRAG_THRESHOLD || Math.abs(e.clientY - _lpSY) > DRAG_THRESHOLD) _lpCancel();
