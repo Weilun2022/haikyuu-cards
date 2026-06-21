@@ -50,6 +50,7 @@ body {
 .screen { display: none; width: 100%; min-height: 100vh; }
 .screen.active { display: flex; flex-direction: column; }
 #screen-game.active { height: 100vh; height: 100svh; overflow: hidden; }
+body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 
 /* ── Buttons ── */
 .btn {
@@ -3381,6 +3382,7 @@ function loadDecks() {
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
+  document.body.classList.toggle('game-lock', name === 'game');
 }
 
 // ══════════════════════════════════════════════════════
