@@ -198,6 +198,27 @@
 
 ---
 
+## Session 總結（2026-06-20 日間 → 2026-06-21，手機版 R8–R18）
+四方協作（deepseek/minimax/hunyuan/mimo）設計 → Claude 整合 → preview 幾何/邏輯驗證 → commit+push。
+
+| 輪 | 成果 | 狀態 |
+|---|---|---|
+| R8 | 手機 tap 手牌→點牌組放回（左=牌頂/右=牌底，`pile-return-mode` CSS） | 已推待實機 |
+| R9 | 棄牌改左右切 + tap 手牌→點棄牌直接棄（`_onSelfDropTileClick`） | 已推待實機 |
+| R10 | 棄牌免確認 + 長按牌組 → `openPeekSetup` 翻牌頂 + peek 面板手機優化 | 已推待實機 |
+| R11 | 翻牌面板 grid 三欄（原二欄太窄） | 已推待實機 |
+| R12 | 回合發光改底邊光條（消除「整區被選取」感） | 已推待實機 |
+| R13 ⭐ | **重大 bug：放牌→整手牌消失**（`_processedRoundReset` 未初始化）修復 | 已推待實機 |
+| R14 | bug：移動 guts 選「當 Guts」仍放最上方（`moveGutsCard` 缺 `asGuts` 參數） | 已推待實機 |
+| R15 | 重設計：占用格移動改「左右切」（`zone-split-hint` CSS，免 modal） | 已推待實機 |
+| R16 | 占用格左右切只看到「角色」→ z-index 3→6 + 底色加濃 | 已推待實機 |
+| R17 | 移動模式隱藏 stat 計數器（`display:none !important`），左右乾淨 | 已推待實機 |
+| R18 | 兩段式移動（第一段全區亮燈，第二段點同格才切左右，`movePendingZone` 狀態機） | 已推待實機 |
+
+⭐ R13 最重要：根因是 `listenGame()` 首次 Firebase 回呼未對齊 `_processedRoundReset`，若該場曾有舊 `roundReset` 紀錄，進場放第一張牌後 `handleRoundReset` 誤觸 → 手牌清空。修法：`listenGame` 閉包 `_firstSync` 旗標，首次回呼即對齊，涵蓋所有進場路徑。
+
+---
+
 ## 📘 版面開發經驗教訓（給後續 session）
 
 1. **先查「半成品死碼」再動手**：本輪根因是 `--dvh`（visualViewport 量真高）JS 早就寫好，但 CSS 從沒引用。修 bug 前先 grep 既有變數/工具函式，往往正解只差「接線」，不必重寫。
@@ -207,18 +228,31 @@
 5. **preview 驗證手法（補充 [[reference-game-preview-testing]]）**：驗 viewport/高度類改動，用「停用其他 #screen-* + 啟用 #screen-game.active + 在同一個 eval 內掃多個 --dvh 值量 getBoundingClientRect」最可靠，能模擬不同工具列佔位、且避開狀態被 showScreen 重設。先用 probe div 套同一 calc 表達式可快速判斷「是表達式無效還是被別的規則頂住」。
 6. **四方分歧 + 對方方案有副作用時**：不盲從多數決（MiniMax 全域 body 鎖會誤傷 lobby），先查證副作用，回報使用者並給出無副作用的正解選項。
 
-## 待使用者早上決定（高風險/改互動模型/主觀，未自動做）
-0. 【R5 後續，使用者暫定不動】body 底部空白（僅遊戲畫面、真機工具列存在時）若日後想鎖，用 `body:has(#screen-game.active){height:calc(var(--dvh,1svh)*100);overflow:hidden}` 只鎖遊戲畫面，不傷 lobby/設定捲動。次要美觀問題。
-
-## 待使用者早上決定（高風險/改互動模型/主觀，未自動做）
-0. 【R5 後續】body 底部 224px 空白（僅遊戲畫面、真機工具列存在時）是否要鎖捲動。建議用 `body:has(#screen-game.active){height:calc(var(--dvh)*100);overflow:hidden}` 只鎖遊戲畫面，不傷 lobby/設定捲動。次要美觀問題。
-1. 輸一球 → 獨立浮動 FAB 按鈕（MiMo 建議，改互動模型）
+## 待使用者決定（高風險/改互動模型/主觀）
+0. ~~【R5 後續】body 底部空白~~ ✅ 已修正
+1. ~~輸一球 → 獨立浮動 FAB 按鈕~~ ✅ 已修正
 2. 事件/發球格 180px → 拆成獨立 82px 格（改牌桌結構）
 3. 可放置格 pulse 呼吸動畫（MiniMax 反對：分心耗電；其他可選）
 4. 頂欄字級放大、格子標籤圖示化（主觀美感）
 5. 手牌 mask 漸層提示（>6張時，可選；靜態 mask 會淡化邊緣卡）
 6. landscape 橫向：寬>768px 會走桌面版佈局（既有行為，非本次改動）
 備註：截圖工具與本頁不相容（7+ 次 timeout），改用 getBoundingClientRect 幾何量測驗證。
+
+---
+
+## Session 總結（2026-06-21，卡片詳情 modal 重構）
+四方協作（deepseek/minimax/hunyuan/mimo）設計 → Claude 整合 → preview 邏輯/幾何驗證 → commit+push。
+
+| 輪 | 成果 | commit |
+|---|---|---|
+| R19 | guts 非頂牌短按直接進移動模式；長按改觸發卡片資訊 modal（`cardEl._gutsActionData` 橋接 A3 scope） | `9f6e27e` |
+| R20 | `showDetail` 統一改顯示 `#hand-action-overlay`（移除 `#detail-overlay` 路徑）；`#ha-img` 改 `openLightbox`；`closeDetail` 輕量化不清 selection | `8b2b6b2` |
+| R21 | `.ha-modal-img` 圖片改 flex stretch + `object-position:top center` 裁底部（仿翻譯網站效果）；修正手機 media query 順序 | `f1102bd` |
+| R22 | lightbox z-index 1100→4000，確保蓋過 `#hand-action-overlay`(3500) | `5c83fa8` |
+
+**R20 重點**：`showDetail(img)` 重寫為呼叫 `_fillModalCardInfo` + 隱藏移動按鈕 + 開 `#hand-action-overlay`，桌面/手機統一入口。`closeDetail` 改為輕量關閉，不呼叫 `clearSelection/clearZoneHighlights`（escape handler 另行處理，避免清掉 peek 狀態）。
+
+**R21 關鍵教訓**：`align-self:stretch`（flex 預設）讓圖片容器隨右欄撐滿高度，需配合 `img{height:100%; object-fit:cover; object-position:top center}` 才能裁底部。若設 `height:130px` 固定值會阻斷 stretch，只出現小方塊。
 
 ---
 
