@@ -7543,8 +7543,12 @@ function closeMobileDrawer() {
         mtbSets.textContent = (srcHostSets.textContent||'0') + '-' + (srcGuestSets.textContent||'0');
       if (srcAtkHost && srcAtkGuest && mtbAtk)
         mtbAtk.textContent = (srcAtkHost.textContent||'0') + '/' + (srcAtkGuest.textContent||'0');
-      if (srcHandHost && srcHandGuest && mtbHand)
-        mtbHand.textContent = (srcHandHost.textContent||'0') + '/' + (srcHandGuest.textContent||'0');
+      if (srcHandHost && srcHandGuest && mtbHand) {
+        const hv = srcHandHost.textContent || '0';
+        const gv = srcHandGuest.textContent || '0';
+        // Guest 玩家顯示 self/opp；其餘（Host/Spectator/未知）顯示 host/guest
+        mtbHand.textContent = myRole === 'guest' ? gv + '/' + hv : hv + '/' + gv;
+      }
       if (srcTurn && mtbTurn) {
         const t = srcTurn.textContent || '';
         mtbTurn.textContent = t.length > 14 ? t.slice(0, 14) + '…' : t;
