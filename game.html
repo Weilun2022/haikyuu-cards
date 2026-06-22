@@ -4467,8 +4467,6 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (moveMode && !isOpp) { executeMoveToZone(zoneName, img, e); return; }
         if (!isOpp && selectedHandIdx !== null) { hideCardHover(); placeCard(selectedHandIdx, zoneName); return; }
         if (isOpp) { hideCardHover(); showDetail(img); return; }
-        // 手機版：場上牌不透過 click 進 moveMode（iOS 合成 click 副作用防護）
-        if (window.matchMedia('(pointer:coarse)').matches) return;
         // Own card: enter move mode with pinned hover (no modal)
         if (isTop) { onZoneClick(zoneName, cardData, slot, e); }
         else        { hideCardHover(); enterMoveMode({ type: 'guts', zoneName, cardData, gutsImg: img }); }
@@ -4533,8 +4531,6 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
       // 進入移動模式：只在直接點到 slot 背景時觸發
       if (e.target !== slot) return;
-      // 手機版：不透過 click 進 moveMode
-      if (window.matchMedia('(pointer:coarse)').matches) return;
       isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot, e);
     };
 
@@ -7322,6 +7318,7 @@ function closeMobileDrawer() {
   // ── 長按 500ms 叫出全螢幕詳情/翻譯（四方協作：deepseek/mimo 設計，Claude 整合修正）──
   const LONGPRESS_MS = 500;
   let _lpTimer = null, _lpFired = false, _lpSX = 0, _lpSY = 0;
+  let _zonePlaceJustFired = false;
   function _lpFeedback(el) {
     if (el) { el.classList.add('lp-fire'); setTimeout(() => el.classList.remove('lp-fire'), 200); }
     if ('vibrate' in navigator) { try { navigator.vibrate(20); } catch (_) {} }  // iOS 無效，Android 有效，純選配
@@ -7406,9 +7403,12 @@ function closeMobileDrawer() {
       board.addEventListener('pointerup',     _lpCancel, { passive: true });
       board.addEventListener('pointercancel', _lpCancel, { passive: true });
     }
-    // 長按觸發後，吞掉 iOS 補發的合成 click（capture 階段），避免又選牌/進移動模式
+    // 長按／手牌放置後，吞掉合成 click（capture 階段），避免又進移動模式
     window.addEventListener('click', e => {
-      if (_lpFired) { e.stopPropagation(); e.preventDefault(); _lpFired = false; }
+      if (_lpFired || _zonePlaceJustFired) {
+        e.stopPropagation(); e.preventDefault();
+        _lpFired = false; _zonePlaceJustFired = false;
+      }
     }, true);
   }
 
@@ -7463,6 +7463,9 @@ function closeMobileDrawer() {
     e.preventDefault();
     triggerPlace(zone, tapSelectedIdx);
     clearTapSelect();
+    // 壓制放牌後 Android 合成的 click，避免誤觸 onZoneClick 進 moveMode
+    _zonePlaceJustFired = true;
+    setTimeout(() => { _zonePlaceJustFired = false; }, 400);
   }
   function setTapSelect(idx) {
     if (tapSelectedIdx !== null && String(tapSelectedIdx) === String(idx)) { clearTapSelect(); return; }
