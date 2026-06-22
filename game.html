@@ -4467,6 +4467,8 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
         if (moveMode && !isOpp) { executeMoveToZone(zoneName, img, e); return; }
         if (!isOpp && selectedHandIdx !== null) { hideCardHover(); placeCard(selectedHandIdx, zoneName); return; }
         if (isOpp) { hideCardHover(); showDetail(img); return; }
+        // 手機版：場上牌不透過 click 進 moveMode（iOS 合成 click 副作用防護）
+        if (window.matchMedia('(pointer:coarse)').matches) return;
         // Own card: enter move mode with pinned hover (no modal)
         if (isTop) { onZoneClick(zoneName, cardData, slot, e); }
         else        { hideCardHover(); enterMoveMode({ type: 'guts', zoneName, cardData, gutsImg: img }); }
@@ -4531,6 +4533,8 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       if (!isOpp && selectedHandIdx !== null) { placeCard(selectedHandIdx, zoneName); return; }
       // 進入移動模式：只在直接點到 slot 背景時觸發
       if (e.target !== slot) return;
+      // 手機版：不透過 click 進 moveMode
+      if (window.matchMedia('(pointer:coarse)').matches) return;
       isOpp ? showDetail(cardData.img) : onZoneClick(zoneName, cardData, slot, e);
     };
 
@@ -6523,6 +6527,7 @@ function _updateMoveBanner() {
 }
 
 function executeMoveToZone(targetZone, targetImg = null, e = null) {
+  if (!moveMode) return;
   const m = moveMode;
 
   // Same-zone click: reorder if possible, else cancel
