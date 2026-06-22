@@ -5895,6 +5895,11 @@ function renderLog(log) {
 
   // Trim DOM to 50 entries
   while (el.children.length > 50) el.removeChild(el.lastChild);
+
+  // 同步手機版 drawer 內所有 #log-wrap clone
+  document.querySelectorAll('[id="log-wrap"]').forEach(other => {
+    if (other !== el) other.innerHTML = el.innerHTML;
+  });
 }
 
 // ══════════════════════════════════════════════════════
@@ -7564,15 +7569,11 @@ function closeMobileDrawer() {
     dc.appendChild(clone);
   }
 
-  // 包裝 openMobileDrawer：建立 sidebar clone + 同步 SET pool 計數
+  // 包裝 openMobileDrawer：建立 sidebar clone
   const _origOpen = window.openMobileDrawer;
   window.openMobileDrawer = function () {
     if (_origOpen) _origOpen();
     buildDrawerContent();
-    // 同步 drawer 內的 SET pool 數字
-    const setEl = document.getElementById('self-set');
-    const drawerSetEl = document.getElementById('drawer-set-val');
-    if (setEl && drawerSetEl) drawerSetEl.textContent = setEl.textContent;
   };
 
   document.readyState === 'loading'
