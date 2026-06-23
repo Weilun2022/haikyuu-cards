@@ -9,12 +9,12 @@
 const PROMO_TAGS = {
   // 2026-06 旅店合宿交流賽系列
   'BhfVbpeLAK0': {  // 06-10 冠軍賽
-    schools: ['音駒', '伊達工'],
-    note: '音駒 vs 伊達工 冠軍賽',
+    schools: ['音駒', '伊達工業'],
+    note: '音駒 vs 伊達工業 冠軍賽',
   },
   'Gr13ZgJkro0': {  // 06-09 四強賽
-    schools: ['稻荷崎', '伊達工'],
-    note: '稻荷崎 vs 伊達工 四強賽',
+    schools: ['稻荷崎', '伊達工業'],
+    note: '稻荷崎 vs 伊達工業 四強賽',
   },
   '2AjXxpd3wHw': {  // 06-06 八強賽
     schools: ['稻荷崎', '青葉城西'],
@@ -29,8 +29,8 @@ const PROMO_TAGS = {
     note: '稻荷崎 vs 白鳥澤 冠軍賽',
   },
   'PKvIkIqeRRI': {  // 06-03 四強賽
-    schools: ['伊達工', '白鳥澤'],
-    note: '伊達工 vs 白鳥澤 四強賽',
+    schools: ['伊達工業', '白鳥澤'],
+    note: '伊達工業 vs 白鳥澤 四強賽',
   },
   'oYVR8P3pbzI': {  // 06-02
     schools: ['稻荷崎', '音駒'],
