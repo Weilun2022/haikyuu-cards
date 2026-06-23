@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>バボカ!! BREAK</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -34,6 +34,7 @@
   --pc-bg:        rgba(251,146,60,.08);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { touch-action: pan-x pan-y; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -7286,6 +7287,11 @@ function closeMobileDrawer() {
   document.getElementById('mobile-drawer').classList.remove('open');
   document.getElementById('mobile-drawer-overlay').classList.remove('open');
 }
+(function _preventPinchZoom() {
+  // iOS Safari gesturestart/gesturechange 是雙指縮放的入口，document 層級攔截確保覆蓋所有元素（含 drawer/modal）
+  document.addEventListener('gesturestart',  function(e) { e.preventDefault(); }, { capture: true, passive: false });
+  document.addEventListener('gesturechange', function(e) { e.preventDefault(); }, { capture: true, passive: false });
+})();
 (function _dvhFallback() {
   function set() {
     // 用 visualViewport.height 取得真實可見高度（iOS chrome bar 不計入）
