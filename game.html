@@ -3959,8 +3959,8 @@ function handlePresenceChange(data, prev) {
         document.getElementById('sb-actions').style.display = '';
         showScreen('lobby');
         cleanupRoom(id);
-        toast('雙方都已離線，對局結束 [presence/3s]');
-      }, 3000);
+        toast('雙方都已離線，對局結束 [presence/30s]');
+      }, 30000);
     }
   } else if (_presenceKickTimer) {
     clearTimeout(_presenceKickTimer);
@@ -3978,6 +3978,30 @@ function showPresenceNotif(msg, icon, color) {
   requestAnimationFrame(() => n.classList.add('show'));
   setTimeout(() => { n.classList.remove('show'); setTimeout(() => n.remove(), 350); }, 5000);
 }
+
+// ══════════════════════════════════════════════════════
+// MOBILE RECONNECT — visibilitychange + pagehide
+// ══════════════════════════════════════════════════════
+window.addEventListener('pagehide', () => { saveSession(); });
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    saveSession();
+    return;
+  }
+  if (!roomId || !myRole || isSpectator) return;
+  const presenceRef = db.ref(`games/${roomId}/presence/${myRole}`);
+  const connRef = db.ref('.info/connected');
+  const onConnected = (snap) => {
+    if (snap.val() !== true) return;
+    connRef.off('value', onConnected);
+    presenceRef.onDisconnect().remove();
+    presenceRef.set(true).catch(() => {});
+  };
+  connRef.on('value', onConnected);
+  // Fallback: stop listening after 10s to avoid leak if never connects
+  setTimeout(() => connRef.off('value', onConnected), 10000);
+});
 
 // ══════════════════════════════════════════════════════
 // OPPONENT NOTIFICATION
