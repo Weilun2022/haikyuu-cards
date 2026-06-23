@@ -1320,7 +1320,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .phase-row select { flex: 1; font-size: 12px; padding: 6px 8px; }
 
 /* Log */
-#log-wrap { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+#log-wrap, .log-wrap { flex: 1; overflow-y: auto; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
 .log-line {
   font-size: 11px;
   color: var(--text-dim);
@@ -5896,10 +5896,9 @@ function renderLog(log) {
   // Trim DOM to 50 entries
   while (el.children.length > 50) el.removeChild(el.lastChild);
 
-  // 同步手機版 drawer 內所有 #log-wrap clone
-  document.querySelectorAll('[id="log-wrap"]').forEach(other => {
-    if (other !== el) other.innerHTML = el.innerHTML;
-  });
+  // 同步手機版 drawer 內的 log clone（.log-wrap class，id 已在 buildDrawerContent 移除）
+  const drawerLog = document.querySelector('.log-wrap');
+  if (drawerLog) drawerLog.innerHTML = el.innerHTML;
 }
 
 // ══════════════════════════════════════════════════════
@@ -7569,8 +7568,18 @@ function closeMobileDrawer() {
     dc.innerHTML = '';
     const clone = sb.cloneNode(true);
     clone.removeAttribute('id');
+    // 移除 clone 內所有 id，防止 getElementById 優先抓到 clone 而非原版
+    // （#mobile-drawer-content 在 DOM 中比 #sidebar 更早，id 重複時 clone 排第一）
+    clone.querySelectorAll('[id]').forEach(el => {
+      if (el.id === 'log-wrap') el.classList.add('log-wrap');
+      el.removeAttribute('id');
+    });
     clone.style.cssText = 'display:block;width:100%';
     dc.appendChild(clone);
+    // 初始化 drawer log：複製原版 log 的當前內容
+    const srcLog = document.getElementById('log-wrap');
+    const dstLog = dc.querySelector('.log-wrap');
+    if (srcLog && dstLog) dstLog.innerHTML = srcLog.innerHTML;
   }
 
   // 包裝 openMobileDrawer：建立 sidebar clone
