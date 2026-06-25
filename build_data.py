@@ -1115,6 +1115,7 @@ MANUAL_OVERRIDES = {
 PRODUCT_LABELS = {
     'HV-P01': 'P01 第1彈・ゴミ捨て場の決戦',
     'HV-P02': 'P02 第2彈・最強の挑戦者',
+    'HV-P03': 'P03 第3彈・ユース & 選抜強化合宿',
     'HV-D01': 'D01 入門組・烏野',
     'HV-D02': 'D02 入門組・音駒',
     'HV-D03': 'D03 入門組・稲荷崎',
@@ -1144,10 +1145,14 @@ SCHOOL_KEYS = [
     ('角川','角川'),('井闥山','井闥山'),('椿原','椿原'),
     ('条善寺','条善寺'),('早流川','早流川'),('扇南','扇南'),
     ('常波','常波'),('和久谷南','和久谷南'),('新山女子','新山女子'),
-    ('北川第一中','北川第一中'),('Asas','海外'),('Ifviga','海外'),
+    ('北川第一中','北川第一中'),
+    ('森然','森然'),('生川','生川'),('白水館','白水館'),('光仙中','光仙中'),
+    ('全日本男子代表','全日本男子代表'),
+    ('Asas','海外'),('Ifviga','海外'),
 ]
 
 SCHOOL_PRIORITY = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台']
+SPECIAL_SCHOOL_TAGS = ['疑似ユース', 'ユース']
 
 def extract_school(affiliation):
     if not affiliation or affiliation == '-':
@@ -1157,6 +1162,29 @@ def extract_school(affiliation):
             return name
     parts = re.split(r'[·・･/,，\s]', affiliation)
     return parts[0].strip() or '其他'
+
+def extract_school_tags(affiliation):
+    """Return all applicable school/group tags for filtering."""
+    if not affiliation or affiliation == '-':
+        return []
+    tags = []
+    # Check 疑似ユース first, then strip it before checking ユース
+    remainder = affiliation
+    if '疑似ユース' in affiliation:
+        tags.append('疑似ユース')
+        remainder = affiliation.replace('疑似ユース', '')
+    if 'ユース' in remainder:
+        tags.append('ユース')
+    for key, name in SCHOOL_KEYS:
+        if key in affiliation and name not in tags:
+            tags.append(name)
+    if not tags:
+        parts = re.split(r'[·・･/,，\s]', affiliation)
+        for p in parts:
+            p = p.strip()
+            if p and not p.isdigit() and not re.match(r'^\d+年$', p) and p not in ('年', '-'):
+                tags.append(p)
+    return tags
 
 def safe_int(v):
     try: return int(v)
@@ -1473,6 +1501,7 @@ def main():
         card_no  = c.get('card_no', '')
         img_end  = c.get('image_end', '')
         school   = extract_school(c.get('affiliation', ''))
+        school_tags = extract_school_tags(c.get('affiliation', ''))
         skill_zh = translate_skill(c.get('skill', ''))
         image_file_key = f"{card_no}-{img_end}.webp"
         if image_file_key in MANUAL_OVERRIDES:
@@ -1492,6 +1521,7 @@ def main():
             'category_zh':   CATEGORY_ZH.get(c.get('category',''), c.get('category','')),
             'affiliation':   c.get('affiliation', ''),
             'school':        school,
+            'school_tags':   school_tags,
             'rarity':        RARITY_ZH.get(img_end, img_end),
             'rarity_code':   img_end,
             'position':      pos_raw,

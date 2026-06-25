@@ -1872,7 +1872,7 @@ function buildFilters() {
   const seriesLabels = CARDS_DATA.product_labels || {};
   const seriesSel = document.getElementById('filter-series');
   // Use CARDS_DATA product order
-  const seriesOrder = ['HV-P01','HV-P02','HV-D01','HV-D02','HV-D03','HVBP','HV-PR'];
+  const seriesOrder = ['HV-P01','HV-P02','HV-P03','HV-D01','HV-D02','HV-D03','HVBP','HV-PR'];
   seriesOrder.filter(s => seriesSet.includes(s)).forEach(s => {
     const opt = document.createElement('option');
     opt.value = s;
@@ -1887,12 +1887,12 @@ function buildFilters() {
     seriesSel.appendChild(opt);
   });
 
-  // School
-  const schoolSet = [...new Set(cards.map(c => c.school).filter(Boolean))];
-  const schoolOrder = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台'];
+  // School — collect all unique tags from school_tags arrays
+  const allSchoolTags = [...new Set(cards.flatMap(c => c.school_tags || [c.school]).filter(Boolean))];
+  const schoolOrder = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台','ユース','疑似ユース'];
   const schoolSel = document.getElementById('filter-school');
-  [...schoolOrder.filter(s => schoolSet.includes(s)),
-   ...schoolSet.filter(s => !schoolOrder.includes(s)).sort()
+  [...schoolOrder.filter(s => allSchoolTags.includes(s)),
+   ...allSchoolTags.filter(s => !schoolOrder.includes(s)).sort()
   ].forEach(s => {
     const opt = document.createElement('option');
     opt.value = s;
@@ -2013,7 +2013,7 @@ function bindEvents() {
 function applyFilters() {
   filtered = cards.filter(c => {
     if (activeSeries && c.product_type !== activeSeries) return false;
-    if (activeSchool && c.school !== activeSchool) return false;
+    if (activeSchool && !(c.school_tags || [c.school]).includes(activeSchool)) return false;
     if (activeCategory && c.category !== activeCategory) return false;
     if (activeRarity && c.rarity !== activeRarity && c.rarity !== activeRarity + 'P') return false;
     if (activePosition && c.position !== activePosition) return false;
