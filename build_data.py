@@ -278,6 +278,7 @@ def translate_skill(text, event_names=None):
     t = t.replace('このカードが','此牌')
     t = t.replace('このカードの','此牌的')
     t = t.replace('このカードを','此牌')
+    t = re.sub(r'そのキャラが「(.+?)」の場合[、，]?', r'若該角色是「\1」，', t)  # 追加效果條件（P03-085/087 等）
     t = t.replace('そのキャラが','該角色')
     t = t.replace('そのキャラの','該角色的')
     t = t.replace('そのキャラを','該角色')
@@ -378,6 +379,7 @@ def translate_skill(text, event_names=None):
     t = re.sub(r'加えた場合[、，]?', '加入時，', t)
 
     # 12. 數值變化
+    t = re.sub(r'さらに數.1つに\+(\d+)する', r'再使任意1項數值+\1', t)  # P03-087：さらにパラメータ1つに（パラメータ已譯，需在 に+N 前截斷）
     t = re.sub(r'に\+(\d+)し[、，]?', r' +\1，', t)
     t = re.sub(r'に\+(\d+)する', r' +\1', t)
     t = re.sub(r'に\+(\d+)', r' +\1', t)   # 無語尾的 に+N
@@ -386,6 +388,8 @@ def translate_skill(text, event_names=None):
     t = re.sub(r'に－(\d+)', r' -\1', t)   # 無語尾的 に-N
     t = re.sub(r'を(\d+)にし[、，]?', r'設為\1，', t)  # 連接形（にし）必須在 にする 前
     t = re.sub(r'を(\d+)にする', r'設為\1', t)
+    t = re.sub(r'さらにパラメータ1つに\+(\d+)する', r'再使任意1項數值+\1', t)  # 追加效果（P03-087 等）
+    t = re.sub(r'パラメータ1つに\+(\d+)する', r'任意1項數值+\1', t)
     t = re.sub(r'さらに(攻擊值|攔網值|接球值|舉球值|發球值|進攻值) \+(\d+)', r'再+\2\1', t)
     t = re.sub(r'は無いものとして扱う', '視為不存在', t)
 
@@ -556,6 +560,8 @@ def translate_skill(text, event_names=None):
     t = re.sub(r'數值すべて設為0', '所有數值設為0', t)
     t = re.sub(r'數値すべて', '所有數值', t)
     t = re.sub(r'數值すべて', '所有數值', t)
+    t = re.sub(r'さらに任意數値に\+(\d+)する', r'再使任意1項數值+\1', t)  # P03-087 追加效果（在 さらに→再， 前處理）
+    t = re.sub(r'さらに任意數值に\+(\d+)する', r'再使任意1項數值+\1', t)
     t = re.sub(r'數值1つ', '任意數值', t)
     t = re.sub(r'數値1つ', '任意數值', t)
 
