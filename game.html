@@ -769,8 +769,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .set-pool-loss-btn { font-size: 9px !important; padding: 2px 6px !important; background: rgba(220,38,38,.15) !important; border-color: rgba(220,38,38,.4) !important; color: #f87171 !important; width: 100%; }
 /* R4（四方共識）：牌庫為 0 時視覺灰化提示（僅視覺，不擋 pointer-events，因牌組 tile 仍是「放回牌庫」的拖放目標）*/
 #pile-tile.deck-empty { opacity: .45; filter: grayscale(.7) brightness(.85); }
-/* 手機選牌模式：牌組切上下半並寫「牌頂/牌底」，點上半=放回牌頂、下半=放回牌底（四方協作）。
-   .pile-return-mode 只由 coarse-gated A3 setTapSelect 加上，桌面不會出現，故不需 media gate。
+/* 牌組對半提示（左=牌頂、右=牌底）：手機由 setTapSelect 觸發；桌面 moveMode 由 enterMoveMode 觸發。
    與桌面拖曳的 .pile-top/.pile-bottom 是不同 class，不衝突。*/
 #pile-tile.pile-return-mode { position: relative; overflow: hidden; }
 #pile-tile.pile-return-mode::before,
@@ -4799,7 +4798,8 @@ function _pileDrop(e, tile) {
 function _onPileTileClick(e) {
   if (moveMode) {
     const tile = e.currentTarget;
-    const pos = e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom';
+    const rect = tile.getBoundingClientRect();
+    const pos = (e.clientX - rect.left) < tile.offsetWidth / 2 ? 'top' : 'bottom';
     const m = moveMode;
     if (m.type === 'hand') {
       /* MULTI-SELECT DISABLED
@@ -6508,6 +6508,9 @@ function enterMoveMode(mode) {
       t.classList.add('move-target-tile');
     }
   });
+  // 桌面版：pile tile 顯示左=牌頂、右=牌底分割提示（與手機版 .pile-return-mode 共用 CSS）
+  const _pt = document.getElementById('pile-tile');
+  if (_pt) _pt.classList.add('pile-return-mode');
   // Show persistent move banner
   _updateMoveBanner();
 }
@@ -6523,6 +6526,9 @@ function exitMoveMode() {
   ha.classList.remove('move-target-hand');
   ha.onclick = null;
   document.querySelectorAll('.info-tile.move-target-tile').forEach(t => t.classList.remove('move-target-tile'));
+  // 桌面版：清除 pile tile 分割提示
+  const _pt = document.getElementById('pile-tile');
+  if (_pt) _pt.classList.remove('pile-return-mode');
   // Hide move banner
   const banner = document.getElementById('move-banner');
   if (banner) banner.classList.remove('show');
