@@ -137,8 +137,7 @@ class TurnFlow:
             server_num = winner_num
             state.server_num = server_num
 
-            # 清場：攔網側翼已在 _block_phase 中清，主要清場地以利新 rally
-            self._clear_attack_zones(state)
+            # 規則：INTERVAL 後各 zone 不清場，卡牌留在場地（下次強制登場時覆蓋）
 
         total_turns = state.round_num
         self.spec.on_game_end(state.game_winner, total_turns)
@@ -217,8 +216,8 @@ class TurnFlow:
     ) -> int | None:
         self.spec.on_phase(pnum, "block")
 
-        # 保留現有 center blocker；只補空位或換掉
         chars_to_deploy = ai.decide_block_chars(player, state, pending_op)
+        deployed_count = 0
         for card_no in chars_to_deploy[:_ZONE_SLOTS]:
             if card_no not in player.hand:
                 continue
@@ -228,6 +227,12 @@ class TurnFlow:
             self._deploy_to_zone(player, card_no, "block")
             self.spec.on_deploy(pnum, card_no, get_name(card_no), "block",
                                stats={"blk": get_stat(card_no, "blk")})
+            deployed_count += 1
+
+        # 規則 5-7-2②：登場步驟若未部署任何角色 → 宣告 LOST
+        if deployed_count == 0:
+            self._drop_side_blockers(player)
+            return pnum
 
         dp = _calc_block_dp(player)
         did_lose = dp < pending_op
@@ -249,49 +254,47 @@ class TurnFlow:
     def _receive_sequence(
         self, state: GameState, player: PlayerState, ai, pnum: int, pending_op: int
     ) -> int | None:
-        """RECEIVE → TOSS → ATTACK 序列。"""
-        # 抽牌（レシーブドロー）
+        """RECEIVE → TOSS → ATTACK 序列。各步驟均強制從手牌部署，否則 LOST。"""
+        # ドローフェイズ（抽 1 張）
         drawn = self._draw(player, 1, state)
         for c in drawn:
             self.spec.on_draw(pnum, c, get_name(c))
 
-        # RECEIVE PHASE
+        # RECEIVE PHASE（強制部署，規則 5-9-2②）
         self.spec.on_phase(pnum, "receive")
         rcv_card = ai.decide_receive_char(player, state, pending_op)
-
-        existing_rcv = player.receive_zone.card
-        if rcv_card and rcv_card in player.hand and _can_deploy(rcv_card, "receive"):
-            player.hand.remove(rcv_card)
-            self._deploy_to_zone(player, rcv_card, "receive")
-            self.spec.on_deploy(pnum, rcv_card, get_name(rcv_card), "receive",
-                               stats={"rcv": get_stat(rcv_card, "rcv")})
-        elif not existing_rcv:
-            return pnum  # 無牌可接 → LOST
+        if not (rcv_card and rcv_card in player.hand and _can_deploy(rcv_card, "receive")):
+            return pnum  # 手牌無可接球角色 → LOST
+        player.hand.remove(rcv_card)
+        self._deploy_to_zone(player, rcv_card, "receive")
+        self.spec.on_deploy(pnum, rcv_card, get_name(rcv_card), "receive",
+                           stats={"rcv": get_stat(rcv_card, "rcv")})
 
         dp = _calc_receive_dp(player)
         did_lose = dp < pending_op
         self.spec.on_judge(pnum, "receive", dp, pending_op, did_lose)
-
         if did_lose:
             return pnum
 
-        # TOSS PHASE
+        # TOSS PHASE（強制部署，規則 5-10-2②）
         self.spec.on_phase(pnum, "toss")
         tos_card = ai.decide_toss_char(player, state)
-        if tos_card and tos_card in player.hand and _can_deploy(tos_card, "toss"):
-            player.hand.remove(tos_card)
-            self._deploy_to_zone(player, tos_card, "toss")
-            self.spec.on_deploy(pnum, tos_card, get_name(tos_card), "toss",
-                               stats={"tos": get_stat(tos_card, "tos")})
+        if not (tos_card and tos_card in player.hand and _can_deploy(tos_card, "toss")):
+            return pnum  # 手牌無可舉球角色 → LOST
+        player.hand.remove(tos_card)
+        self._deploy_to_zone(player, tos_card, "toss")
+        self.spec.on_deploy(pnum, tos_card, get_name(tos_card), "toss",
+                           stats={"tos": get_stat(tos_card, "tos")})
 
-        # ATTACK PHASE
+        # ATTACK PHASE（強制部署，規則 5-11-2②）
         self.spec.on_phase(pnum, "attack")
         atk_card = ai.decide_attack_char(player, state)
-        if atk_card and atk_card in player.hand and _can_deploy(atk_card, "attack"):
-            player.hand.remove(atk_card)
-            self._deploy_to_zone(player, atk_card, "attack")
-            self.spec.on_deploy(pnum, atk_card, get_name(atk_card), "attack",
-                               stats={"atk": get_stat(atk_card, "atk")})
+        if not (atk_card and atk_card in player.hand and _can_deploy(atk_card, "attack")):
+            return pnum  # 手牌無可攻擊角色 → LOST
+        player.hand.remove(atk_card)
+        self._deploy_to_zone(player, atk_card, "attack")
+        self.spec.on_deploy(pnum, atk_card, get_name(atk_card), "attack",
+                           stats={"atk": get_stat(atk_card, "atk")})
 
         new_op = _calc_attack_op(player)
         state.pending_op = new_op
@@ -304,23 +307,11 @@ class TurnFlow:
     def _draw(self, player: PlayerState, count: int, state: GameState) -> list[str]:
         drawn: list[str] = []
         for _ in range(count):
-            if not player.pile:
-                self._reshuffle_grave_to_pile(player, state)
-            if player.pile:
+            if player.pile:  # 牌庫空 → 無法抽牌（規則 ドロップエリア 不洗回牌庫）
                 card = player.pile.pop()
                 player.hand.append(card)
                 drawn.append(card)
         return drawn
-
-    def _reshuffle_grave_to_pile(self, player: PlayerState, state: GameState) -> None:
-        if not player.grave:
-            return
-        state.log(f"{player.name} 棄牌區洗牌回牌庫")
-        player.pile = list(player.grave)
-        player.grave.clear()
-        player._grave_char_counter.clear()
-        player._grave_unique_count = 0
-        random.shuffle(player.pile)
 
     def _deploy_to_zone(self, player: PlayerState, card_no: str, zone: str) -> None:
         zone = zone.lower()
@@ -378,19 +369,6 @@ class TurnFlow:
                 drawn = self._draw(player, need, state)
                 for c in drawn:
                     self.spec.on_draw(pnum, c, get_name(c))
-
-    def _clear_attack_zones(self, state: GameState) -> None:
-        """
-        INTERVAL 後清除攻擊、舉球、接球、發球區（規則上這些不自動清，
-        但簡化處理：清掉場地以利 AI 重新部署）。
-        攔網 center 保留。
-        """
-        for player in (state.p1, state.p2):
-            for attr in ("serve_zone", "toss_zone", "attack_zone", "receive_zone"):
-                z = getattr(player, attr)
-                if z.card:
-                    self._to_grave(player, z.card)
-                    setattr(player, attr, ZoneState())
 
     def _make_snapshot(self, actor: PlayerState, pnum: int):
         from game_engine.spectator import BoardSnapshot

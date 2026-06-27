@@ -18,6 +18,18 @@ def _top_n_chars(hand: list[str], stat: str, n: int) -> list[str]:
     return sorted(chars, key=lambda c: get_stat(c, stat), reverse=True)[:n]
 
 
+def _deployable(hand: list[str], stat: str) -> list[str]:
+    """手牌中可部署到指定 stat 區域的角色卡（stat 不為 None）。"""
+    result = []
+    for c in hand:
+        if not is_character(c):
+            continue
+        card = get_card(c)
+        if card and card.get(stat) is not None:
+            result.append(c)
+    return result
+
+
 class GenericAI(BaseAI):
     """
     Greedy AI：依最大化當前階段數值的貪婪策略決策。
@@ -38,62 +50,65 @@ class GenericAI(BaseAI):
         """
         策略：
         - OP=0 → 一定 RECEIVE（免費球，反攻！攔網 OP=0 毫無意義）
+        - 手牌無可攔網卡（blk stat is None） → 只能 RECEIVE
         - 若手牌攔網值 + center BLK ≥ pending_op 且手牌少 → BLOCK 省資源
         - 否則 RECEIVE（嘗試反攻）
         """
-        # OP=0 是「免費球」，一律接球反攻；否則死循環
         if pending_op == 0:
             return "receive"
 
+        blk_hand = _deployable(actor.hand, "blk")
+        if not blk_hand:
+            return "receive"  # 手牌無可攔網卡，強制 RECEIVE
+
         center_blk = get_stat(actor.block_zones[0].card, "blk") if actor.block_zones[0].card else 0
-        hand_blk_cards = _top_n_chars(actor.hand, "blk", 3)
-        potential_blk = center_blk + sum(get_stat(c, "blk") for c in hand_blk_cards)
+        # center 卡會保留（側翼才在 block 後退場），新卡填側翼
+        top_blk = sorted(blk_hand, key=lambda c: get_stat(c, "blk"), reverse=True)[:2]
+        potential_blk = center_blk + sum(get_stat(c, "blk") for c in top_blk)
 
         hand_size = len(actor.hand)
 
         if potential_blk >= pending_op:
-            # 攔網值夠 → 若手牌少就 BLOCK 省資源
             if hand_size <= 3:
                 return "block"
-            # 計算若 RECEIVE → ATTACK 能打出多少
-            best_tos = _best_char(actor.hand, "tos")[1]
-            best_atk = _best_char(actor.hand, "atk")[1]
-            potential_atk = best_tos + best_atk
+            best_tos = max((_deployable(actor.hand, "tos") or [""]), key=lambda c: get_stat(c, "tos"))
+            best_atk = max((_deployable(actor.hand, "atk") or [""]), key=lambda c: get_stat(c, "atk"))
+            potential_atk = get_stat(best_tos, "tos") + get_stat(best_atk, "atk")
             if potential_atk >= 5:
                 return "receive"
             return "block"
 
-        # 攔不住 → 只能 RECEIVE
         return "receive"
 
     def decide_block_chars(
         self, actor: PlayerState, state: GameState, pending_op: int
     ) -> list[str]:
-        """選最多 3 張 BLK 最高的角色，優先補 center 空位。"""
-        return _top_n_chars(actor.hand, "blk", 3)
+        """從手牌選 blk stat 不為 None 的角色，最多 3 張（BLK 高優先）。"""
+        eligible = _deployable(actor.hand, "blk")
+        return sorted(eligible, key=lambda c: get_stat(c, "blk"), reverse=True)[:3]
 
     def decide_receive_char(
         self, actor: PlayerState, state: GameState, pending_op: int
     ) -> str | None:
-        existing = get_stat(actor.receive_zone.card, "rcv") if actor.receive_zone.card else -1
-        best, val = _best_char(actor.hand, "rcv")
-        if best and get_card(best).get("rcv") is not None and val > existing:
-            return best
-        return None
+        """強制部署：選手牌中 RCV 最高的可接球角色（stat 不為 None）。"""
+        eligible = _deployable(actor.hand, "rcv")
+        if not eligible:
+            return None
+        return max(eligible, key=lambda c: get_stat(c, "rcv"))
 
     def decide_toss_char(self, actor: PlayerState, state: GameState) -> str | None:
-        existing = get_stat(actor.toss_zone.card, "tos") if actor.toss_zone.card else -1
-        best, val = _best_char(actor.hand, "tos")
-        if best and get_card(best).get("tos") is not None and val > existing:
-            return best
-        return None
+        """強制部署：選手牌中 TOS 最高的可舉球角色（stat 不為 None）。"""
+        eligible = _deployable(actor.hand, "tos")
+        if not eligible:
+            return None
+        return max(eligible, key=lambda c: get_stat(c, "tos"))
 
     def decide_attack_char(self, actor: PlayerState, state: GameState) -> str | None:
-        existing = get_stat(actor.attack_zone.card, "atk") if actor.attack_zone.card else -1
-        best, val = _best_char(actor.hand, "atk")
-        if best and get_card(best).get("atk") is not None and val > existing:
-            return best
-        return None
+        """強制部署：選手牌中 ATK 最高的可攻擊角色（stat 不為 None）。"""
+        eligible = _deployable(actor.hand, "atk")
+        if not eligible:
+            return None
+        return max(eligible, key=lambda c: get_stat(c, "atk"))
 
     # ── 舊 API 相容 ───────────────────────────────────────────────────────────
 
@@ -122,10 +137,11 @@ class DefensiveAI(GenericAI):
     def decide_start_phase(
         self, actor: PlayerState, state: GameState, pending_op: int
     ) -> str:
+        if not _deployable(actor.hand, "blk"):
+            return "receive"
         center_blk = get_stat(actor.block_zones[0].card, "blk") if actor.block_zones[0].card else 0
-        hand_blk = sum(get_stat(c, "blk") for c in _top_n_chars(actor.hand, "blk", 2))
-        total_blk = center_blk + hand_blk
-        # 只要有一點攔截可能就 BLOCK
+        top2 = sorted(_deployable(actor.hand, "blk"), key=lambda c: get_stat(c, "blk"), reverse=True)[:2]
+        total_blk = center_blk + sum(get_stat(c, "blk") for c in top2)
         if total_blk >= pending_op * 0.7:
             return "block"
         return "receive"
