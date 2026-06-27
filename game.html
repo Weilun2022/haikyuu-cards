@@ -3331,7 +3331,8 @@ const DECK_KEY     = 'hv_decks';
 const NAME_KEY     = 'hv_player_name';
 const AVATAR_KEY   = 'hv_avatar';
 const SESSION_KEY  = 'hv_game_session';
-const STALE_MS     = 4 * 60 * 60 * 1000; // 4 hours — room auto-cleanup + session expiry
+const STALE_MS         = 4 * 60 * 60 * 1000; // 4 hours — playing room cleanup + session expiry
+const WAITING_STALE_MS = 30 * 60 * 1000;    // 30 min — waiting/ready room cleanup
 
 const AVATARS = ['🦅','🐦‍⬛','🦉','🐱','🦊','🕊️','🛡️','🌲','🐍','🦝','🦦'];
 
@@ -3478,7 +3479,8 @@ function listenRooms() {
     const now = Date.now();
     // Auto-delete stale rooms from Firebase
     Object.values(rooms).forEach(r => {
-      if ((now - (r.createdAt || 0)) >= STALE_MS) {
+      const roomStale = (r.status === 'playing') ? STALE_MS : WAITING_STALE_MS;
+      if ((now - (r.createdAt || 0)) >= roomStale) {
         db.ref(`rooms/${r.id}`).remove();
         db.ref(`games/${r.id}`).remove();
         return;
@@ -3580,10 +3582,6 @@ async function createRoom() {
     },
   });
 
-  // Auto-remove room & game if host disconnects (browser close / network loss)
-  db.ref(`rooms/${id}`).onDisconnect().remove();
-  db.ref(`games/${id}`).onDisconnect().remove();
-
   if (gameRef) gameRef.off();
   gameRef = db.ref(`games/${id}`);
   listenGame();
@@ -3652,6 +3650,7 @@ async function spectateRoom(id) {
 
 async function leaveRoom() {
   if (!roomId) return;
+  _stopPresenceWatch();
   if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
   exitMoveMode();
   const id = roomId;
@@ -3780,9 +3779,10 @@ async function rejoinRoom() {
   // doesn't re-fire for a reset that already happened before this rejoin
   _processedRoundReset = data?.roundReset || 0;
 
-  // Re-register presence + onDisconnect
+  // Re-register presence + onDisconnect; persistent watcher handles all reconnects
   db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
   await db.ref(`games/${roomId}/presence/${myRole}`).set(true);
+  _startPresenceWatch();
 
   listenGame();
 
@@ -3827,6 +3827,7 @@ function listenGame() {
     if (!data) {
       // Game node deleted externally (e.g., stale-room cleanup race) while we're in it
       if (document.getElementById('screen-game').classList.contains('active') && roomId) {
+        _stopPresenceWatch();
         if (gameRef) { gameRef.off(); gameRef = null; }
         roomId = null; myRole = null;
         if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
@@ -3834,6 +3835,12 @@ function listenGame() {
         document.getElementById('sb-actions').style.display = '';
         showScreen('lobby');
         toast('對局已結束 [listenGame/null]');
+      } else if (document.getElementById('screen-waiting').classList.contains('active') && roomId) {
+        if (gameRef) { gameRef.off(); gameRef = null; }
+        roomId = null; myRole = null;
+        if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
+        showScreen('lobby');
+        toast('房間已關閉');
       }
       return;
     }
@@ -3852,6 +3859,22 @@ function listenGame() {
 let _processedRoundReset = 0;
 let _atkBaseline = null; // { rcv, blk } — zone values at the moment atkAlert appeared
 let _presenceKickTimer = null;
+let _connectedRef = null;
+
+function _startPresenceWatch() {
+  if (_connectedRef) { _connectedRef.off(); }
+  _connectedRef = db.ref('.info/connected');
+  _connectedRef.on('value', snap => {
+    if (snap.val() !== true || !roomId || !myRole || isSpectator) return;
+    const presRef = db.ref(`games/${roomId}/presence/${myRole}`);
+    presRef.onDisconnect().remove();
+    presRef.set(true).catch(() => {});
+  });
+}
+
+function _stopPresenceWatch() {
+  if (_connectedRef) { _connectedRef.off(); _connectedRef = null; }
+}
 
 function syncUI(data, prev) {
   if (!isSpectator) updateWaitingScreen(data);
@@ -3975,6 +3998,7 @@ function handlePresenceChange(data, prev) {
           if (p.host || p.guest) { return; }
         } catch (_) { return; }
         const id = roomId;
+        _stopPresenceWatch();
         if (gameRef) { gameRef.off(); gameRef = null; }
         roomId = null; myRole = null;
         closeDiceModal();
@@ -3982,8 +4006,8 @@ function handlePresenceChange(data, prev) {
         document.getElementById('sb-actions').style.display = '';
         showScreen('lobby');
         cleanupRoom(id);
-        toast('雙方都已離線，對局結束 [presence/30s]');
-      }, 30000);
+        toast('雙方都已離線，對局結束 [presence/60s]');
+      }, 60000);
     }
   } else if (_presenceKickTimer) {
     clearTimeout(_presenceKickTimer);
@@ -4010,20 +4034,9 @@ window.addEventListener('pagehide', () => { saveSession(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') {
     saveSession();
-    return;
   }
-  if (!roomId || !myRole || isSpectator) return;
-  const presenceRef = db.ref(`games/${roomId}/presence/${myRole}`);
-  const connRef = db.ref('.info/connected');
-  const onConnected = (snap) => {
-    if (snap.val() !== true) return;
-    connRef.off('value', onConnected);
-    presenceRef.onDisconnect().remove();
-    presenceRef.set(true).catch(() => {});
-  };
-  connRef.on('value', onConnected);
-  // Fallback: stop listening after 10s to avoid leak if never connects
-  setTimeout(() => connRef.off('value', onConnected), 10000);
+  // Presence re-registration on reconnect is handled by _startPresenceWatch's
+  // persistent .info/connected listener — no need for manual handling here.
 });
 
 // ══════════════════════════════════════════════════════
@@ -4097,9 +4110,10 @@ function enterGame() {
   db.ref(`games/${roomId}`).onDisconnect().cancel();
   db.ref(`games/${roomId}/players/guest`).onDisconnect().cancel(); // cancel guest's player-data onDisconnect
   db.ref(`rooms/${roomId}/status`).onDisconnect().cancel();        // cancel guest's status-reset onDisconnect
-  // Set own presence; auto-remove on disconnect
+  // Set own presence; auto-remove on disconnect; persistent watcher handles all reconnects
   db.ref(`games/${roomId}/presence/${myRole}`).set(true);
   db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
+  _startPresenceWatch();
 
   showScreen('game');
   renderBoard(gameState);
