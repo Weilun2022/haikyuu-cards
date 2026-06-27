@@ -3,6 +3,8 @@ node_modules/
 *.py
 !analyze_meta.py
 !battle_simulator/**/*.py
+!game_engine/**/*.py
+!game_engine/*.py
 *.csv
 *.xlsx
 *.json
