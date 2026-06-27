@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Haikyuu TCG Replay — P1 ROKUNIN[稲荷崎] vs P2 ROKUNIN_V1[通用]</title>
+<style>
+:root {
+  --p1:#f97316; --p2:#38bdf8; --ok:#4ade80; --err:#f87171;
+  --bg:#0f172a; --surface:#1e293b; --border:#334155;
+  --text:#e2e8f0; --dim:#64748b; --hl:#fbbf24;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'SF Mono',monospace; background:var(--bg); color:var(--text); padding:16px; }
+h1 { font-size:1.2rem; color:var(--hl); margin-bottom:16px; }
+.score-bar { display:flex; gap:16px; align-items:center; margin-bottom:20px;
+             background:var(--surface); padding:10px 16px; border-radius:8px; }
+.p1c { color:var(--p1); font-weight:bold; }
+.p2c { color:var(--p2); font-weight:bold; }
+.vs { color:var(--dim); }
+.sets { color:var(--hl); font-size:1.4rem; font-weight:bold; }
+
+.events { display:flex; flex-direction:column; gap:4px; }
+.ev { border-radius:6px; padding:6px 12px; border-left:3px solid var(--border);
+       font-size:0.82rem; line-height:1.6; cursor:pointer; }
+.ev:hover { background:var(--surface); }
+.ev.turn_start { border-color:var(--dim); background:rgba(30,41,59,.7);
+                  font-weight:bold; font-size:0.9rem; margin-top:8px; }
+.ev.deploy { border-color:#8b5cf6; }
+.ev.skill.ok { border-color:var(--ok); }
+.ev.skill.blocked { border-color:var(--dim); color:var(--dim); }
+.ev.action { border-color:var(--hl); background:rgba(30,41,59,.5); }
+.ev.set_result { border-color:var(--hl); background:rgba(251,191,36,.1);
+                  font-size:1rem; font-weight:bold; text-align:center; }
+.ev.game_end { border-color:var(--ok); background:rgba(74,222,128,.1);
+               font-size:1.1rem; font-weight:bold; text-align:center; }
+.ev.board_snapshot { border-color:var(--border); font-size:0.78rem; color:var(--dim); }
+.ev.board_snapshot.expanded { color:var(--text); }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+.zone { background:rgba(255,255,255,.05); border-radius:4px; padding:4px 8px; }
+.zone-name { color:var(--dim); font-size:0.72rem; }
+.zone-card { font-weight:bold; }
+.p1 { color:var(--p1); }
+.p2 { color:var(--p2); }
+.bonus { color:var(--ok); }
+.ts { color:var(--dim); font-size:0.72rem; float:right; }
+.filter-bar { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+.filter-btn { padding:4px 12px; border-radius:999px; border:1px solid var(--border);
+              background:transparent; color:var(--text); cursor:pointer; font-size:0.8rem; }
+.filter-btn.active { background:var(--hl); color:#000; border-color:var(--hl); }
+</style>
+</head>
+<body>
+<h1>🏐 Haikyuu TCG Replay</h1>
+<div class="score-bar">
+  <span class="p1c" id="p1label">P1</span>
+  <span class="sets" id="final-score">0–0</span>
+  <span class="vs">vs</span>
+  <span class="p2c" id="p2label">P2</span>
+</div>
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="filterEvs('all')">全部</button>
+  <button class="filter-btn" onclick="filterEvs('turn_start')">回合</button>
+  <button class="filter-btn" onclick="filterEvs('deploy')">出場</button>
+  <button class="filter-btn" onclick="filterEvs('skill')">技能</button>
+  <button class="filter-btn" onclick="filterEvs('action')">動作結算</button>
+  <button class="filter-btn" onclick="filterEvs('set_result')">得分</button>
+</div>
+<div class="events" id="events"></div>
+
+<script>
+const RAW = [
+  {
+    "kind": "game_start",
+    "player": 0,
+    "data": {
+      "p1": "ROKUNIN",
+      "p2": "ROKUNIN_V1",
+      "d1": "稲荷崎",
+      "d2": "通用"
+    },
+    "ts": "03:10:01.103"
+  },
+  {
+    "kind": "turn_start",
+    "player": 1,
+    "data": {
+      "turn": 1,
+      "name": "ROKUNIN"
+    },
+    "ts": "03:10:01.103"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-032",
+      "card_name": "銀島 結"
+    },
+    "ts": "03:10:01.103"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-033",
+      "card_name": "大耳 練",
+      "zone": "attack",
+      "stats": {
+        "srv": 2,
+        "blk": 3,
+        "rcv": 3,
+        "atk": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成",
+      "zone": "receive",
+      "stats": {
+        "rcv": 6
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-032",
+      "card_name": "銀島 結",
+      "zone": "block",
+      "stats": {
+        "srv": 1,
+        "blk": 3,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-024",
+      "summary": "[=登場][=接球區] 從自己的手牌棄置1張牌，支付3 Gu",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介",
+      "zone": "serve",
+      "stats": {
+        "srv": 1,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "guts",
+    "player": 1,
+    "data": {
+      "zone": "attack",
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": null,
+      "attack": "大耳 練",
+      "receive": "赤木 路成",
+      "blocks": [
+        "銀島 結"
+      ],
+      "serve": "北 信介",
+      "hand_count": 1,
+      "pile_count": 34,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 2,
+    "data": {
+      "turn": 1,
+      "name": "ROKUNIN_V1"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-045",
+      "summary": "[=登場][=接球區][=攻擊區]\n從自己的手牌棄置稲荷崎的",
+      "triggered": true,
+      "blocked": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-045",
+      "card_name": "尾白 アラン",
+      "zone": "attack",
+      "stats": {
+        "srv": 2,
+        "rcv": 4,
+        "atk": 2
+      },
+      "notes": "[=登場][=接球區][=攻擊區]\n從自己的手牌棄置稲荷崎的"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-PR-034",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 3,
+        "blk": 2,
+        "rcv": 2,
+        "tos": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-024",
+      "summary": "[=登場][=接球區] 從自己的手牌棄置1張牌，支付3 Gu",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介",
+      "zone": "serve",
+      "stats": {
+        "srv": 1,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": "宮 侑",
+      "attack": "尾白 アラン",
+      "receive": null,
+      "blocks": [],
+      "serve": "北 信介",
+      "hand_count": 2,
+      "pile_count": 34,
+      "grave_count": 1,
+      "unique_grave": 1,
+      "atk_bonus": 2,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 3,
+      "p2_score": 0,
+      "notes": "ATK:3 vs DEF:0"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 1,
+      "p1_sets": 1,
+      "p2_sets": 0
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 1,
+    "data": {
+      "turn": 2,
+      "name": "ROKUNIN"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-077",
+      "summary": "出場此牌時，可將牌名從「宮兄弟」改為「宮 侑」或「宮 治」。",
+      "triggered": true,
+      "blocked": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-077",
+      "card_name": "宮兄弟",
+      "zone": "attack",
+      "stats": {
+        "srv": 1,
+        "tos": 1,
+        "atk": 3
+      },
+      "notes": "出場此牌時，可將牌名從「宮兄弟」改為「宮 侑」或「宮 治」。"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-022",
+      "card_name": "宮 治",
+      "zone": "receive",
+      "stats": {
+        "srv": 1,
+        "blk": 1,
+        "rcv": 5,
+        "atk": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-048",
+      "summary": "[=登場][=攻擊區] 支付2 Guts後可發動。自己的棄牌",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-048",
+      "card_name": "宮 治",
+      "zone": "toss",
+      "stats": {
+        "srv": 3,
+        "tos": 1,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-024",
+      "summary": "[=登場][=接球區] 從自己的手牌棄置1張牌，支付3 Gu",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介",
+      "zone": "serve",
+      "stats": {
+        "srv": 1,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "guts",
+    "player": 1,
+    "data": {
+      "zone": "attack",
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 治",
+      "attack": "宮兄弟",
+      "receive": "宮 治",
+      "blocks": [],
+      "serve": "北 信介",
+      "hand_count": 1,
+      "pile_count": 33,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 2,
+    "data": {
+      "turn": 2,
+      "name": "ROKUNIN_V1"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-022",
+      "card_name": "宮 治",
+      "zone": "attack",
+      "stats": {
+        "srv": 1,
+        "blk": 1,
+        "rcv": 5,
+        "atk": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成",
+      "zone": "receive",
+      "stats": {
+        "rcv": 6
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-PR-034",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 3,
+        "blk": 2,
+        "rcv": 2,
+        "tos": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-032",
+      "card_name": "銀島 結",
+      "zone": "block",
+      "stats": {
+        "srv": 1,
+        "blk": 3,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-035",
+      "summary": "[=接球階段][=手牌] 〔從手牌棄置此牌〕：自己的稲荷埼的",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡",
+      "zone": "serve",
+      "stats": {
+        "srv": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": "宮 侑",
+      "attack": "宮 治",
+      "receive": "赤木 路成",
+      "blocks": [
+        "銀島 結"
+      ],
+      "serve": "小作 裕渡",
+      "hand_count": 1,
+      "pile_count": 34,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 4,
+      "p2_score": 9,
+      "notes": "ATK:4 vs DEF:9"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 2,
+      "p1_sets": 1,
+      "p2_sets": 1
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 1,
+    "data": {
+      "turn": 3,
+      "name": "ROKUNIN"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-032",
+      "card_name": "銀島 結"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成",
+      "zone": "receive",
+      "stats": {
+        "rcv": 6
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-032",
+      "card_name": "銀島 結",
+      "zone": "block",
+      "stats": {
+        "srv": 1,
+        "blk": 3,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "summary": "[=接球階段][=手牌] 〔從手牌棄置此牌〕：自己的稲荷埼的",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡",
+      "zone": "serve",
+      "stats": {
+        "srv": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": null,
+      "attack": null,
+      "receive": "赤木 路成",
+      "blocks": [
+        "銀島 結"
+      ],
+      "serve": "小作 裕渡",
+      "hand_count": 3,
+      "pile_count": 32,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 2,
+    "data": {
+      "turn": 3,
+      "name": "ROKUNIN_V1"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-041",
+      "card_name": "宮 治"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-PR-048",
+      "summary": "[=登場][=攻擊區] 支付2 Guts後可發動。自己的棄牌",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-PR-048",
+      "card_name": "宮 治",
+      "zone": "attack",
+      "stats": {
+        "srv": 3,
+        "tos": 1,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成",
+      "zone": "receive",
+      "stats": {
+        "rcv": 6
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-017",
+      "summary": "[=登場][=舉球區] 支付3 Guts後可發動。自己的棄牌",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 4,
+        "tos": 1,
+        "atk": 1
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-027",
+      "summary": "[=登場][=攻擊區] 自己的棄牌區中牌名各不相同的稲荷崎角",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "block",
+      "stats": {
+        "srv": 2,
+        "blk": 2,
+        "rcv": 2,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-041",
+      "summary": "[=登場][=攻擊區]\n此角色以技能出場且自己的手牌有3張或",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-041",
+      "card_name": "宮 治",
+      "zone": "serve",
+      "stats": {
+        "srv": 3,
+        "blk": 1,
+        "rcv": 3,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": "宮 侑",
+      "attack": "宮 治",
+      "receive": "赤木 路成",
+      "blocks": [
+        "角名 倫太郎"
+      ],
+      "serve": "宮 治",
+      "hand_count": 1,
+      "pile_count": 34,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "attack",
+      "p1_score": 9,
+      "p2_score": 3,
+      "notes": "ATK:3 vs DEF:9"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 1,
+      "p1_sets": 2,
+      "p2_sets": 1
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 1,
+    "data": {
+      "turn": 4,
+      "name": "ROKUNIN"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-048",
+      "card_name": "宮 治"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "summary": "[=登場][=攻擊區] 自己的棄牌區中牌名各不相同的稲荷崎角",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "attack",
+      "stats": {
+        "srv": 2,
+        "blk": 2,
+        "rcv": 2,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "summary": "[=登場][=攻擊區] 自己的棄牌區中牌名各不相同的稲荷崎角",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "receive",
+      "stats": {
+        "srv": 2,
+        "blk": 2,
+        "rcv": 2,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-017",
+      "summary": "[=登場][=舉球區] 支付3 Guts後可發動。自己的棄牌",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 4,
+        "tos": 1,
+        "atk": 1
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "summary": "[=接球階段][=手牌] 〔從手牌棄置此牌〕：自己的稲荷埼的",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡",
+      "zone": "serve",
+      "stats": {
+        "srv": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "guts",
+    "player": 1,
+    "data": {
+      "zone": "attack",
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "guts",
+    "player": 1,
+    "data": {
+      "zone": "receive",
+      "card_no": "HV-PR-048",
+      "card_name": "宮 治"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "角名 倫太郎",
+      "receive": "角名 倫太郎",
+      "blocks": [],
+      "serve": "小作 裕渡",
+      "hand_count": 0,
+      "pile_count": 32,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 2
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 2,
+    "data": {
+      "turn": 4,
+      "name": "ROKUNIN_V1"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-085",
+      "card_name": "大見 太郎"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-027",
+      "summary": "[=登場][=攻擊區] 自己的棄牌區中牌名各不相同的稲荷崎角",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "attack",
+      "stats": {
+        "srv": 2,
+        "blk": 2,
+        "rcv": 2,
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-024",
+      "summary": "[=登場][=接球區] 從自己的手牌棄置1張牌，支付3 Gu",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介",
+      "zone": "receive",
+      "stats": {
+        "srv": 1,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-017",
+      "summary": "[=登場][=舉球區] 支付3 Guts後可發動。自己的棄牌",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 4,
+        "tos": 1,
+        "atk": 1
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-032",
+      "card_name": "銀島 結",
+      "zone": "block",
+      "stats": {
+        "srv": 1,
+        "blk": 3,
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": "宮 侑",
+      "attack": "角名 倫太郎",
+      "receive": "北 信介",
+      "blocks": [
+        "銀島 結"
+      ],
+      "serve": null,
+      "hand_count": 2,
+      "pile_count": 34,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 3,
+      "p2_score": 8,
+      "notes": "ATK:3 vs DEF:8"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 2,
+      "p1_sets": 2,
+      "p2_sets": 2
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "turn_start",
+    "player": 1,
+    "data": {
+      "turn": 5,
+      "name": "ROKUNIN"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成"
+    },
+    "ts": "03:10:01.104"
+  },
+  {
+    "kind": "skill",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-049",
+      "summary": "[=登場][=接球區] 支付2 Guts後可發動。此角色的接",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-049",
+      "card_name": "尾白 アラン",
+      "zone": "attack",
+      "stats": {
+        "srv": 2,
+        "rcv": 3,
+        "atk": 3
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成",
+      "zone": "receive",
+      "stats": {
+        "rcv": 6
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-034",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 3,
+        "blk": 2,
+        "rcv": 2,
+        "tos": 2
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "尾白 アラン",
+      "receive": "赤木 路成",
+      "blocks": [],
+      "serve": null,
+      "hand_count": 3,
+      "pile_count": 30,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 2
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "turn_start",
+    "player": 2,
+    "data": {
+      "turn": 5,
+      "name": "ROKUNIN_V1"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-045",
+      "card_name": "尾白 アラン"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-077",
+      "summary": "出場此牌時，可將牌名從「宮兄弟」改為「宮 侑」或「宮 治」。",
+      "triggered": true,
+      "blocked": ""
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-077",
+      "card_name": "宮兄弟",
+      "zone": "attack",
+      "stats": {
+        "srv": 1,
+        "tos": 1,
+        "atk": 3
+      },
+      "notes": "出場此牌時，可將牌名從「宮兄弟」改為「宮 侑」或「宮 治」。"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-045",
+      "summary": "[=登場][=接球區][=攻擊區]\n從自己的手牌棄置稲荷崎的",
+      "triggered": true,
+      "blocked": ""
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-045",
+      "card_name": "尾白 アラン",
+      "zone": "receive",
+      "stats": {
+        "srv": 2,
+        "rcv": 4,
+        "atk": 2
+      },
+      "notes": "[=登場][=接球區][=攻擊區]\n從自己的手牌棄置稲荷崎的"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "skill",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-017",
+      "summary": "[=登場][=舉球區] 支付3 Guts後可發動。自己的棄牌",
+      "triggered": false,
+      "blocked": "條件不符"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "srv": 4,
+        "tos": 1,
+        "atk": 1
+      },
+      "notes": ""
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "guts",
+    "player": 2,
+    "data": {
+      "zone": "attack",
+      "card_no": "HV-PR-049",
+      "card_name": "尾白 アラン"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": "宮 侑",
+      "attack": "宮兄弟",
+      "receive": "尾白 アラン",
+      "blocks": [],
+      "serve": null,
+      "hand_count": 1,
+      "pile_count": 34,
+      "grave_count": 1,
+      "unique_grave": 1,
+      "atk_bonus": 2,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 2
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "attack",
+      "p1_score": 6,
+      "p2_score": 6,
+      "notes": "ATK:6 vs DEF:6"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "turn_start",
+    "player": 1,
+    "data": {
+      "turn": 6,
+      "name": "ROKUNIN"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-085",
+      "card_name": "大見 太郎"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "尾白 アラン",
+      "receive": "赤木 路成",
+      "blocks": [],
+      "serve": null,
+      "hand_count": 4,
+      "pile_count": 29,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 2
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "turn_start",
+    "player": 2,
+    "data": {
+      "turn": 6,
+      "name": "ROKUNIN_V1"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P03-093",
+      "card_name": "絶望の継続や"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": "宮 侑",
+      "attack": "宮兄弟",
+      "receive": "尾白 アラン",
+      "blocks": [],
+      "serve": null,
+      "hand_count": 2,
+      "pile_count": 33,
+      "grave_count": 1,
+      "unique_grave": 1,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 2
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 5,
+      "p2_score": 4,
+      "notes": "ATK:5 vs DEF:4"
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 1,
+      "p1_sets": 3,
+      "p2_sets": 2
+    },
+    "ts": "03:10:01.105"
+  },
+  {
+    "kind": "game_end",
+    "player": 0,
+    "data": {
+      "winner": 1,
+      "total_turns": 6,
+      "p1_sets": 3,
+      "p2_sets": 2
+    },
+    "ts": "03:10:01.105"
+  }
+];
+let currentFilter = 'all';
+
+function pc(n) { return n===1?'p1':'p2'; }
+
+function renderEv(ev) {
+  const d = ev.data || {};
+  const pc_ = pc(ev.player);
+  let cls = ev.kind;
+  let inner = '';
+
+  if (ev.kind==='game_start') {
+    inner = `🏐 遊戲開始 <span class="p1c">P1 ${d.p1}</span> vs <span class="p2c">P2 ${d.p2}</span>`;
+    document.getElementById('p1label').textContent = `P1 ${d.p1} [${d.d1||''}]`;
+    document.getElementById('p2label').textContent = `P2 ${d.p2} [${d.d2||''}]`;
+  } else if (ev.kind==='turn_start') {
+    const pn = ev.player;
+    inner = `<span class="${pc_}">Turn ${d.turn} │ P${pn} ${d.name}</span>`;
+  } else if (ev.kind==='deploy') {
+    inner = `<span class="${pc_}">▶ 出場</span> <b>${d.card_name}</b> (${d.card_no}) → ${d.zone}`;
+    if (d.notes) inner += ` <span style="color:var(--dim)">← ${d.notes}</span>`;
+    if (d.stats && Object.keys(d.stats).length) {
+      const sp = Object.entries(d.stats).filter(([k,v])=>v).map(([k,v])=>`${k.toUpperCase()}:${v}`).join(' ');
+      inner += ` <span style="color:var(--dim)">[${sp}]</span>`;
+    }
+  } else if (ev.kind==='skill') {
+    cls += d.triggered ? ' ok' : ' blocked';
+    const icon = d.triggered ? '✓' : '✗';
+    const c = d.triggered ? 'var(--ok)' : 'var(--dim)';
+    inner = `<span style="color:${c}">${icon} 技能</span> ${d.summary}`;
+    if (!d.triggered && d.blocked) inner += ` <span style="color:var(--dim)">(${d.blocked})</span>`;
+  } else if (ev.kind==='action') {
+    const act_zh = {attack:'攻擊',serve:'發球',receive:'接球',block:'攔網',toss:'舉球'}[d.action]||d.action;
+    const win = d.p1_score > d.p2_score ? 'P1' : (d.p2_score > d.p1_score ? 'P2' : '平局');
+    const wc = d.p1_score > d.p2_score ? 'var(--p1)' : (d.p2_score > d.p1_score ? 'var(--p2)' : 'var(--hl)');
+    inner = `⚡ ${act_zh} — <span class="p1c">P1:${d.p1_score}</span> vs <span class="p2c">P2:${d.p2_score}</span>`;
+    inner += ` <span style="color:${wc}">→ ${win} 得分</span>`;
+    if (d.notes) inner += ` <span style="color:var(--dim)">${d.notes}</span>`;
+  } else if (ev.kind==='set_result') {
+    document.getElementById('final-score').textContent = `${d.p1_sets}–${d.p2_sets}`;
+    const wn = d.winner===1 ? document.getElementById('p1label').textContent.split(' ').slice(1).join(' ')
+                            : document.getElementById('p2label').textContent.split(' ').slice(1).join(' ');
+    inner = `★ P${d.winner} ${wn} 得分！局分 ${d.p1_sets}–${d.p2_sets} ★`;
+  } else if (ev.kind==='board_snapshot') {
+    const pn = ev.player;
+    const snap = d;
+    const card = (c,b=0) => c ? `<b>${c}</b>${b?' <span class="bonus">+'+b+'</span>':''}` : '<span style="color:var(--dim)">空</span>';
+    const blocks = (snap.blocks||[]).filter(Boolean).map(b=>card(b)).join(', ') || '<span style="color:var(--dim)">空</span>';
+    inner = `<span class="${pc_}">場地 P${pn}</span> 手牌${snap.hand_count} 牌庫${snap.pile_count} 棄牌${snap.grave_count}(${snap.unique_grave}/6)`;
+    inner += `<div class="grid" style="display:none" class="board-grid">`;
+    inner += `<div class="zone"><div class="zone-name">發球</div><div class="zone-card">${card(snap.serve,snap.srv_bonus)}</div></div>`;
+    inner += `<div class="zone"><div class="zone-name">舉球</div><div class="zone-card">${card(snap.toss,snap.tos_bonus)}</div></div>`;
+    inner += `<div class="zone"><div class="zone-name">攻擊</div><div class="zone-card">${card(snap.attack,snap.atk_bonus)}</div></div>`;
+    inner += `<div class="zone"><div class="zone-name">接球</div><div class="zone-card">${card(snap.receive,snap.rcv_bonus)}</div></div>`;
+    inner += `<div class="zone" style="grid-column:1/-1"><div class="zone-name">攔網</div><div class="zone-card">${blocks}</div></div>`;
+    inner += `</div>`;
+    cls += ' board_snapshot';
+  } else if (ev.kind==='game_end') {
+    const wn = d.winner===1 ? document.getElementById('p1label').textContent.split(' ').slice(1).join(' ')
+                            : document.getElementById('p2label').textContent.split(' ').slice(1).join(' ');
+    inner = `🏆 遊戲結束！P${d.winner} ${wn} 獲勝　局分 ${d.p1_sets}–${d.p2_sets}　共 ${d.total_turns} 回合`;
+    document.getElementById('final-score').textContent = `${d.p1_sets}–${d.p2_sets}`;
+  } else if (ev.kind==='log') {
+    inner = `<span style="color:var(--dim)">[log] ${d.msg}</span>`;
+    cls = 'ev log';
+  } else {
+    inner = JSON.stringify(d);
+  }
+
+  return `<div class="ev ${cls}" data-kind="${ev.kind}" onclick="toggleBoard(this)">
+    ${inner}<span class="ts">${ev.ts}</span>
+  </div>`;
+}
+
+function toggleBoard(el) {
+  const grid = el.querySelector('.board-grid, [style*="display:none"]');
+  if (grid) {
+    grid.style.display = grid.style.display==='none'?'grid':'none';
+    el.classList.toggle('expanded');
+  }
+}
+
+function filterEvs(kind) {
+  currentFilter = kind;
+  document.querySelectorAll('.filter-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent.includes(kind) || (kind==='all' && b.textContent==='全部'));
+  });
+  document.querySelectorAll('.ev').forEach(ev=>{
+    if (kind==='all') { ev.style.display=''; return; }
+    ev.style.display = ev.dataset.kind===kind ? '' : 'none';
+  });
+}
+
+function init() {
+  const container = document.getElementById('events');
+  container.innerHTML = RAW.map(renderEv).join('');
+}
+
+init();
+</script>
+</body>
+</html>

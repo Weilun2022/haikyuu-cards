@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🏐 P1 ROKUNIN[稲荷崎] vs P2 STANDARD[通用]</title>
+<style>
+:root{--p1:#f97316;--p2:#38bdf8;--ok:#4ade80;--err:#f87171;
+      --bg:#0f172a;--surface:#1e293b;--border:#334155;
+      --text:#e2e8f0;--dim:#64748b;--hl:#fbbf24;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'SF Mono',monospace;background:var(--bg);color:var(--text);padding:12px;max-width:1100px;margin:0 auto;}
+.p1c{color:var(--p1);font-weight:bold;} .p2c{color:var(--p2);font-weight:bold;}
+.ok{color:var(--ok);} .err{color:var(--err);} .hl{color:var(--hl);}
+.dim{color:var(--dim);}
+
+/* ── Mode bar ── */
+.mode-bar{display:flex;gap:8px;margin:10px 0 14px;}
+.mode-btn{padding:7px 20px;border-radius:8px;border:1px solid var(--border);
+          background:transparent;color:var(--text);cursor:pointer;font-size:.85rem;}
+.mode-btn.active{background:var(--p1);color:#000;border-color:var(--p1);}
+
+/* ── Shared score header ── */
+.score-header{display:flex;gap:12px;align-items:center;background:var(--surface);
+              padding:10px 16px;border-radius:8px;margin-bottom:12px;}
+.score-sets{color:var(--hl);font-size:1.4rem;font-weight:bold;}
+
+/* ══ STEP VIEW ══ */
+#step-view{}
+.boards-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.board{background:var(--surface);border-radius:10px;padding:14px;border:1px solid var(--border);}
+.board-hdr{font-weight:bold;font-size:.9rem;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.sz{display:flex;justify-content:space-between;align-items:center;
+    padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:.84rem;min-height:30px;}
+.sz:last-of-type{border-bottom:none;}
+.sz-lbl{color:var(--dim);font-size:.75rem;width:38px;flex-shrink:0;}
+.sz-val{font-weight:bold;text-align:right;flex:1;}
+.sz-val.empty{color:var(--dim);font-weight:normal;}
+.sz-highlight{color:var(--hl) !important;font-weight:bold;}
+.sz-stats{font-size:.72rem;color:var(--dim);margin-top:8px;display:flex;gap:8px;}
+
+/* Event description box */
+.step-event{background:var(--surface);border-radius:10px;padding:20px 24px;
+            min-height:90px;border:1px solid var(--border);margin-bottom:10px;}
+.ev-title{font-size:1.25rem;font-weight:bold;margin-bottom:6px;line-height:1.4;}
+.ev-card{font-size:1.05rem;font-weight:bold;color:var(--hl);margin-bottom:4px;}
+.ev-stat{font-size:.82rem;color:var(--dim);margin-bottom:6px;}
+.ev-sub{font-size:.9rem;color:var(--dim);line-height:1.5;}
+.ev-judge{font-size:1.15rem;font-weight:bold;margin:8px 0;}
+
+/* History chips */
+.step-history{display:flex;gap:3px;overflow-x:auto;padding:4px 0;
+              flex-wrap:wrap;max-height:76px;margin-bottom:8px;}
+.chip{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;
+      justify-content:center;font-size:.78rem;cursor:pointer;
+      border:1px solid var(--border);background:var(--surface);flex-shrink:0;
+      transition:transform .1s;}
+.chip:hover{border-color:var(--hl);transform:scale(1.1);}
+.chip.active{background:var(--hl);color:#000;border-color:var(--hl);}
+.chip.cp1{border-color:rgba(249,115,22,.5);}
+.chip.cp2{border-color:rgba(56,189,248,.5);}
+
+/* Navigation */
+.step-nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.nav-btn{padding:8px 16px;border-radius:7px;border:1px solid var(--border);
+         background:transparent;color:var(--text);cursor:pointer;font-size:.83rem;}
+.nav-btn:hover{background:var(--surface);}
+.nav-btn.primary{background:var(--hl);color:#000;border-color:var(--hl);font-weight:bold;}
+.nav-btn:disabled{opacity:.3;cursor:default;}
+#step-counter{color:var(--dim);font-size:.83rem;min-width:60px;text-align:center;}
+.step-prog{height:4px;background:var(--border);border-radius:2px;flex:1;min-width:60px;}
+.step-prog-bar{height:100%;background:var(--hl);border-radius:2px;transition:width .15s;}
+.kbd-hint{color:var(--dim);font-size:.72rem;margin-left:4px;}
+
+/* SET dots */
+.set-dot{font-size:.9rem;}
+.set-dot.filled{color:var(--hl);}
+.set-dot.empty{color:var(--dim);}
+
+/* ══ LOG VIEW ══ */
+#log-view{display:none;}
+.filter-bar{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.filter-btn{padding:4px 12px;border-radius:999px;border:1px solid var(--border);
+            background:transparent;color:var(--text);cursor:pointer;font-size:.8rem;}
+.filter-btn.active{background:var(--hl);color:#000;border-color:var(--hl);}
+.events{display:flex;flex-direction:column;gap:4px;}
+.ev{border-radius:6px;padding:6px 12px;border-left:3px solid var(--border);
+    font-size:.82rem;line-height:1.6;cursor:pointer;}
+.ev:hover{background:var(--surface);}
+.ev.phase{border-color:#6366f1;color:#a5b4fc;font-size:.8rem;}
+.ev.deploy{border-color:#8b5cf6;}
+.ev.judge{border-color:#0ea5e9;font-size:.82rem;}
+.ev.action{border-color:var(--hl);background:rgba(30,41,59,.5);}
+.ev.lost{border-color:var(--err);background:rgba(248,113,113,.08);font-weight:bold;}
+.ev.set_result{border-color:var(--hl);background:rgba(251,191,36,.1);font-size:1rem;font-weight:bold;text-align:center;}
+.ev.game_end{border-color:var(--ok);background:rgba(74,222,128,.1);font-size:1.1rem;font-weight:bold;text-align:center;}
+.ev.interval{border-color:var(--dim);background:rgba(30,41,59,.9);font-style:italic;}
+.ev.board_snapshot{border-color:var(--border);font-size:.78rem;color:var(--dim);}
+.ev.draw{border-color:#334155;font-size:.78rem;color:var(--dim);}
+.ts{color:var(--dim);font-size:.72rem;float:right;}
+</style>
+</head>
+<body>
+
+<!-- ── Shared header ── -->
+<div class="score-header">
+  <span class="p1c" id="p1label">P1</span>
+  <span class="score-sets" id="final-score">0–0</span>
+  <span class="dim">vs</span>
+  <span class="p2c" id="p2label">P2</span>
+</div>
+<div class="mode-bar">
+  <button class="mode-btn active" data-mode="step" onclick="setMode('step')">▶ 步驟回放</button>
+  <button class="mode-btn" data-mode="log" onclick="setMode('log')">📋 事件記錄</button>
+</div>
+
+<!-- ══ STEP VIEW ══ -->
+<div id="step-view">
+  <div class="boards-row">
+    <div class="board" id="board1"></div>
+    <div class="board" id="board2"></div>
+  </div>
+  <div class="step-event" id="step-event"><div class="ev-sub dim">載入中...</div></div>
+  <div class="step-history" id="step-history"></div>
+  <div class="step-nav">
+    <button class="nav-btn" id="btn-prev" onclick="goTo(SI-1)">◀ Prev</button>
+    <span id="step-counter">–</span>
+    <button class="nav-btn primary" id="btn-next" onclick="goTo(SI+1)">Next ▶</button>
+    <button class="nav-btn" onclick="jumpTo('lost')">→ LOST</button>
+    <button class="nav-btn" onclick="jumpTo('set_result')">→ 局</button>
+    <button class="nav-btn" onclick="goTo(STEPS.length-1)">⏭ 終局</button>
+    <div class="step-prog"><div class="step-prog-bar" id="step-prog-bar"></div></div>
+    <span class="kbd-hint">鍵盤 ← →</span>
+  </div>
+</div>
+
+<!-- ══ LOG VIEW ══ -->
+<div id="log-view">
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterEvs('all')">全部</button>
+    <button class="filter-btn" onclick="filterEvs('phase')">階段</button>
+    <button class="filter-btn" onclick="filterEvs('deploy')">出場</button>
+    <button class="filter-btn" onclick="filterEvs('judge')">判定</button>
+    <button class="filter-btn" onclick="filterEvs('action')">OP/DP</button>
+    <button class="filter-btn" onclick="filterEvs('lost')">LOST</button>
+    <button class="filter-btn" onclick="filterEvs('set_result')">得分</button>
+  </div>
+  <div class="events" id="events"></div>
+</div>
+
+<script>
+const RAW = [
+  {
+    "kind": "game_start",
+    "player": 0,
+    "data": {
+      "p1": "ROKUNIN",
+      "p2": "STANDARD",
+      "d1": "稲荷崎",
+      "d2": "通用"
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "serve",
+      "phase_zh": "發球"
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-029",
+      "card_name": "尾白 アラン",
+      "zone": "serve",
+      "stats": {
+        "srv": 5
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "serve",
+      "p1_score": 5,
+      "p2_score": 0,
+      "notes": "OP=5"
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": null,
+      "attack": null,
+      "receive": null,
+      "blocks": [],
+      "serve": "尾白 アラン",
+      "hand_count": 5,
+      "pile_count": 34,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "phase_zh": "攔網"
+    },
+    "ts": "07:20:39.708"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-001",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 3
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-001",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 3
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-003",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "dp": 8,
+      "op": 5,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "block",
+      "p1_score": 8,
+      "p2_score": 5,
+      "notes": "DP(BLK)=8 vs OP=5"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": null,
+      "attack": null,
+      "receive": null,
+      "blocks": [
+        "日向 翔陽",
+        "日向 翔陽",
+        "日向 翔陽"
+      ],
+      "serve": null,
+      "hand_count": 3,
+      "pile_count": 34,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-024",
+      "card_name": "北 信介",
+      "zone": "receive",
+      "stats": {
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "dp": 5,
+      "op": 0,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "toss",
+      "phase_zh": "舉球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "tos": 1
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "attack",
+      "phase_zh": "攻擊"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "attack",
+      "stats": {
+        "atk": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 3,
+      "p2_score": 0,
+      "notes": "TOS+ATK=3"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "角名 倫太郎",
+      "receive": "北 信介",
+      "blocks": [],
+      "serve": "尾白 アラン",
+      "hand_count": 3,
+      "pile_count": 33,
+      "grave_count": 0,
+      "unique_grave": 0,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "phase_zh": "攔網"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-003",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-003",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-006",
+      "card_name": "影山 飛雄",
+      "zone": "block",
+      "stats": {
+        "blk": 1
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "dp": 6,
+      "op": 3,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "block",
+      "p1_score": 6,
+      "p2_score": 3,
+      "notes": "DP(BLK)=6 vs OP=3"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": null,
+      "attack": null,
+      "receive": null,
+      "blocks": [
+        "日向 翔陽",
+        "影山 飛雄",
+        "日向 翔陽"
+      ],
+      "serve": null,
+      "hand_count": 0,
+      "pile_count": 34,
+      "grave_count": 3,
+      "unique_grave": 1,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡",
+      "zone": "receive",
+      "stats": {
+        "rcv": 0
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "dp": 0,
+      "op": 0,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "toss",
+      "phase_zh": "舉球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "tos": 1
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "attack",
+      "phase_zh": "攻擊"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-017",
+      "card_name": "宮 侑",
+      "zone": "attack",
+      "stats": {
+        "atk": 1
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 2,
+      "p2_score": 0,
+      "notes": "TOS+ATK=2"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "宮 侑",
+      "receive": "小作 裕渡",
+      "blocks": [],
+      "serve": "尾白 アラン",
+      "hand_count": 1,
+      "pile_count": 32,
+      "grave_count": 3,
+      "unique_grave": 3,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-004",
+      "card_name": "日向 翔陽"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-004",
+      "card_name": "日向 翔陽",
+      "zone": "receive",
+      "stats": {
+        "rcv": 5
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 2,
+    "data": {
+      "phase": "receive",
+      "dp": 5,
+      "op": 2,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "toss",
+      "phase_zh": "舉球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "lost",
+    "player": 2,
+    "data": {
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 1,
+      "p1_sets": 1,
+      "p2_sets": 0
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "interval",
+    "player": 1,
+    "data": {
+      "p1_sets": 1,
+      "p2_sets": 0
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-089",
+      "card_name": "どや俺の仲間すごいやろって もっと言いたかったわ"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-085",
+      "card_name": "大見 太郎"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-085",
+      "card_name": "大見 太郎"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-007",
+      "card_name": "影山 飛雄"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-011",
+      "card_name": "西谷 夕"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-008",
+      "card_name": "月島 蛍"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-002",
+      "card_name": "日向 翔陽"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-005",
+      "card_name": "影山 飛雄"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-001",
+      "card_name": "日向 翔陽"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "serve",
+      "phase_zh": "發球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "serve",
+      "p1_score": 5,
+      "p2_score": 0,
+      "notes": "OP=5"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "宮 侑",
+      "receive": "小作 裕渡",
+      "blocks": [],
+      "serve": "尾白 アラン",
+      "hand_count": 6,
+      "pile_count": 27,
+      "grave_count": 3,
+      "unique_grave": 3,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "phase_zh": "攔網"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-002",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 3
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-001",
+      "card_name": "日向 翔陽",
+      "zone": "block",
+      "stats": {
+        "blk": 3
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-007",
+      "card_name": "影山 飛雄",
+      "zone": "block",
+      "stats": {
+        "blk": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "dp": 8,
+      "op": 5,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "block",
+      "p1_score": 8,
+      "p2_score": 5,
+      "notes": "DP(BLK)=8 vs OP=5"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": null,
+      "attack": null,
+      "receive": "日向 翔陽",
+      "blocks": [
+        "日向 翔陽",
+        "影山 飛雄",
+        "日向 翔陽"
+      ],
+      "serve": null,
+      "hand_count": 3,
+      "pile_count": 27,
+      "grave_count": 6,
+      "unique_grave": 2,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-034",
+      "card_name": "宮 侑"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-034",
+      "card_name": "赤木 路成",
+      "zone": "receive",
+      "stats": {
+        "rcv": 6
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "dp": 6,
+      "op": 0,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "toss",
+      "phase_zh": "舉球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-PR-034",
+      "card_name": "宮 侑",
+      "zone": "toss",
+      "stats": {
+        "tos": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "attack",
+      "phase_zh": "攻擊"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡",
+      "zone": "attack",
+      "stats": {
+        "atk": 0
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 1,
+    "data": {
+      "action": "attack",
+      "p1_score": 2,
+      "p2_score": 0,
+      "notes": "TOS+ATK=2"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 1,
+    "data": {
+      "player": 1,
+      "toss": "宮 侑",
+      "attack": "小作 裕渡",
+      "receive": "赤木 路成",
+      "blocks": [],
+      "serve": "尾白 アラン",
+      "hand_count": 4,
+      "pile_count": 26,
+      "grave_count": 6,
+      "unique_grave": 4,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1,
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "phase_zh": "攔網"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-008",
+      "card_name": "月島 蛍",
+      "zone": "block",
+      "stats": {
+        "blk": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-005",
+      "card_name": "影山 飛雄",
+      "zone": "block",
+      "stats": {
+        "blk": 1
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 2,
+    "data": {
+      "phase": "block",
+      "dp": 6,
+      "op": 2,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "block",
+      "p1_score": 6,
+      "p2_score": 2,
+      "notes": "DP(BLK)=6 vs OP=2"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": null,
+      "attack": null,
+      "receive": "日向 翔陽",
+      "blocks": [
+        "日向 翔陽",
+        "月島 蛍",
+        "影山 飛雄"
+      ],
+      "serve": null,
+      "hand_count": 1,
+      "pile_count": 27,
+      "grave_count": 8,
+      "unique_grave": 2,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 0,
+      "set_cards": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-089",
+      "card_name": "どや俺の仲間すごいやろって もっと言いたかったわ"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-035",
+      "card_name": "小作 裕渡",
+      "zone": "receive",
+      "stats": {
+        "rcv": 0
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "dp": 0,
+      "op": 0,
+      "lost": false
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "toss",
+      "phase_zh": "舉球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "lost",
+    "player": 1,
+    "data": {
+      "set_cards": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 2,
+      "p1_sets": 1,
+      "p2_sets": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "interval",
+    "player": 2,
+    "data": {
+      "p1_sets": 1,
+      "p2_sets": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-087",
+      "card_name": "どん ぴしゃり"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-009",
+      "card_name": "月島 蛍"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-002",
+      "card_name": "日向 翔陽"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-008",
+      "card_name": "月島 蛍"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-012",
+      "card_name": "田中 龍之介"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-013",
+      "card_name": "縁下 力"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "serve",
+      "phase_zh": "發球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-012",
+      "card_name": "田中 龍之介",
+      "zone": "serve",
+      "stats": {
+        "srv": 5
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "serve",
+      "p1_score": 5,
+      "p2_score": 0,
+      "notes": "OP=5"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": null,
+      "attack": null,
+      "receive": "日向 翔陽",
+      "blocks": [
+        "日向 翔陽"
+      ],
+      "serve": "田中 龍之介",
+      "hand_count": 5,
+      "pile_count": 22,
+      "grave_count": 10,
+      "unique_grave": 3,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 1,
+      "set_cards": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "receive",
+      "stats": {
+        "rcv": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "dp": 2,
+      "op": 5,
+      "lost": true
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "lost",
+    "player": 1,
+    "data": {
+      "set_cards": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 2,
+      "p1_sets": 1,
+      "p2_sets": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "interval",
+    "player": 2,
+    "data": {
+      "p1_sets": 1,
+      "p2_sets": 2
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 2,
+    "data": {
+      "card_no": "HV-P01-005",
+      "card_name": "影山 飛雄"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 2,
+    "data": {
+      "phase": "serve",
+      "phase_zh": "發球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "action",
+    "player": 2,
+    "data": {
+      "action": "serve",
+      "p1_score": 5,
+      "p2_score": 0,
+      "notes": "OP=5"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "board_snapshot",
+    "player": 2,
+    "data": {
+      "player": 2,
+      "toss": null,
+      "attack": null,
+      "receive": "日向 翔陽",
+      "blocks": [
+        "日向 翔陽"
+      ],
+      "serve": "田中 龍之介",
+      "hand_count": 6,
+      "pile_count": 21,
+      "grave_count": 10,
+      "unique_grave": 3,
+      "atk_bonus": 0,
+      "rcv_bonus": 0,
+      "blk_bonus": 0,
+      "tos_bonus": 0,
+      "srv_bonus": 0,
+      "set_score": 2,
+      "set_cards": 1
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "start",
+      "phase_zh": "START"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "draw",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-085",
+      "card_name": "大見 太郎"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "phase",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "phase_zh": "接球"
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "deploy",
+    "player": 1,
+    "data": {
+      "card_no": "HV-P02-027",
+      "card_name": "角名 倫太郎",
+      "zone": "receive",
+      "stats": {
+        "rcv": 2
+      },
+      "notes": ""
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "judge",
+    "player": 1,
+    "data": {
+      "phase": "receive",
+      "dp": 2,
+      "op": 5,
+      "lost": true
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "lost",
+    "player": 1,
+    "data": {
+      "set_cards": 0
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "set_result",
+    "player": 0,
+    "data": {
+      "winner": 2,
+      "p1_sets": 1,
+      "p2_sets": 3
+    },
+    "ts": "07:20:39.709"
+  },
+  {
+    "kind": "game_end",
+    "player": 0,
+    "data": {
+      "winner": 2,
+      "total_turns": 4,
+      "p1_sets": 1,
+      "p2_sets": 3
+    },
+    "ts": "07:20:39.709"
+  }
+];
+
+// ─────────────────────────────────────────────────────
+// Shared init
+// ─────────────────────────────────────────────────────
+const _gs = RAW.find(e=>e.kind==='game_start');
+const P1NAME = _gs ? _gs.data.p1 : 'P1';
+const P2NAME = _gs ? _gs.data.p2 : 'P2';
+const D1NAME = _gs ? (_gs.data.d1||'') : '';
+const D2NAME = _gs ? (_gs.data.d2||'') : '';
+const _ge = [...RAW].reverse().find(e=>e.kind==='game_end');
+
+document.getElementById('p1label').textContent = 'P1 '+P1NAME+(D1NAME?' ['+D1NAME+']':'');
+document.getElementById('p2label').textContent = 'P2 '+P2NAME+(D2NAME?' ['+D2NAME+']':'');
+if (_ge) document.getElementById('final-score').textContent = _ge.data.p1_sets+'–'+_ge.data.p2_sets;
+
+function setMode(m) {
+  document.getElementById('step-view').style.display  = m==='step' ? '' : 'none';
+  document.getElementById('log-view').style.display   = m==='log'  ? '' : 'none';
+  document.querySelectorAll('.mode-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.mode===m);
+  });
+  if (m==='step') renderStep();
+}
+
+// ─────────────────────────────────────────────────────
+// ══ STEP VIEWER ══
+// ─────────────────────────────────────────────────────
+
+function buildSteps() {
+  const SKIP = new Set(['board_snapshot','log','turn_start','guts']);
+  const steps = [];
+  const EMPTY = () => ({serve:null,toss:null,attack:null,receive:null,blocks:[],
+                         hand_count:6,pile_count:34,grave_count:0,
+                         set_score:0,set_cards:2,unique_grave:0});
+  const b = {1:EMPTY(), 2:EMPTY()};
+  let lastDeploy = null; // {player, zone, card_name}
+
+  for (const ev of RAW) {
+    if (ev.kind === 'board_snapshot') {
+      const d = ev.data, pn = ev.player;
+      Object.assign(b[pn], {
+        serve:d.serve, toss:d.toss, attack:d.attack, receive:d.receive,
+        blocks:d.blocks||[], hand_count:d.hand_count, pile_count:d.pile_count,
+        grave_count:d.grave_count, set_score:d.set_score, set_cards:d.set_cards,
+        unique_grave:d.unique_grave
+      });
+      if (steps.length > 0) {
+        steps[steps.length-1].b1 = JSON.parse(JSON.stringify(b[1]));
+        steps[steps.length-1].b2 = JSON.parse(JSON.stringify(b[2]));
+      }
+      continue;
+    }
+    if (SKIP.has(ev.kind)) continue;
+
+    // Update zone immediately for real-time board display
+    if (ev.kind === 'deploy') {
+      const pn = ev.player, z = ev.data.zone;
+      if (z === 'block') {
+        b[pn].blocks = [...(b[pn].blocks||[]), ev.data.card_name].slice(-3);
+      } else if (['serve','toss','attack','receive'].includes(z)) {
+        b[pn][z] = ev.data.card_name;
+      }
+      lastDeploy = {player:pn, zone:z, card:ev.data.card_name};
+    }
+    if (ev.kind === 'lost') b[ev.player].set_cards = ev.data.set_cards;
+    if (ev.kind === 'set_result') { b[1].set_score=ev.data.p1_sets; b[2].set_score=ev.data.p2_sets; }
+
+    steps.push({
+      ev,
+      b1: JSON.parse(JSON.stringify(b[1])),
+      b2: JSON.parse(JSON.stringify(b[2])),
+      highlight: (ev.kind==='deploy' && lastDeploy) ? {...lastDeploy} : null
+    });
+    if (ev.kind !== 'deploy') lastDeploy = null;
+  }
+  return steps;
+}
+
+const STEPS = buildSteps();
+let SI = 0;
+
+function goTo(i) {
+  SI = Math.max(0, Math.min(STEPS.length-1, i));
+  renderStep();
+}
+
+function jumpTo(kind) {
+  for (let i=SI+1; i<STEPS.length; i++) {
+    if (STEPS[i].ev.kind===kind) { goTo(i); return; }
+  }
+  // wrap around
+  for (let i=0; i<SI; i++) {
+    if (STEPS[i].ev.kind===kind) { goTo(i); return; }
+  }
+}
+
+function renderStep() {
+  if (!STEPS.length) return;
+  const s = STEPS[SI];
+  renderBoard('board1', s.b1, 1, s.highlight);
+  renderBoard('board2', s.b2, 2, s.highlight);
+  document.getElementById('step-event').innerHTML = describeStep(s);
+  document.getElementById('step-counter').textContent = (SI+1)+' / '+STEPS.length;
+  const pct = ((SI+1)/STEPS.length*100).toFixed(1)+'%';
+  document.getElementById('step-prog-bar').style.width = pct;
+  document.getElementById('btn-prev').disabled = (SI===0);
+  document.getElementById('btn-next').disabled = (SI===STEPS.length-1);
+  renderHistory();
+  // Scroll current chip into view
+  setTimeout(()=>{
+    const chip = document.querySelector('.chip.active');
+    if (chip) chip.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }, 50);
+}
+
+function setDots(n) {
+  let s = '';
+  for (let i=0;i<2;i++) s += '<span class="set-dot '+(i<n?'filled':'empty')+'">●</span>';
+  return s;
+}
+
+function renderBoard(id, b, pnum, highlight) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const pc = pnum===1 ? 'p1c' : 'p2c';
+  const col = pnum===1 ? 'var(--p1)' : 'var(--p2)';
+  const name = pnum===1 ? P1NAME : P2NAME;
+
+  const zrow = (lbl, card, zone) => {
+    const isHl = highlight && highlight.player===pnum && highlight.zone===zone && highlight.card===card;
+    const cls = card ? (isHl ? 'sz-val sz-highlight' : 'sz-val') : 'sz-val empty';
+    return '<div class="sz"><span class="sz-lbl">'+lbl+'</span>'
+         + '<span class="'+cls+'">'+(card||'—')+'</span></div>';
+  };
+
+  const blocks = (b.blocks||[]).filter(Boolean);
+  const blkHl = highlight && highlight.player===pnum && highlight.zone==='block';
+  const blkCls = blkHl ? 'sz-val sz-highlight' : (blocks.length ? 'sz-val' : 'sz-val empty');
+  const blkTxt = blocks.length ? blocks.join(' / ') : '—';
+
+  el.innerHTML =
+    '<div class="board-hdr"><span class="'+pc+'">'+name+'</span>'
+    + '<span>'+setDots(b.set_cards||0)+'</span></div>'
+    + zrow('発球',b.serve,'serve')
+    + zrow('接球',b.receive,'receive')
+    + zrow('舉球',b.toss,'toss')
+    + zrow('攻擊',b.attack,'attack')
+    + '<div class="sz"><span class="sz-lbl">攔網</span><span class="'+blkCls+'">'+blkTxt+'</span></div>'
+    + '<div class="sz-stats">'
+    + '<span>手:'+b.hand_count+'</span>'
+    + '<span>庫:'+b.pile_count+'</span>'
+    + '<span>棄:'+b.grave_count+'</span>'
+    + '<span style="color:'+col+'">局'+b.set_score+'</span>'
+    + '</div>';
+}
+
+const PHASE_ZH = {serve:'⬆ 發球',block:'🤜 攔網',receive:'🖐 接球',
+                  toss:'🏐 舉球',attack:'💥 攻擊',start:'▶ START'};
+const ZONE_ZH  = {serve:'発球區',block:'攔網區',receive:'接球區',toss:'舉球區',attack:'攻擊區'};
+
+function describeStep(s) {
+  const ev = s.ev;
+  const d  = ev.data || {};
+  const pn = ev.player;
+  const pc = pn===1 ? 'p1c' : 'p2c';
+
+  switch(ev.kind) {
+    case 'game_start':
+      return '<div class="ev-title">🏐 遊戲開始</div>'
+           + '<div class="ev-sub"><span class="p1c">P1 '+d.p1+'</span> vs <span class="p2c">P2 '+d.p2+'</span></div>';
+
+    case 'phase': {
+      const ph = PHASE_ZH[d.phase]||d.phase;
+      return '<div class="ev-title"><span class="'+pc+'">'+ph+' 階段</span></div>'
+           + '<div class="ev-sub">P'+pn+' ('+P1NAME+P2NAME.slice(-2)+') 行動</div>';
+    }
+
+    case 'draw':
+      return '<div class="ev-title">🃏 <span class="'+pc+'">P'+pn+'</span> 從牌庫抽牌</div>'
+           + '<div class="ev-card">'+d.card_name+'</div>'
+           + '<div class="ev-stat dim">'+d.card_no+'</div>';
+
+    case 'deploy': {
+      const stats = d.stats||{};
+      const sp = Object.entries(stats).filter(([k,v])=>v!==null&&v!==undefined)
+                       .map(([k,v])=>k.toUpperCase()+'=<b>'+v+'</b>').join('  ');
+      const zn = ZONE_ZH[d.zone]||d.zone;
+      return '<div class="ev-title">▶ <span class="'+pc+'">P'+pn+'</span> 出場角色</div>'
+           + '<div class="ev-card">'+d.card_name+'</div>'
+           + (sp?'<div class="ev-stat">'+sp+'</div>':'')
+           + '<div class="ev-sub">→ <b>'+zn+'</b></div>';
+    }
+
+    case 'judge': {
+      const ok = !d.lost;
+      const c  = ok ? 'var(--ok)' : 'var(--err)';
+      const ic = ok ? '✅' : '❌';
+      const phZh = {block:'攔網',receive:'接球',attack:'攻擊',serve:'發球',toss:'舉球'}[d.phase]||d.phase;
+      return '<div class="ev-title" style="color:'+c+'">'+ic+' '+phZh+'判定</div>'
+           + '<div class="ev-judge">DP = '+d.dp+'  vs  OP = '+d.op+'</div>'
+           + '<div class="ev-sub" style="color:'+c+'">'+(ok?'防守成功！':'LOST 宣告！')+'</div>';
+    }
+
+    case 'action': {
+      const ah = {attack:'💥 攻擊',serve:'⬆ 發球',receive:'🖐 接球',block:'🤜 攔網'}[d.action]||d.action;
+      const win = d.p1_score>d.p2_score?'P1':d.p2_score>d.p1_score?'P2':'平局';
+      const wc  = d.p1_score>d.p2_score?'var(--p1)':d.p2_score>d.p1_score?'var(--p2)':'var(--hl)';
+      return '<div class="ev-title">'+ah+' 結算</div>'
+           + '<div class="ev-judge"><span class="p1c">P1: '+d.p1_score+'</span>'
+           +   '  vs  <span class="p2c">P2: '+d.p2_score+'</span></div>'
+           + '<div class="ev-sub">→ <span style="color:'+wc+'">'+win+'</span>'
+           + (d.notes ? '  <span class="dim">('+d.notes+')</span>' : '')+'</div>';
+    }
+
+    case 'lost': {
+      const c   = d.set_cards===0 ? 'var(--err)' : (pn===1?'var(--p1)':'var(--p2)');
+      const msg = d.set_cards===0 ? '☠ P'+pn+' 敗北！SET ZONE 已耗盡'
+                                  : '● P'+pn+' LOST（SET ZONE 剩 '+d.set_cards+' 枚）';
+      return '<div class="ev-title" style="color:'+c+'">'+msg+'</div>';
+    }
+
+    case 'interval':
+      return '<div class="ev-title">🔄 INTERVAL</div>'
+           + '<div class="ev-sub"><span class="'+pc+'">P'+pn+'</span> 獲得發球權'
+           + '　局分 <span class="hl">'+d.p1_sets+'–'+d.p2_sets+'</span></div>';
+
+    case 'set_result': {
+      const wpc = d.winner===1?'p1c':'p2c';
+      return '<div class="ev-title">🌟 <span class="'+wpc+'">P'+d.winner+'</span> 得分！</div>'
+           + '<div class="ev-judge hl">'+d.p1_sets+' – '+d.p2_sets+'</div>';
+    }
+
+    case 'game_end': {
+      const wpc = d.winner===1?'p1c':'p2c';
+      return '<div class="ev-title">🏆 遊戲結束！<span class="'+wpc+'">P'+d.winner+' 獲勝</span></div>'
+           + '<div class="ev-judge hl">'+d.p1_sets+' – '+d.p2_sets+'</div>'
+           + '<div class="ev-sub dim">共 '+d.total_turns+' 回合</div>';
+    }
+
+    default:
+      return '<div class="ev-sub dim">'+ev.kind+': '+JSON.stringify(d).slice(0,80)+'</div>';
+  }
+}
+
+const CHIP_ICON = {
+  game_start:'🏐',phase:'◉',draw:'🃏',deploy:'▶',judge:'⚖',
+  action:'⚡',lost:'💀',interval:'🔄',set_result:'🌟',game_end:'🏆'
+};
+
+function renderHistory() {
+  const hist = document.getElementById('step-history');
+  hist.innerHTML = STEPS.map((s,i) => {
+    const k  = s.ev.kind;
+    const ic = CHIP_ICON[k]||'·';
+    const pn = s.ev.player;
+    const pc = pn===1?'cp1':pn===2?'cp2':'';
+    const ac = i===SI ? ' active' : '';
+    const ph = k==='phase' ? ' title="'+s.ev.data.phase+'"' : '';
+    return '<div class="chip'+ac+' '+pc+'"'+ph+' onclick="goTo('+i+')">'+ic+'</div>';
+  }).join('');
+}
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (document.getElementById('step-view').style.display==='none') return;
+  if (e.target.tagName==='INPUT'||e.target.tagName==='BUTTON') return;
+  if (e.key==='ArrowRight'||e.key===' ') { e.preventDefault(); goTo(SI+1); }
+  else if (e.key==='ArrowLeft') { e.preventDefault(); goTo(SI-1); }
+  else if (e.key==='l'||e.key==='L') jumpTo('lost');
+  else if (e.key==='s'||e.key==='S') jumpTo('set_result');
+  else if (e.key==='End') goTo(STEPS.length-1);
+  else if (e.key==='Home') goTo(0);
+});
+
+// ─────────────────────────────────────────────────────
+// ══ LOG VIEW ══
+// ─────────────────────────────────────────────────────
+function pc(n) { return n===1?'p1c':'p2c'; }
+
+function renderEv(ev) {
+  const d = ev.data||{};
+  const pc_ = pc(ev.player);
+  let cls = ev.kind, inner = '';
+
+  if (ev.kind==='game_start') {
+    inner='🏐 遊戲開始 <span class="p1c">P1 '+d.p1+'</span> vs <span class="p2c">P2 '+d.p2+'</span>';
+  } else if (ev.kind==='phase') {
+    const phZ=(PHASE_ZH[d.phase]||d.phase);
+    inner='<span class="'+pc_+'">〔'+phZ+' 階段〕</span>';
+  } else if (ev.kind==='judge') {
+    const res=d.lost?'<span style="color:var(--err)">✗ LOST</span>':'<span style="color:var(--ok)">✓ 成功</span>';
+    inner='判定 DP='+d.dp+' vs OP='+d.op+'  '+res;
+  } else if (ev.kind==='lost') {
+    if (d.set_cards===0) inner='<b style="color:var(--err)">☠ P'+ev.player+' LOST — 敗北！</b>';
+    else inner='<span class="'+pc_+'">● P'+ev.player+' LOST（SET ZONE 剩 '+d.set_cards+' 枚）</span>';
+  } else if (ev.kind==='interval') {
+    inner='<span class="'+pc_+'">── INTERVAL  局分 '+d.p1_sets+'–'+d.p2_sets+' ──</span>';
+  } else if (ev.kind==='deploy') {
+    const sp=d.stats?Object.entries(d.stats).filter(([k,v])=>v).map(([k,v])=>k.toUpperCase()+':'+v).join(' '):'';
+    inner='<span class="'+pc_+'">▶ 出場</span> <b>'+d.card_name+'</b> → '+d.zone+(sp?' <span class="dim">['+sp+']</span>':'');
+  } else if (ev.kind==='action') {
+    const ah={attack:'攻擊',serve:'發球',receive:'接球',block:'攔網'}[d.action]||d.action;
+    inner='⚡ '+ah+' — <span class="p1c">P1:'+d.p1_score+'</span> vs <span class="p2c">P2:'+d.p2_score+'</span>'
+         +(d.notes?' <span class="dim">'+d.notes+'</span>':'');
+  } else if (ev.kind==='set_result') {
+    document.getElementById('final-score').textContent=d.p1_sets+'–'+d.p2_sets;
+    inner='★ P'+d.winner+' 得分！局分 '+d.p1_sets+'–'+d.p2_sets+' ★';
+  } else if (ev.kind==='board_snapshot') {
+    inner='<span class="'+pc_+' dim">場地 P'+ev.player+'</span> 手:'+d.hand_count+' 庫:'+d.pile_count+' 棄:'+d.grave_count;
+  } else if (ev.kind==='draw') {
+    inner='<span class="'+pc_+' dim">抽牌</span> '+d.card_name;
+  } else if (ev.kind==='game_end') {
+    document.getElementById('final-score').textContent=d.p1_sets+'–'+d.p2_sets;
+    inner='🏆 P'+d.winner+' 獲勝　'+d.p1_sets+'–'+d.p2_sets+'　共'+d.total_turns+'回合';
+  } else {
+    inner=ev.kind+': '+JSON.stringify(d).slice(0,60);
+  }
+  return '<div class="ev '+cls+'" data-kind="'+ev.kind+'"><span class="ts">'+ev.ts+'</span>'+inner+'</div>';
+}
+
+let _filter='all';
+function filterEvs(kind) {
+  _filter=kind;
+  document.querySelectorAll('.filter-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent===kind||(kind==='all'&&b.textContent==='全部'));
+  });
+  document.querySelectorAll('#events .ev').forEach(e=>{
+    e.style.display=(kind==='all'||e.dataset.kind===kind)?'':'none';
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────
+function init() {
+  // Render log view
+  document.getElementById('events').innerHTML = RAW.map(renderEv).join('');
+  // Start in step mode at step 0
+  setMode('step');
+  goTo(0);
+}
+
+init();
+</script>
+</body>
+</html>
