@@ -384,15 +384,24 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
   }
 
   function _findStepWithBothCards(cardNos) {
-    // 從 _currentStep 往後掃，找第一個所有 cardNos 同時在場的 step（AND 條件）
-    for (let i = _currentStep; i < _steps.length; i++) {
+    // 先往後（currentStep → end），再往前（currentStep-1 → 0）
+    // 優先找「接下來」的命中，其次找「之前」的命中（最近原則）
+    const checkStep = (i) => {
       const step = _steps[i];
-      if (!step || !step.state) continue;
+      if (!step || !step.state) return false;
       const state = step.state;
-      const allFound = cardNos.every(cno =>
+      return cardNos.every(cno =>
         _zoneHasCard(state.p1, cno) || _zoneHasCard(state.p2, cno)
       );
-      if (allFound) return i;
+    };
+
+    // 往後掃（含 currentStep）
+    for (let i = _currentStep; i < _steps.length; i++) {
+      if (checkStep(i)) return i;
+    }
+    // 往前掃（currentStep-1 → 0）
+    for (let i = _currentStep - 1; i >= 0; i--) {
+      if (checkStep(i)) return i;
     }
     return -1;
   }

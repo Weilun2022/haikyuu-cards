@@ -418,9 +418,10 @@ canvas#arena-wr-chart {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .08em;
-  background: var(--arena-data-hot);
+  background: #b36e00;
   color: #fff;
   display: none;
+  cursor: default;
 }
 
 .arena-follow-btn {
@@ -490,6 +491,29 @@ canvas#arena-wr-chart {
 .arena-combo-item.active {
   border-color: var(--arena-data-hot);
   background: rgba(255, 45, 120, 0.1);
+}
+
+/* Toast 提示 */
+.arena-toast {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(30,30,60,0.95);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 11px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 999;
+  white-space: nowrap;
+}
+.arena-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 </style>
 </head>
@@ -574,8 +598,8 @@ canvas#arena-wr-chart {
     <!-- 下：Replay Panel -->
     <div class="arena-replay-panel">
       <div class="arena-replay-toolbar">
-        <span class="arena-live-badge" id="arena-live-badge">LIVE</span>
-        <span class="arena-review-badge" id="arena-review-badge">REVIEW</span>
+        <span class="arena-live-badge" id="arena-live-badge" title="自動跟隨最新精選對局">LIVE</span>
+        <span class="arena-review-badge" id="arena-review-badge" title="已鎖定此局 — 點「跟隨最新」可回到 LIVE">🔒 REVIEW</span>
         <button class="arena-follow-btn" id="arena-follow-btn" onclick="arenaUnlockReplay()">▶ 跟隨最新</button>
         <span class="arena-replay-label" style="flex:1;">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代</span>
         <select class="arena-replay-picker" id="arena-replay-picker" onchange="arenaPickerChange(this.value)"></select>
@@ -610,6 +634,16 @@ let arenaViewer = null;
 let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 SSE 自動覆蓋
 let _replayLoadToken = 0;       // race condition 防護：每次新 load 遞增
 let _activeComboItem = null;    // 當前高亮的 combo DOM element
+let _toastTimer = null;
+
+function arenaShowToast(msg, durationMs = 2500) {
+  const el = document.getElementById('arena-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), durationMs);
+}
 
 function arenaUpdateReplayState() {
   const liveBadge = document.getElementById('arena-live-badge');
@@ -633,6 +667,22 @@ function arenaUnlockReplay() {
   if (_activeComboItem) { _activeComboItem.classList.remove('active'); _activeComboItem = null; }
   if (arenaViewer) arenaViewer.clearHighlight();
   arenaUpdateReplayState();
+}
+
+function arenaShowOnboarding() {
+  const mount = document.getElementById('arena-replay-root');
+  if (mount && !arenaViewer) mount.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text-dim);text-align:center;padding:20px;">
+      <div style="font-size:28px;">⚡</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);">開始牌組進化</div>
+      <div style="font-size:11px;line-height:1.8;">
+        ① 左欄選擇<span style="color:var(--accent)">種子牌組</span>與 Meta 對手<br>
+        ② 調整族群規模與代數<br>
+        ③ 按下 <span style="color:var(--accent);font-weight:700;">⚡ START</span> 開始進化
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:8px;">精選對局 Replay 將自動出現在此區域</div>
+    </div>
+  `;
 }
 
 function arenaSetReplayLoading() {
@@ -663,6 +713,9 @@ async function arenaLoadReplayById(replayId, { respectUserLock = false } = {}) {
     const mount = document.getElementById('arena-replay-root');
     if (arenaViewer) {
       arenaViewer.loadReplay(evData.events, evData.meta);
+      // 同步 picker selected 值
+      const picker = document.getElementById('arena-replay-picker');
+      if (picker && replayId) picker.value = replayId;
     } else if (mount) {
       arenaViewer = createReplayViewer({
         mount,
@@ -675,6 +728,9 @@ async function arenaLoadReplayById(replayId, { respectUserLock = false } = {}) {
           }
         }
       });
+      // 同步 picker selected 值
+      const picker = document.getElementById('arena-replay-picker');
+      if (picker && replayId) picker.value = replayId;
     }
   } catch (e) {
     if (token !== _replayLoadToken) return;
@@ -895,6 +951,7 @@ function arenaComboClick(el) {
   // 進入 REVIEW 模式
   _replayUserLocked = true;
   arenaUpdateReplayState();
+  arenaShowToast('🔒 已鎖定此 Combo — 點「▶ 跟隨最新」可回到 LIVE');
   const cardA = el.dataset.cardA;
   const cardB = el.dataset.cardB;
   const cardNos = [cardA, cardB].filter(Boolean);
@@ -960,6 +1017,8 @@ async function arenaStart() {
     }
     document.getElementById('arena-btn-start').disabled = true;
     document.getElementById('arena-btn-stop').disabled = false;
+    // 關閉舊 SSE，避免舊 run 事件汙染新 run
+    if (arenaSSE) { arenaSSE.close(); arenaSSE = null; }
     arenaChartData = [];
     document.getElementById('arena-replay-gen').textContent = '—';
     _replayUserLocked = false;
@@ -967,6 +1026,8 @@ async function arenaStart() {
     _replayLoadToken = 0;
     if (_activeComboItem) { _activeComboItem.classList.remove('active'); _activeComboItem = null; }
     arenaUpdateReplayState();
+    // 開新 SSE 連線
+    arenaConnectSSE();
   } catch(e) {
     alert('連線失敗: ' + e.message);
   }
@@ -988,6 +1049,7 @@ async function arenaStop() {
 window.addEventListener('load', () => {
   arenaDrawChart();
   arenaConnectSSE();
+  arenaShowOnboarding();  // 顯示引導步驟直到第一個 replay 載入
 });
 </script>
 
@@ -997,6 +1059,8 @@ window.addEventListener('load', () => {
 <a href="/evo_dashboard.html"
    style="position:fixed;bottom:6px;right:10px;font-size:10px;color:var(--text-dim);opacity:.4;text-decoration:none;"
    title="舊版除錯面板">Legacy Debug</a>
+
+<div class="arena-toast" id="arena-toast"></div>
 
 </body>
 </html>
