@@ -647,6 +647,31 @@ canvas#arena-wr-chart {
   .best-deck-card.has-delta { animation: none; }
   .best-deck-score-fill { transition: none; }
 }
+
+/* ── Bug③ 修正：右側三段各自 flex，不讓任何一段擠壓其他 ── */
+.arena-right {
+  overflow: hidden;
+  gap: 8px;
+}
+section.best-deck-panel {
+  flex: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+.best-deck-header { flex-shrink: 0; }
+.best-deck-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.best-deck-total { flex-shrink: 0; }
+.arena-right .arena-analytics-section:not(.best-deck-panel) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
 </style>
 </head>
 <body>
@@ -1224,7 +1249,7 @@ function arenaHandleUpdate(data) {
       return;
     }
 
-    if (label) label.textContent = '第 ' + gen + ' 代';
+    if (label) label.textContent = gen;
     arenaSetReplayLoading();
     await arenaLoadReplayById(replayId, { respectUserLock: true });
     arenaRefreshPicker();  // 更新下拉選單（非同步，不 await）
@@ -1256,7 +1281,7 @@ function arenaRenderCombos(combos) {
 }
 
 // ── Combo 高亮點擊 ───────────────────────────────────────────────────────────────
-function arenaComboClick(el) {
+async function arenaComboClick(el) {
   if (!arenaViewer) return;
   // 取消前一個高亮
   if (_activeComboItem) _activeComboItem.classList.remove('active');
@@ -1269,19 +1294,36 @@ function arenaComboClick(el) {
   const cardA = el.dataset.cardA;
   const cardB = el.dataset.cardB;
   const cardNos = [cardA, cardB].filter(Boolean);
-  if (cardNos.length > 0) {
-    let result = arenaViewer.highlightCards(cardNos);
-    if (result && result.missing && result.missing.length > 0) {
-      // 有卡不在目前步驟，嘗試正掃找兩卡同時在場的最早 step
-      if (arenaViewer.seekToCards) {
-        const found = arenaViewer.seekToCards(cardNos);
-        if (found) {
-          result = arenaViewer.highlightCards(cardNos);
+  if (cardNos.length === 0) return;
+
+  // 先在目前 replay 搜尋兩卡同時在場的步驟
+  const _tryHighlight = () => {
+    if (arenaViewer.seekToCards) arenaViewer.seekToCards(cardNos);
+    return arenaViewer.highlightCards(cardNos);
+  };
+
+  let result = _tryHighlight();
+  const allFound = !result || !result.missing || result.missing.length === 0;
+  if (!allFound) {
+    // 目前 replay 找不到 → 向 server 詢問含此 Combo 的 replay
+    try {
+      arenaShowToast('🔍 搜尋含此 Combo 的 Replay…');
+      const comboData = await fetch(
+        `${ARENA_SERVER}/api/find_replay_with_combo?card_a=${encodeURIComponent(cardA)}&card_b=${encodeURIComponent(cardB)}`
+      ).then(r => r.json());
+
+      if (comboData.replay_id) {
+        await arenaLoadReplayById(comboData.replay_id);
+        result = _tryHighlight();
+        const nowFound = !result || !result.missing || result.missing.length === 0;
+        if (!nowFound) {
+          arenaShowToast('⚠️ 已切換 Replay，但兩卡未同時在場', 3000);
         }
-        if (!found || (result && result.missing && result.missing.length > 0)) {
-          arenaShowToast('⚠️ 此局找不到此 Combo 的完整步驟，試著切換其他 Replay', 3500);
-        }
+      } else {
+        arenaShowToast('⚠️ 所有 Replay 均找不到此 Combo 同場', 3500);
       }
+    } catch (e) {
+      arenaShowToast('⚠️ 此局找不到此 Combo 的完整步驟', 3500);
     }
   }
 }

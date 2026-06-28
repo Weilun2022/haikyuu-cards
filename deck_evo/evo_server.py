@@ -148,6 +148,8 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_replay_events()
         elif path == "/api/replay_list":
             self._handle_replay_list()
+        elif path == "/api/find_replay_with_combo":
+            self._handle_find_replay_with_combo()
         elif path.startswith("/replays/"):
             fname = path[9:]
             self._serve_file(ROOT / "replays" / fname)
@@ -304,6 +306,57 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._json(data)
         except Exception as e:
             self._json({"error": str(e)}, 500)
+
+    def _handle_find_replay_with_combo(self):
+        """GET /api/find_replay_with_combo?card_a=X&card_b=Y
+        掃 replays/*.json，找到兩張牌都曾出現的最新 replay。
+        """
+        qs = parse_qs(urlparse(self.path).query)
+        card_a = qs.get("card_a", [None])[0]
+        card_b = qs.get("card_b", [None])[0]
+        if not card_a or not card_b:
+            self._json({"replay_id": None, "error": "需要 card_a 和 card_b 參數"}, 400)
+            return
+
+        replays_dir = ROOT / "replays"
+        found_replay_id = None
+
+        if replays_dir.exists():
+            json_files = sorted(
+                replays_dir.glob("visual_replay_evo_*.json"),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )
+            for jf in json_files[:60]:
+                try:
+                    data = json.loads(jf.read_text(encoding="utf-8"))
+                    events = data.get("events", [])
+                    has_a = has_b = False
+                    for event in events:
+                        ev_data = event.get("data") or {}
+                        cands = [
+                            ev_data.get("serve_no"),
+                            ev_data.get("receive_no"),
+                            ev_data.get("toss_no"),
+                            ev_data.get("attack_no"),
+                            ev_data.get("card_no"),
+                        ]
+                        for bn in (ev_data.get("block_nos") or []):
+                            cands.append(bn)
+                        for c in cands:
+                            if c == card_a:
+                                has_a = True
+                            if c == card_b:
+                                has_b = True
+                        if has_a and has_b:
+                            break
+                    if has_a and has_b:
+                        found_replay_id = data.get("replay_id", jf.stem)
+                        break
+                except Exception:
+                    pass
+
+        self._json({"replay_id": found_replay_id})
 
     def _handle_replay_list(self):
         """GET /api/replay_list?limit=<n> — 列出 visual replay JSON sidecar 的 metadata
