@@ -393,6 +393,104 @@ canvas#arena-wr-chart {
   text-align: center;
   padding: 16px 0;
 }
+
+/* ── LIVE / REVIEW 狀態機 ── */
+.arena-replay-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.arena-live-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  background: var(--arena-data-good);
+  color: #000;
+}
+
+.arena-review-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  background: var(--arena-data-hot);
+  color: #fff;
+  display: none;
+}
+
+.arena-follow-btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  background: transparent;
+  border: 1px solid var(--arena-data-good);
+  color: var(--arena-data-good);
+  border-radius: 3px;
+  cursor: pointer;
+  display: none;
+}
+
+.arena-follow-btn:hover {
+  background: rgba(0, 255, 224, 0.1);
+}
+
+.arena-replay-picker {
+  flex: 1;
+  max-width: 200px;
+  background: rgba(20, 20, 40, 0.8);
+  border: 1px solid var(--arena-panel-border);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: inherit;
+  display: none;
+}
+
+/* 載入 / 錯誤 狀態 */
+.rv-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 12px;
+  gap: 8px;
+}
+
+.rv-loading::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: rv-spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes rv-spin { to { transform: rotate(360deg); } }
+
+.rv-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--arena-data-hot);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px;
+}
+
+.arena-combo-item { cursor: pointer; }
+.arena-combo-item.active {
+  border-color: var(--arena-data-hot);
+  background: rgba(255, 45, 120, 0.1);
+}
 </style>
 </head>
 <body>
@@ -475,7 +573,13 @@ canvas#arena-wr-chart {
 
     <!-- 下：Replay Panel -->
     <div class="arena-replay-panel">
-      <div class="arena-replay-label">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代最佳對局</div>
+      <div class="arena-replay-toolbar">
+        <span class="arena-live-badge" id="arena-live-badge">LIVE</span>
+        <span class="arena-review-badge" id="arena-review-badge">REVIEW</span>
+        <button class="arena-follow-btn" id="arena-follow-btn" onclick="arenaUnlockReplay()">▶ 跟隨最新</button>
+        <span class="arena-replay-label" style="flex:1;">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代</span>
+        <select class="arena-replay-picker" id="arena-replay-picker" onchange="arenaPickerChange(this.value)"></select>
+      </div>
       <div id="arena-replay-root" style="flex:1; overflow:auto; min-height:200px;"></div>
     </div>
   </div>
@@ -504,6 +608,90 @@ let arenaSSE = null;
 const ARENA_SERVER = 'http://localhost:7778';
 let arenaViewer = null;
 let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 SSE 自動覆蓋
+let _replayLoadToken = 0;       // race condition 防護：每次新 load 遞增
+let _activeComboItem = null;    // 當前高亮的 combo DOM element
+
+function arenaUpdateReplayState() {
+  const liveBadge = document.getElementById('arena-live-badge');
+  const reviewBadge = document.getElementById('arena-review-badge');
+  const followBtn = document.getElementById('arena-follow-btn');
+  const picker = document.getElementById('arena-replay-picker');
+  if (_replayUserLocked) {
+    if (liveBadge) liveBadge.style.display = 'none';
+    if (reviewBadge) reviewBadge.style.display = '';
+    if (followBtn) followBtn.style.display = '';
+    if (picker) picker.style.display = '';
+  } else {
+    if (liveBadge) liveBadge.style.display = '';
+    if (reviewBadge) reviewBadge.style.display = 'none';
+    if (followBtn) followBtn.style.display = 'none';
+  }
+}
+
+function arenaUnlockReplay() {
+  _replayUserLocked = false;
+  if (_activeComboItem) { _activeComboItem.classList.remove('active'); _activeComboItem = null; }
+  if (arenaViewer) arenaViewer.clearHighlight();
+  arenaUpdateReplayState();
+}
+
+function arenaSetReplayLoading() {
+  const mount = document.getElementById('arena-replay-root');
+  if (mount && !arenaViewer) mount.innerHTML = '<div class="rv-loading">載入 Replay…</div>';
+}
+
+function arenaSetReplayError(msg) {
+  const mount = document.getElementById('arena-replay-root');
+  if (mount && !arenaViewer) mount.innerHTML = `<div class="rv-error">${msg}</div>`;
+}
+
+async function arenaPickerChange(replayId) {
+  if (!replayId) return;
+  _replayUserLocked = true;
+  arenaUpdateReplayState();
+  await arenaLoadReplayById(replayId);
+}
+
+async function arenaLoadReplayById(replayId) {
+  const token = ++_replayLoadToken;
+  try {
+    const evData = await fetch(ARENA_SERVER + '/api/replay_events?replay_id=' + replayId).then(r => r.json());
+    if (token !== _replayLoadToken) return;  // 被更新的請求搶先
+    if (evData.error) { arenaSetReplayError('Replay 不存在'); return; }
+    if (!evData.events || evData.events.length === 0) { arenaSetReplayError('Replay 無事件資料'); return; }
+    const mount = document.getElementById('arena-replay-root');
+    if (arenaViewer) {
+      arenaViewer.loadReplay(evData.events, evData.meta);
+    } else if (mount) {
+      arenaViewer = createReplayViewer({
+        mount,
+        events: evData.events,
+        meta: evData.meta || {},
+        options: {
+          onUserIntent: (reason) => {
+            _replayUserLocked = true;
+            arenaUpdateReplayState();
+          }
+        }
+      });
+    }
+  } catch (e) {
+    if (token !== _replayLoadToken) return;
+    arenaSetReplayError('載入失敗: ' + e.message);
+  }
+}
+
+async function arenaRefreshPicker() {
+  try {
+    const data = await fetch(ARENA_SERVER + '/api/replay_list?limit=30').then(r => r.json());
+    const picker = document.getElementById('arena-replay-picker');
+    if (!picker || !data.items) return;
+    picker.innerHTML = data.items.map(item => {
+      const label = `G${item.d1_name || '?'} ${item.p1_sets}:${item.p2_sets} (${item.steps}步)`;
+      return `<option value="${item.replay_id}">${label}</option>`;
+    }).join('');
+  } catch (e) {}
+}
 
 // ── Range Slider 更新 ──────────────────────────────────────────────────────────
 document.querySelectorAll('.arena-left input[type=range]').forEach(el => {
@@ -636,27 +824,23 @@ function arenaHandleUpdate(data) {
     arenaRenderTopCards(data.analytics.top_cards || []);
   }
 
-  // 更新 Replay（Phase 3：用 createReplayViewer 取代 iframe）
+  // 更新 Replay（Phase 4：LIVE/REVIEW 狀態機 + SSE dedup 防護）
   (async () => {
-    if (_replayUserLocked) return;  // 使用者正在看，不打斷
+    if (_replayUserLocked) return;  // REVIEW 模式，不打斷
 
     const label = document.getElementById('arena-replay-gen');
 
     let replayId = null;
     if (data.latest_replay) {
-      // SSE v2：直接拿 replay_id（去掉 replays/ 前綴和 .html 副檔名）
       replayId = data.latest_replay
         .replace(/^replays\//, '')
         .replace(/\.html$/, '');
     } else {
-      // fallback：從 /api/replays_list 取最新
       const runId = data.run_id || '';
       const listUrl = ARENA_SERVER + '/api/replays_list' + (runId ? '?run_id=' + runId : '');
       try {
         const listData = await fetch(listUrl).then(r => r.json());
-        if (listData.latest) {
-          replayId = listData.latest.replace(/\.html$/, '');
-        }
+        if (listData.latest) replayId = listData.latest.replace(/\.html$/, '');
       } catch (e) {}
     }
 
@@ -665,21 +849,10 @@ function arenaHandleUpdate(data) {
       return;
     }
 
-    try {
-      const evUrl = ARENA_SERVER + '/api/replay_events?replay_id=' + replayId;
-      const evData = await fetch(evUrl).then(r => r.json());
-      if (evData.events && evData.events.length > 0) {
-        const mount = document.getElementById('arena-replay-root');
-        if (arenaViewer) {
-          arenaViewer.loadReplay(evData.events, evData.meta);
-        } else if (mount) {
-          arenaViewer = createReplayViewer({ mount, events: evData.events, meta: evData.meta || {} });
-        }
-        if (label) label.textContent = '第 ' + gen + ' 代最佳 Genome 精選展示局';
-      }
-    } catch (e) {
-      console.warn('replay load failed:', e);
-    }
+    if (label) label.textContent = '第 ' + gen + ' 代';
+    arenaSetReplayLoading();
+    await arenaLoadReplayById(replayId);
+    arenaRefreshPicker();  // 更新下拉選單（非同步，不 await）
   })();
 }
 
@@ -690,19 +863,43 @@ function arenaRenderCombos(combos) {
     list.innerHTML = '<div class="arena-empty-msg">累積資料中…</div>';
     return;
   }
-  list.innerHTML = combos.slice(0, 8).map(c => {
+  list.innerHTML = combos.slice(0, 8).map((c, idx) => {
     const comboLabel = c.display_name
       || (c.name_a && c.name_b ? c.name_a + ' × ' + c.name_b : null)
       || (c.names && c.names.length >= 2 ? c.names.join(' × ') : null)
       || (c.cards || []).join(' / ');
+    const cardA = c.card_a || (c.cards && c.cards[0]) || '';
+    const cardB = c.card_b || (c.cards && c.cards[1]) || '';
     return `
-    <div class="arena-combo-item">
+    <div class="arena-combo-item" data-card-a="${cardA}" data-card-b="${cardB}" data-idx="${idx}" onclick="arenaComboClick(this)">
       <div class="arena-combo-wr">${(c.combo_win_rate * 100).toFixed(1)}%</div>
       <div class="arena-combo-cards">${comboLabel}</div>
       <div class="arena-combo-meta">共現 ${c.appearances} 次</div>
     </div>
   `;
   }).join('');
+}
+
+// ── Combo 高亮點擊 ───────────────────────────────────────────────────────────────
+function arenaComboClick(el) {
+  if (!arenaViewer) return;
+  // 取消前一個高亮
+  if (_activeComboItem) _activeComboItem.classList.remove('active');
+  _activeComboItem = el;
+  el.classList.add('active');
+  // 進入 REVIEW 模式
+  _replayUserLocked = true;
+  arenaUpdateReplayState();
+  const cardA = el.dataset.cardA;
+  const cardB = el.dataset.cardB;
+  const cardNos = [cardA, cardB].filter(Boolean);
+  if (cardNos.length > 0) {
+    const result = arenaViewer.highlightCards(cardNos);
+    if (result && result.missing && result.missing.length > 0) {
+      // 卡片在當前步驟不可見，跳到包含這些卡的步驟（未來 enhancement）
+      console.info('[arena] combo cards not visible at current step:', result.missing);
+    }
+  }
 }
 
 // ── Top Cards 渲染 ─────────────────────────────────────────────────────────────
@@ -754,6 +951,9 @@ async function arenaStart() {
     document.getElementById('arena-replay-gen').textContent = '—';
     _replayUserLocked = false;
     if (arenaViewer) { arenaViewer.destroy(); arenaViewer = null; }
+    _replayLoadToken = 0;
+    if (_activeComboItem) { _activeComboItem.classList.remove('active'); _activeComboItem = null; }
+    arenaUpdateReplayState();
   } catch(e) {
     alert('連線失敗: ' + e.message);
   }

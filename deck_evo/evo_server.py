@@ -146,6 +146,8 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_config()
         elif path == "/api/replay_events":
             self._handle_replay_events()
+        elif path == "/api/replay_list":
+            self._handle_replay_list()
         elif path.startswith("/replays/"):
             fname = path[9:]
             self._serve_file(ROOT / "replays" / fname)
@@ -294,6 +296,46 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._json(data)
         except Exception as e:
             self._json({"error": str(e)}, 500)
+
+    def _handle_replay_list(self):
+        """GET /api/replay_list?limit=<n> — 列出 visual replay JSON sidecar 的 metadata
+        掃 replays/ 目錄的 visual_replay_evo_*.json，依 mtime desc 排序。
+        單筆 parse 失敗略過，不讓整支 API 500。
+        """
+        qs = parse_qs(urlparse(self.path).query)
+        limit = int(qs.get("limit", [30])[0])
+        limit = max(1, min(limit, 200))
+
+        replays_dir = ROOT / "replays"
+        items = []
+
+        if replays_dir.exists():
+            json_files = sorted(
+                replays_dir.glob("visual_replay_evo_*.json"),
+                key=lambda f: f.stat().st_mtime,
+                reverse=True,
+            )[:limit]
+
+            for jf in json_files:
+                try:
+                    d = json.loads(jf.read_text(encoding="utf-8"))
+                    meta = d.get("meta", {})
+                    events = d.get("events", [])
+                    items.append({
+                        "replay_id": d.get("replay_id", jf.stem),
+                        "mtime": jf.stat().st_mtime,
+                        "p1_name": meta.get("p1_name", "P1"),
+                        "p2_name": meta.get("p2_name", "P2"),
+                        "d1_name": meta.get("d1_name", ""),
+                        "d2_name": meta.get("d2_name", ""),
+                        "p1_sets": meta.get("p1_sets", 0),
+                        "p2_sets": meta.get("p2_sets", 0),
+                        "steps": len(events),
+                    })
+                except Exception:
+                    pass  # 單筆失敗略過
+
+        self._json({"items": items, "total": len(items)})
 
     def _status_dict(self) -> dict:
         return {

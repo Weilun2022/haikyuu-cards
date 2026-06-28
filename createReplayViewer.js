@@ -12,12 +12,16 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
   let _timer = null;
   let _highlightedCards = new Set();
   let _meta = meta;
+  let _cardIndex = new Map();  // card_no → Set<HTMLElement>
 
   const DEFAULT_OPTIONS = {
     autoplay: false,
     showControls: true,
   };
   const _opts = { ...DEFAULT_OPTIONS, ...options };
+
+  // ============ 用户意图回调 ============
+  const _onUserIntent = typeof _opts.onUserIntent === 'function' ? _opts.onUserIntent : null;
 
   // ============ 事件類型中文對應 ============
   const EVENT_ZH = {
@@ -241,10 +245,22 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     const btnNext = mount.querySelector('.rv-next');
     const seekBar = mount.querySelector('.rv-seek');
 
-    btnPrev.addEventListener('click', () => seek(Math.max(0, _currentStep - 1)));
-    btnPlay.addEventListener('click', () => (_isPlaying ? pause() : play()));
-    btnNext.addEventListener('click', () => seek(Math.min(_steps.length - 1, _currentStep + 1)));
-    seekBar.addEventListener('input', (e) => seek(parseInt(e.target.value)));
+    btnPrev.addEventListener('click', () => {
+      if (_onUserIntent) _onUserIntent('seek-prev');
+      seek(Math.max(0, _currentStep - 1));
+    });
+    btnPlay.addEventListener('click', () => {
+      if (_onUserIntent) _onUserIntent('toggle-play');
+      _isPlaying ? pause() : play();
+    });
+    btnNext.addEventListener('click', () => {
+      if (_onUserIntent) _onUserIntent('seek-next');
+      seek(Math.min(_steps.length - 1, _currentStep + 1));
+    });
+    seekBar.addEventListener('input', (e) => {
+      if (_onUserIntent) _onUserIntent('seek-drag');
+      seek(parseInt(e.target.value));
+    });
   }
 
   // ============ 私有方法 ============
@@ -284,6 +300,15 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
 
     // 更新控制列
     _updateHeader();
+
+    // 重建 card index（card_no → DOM elements）
+    _cardIndex = new Map();
+    mount.querySelectorAll('.rv-zone[data-card-no]').forEach(el => {
+      const cno = el.dataset.cardNo;
+      if (!cno) return;
+      if (!_cardIndex.has(cno)) _cardIndex.set(cno, new Set());
+      _cardIndex.get(cno).add(el);
+    });
   }
 
   function _renderPlayer(playerKey, state) {
@@ -315,6 +340,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         const slots = Array.isArray(zoneData) ? zoneData : [];
         const firstCard = slots.find(s => s && s.img);
         if (firstCard) {
+          zoneEl.dataset.cardNo = firstCard.card_no || '';
           const img = document.createElement('img');
           img.src = `images/${firstCard.img}`;
           img.alt = `${playerKey} block`;
@@ -323,6 +349,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
       } else {
         // 單 slot zone：null 或 {img, guts}
         if (zoneData && zoneData.img) {
+          zoneEl.dataset.cardNo = zoneData.card_no || '';
           const img = document.createElement('img');
           img.src = `images/${zoneData.img}`;
           img.alt = `${playerKey} ${zoneName}`;
@@ -351,6 +378,11 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
       console.warn('createReplayViewer: newEvents is empty');
       return;
     }
+    // 清理舊狀態（idempotent）
+    pause();
+    _cardIndex = new Map();
+    mount.querySelectorAll('.rv-zone.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
+    _highlightedCards = new Set();
     _steps = buildSteps(newEvents);
     _meta = newMeta || _meta;
     _currentStep = -1;
@@ -391,7 +423,21 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
 
   function highlightCards(cardNos) {
     _highlightedCards = new Set(cardNos);
-    _renderStep(_currentStep);
+    mount.querySelectorAll('.rv-zone.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
+    const found = [], missing = [];
+    for (const cno of cardNos) {
+      const els = _cardIndex.get(cno);
+      if (els && els.size > 0) {
+        els.forEach(el => el.classList.add('rv-highlight'));
+        found.push(cno);
+      } else {
+        missing.push(cno);
+      }
+    }
+    if (missing.length > 0) {
+      console.warn('[createReplayViewer] highlightCards: 部分 combo 卡片目前步驟不可見', missing);
+    }
+    return { found, missing };
   }
 
   function clearHighlight() {

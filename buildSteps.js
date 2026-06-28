@@ -22,8 +22,9 @@ function buildSteps(events) {
   const buildCardData = (card_no, guts_nos = []) => {
     if (!card_no) return null;
     return {
+      card_no: card_no,
       img: card_no + '.jpg',
-      guts: guts_nos.map(n => n + '.jpg')
+      guts: guts_nos.map(n => ({ card_no: n, img: n + '.jpg' }))
     };
   };
 
@@ -64,6 +65,7 @@ function buildSteps(events) {
             if (blockIdx === -1) blockIdx = 0;
 
             playerState.zones.block[blockIdx] = {
+              card_no: card_no,
               img: card_no + '.jpg',
               guts: []
             };
@@ -78,6 +80,7 @@ function buildSteps(events) {
             }
 
             playerState.zones[zone] = {
+              card_no: card_no,
               img: card_no + '.jpg',
               guts: newGuts
             };
