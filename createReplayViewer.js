@@ -248,7 +248,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         padding: 4px;
         display: flex;
         flex-direction: row;
-        align-items: center;
+        align-items: flex-start;
         justify-content: flex-start;
         overflow: hidden;
       }
@@ -256,14 +256,11 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
       .z-hstack-card {
         position: relative;
         flex: 0 0 auto;
-        height: 100%;
-        aspect-ratio: 5 / 7;
+        /* height/width set by _layoutHstack() in JS */
         overflow: hidden;
         border-radius: 5px;
         box-shadow: 3px 4px 14px rgba(0,0,0,.85);
-        margin-left: -20%;
       }
-      .z-hstack-card:first-child { margin-left: 0; }
 
       .z-hstack-card img {
         width: 100%; height: 100%;
@@ -512,6 +509,36 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     });
   }
 
+  // 移植自 game.html layoutHstack — JS 動態計算卡牌高度與重疊量
+  function _layoutHstack(hstack) {
+    requestAnimationFrame(() => {
+      const cards = [...hstack.querySelectorAll('.z-hstack-card')];
+      if (!cards.length) return;
+      const slotH = hstack.offsetHeight;
+      if (!slotH) return;
+      const cardH = slotH - 8;
+      cards.forEach(c => {
+        c.style.height = cardH + 'px';
+        c.style.width = (cardH * 5 / 7) + 'px';
+      });
+      if (cards.length < 2) return;
+      const cardW = cards[0].offsetWidth || (cardH * 5 / 7);
+      const zoneW = hstack.offsetWidth - 8;
+      const idealOverlap = Math.floor(cardW * 0.40);
+      const totalAtIdeal = cardW + (cards.length - 1) * (cardW - idealOverlap);
+      let overlap;
+      if (totalAtIdeal <= zoneW) {
+        overlap = idealOverlap;
+      } else {
+        const minShow = Math.max(Math.floor(cardW * 0.22), 10);
+        overlap = cardW - Math.max(Math.floor((zoneW - cardW) / (cards.length - 1)), minShow);
+      }
+      cards.forEach((c, i) => {
+        c.style.marginLeft = i > 0 ? `-${Math.max(0, overlap)}px` : '0';
+      });
+    });
+  }
+
   function _renderPlayer(playerKey, state) {
     const playerEl = mount.querySelector(`#rv-${playerKey}`);
     if (!playerEl) return;
@@ -562,6 +589,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         hstack.appendChild(cardEl);
       });
       slotEl.appendChild(hstack);
+      _layoutHstack(hstack);
     };
 
     // Block slots（3 個）
