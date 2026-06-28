@@ -60,7 +60,10 @@ def _enrich_analytics(analytics: dict) -> dict:
     if "top_combos" in result:
         enriched = []
         for combo in result["top_combos"]:
-            cards = combo.get("cards", [])
+            # analytics.py 回傳 card_a/card_b key，不是 cards list
+            cards = combo.get("cards") or [
+                c for c in [combo.get("card_a"), combo.get("card_b")] if c
+            ]
             names = [_card_display_name(c) for c in cards]
             enriched.append({
                 **combo,
