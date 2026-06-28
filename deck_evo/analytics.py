@@ -65,10 +65,12 @@ class Analytics:
             ca = _get_card(a) or {}
             cb = _get_card(b) or {}
             result.append({
+                "cards": [a, b],
                 "card_a": a,
-                "name_a": ca.get("name", a),
                 "card_b": b,
+                "name_a": ca.get("name", a),
                 "name_b": cb.get("name", b),
+                "display_name": f"{ca.get('name', a)} × {cb.get('name', b)}",
                 "combo_win_rate": round(avg, 4),
                 "appearances": cnt,
             })
