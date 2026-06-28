@@ -7,10 +7,12 @@ import random
 import threading
 import time
 from typing import Callable
+from pathlib import Path
 from deck_evo.genome import DeckGenome
 from deck_evo.card_pool import mutate, crossover, is_legal
 from deck_evo import fitness as sim_agent
 from deck_evo.analytics import Analytics
+import deck_evo.replay_saver as _replay_saver
 
 # ── 預設配置 ──────────────────────────────────────────────────────────────────
 DEFAULT_CFG = {
@@ -56,6 +58,12 @@ class EvoEngine:
         # 種子牌組
         self._seed_deck = seed_deck
 
+        # replay 管理
+        _rdir = Path(__file__).parent.parent / "replays"
+        self._run_id: str = _replay_saver.init_run(_rdir)
+        self._replays_dir: Path = _rdir
+        self._latest_replay_url: str | None = None
+
     # ── 公開 API ──────────────────────────────────────────────────────────────
 
     def start(self):
@@ -93,6 +101,8 @@ class EvoEngine:
                 if self._check_convergence():
                     break
                 self._breed_next_generation()
+                # 代末為最佳 genome 產生展示用 showcase replay
+                self._save_showcase_replay()
                 self.generation += 1
         finally:
             self._running = False
@@ -164,6 +174,8 @@ class EvoEngine:
             "analytics": self.analytics.to_dict(),
             "history":     [h["best_win_rate"] for h in self.history] + [round(top.win_rate, 4)],
             "history_avg": [h["avg_win_rate"]  for h in self.history] + [avg_wr],
+            "run_id": self._run_id,
+            "latest_replay": self._latest_replay_url,
         }
 
     def _check_convergence(self) -> bool:
@@ -215,3 +227,31 @@ class EvoEngine:
             g.is_elite = False
 
         self.population = new_pop[:pop_size]
+
+    def _save_showcase_replay(self):
+        """為當代最佳 genome 產生 1 局精選展示 replay，失敗不中斷 evolution。"""
+        try:
+            from deck_evo.fitness import run_showcase_replay
+            from deck_evo.card_pool import detect_school
+            top = self.population[0]
+            meta_name, meta_deck = next(iter(self.meta_decks.items()))
+            school = detect_school(top.cards)
+            out_path = _replay_saver.showcase_path(
+                self._replays_dir, self._run_id, self.generation
+            )
+            result = run_showcase_replay(
+                genome_cards=top.cards,
+                genome_school=school,
+                meta_name=meta_name,
+                meta_deck=meta_deck,
+                output_path=str(out_path),
+                seed=self.generation * 7 + 42,
+            )
+            if result.get("saved"):
+                _replay_saver.cleanup_old_showcases(self._replays_dir)
+                self._latest_replay_url = _replay_saver.latest_showcase_url(
+                    self._replays_dir, self._run_id
+                )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"showcase replay 失敗: {e}")

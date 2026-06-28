@@ -114,3 +114,31 @@ def evaluate(
         "key_games": key_games[:3],
         "total_games": total,
     }
+
+
+def run_showcase_replay(
+    genome_cards: dict[str, int],
+    genome_school: str,
+    meta_name: str,
+    meta_deck: dict[str, int],
+    output_path: str,
+    seed: int = 42,
+) -> dict:
+    """
+    對 genome 與指定 meta 跑 1 局，將 visual_replay 存到 output_path。
+    用於 evolution 每代後的展示局，不影響計分流程。
+    回傳 {winner, turns, p1_sets, p2_sets, saved: bool}
+    """
+    load_cards()
+    try:
+        result = _run_tracked(
+            genome_cards=genome_cards,
+            genome_school=genome_school,
+            meta_deck=meta_deck,
+            meta_name=meta_name,
+            seed=seed,
+            save_replay=output_path,
+        )
+        return {**result, "saved": True}
+    except Exception as e:
+        return {"winner": -1, "turns": 0, "p1_sets": 0, "p2_sets": 0, "saved": False, "error": str(e)}
