@@ -116,7 +116,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        min-height: 0;
+        min-height: 240px;
         background-color: #040810;
         background-image:
           linear-gradient(rgba(0,120,255,.06) 1px, transparent 1px),
@@ -362,6 +362,8 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
               </div>
               <div class="court-row">
                 <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
+                <div class="zone-w" style="visibility:hidden;"></div>
+                <div class="zone-w" style="visibility:hidden;"></div>
               </div>
             </div>
             <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
@@ -382,6 +384,8 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
               </div>
               <div class="court-row">
                 <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
+                <div class="zone-w" style="visibility:hidden;"></div>
+                <div class="zone-w" style="visibility:hidden;"></div>
               </div>
             </div>
             <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
