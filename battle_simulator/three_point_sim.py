@@ -118,6 +118,12 @@ CARD = {
  # --- D03 スターター 特效カード (V7新增) ---
  "D03-001": dict(name="宮侑", cat="C", role="setter_d3"),   # D3 DP setter: 2G→TOS+1+fetch D03-013 from Event
  "D03-013": dict(name=None,  cat="E", role="tos_pump"),      # [=舉球][=攻擊] setter=侑/治→draw1+TOS+1
+ # --- 六人 deck 用 PR 卡 + P03 新卡 ---
+ "PR-034":  dict(name="宮侑", cat="C", role="setter_vanilla"),          # 宮侑P vanilla setter body (SRV3/BLK2/RCV2)
+ "P03-045": dict(name="尾白", cat="C", role="ojiro_flex", rcv=4, atk=2), # 尾白アランS: 棄1→任意+2
+ "P03-041": dict(name="宮治", cat="C", role="osamu_lowhand3", atk=2),  # 宮治S: 技能出場手牌≤3→ATK+2
+ "P03-091": dict(name=None,  cat="E", role="serve_boost"),             # [=発球][=抽牌] 宮侑→SRV=6+抽1
+ "P03-093": dict(name=None,  cat="E", role="kita_fetch"),              # [=接球] 抽1+北信介Guts回場
 }
 
 def card_name(no): return CARD[no]["name"]
@@ -287,7 +293,7 @@ def my_turn(p, t, rng, cfg):
     #     優先序 = 香草侑(同時是Guts引擎) > P02-016(setter_dp) > 宮兄弟twin。
     #   建立 setter 後若用掉 twin/016, 仍會在下方餵 Guts 補回攻擊端 body。
     if p.tos is None:
-        for _role in ("guts_engine","setter_dp","atsumu6","setter_d3"):
+        for _role in ("guts_engine","setter_dp","atsumu6","setter_d3","setter_vanilla"):
             if has(p.hand, role=_role):
                 no = take(p.hand, role=_role); p.tos = "宮侑"
                 # 覆蓋登場名字追蹤: 舊body→Guts→最終入墓, 保守登記名字
@@ -339,7 +345,7 @@ def my_turn(p, t, rng, cfg):
     #   不在我方回合主動打掉; 故從主動抽牌循環中排除 draw1_def。
     # [V5校準15] P02-088 (rev_engine) 是 [=攻擊] 事件 → 不在自由步驟打出, 而是在攻擊階段
     #   與 どんぴ/finisher 同回合觸發. 自由步驟只處理 draw2/refuel/oentai 等自由步事件。
-    proactive_draw = ["draw2","refuel","oentai"]
+    proactive_draw = ["draw2","refuel","oentai","kita_fetch","serve_boost"]
     if not (cfg and cfg.get("kurosu_reactive")):
         proactive_draw.insert(2, "draw1_def")
     for role in proactive_draw:
@@ -367,6 +373,13 @@ def my_turn(p, t, rng, cfg):
                 draw(p,1); p.rcv_body = max(p.rcv_body, 2); p.discard(no)
             elif role == "oentai":
                 draw(p,1); p.discard(no)
+            elif role == "kita_fetch":     # P03-093: [接球] 抽1, 若Guts區有北信介→rcv+1
+                draw(p, 1)
+                if any(card_name(x) == "北信介" for x in p.guts_zone):
+                    p.rcv_body += 1
+                p.discard(no)
+            elif role == "serve_boost":    # P03-091: [発球][抽牌] 抽1; 宮侑發球→SRV=6
+                draw(p, 1); p.discard(no)  # 模型中僅建模抽牌效果（無獨立發球階段）
 
     # --- 主動填墓 + 防禦: 小作(接球階段自棄 RCV+2) ---
     while has(p.hand, role="kosaku_fill"):
@@ -412,7 +425,7 @@ def my_turn(p, t, rng, cfg):
     # [V5] 新增 akagi_def(D03-011 赤木D): 0G RCV=5 或2G→RCV=7; def_body(P02-034 赤木N)=0G RCV=6
     # 名前追蹤: 部署時登記 rcv_zone_name(舊body→Guts→入墓 的保守近似)
     if p.rcv_body < 4:
-        for role in ("def_body","akagi_def","ojiro_def","filter","event_recover","body"):
+        for role in ("def_body","akagi_def","ojiro_def","filter","event_recover","body","ojiro_flex"):
             if has(p.hand, role=role):
                 no = p.hand[[CARD[x]["role"] for x in p.hand].index(role)]
                 if role == "akagi_def":
@@ -446,13 +459,17 @@ def my_turn(p, t, rng, cfg):
                     for i,gc in enumerate(p.grave_list):
                         if not is_event(gc):
                             p.hand.append(p.grave_list.pop(i)); break
+                elif role == "ojiro_flex":         # P03-045: 棄1張→接球区rcv+2
+                    if p.hand:
+                        smart_discard(p, rng)      # 棄1 Inarizaki 牌
+                    p.rcv_body = max(p.rcv_body, CARD[no].get("rcv", 0) + 2)  # 4+2=6
                 break
 
     # ============ 進攻：どんぴしゃり 迴圈 ============
     def precondition():
         # 舉球=宮侑 且 攻擊=宮治(由 Guts 區 twin/治 改名上場)
         if p.tos is None:
-            for _r in ("guts_engine","setter_dp","atsumu6","setter_d3"):
+            for _r in ("guts_engine","setter_dp","atsumu6","setter_d3","setter_vanilla"):
                 if has(p.hand, role=_r):
                     _no = take(p.hand, role=_r); p.tos = "宮侑"
                     if p.tos_zone_name: p.grave_names.add(p.tos_zone_name)
@@ -569,6 +586,12 @@ def my_turn(p, t, rng, cfg):
                     while len(p.hand) > 3:
                         smart_discard(p, rng)
                 fin = take(p.hand, role="osamu_fin")            # 0 Guts
+            elif has(p.hand, role="osamu_lowhand3"):            # P03-041 宮治S: 手牌≤3→ATK+2 (不需六種類)
+                # 出場後手牌≤3觸發+2; 出場前需手牌≤4, 否則主動棄到4
+                if len(p.hand) > 4:
+                    while len(p.hand) > 4:
+                        smart_discard(p, rng)
+                fin = take(p.hand, role="osamu_lowhand3")       # 0 Guts
             elif p.sixtype() and has(p.hand, role="osamu6"):    # PR-048 攻擊区 2G
                 if p.g_atk>=2: fin = take(p.hand, role="osamu6"); p.g_atk-=2
                 else: need_g_blocked = True
@@ -820,6 +843,27 @@ PRESETS = {
    "P02-077":3,"P02-016":4,"P02-035":2,"D03-011":2,
    "P02-018":4,"D03-005":2,"D03-002":2,"P02-022":2,
  },
+ # ===== 六人 系列 (2026-06) =====
+ # 從 URL 解碼: https://weilun2022.github.io/haikyuu-cards/?deck=N4IgdiBcKEx...
+ # 策略: 宮兄弟+宮侑R(六種類)+角名S(sune_fin)+PR-048(osamu6) 六種類路線; どんぴ×1 輔助
+ # Events(7): 087×1+085×3+089×3; 主要3分路線: 六種類→角名MB=0→宮治P ATK+3
+ "ROKUNIN": {
+   "P02-087":1, "P02-085":3, "P02-089":3,
+   "P02-077":2, "P02-024":5, "P02-034":3, "P02-032":1, "P02-035":3,
+   "PR-049":1,  "P02-017":3, "P02-027":4, "PR-034":3,
+   "PR-048":3,  "P02-029":1, "P02-033":1, "P02-022":3,
+ },  # 合計 40 張
+ # ROKUNIN_V1: DeepSeek+Claude P03 優化版 (Events上限8張)
+ # 核心調整: +P03-045×3(尾白S flexible body), +P03-041×2(宮治S low-hand finisher)
+ #           +P03-093×2(Event: 抽1+北信介Guts); -P02-089×1(→P03-093×2 swap)
+ #           -各削: P02-034/P02-022/PR-034/P02-027/P02-017/PR-048 各-1
+ "ROKUNIN_V1": {
+   "P02-087":1, "P02-085":3, "P02-089":2, "P03-093":2,
+   "P02-077":2, "P02-024":5, "P02-034":2, "P02-032":1, "P02-035":3,
+   "PR-049":1,  "P02-017":2, "P02-027":3, "PR-034":2,
+   "PR-048":2,  "P02-029":1, "P02-033":1, "P02-022":2,
+   "P03-045":3, "P03-041":2,
+ },  # 合計 40 張
 }
 
 
