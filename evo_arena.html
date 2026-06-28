@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>バボカ!! BREAK — 牌組進化競技場</title>
+<style>
+:root {
+  /* 沿用 game.html 紫色 neon + evo 資料色 */
+  --bg: #0d0d14;
+  --surface: #16161f;
+  --surface2: #1e1e2a;
+  --border: #2a2a3e;
+  --text: #e8e8f2;
+  --text-dim: #6868a0;
+  --accent: #6c63ff;       /* 紫色 neon */
+  --accent2: #ff6584;      /* 粉紅 */
+  --green: #4ade80;
+  --orange: #fb923c;
+  /* evo 資料色 */
+  --arena-data-good: #00ffe0;
+  --arena-data-hot:  #ff2d78;
+  --arena-data-warn: #ffd166;
+  --arena-panel-bg:  rgba(10,0,28,.82);
+  --arena-panel-border: rgba(180,92,255,.35);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Noto Sans TC', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── 主容器 ── */
+.arena-shell {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 300px minmax(720px, 1fr) 340px;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── 左欄：設定 ── */
+.arena-left {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.arena-header-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--arena-panel-border);
+  flex-shrink: 0;
+}
+
+.arena-status-light {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #444;
+  animation: pulse-idle 2s infinite;
+}
+.arena-status-light.running {
+  background: var(--arena-data-good);
+  animation: pulse-active 0.8s infinite;
+}
+@keyframes pulse-idle { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@keyframes pulse-active { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.arena-gen-display {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--arena-data-good);
+}
+
+.arena-wr-display {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--arena-data-hot);
+}
+
+.arena-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-dim);
+  margin: 8px 0 6px;
+  border-bottom: 1px solid var(--arena-panel-border);
+  padding-bottom: 6px;
+}
+
+.arena-config-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arena-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.arena-select, .arena-input {
+  width: 100%;
+  background: rgba(20, 20, 40, 0.8);
+  border: 1px solid var(--arena-panel-border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.arena-select:hover, .arena-input:hover,
+.arena-select:focus, .arena-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.arena-select {
+  height: 32px;
+}
+
+.arena-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arena-range-row input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.arena-range-val {
+  width: 35px;
+  text-align: right;
+  color: var(--arena-data-good);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.arena-btn {
+  width: 100%;
+  padding: 9px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .08em;
+  transition: 0.2s;
+  text-transform: uppercase;
+}
+
+.arena-btn-start {
+  background: var(--accent);
+  color: #000;
+  margin-top: 8px;
+}
+
+.arena-btn-start:hover:not(:disabled) {
+  filter: brightness(1.2);
+}
+
+.arena-btn-stop {
+  background: transparent;
+  color: var(--accent2);
+  border: 1.5px solid var(--accent2);
+  margin-top: 6px;
+}
+
+.arena-btn-stop:hover:not(:disabled) {
+  background: rgba(255, 45, 120, 0.15);
+  border-color: var(--arena-data-hot);
+}
+
+.arena-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 中欄（上下分段） ── */
+.arena-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.arena-chart-panel {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 14px;
+  flex-shrink: 0;
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.arena-chart-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.arena-chart-header h2 {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin: 0;
+}
+
+.arena-chart-gen {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--arena-data-good);
+  font-family: monospace;
+}
+
+.arena-chart-wr {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--arena-data-hot);
+  font-family: monospace;
+}
+
+.arena-chart-wr-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: -4px;
+}
+
+canvas#arena-wr-chart {
+  width: 100%;
+  flex: 1;
+  display: block;
+}
+
+.arena-replay-panel {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.arena-replay-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  text-align: center;
+}
+
+#arena-replay-frame {
+  flex: 1;
+  border: none;
+  border-radius: 6px;
+  background: #0a0a12;
+  min-height: 0;
+}
+
+/* ── 右欄：Analytics ── */
+.arena-right {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.arena-analytics-section h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--arena-panel-border);
+}
+
+.arena-combo-item {
+  background: rgba(30, 30, 50, 0.6);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 6px;
+  transition: border-color 0.2s;
+}
+
+.arena-combo-item:hover {
+  border-color: var(--accent);
+}
+
+.arena-combo-wr {
+  color: var(--arena-data-good);
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.arena-combo-cards {
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+
+.arena-combo-meta {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.arena-top-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arena-top-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px;
+  background: rgba(30, 30, 50, 0.4);
+  border-radius: 4px;
+  font-size: 11px;
+  border-left: 2px solid var(--accent);
+  transition: background 0.2s;
+}
+
+.arena-top-card-row:hover {
+  background: rgba(30, 30, 50, 0.8);
+}
+
+.arena-top-card-idx {
+  color: var(--text-dim);
+  font-weight: 700;
+  min-width: 20px;
+}
+
+.arena-top-card-name {
+  flex: 1;
+  margin: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arena-top-card-wr {
+  color: var(--arena-data-good);
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+}
+
+.arena-empty-msg {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+  padding: 16px 0;
+}
+</style>
+</head>
+<body>
+
+<div class="arena-shell">
+
+  <!-- ── 左欄：設定 ── -->
+  <aside class="arena-left">
+    <div class="arena-header-status">
+      <div>
+        <span class="arena-status-light" id="arena-status-light"></span>
+        <span id="arena-status-text" style="font-size: 11px; color: var(--text-dim); margin-left: 6px;">待機</span>
+      </div>
+      <span class="arena-gen-display" id="arena-gen-display">第 0 世代</span>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">種子牌組</label>
+      <select id="arena-seed-select" class="arena-select">
+        <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+        <option value="ROKUNIN_V1">ROKUNIN_V1（稲荷崎P03）</option>
+        <option value="STANDARD">STANDARD（烏野）</option>
+      </select>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">Meta 對手</label>
+      <select id="arena-meta-select" class="arena-select">
+        <option value="STANDARD">STANDARD（烏野）</option>
+        <option value="ROKUNIN">ROKUNIN（稲荷崎）</option>
+      </select>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">族群規模</label>
+      <div class="arena-range-row">
+        <input type="range" id="arena-cfg-pop" min="6" max="32" value="16" step="2" class="arena-input">
+        <span class="arena-range-val" id="arena-cfg-pop-val">16</span>
+      </div>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">最大世代</label>
+      <div class="arena-range-row">
+        <input type="range" id="arena-cfg-gens" min="10" max="200" value="50" step="10" class="arena-input">
+        <span class="arena-range-val" id="arena-cfg-gens-val">50</span>
+      </div>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">評估局數</label>
+      <div class="arena-range-row">
+        <input type="range" id="arena-cfg-games" min="10" max="60" value="30" step="5" class="arena-input">
+        <span class="arena-range-val" id="arena-cfg-games-val">30</span>
+      </div>
+    </div>
+
+    <div style="flex: 1;"></div>
+
+    <button id="arena-btn-start" class="arena-btn arena-btn-start" onclick="arenaStart()">⚡ START</button>
+    <button id="arena-btn-stop" class="arena-btn arena-btn-stop" onclick="arenaStop()" disabled>■ STOP</button>
+  </aside>
+
+  <!-- ── 中欄 ── -->
+  <div class="arena-main">
+    <!-- 上：Chart Panel -->
+    <div class="arena-chart-panel">
+      <div class="arena-chart-header">
+        <h2>進化進度</h2>
+        <div>
+          <div class="arena-chart-gen" id="arena-chart-gen">0</div>
+        </div>
+        <div style="margin-left: auto;">
+          <div class="arena-chart-wr" id="arena-chart-wr">—</div>
+          <div class="arena-chart-wr-label">最佳勝率</div>
+        </div>
+      </div>
+      <canvas id="arena-wr-chart"></canvas>
+    </div>
+
+    <!-- 下：Replay Panel -->
+    <div class="arena-replay-panel">
+      <div class="arena-replay-label">第 <span id="arena-replay-gen">—</span> 代最佳對局</div>
+      <iframe id="arena-replay-frame"></iframe>
+    </div>
+  </div>
+
+  <!-- ── 右欄 ── -->
+  <aside class="arena-right">
+    <!-- Combos -->
+    <div class="arena-analytics-section">
+      <h3>最強 Combo（Top 8）</h3>
+      <div id="arena-combos-list" class="arena-empty-msg">累積資料中…</div>
+    </div>
+
+    <!-- Top Cards -->
+    <div class="arena-analytics-section">
+      <h3>頂牌排行（Top 10）</h3>
+      <div id="arena-top-cards-list" class="arena-empty-msg">—</div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// ── 全域狀態 ──────────────────────────────────────────────────────────────────
+let arenaChartData = [];
+let arenaSSE = null;
+const ARENA_SERVER = 'http://localhost:7778';
+
+// ── Range Slider 更新 ──────────────────────────────────────────────────────────
+document.querySelectorAll('.arena-left input[type=range]').forEach(el => {
+  const valEl = document.getElementById(el.id + '-val');
+  el.addEventListener('input', () => {
+    if(valEl) valEl.textContent = el.value;
+  });
+});
+
+// ── Win Rate Chart ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('arena-wr-chart');
+const ctx = canvas.getContext('2d');
+
+function arenaDrawChart() {
+  const W = canvas.parentElement.clientWidth - 28;
+  const H = canvas.parentElement.clientHeight - 60;
+  canvas.width = W;
+  canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  const gridColor = 'rgba(180, 92, 255, 0.15)';
+  const n = arenaChartData.length;
+
+  // Grid lines
+  ctx.strokeStyle = gridColor;
+  ctx.lineWidth = 0.5;
+  [0.25, 0.5, 0.75].forEach(y => {
+    const py = H - y * H;
+    ctx.beginPath();
+    ctx.moveTo(0, py);
+    ctx.lineTo(W, py);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(104, 104, 160, 0.5)';
+    ctx.font = '10px monospace';
+    ctx.fillText((y * 100).toFixed(0) + '%', 2, py - 2);
+  });
+
+  if (n < 2) return;
+
+  const maxWR = Math.max(...arenaChartData.map(d => d.best ?? d), 0.5);
+  const step = W / (n - 1);
+
+  // Best line
+  ctx.beginPath();
+  ctx.strokeStyle = 'var(--arena-data-good)';
+  ctx.strokeStyle = '#00ffe0';
+  ctx.lineWidth = 2.5;
+  arenaChartData.forEach((d, i) => {
+    const v = d.best ?? d;
+    const x = i * step;
+    const y = H - (v / Math.max(maxWR, 0.01)) * H * 0.92 - 4;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Avg line (lighter)
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(255, 45, 120, 0.6)';
+  ctx.lineWidth = 1.5;
+  arenaChartData.forEach((d, i) => {
+    const v = d.avg ?? (d * 0.85);
+    const x = i * step;
+    const y = H - (v / Math.max(maxWR, 0.01)) * H * 0.92 - 4;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Current gen dot
+  const last = arenaChartData[n - 1];
+  const lastV = last.best ?? last;
+  const lx = (n - 1) * step;
+  const ly = H - (lastV / Math.max(maxWR, 0.01)) * H * 0.92 - 4;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#00ffe0';
+  ctx.fill();
+}
+
+// ── SSE 連接 ───────────────────────────────────────────────────────────────────
+function arenaConnectSSE() {
+  if(arenaSSE) arenaSSE.close();
+  arenaSSE = new EventSource(ARENA_SERVER + '/events');
+  arenaSSE.onmessage = e => {
+    try {
+      arenaHandleUpdate(JSON.parse(e.data));
+    } catch(err) {
+      console.error('SSE parse error:', err);
+    }
+  };
+  arenaSSE.onerror = () => {
+    console.error('SSE connection error');
+    setTimeout(arenaConnectSSE, 3000);
+  };
+}
+
+// ── 更新 UI ────────────────────────────────────────────────────────────────────
+function arenaHandleUpdate(data) {
+  const gen = data.generation ?? 0;
+  const bestWR = data.best_win_rate ?? 0;
+  const avgWR = data.avg_win_rate ?? 0;
+
+  // 更新狀態燈
+  const light = document.getElementById('arena-status-light');
+  const statusText = document.getElementById('arena-status-text');
+  if(gen > 0) {
+    light.classList.add('running');
+    statusText.textContent = '進化中';
+  }
+
+  // 更新代數及勝率
+  document.getElementById('arena-gen-display').textContent = `第 ${gen} 世代`;
+  document.getElementById('arena-chart-gen').textContent = gen;
+  document.getElementById('arena-chart-wr').textContent = (bestWR * 100).toFixed(1) + '%';
+
+  // 更新圖表數據
+  if(data.history && data.history.length > arenaChartData.length) {
+    arenaChartData = data.history.map((v, i) => ({
+      best: v,
+      avg: (data.history_avg || [])[i] ?? v * 0.88,
+    }));
+  } else {
+    arenaChartData.push({ best: bestWR, avg: avgWR });
+  }
+  arenaDrawChart();
+
+  // 更新 Analytics
+  if(data.analytics) {
+    arenaRenderCombos(data.analytics.top_combos || []);
+    arenaRenderTopCards(data.analytics.top_cards || []);
+  }
+
+  // 更新 Replay iframe（從 /api/replays_list 取最新）
+  fetch(ARENA_SERVER + '/api/replays_list')
+    .then(r => r.json())
+    .then(d => {
+      if(d.latest) {
+        const frame = document.getElementById('arena-replay-frame');
+        const newSrc = ARENA_SERVER + '/replays/' + d.latest;
+        if(frame.src !== newSrc) {
+          frame.src = newSrc;
+          document.getElementById('arena-replay-gen').textContent = '第 ' + gen + ' 代最佳對局';
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+// ── Combo 渲染 ─────────────────────────────────────────────────────────────────
+function arenaRenderCombos(combos) {
+  const list = document.getElementById('arena-combos-list');
+  if(combos.length === 0) {
+    list.innerHTML = '<div class="arena-empty-msg">累積資料中…</div>';
+    return;
+  }
+  list.innerHTML = combos.slice(0, 8).map(c => `
+    <div class="arena-combo-item">
+      <div class="arena-combo-wr">${(c.combo_win_rate * 100).toFixed(1)}%</div>
+      <div class="arena-combo-cards">
+        ${c.name_a || c.cards[0]}<br>
+        <span style="color: var(--text-dim);">+ </span>${c.name_b || c.cards[1]}
+      </div>
+      <div class="arena-combo-meta">共現 ${c.appearances} 次</div>
+    </div>
+  `).join('');
+}
+
+// ── Top Cards 渲染 ─────────────────────────────────────────────────────────────
+function arenaRenderTopCards(cards) {
+  const list = document.getElementById('arena-top-cards-list');
+  if(cards.length === 0) {
+    list.innerHTML = '<div class="arena-empty-msg">—</div>';
+    return;
+  }
+  list.innerHTML = cards.slice(0, 10).map((c, i) => `
+    <div class="arena-top-card-row">
+      <span class="arena-top-card-idx">#${i + 1}</span>
+      <span class="arena-top-card-name">${c.name}</span>
+      <span class="arena-top-card-wr">${(c.avg_win_rate * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+}
+
+// ── 控制按鈕 ──────────────────────────────────────────────────────────────────
+async function arenaStart() {
+  const seedSel = document.getElementById('arena-seed-select').value;
+  const metaSel = document.getElementById('arena-meta-select').value;
+  const cfg = {
+    population_size: +document.getElementById('arena-cfg-pop').value,
+    max_generations: +document.getElementById('arena-cfg-gens').value,
+    games_per_eval: +document.getElementById('arena-cfg-games').value,
+  };
+
+  const payload = {
+    seed_deck_name: seedSel,
+    meta_decks: [metaSel],
+    config: cfg
+  };
+
+  try {
+    const r = await fetch(ARENA_SERVER + '/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if(!j.ok) {
+      alert('啟動失敗: ' + (j.error || '未知錯誤'));
+      return;
+    }
+    document.getElementById('arena-btn-start').disabled = true;
+    document.getElementById('arena-btn-stop').disabled = false;
+    arenaChartData = [];
+    document.getElementById('arena-replay-gen').textContent = '—';
+    document.getElementById('arena-replay-frame').src = '';
+  } catch(e) {
+    alert('連線失敗: ' + e.message);
+  }
+}
+
+async function arenaStop() {
+  try {
+    await fetch(ARENA_SERVER + '/stop', { method: 'POST' });
+    document.getElementById('arena-btn-start').disabled = false;
+    document.getElementById('arena-btn-stop').disabled = true;
+    document.getElementById('arena-status-light').classList.remove('running');
+    document.getElementById('arena-status-text').textContent = '已停止';
+  } catch(e) {
+    alert('停止失敗: ' + e.message);
+  }
+}
+
+// ── 初始化 ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  arenaDrawChart();
+  arenaConnectSSE();
+});
+</script>
+
+</body>
+</html>

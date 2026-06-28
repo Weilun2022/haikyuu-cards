@@ -59,6 +59,8 @@ class EvoHandler(BaseHTTPRequestHandler):
 
         if path in ("/", "/index.html"):
             self._serve_file(ROOT / "evo_dashboard.html", "text/html")
+        elif path == "/evo_arena.html":
+            self._serve_file(ROOT / "evo_arena.html", "text/html")
         elif path == "/events":
             self._sse_stream()
         elif path == "/status":
@@ -67,6 +69,10 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._json(_latest_stats.get("best_deck", {}))
         elif path == "/analytics":
             self._json(_latest_stats.get("analytics", {}))
+        elif path == "/api/replays_list":
+            self._handle_replays_list()
+        elif path == "/api/config":
+            self._handle_config()
         elif path.startswith("/replays/"):
             fname = path[9:]
             self._serve_file(ROOT / "replays" / fname)
@@ -139,6 +145,41 @@ class EvoHandler(BaseHTTPRequestHandler):
         if _engine:
             _engine.stop()
         self._json({"ok": True, "message": "進化已停止"})
+
+    def _handle_replays_list(self):
+        """GET /api/replays_list - 列出所有 replay HTML 檔案"""
+        replays_dir = ROOT / "replays"
+        replays = []
+
+        if replays_dir.exists() and replays_dir.is_dir():
+            # 掃描 visual_replay_*.html 檔案
+            for fpath in replays_dir.glob("visual_replay_*.html"):
+                replays.append(fpath.name)
+
+        # 按時間戳倒序排列（新的在前）
+        replays.sort(reverse=True)
+
+        latest = replays[0] if replays else None
+        self._json({
+            "replays": replays,
+            "latest": latest
+        })
+
+    def _handle_config(self):
+        """GET /api/config - 回傳前端初始化設定"""
+        available_decks = list(DECKS.keys())
+        self._json({
+            "available_seed_decks": available_decks,
+            "available_meta_decks": available_decks,
+            "default_config": {
+                "population_size": 16,
+                "max_generations": 50,
+                "games_per_eval": 30,
+                "elite_count": 3,
+                "mutation_swaps": 3,
+                "crossover_rate": 0.35
+            }
+        })
 
     def _status_dict(self) -> dict:
         return {
