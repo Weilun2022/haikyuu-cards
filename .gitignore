@@ -10,6 +10,7 @@ node_modules/
 *.xlsx
 *.json
 !shop_config.json
+!game_engine/cards_skills.json
 output/
 cards_zh.json
 all_cards.json

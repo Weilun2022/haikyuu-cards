@@ -131,6 +131,7 @@ class EffectType(str, Enum):
     ONCE_PER_TURN_MARK  = "once_per_turn_mark"  # 標記本回合已使用
     SCORE_POINT         = "score_point"         # 直接得分 (極少)
     CONDITIONAL_EXTRA   = "conditional_extra"   # 如果額外條件成立再觸發額外效果
+    NAME_CHANGE         = "name_change"         # 改變此牌的牌名（融合角色卡）
 
 
 class Stat(str, Enum):

@@ -123,6 +123,8 @@ class EffectRegistry:
             case EffectType.COUNTER_ADD:
                 key = str(effect.zone or "counter")
                 actor.counters[key] = actor.counters.get(key, 0) + (effect.amount or 1)
+            case EffectType.NAME_CHANGE:
+                pass  # 融合角色卡改名：AI 模擬暫不追蹤，略過不影響遊戲流程
             case _:
                 state.log(f"[SKIP] effect_type={t} 尚未實作")
 
@@ -263,6 +265,9 @@ class EffectRegistry:
 
         def _to_effect(d: dict) -> Effect | None:
             et_str = d.get("effect_type", "")
+            # LLM 有時輸出 card_name_change，統一對應 name_change
+            if et_str == "card_name_change":
+                et_str = "name_change"
             et = None
             for e in EffectType:
                 if e.value == et_str:
