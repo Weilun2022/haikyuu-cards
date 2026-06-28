@@ -241,23 +241,22 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         z-index: 3;
       }
 
-      /* z-hstack：卡牌橫排堆疊 */
+      /* z-hstack：卡牌橫排堆疊（position:absolute 確保填滿 slot） */
       .z-hstack {
+        position: absolute;
+        inset: 0;
+        padding: 4px;
         display: flex;
         flex-direction: row;
         align-items: center;
         justify-content: flex-start;
-        align-self: stretch;
-        width: 100%;
-        height: 100%;
         overflow: hidden;
-        padding: 2px 4px;
       }
 
       .z-hstack-card {
         position: relative;
         flex: 0 0 auto;
-        height: 90%;
+        height: 100%;
         aspect-ratio: 5 / 7;
         overflow: hidden;
         border-radius: 5px;
