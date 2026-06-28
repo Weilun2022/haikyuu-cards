@@ -183,6 +183,25 @@ class TurnFlow:
         # 超過安全上限 → 發球方判負
         return server_num
 
+    def _try_skill(
+        self, card_no: str, zone: str,
+        state: GameState, actor: PlayerState, passive: PlayerState, ai=None,
+    ) -> bool:
+        """部署後嘗試觸發 [登場] 技能。例外靜默記錄。"""
+        if not self.registry:
+            return False
+        try:
+            fired = self.registry.try_activate_deploy_skill(
+                card_no=card_no, deploy_zone=zone, deploy_via_skill=False,
+                state=state, actor=actor, passive=passive, ai=ai,
+            )
+            if fired:
+                state.log(f"[SKILL] {card_no}@{zone}")
+            return fired
+        except Exception as e:
+            state.log(f"[SKILL ERR] {card_no}@{zone}: {e}")
+            return False
+
     def _serve_phase(
         self, state: GameState, server: PlayerState, ai, pnum: int
     ) -> int | None:
@@ -198,6 +217,9 @@ class TurnFlow:
                 state.last_deployed_name = get_name(new_card)
                 self.spec.on_deploy(pnum, new_card, get_name(new_card), "serve",
                                    stats={"srv": get_stat(new_card, "srv")})
+                passive = state.p2 if pnum == 1 else state.p1
+                state.current_player = pnum
+                self._try_skill(new_card, "serve", state, server, passive, ai)
             # ABA 違規：保留現有卡，不更新 last_deployed_name
         elif not existing_srv:
             return pnum  # 場地空且無可部署 → LOST
@@ -234,6 +256,8 @@ class TurnFlow:
                 in_zone_names.add(get_name(bz.card))
 
         deployed_count = 0
+        passive = state.p2 if pnum == 1 else state.p1
+        state.current_player = pnum
         for card_no in chars_to_deploy[:_ZONE_SLOTS]:
             if card_no not in player.hand:
                 continue
@@ -250,6 +274,7 @@ class TurnFlow:
             state.last_deployed_name = name
             self.spec.on_deploy(pnum, card_no, name, "block",
                                stats={"blk": get_stat(card_no, "blk")})
+            self._try_skill(card_no, "block", state, player, passive, ai)
             deployed_count += 1
 
         # 規則 5-7-2②：登場步驟若未部署任何角色 → 宣告 LOST
@@ -283,6 +308,9 @@ class TurnFlow:
         for c in drawn:
             self.spec.on_draw(pnum, c, get_name(c))
 
+        passive = state.p2 if pnum == 1 else state.p1
+        state.current_player = pnum
+
         # RECEIVE PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "receive")
         rcv_card = self._select_deploy(ai.decide_receive_char(player, state, pending_op),
@@ -294,6 +322,7 @@ class TurnFlow:
         state.last_deployed_name = get_name(rcv_card)
         self.spec.on_deploy(pnum, rcv_card, get_name(rcv_card), "receive",
                            stats={"rcv": get_stat(rcv_card, "rcv")})
+        self._try_skill(rcv_card, "receive", state, player, passive, ai)
 
         dp = _calc_receive_dp(player)
         did_lose = dp < pending_op
@@ -312,6 +341,7 @@ class TurnFlow:
         state.last_deployed_name = get_name(tos_card)
         self.spec.on_deploy(pnum, tos_card, get_name(tos_card), "toss",
                            stats={"tos": get_stat(tos_card, "tos")})
+        self._try_skill(tos_card, "toss", state, player, passive, ai)
 
         # ATTACK PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "attack")
@@ -324,6 +354,7 @@ class TurnFlow:
         state.last_deployed_name = get_name(atk_card)
         self.spec.on_deploy(pnum, atk_card, get_name(atk_card), "attack",
                            stats={"atk": get_stat(atk_card, "atk")})
+        self._try_skill(atk_card, "attack", state, player, passive, ai)
 
         new_op = _calc_attack_op(player)
         state.pending_op = new_op

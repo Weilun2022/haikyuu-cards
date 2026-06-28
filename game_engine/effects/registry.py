@@ -161,6 +161,15 @@ class EffectRegistry:
                 return False
             setattr(actor, attr, available - card_skill.costs.guts)
 
+        if card_skill.costs.place_to_event:
+            from game_engine.card_db import is_event
+            events_in_hand = [c for c in actor.hand if is_event(c)]
+            if not events_in_hand:
+                return False  # 無 Event 牌可支付 → 不發動
+            chosen = events_in_hand[0]
+            actor.hand.remove(chosen)
+            actor.event_zone.append(chosen)
+
         if card_skill.costs.discard > 0:
             hand_copy = list(actor.hand)
             to_discard = (ai.decide_discard(hand_copy, state, actor, card_skill.costs.discard)
@@ -304,11 +313,17 @@ class EffectRegistry:
             place_to_event=bool(costs_raw.get("place_to_event", False)),
         )
 
-        # zone_qualifiers
+        # zone_qualifiers（先從 zone_qualifiers 欄位，再從 triggers 欄位補充）
         zone_quals = []
         for zq in (data.get("zone_qualifiers") or []):
             for zqe in ZoneQualifier:
                 if zqe.value == zq or zqe == zq:
+                    zone_quals.append(zqe)
+                    break
+        # LLM 有時把區域標籤放在 triggers 而非 zone_qualifiers
+        for t in (data.get("triggers") or []):
+            for zqe in ZoneQualifier:
+                if zqe.value == t and zqe not in zone_quals:
                     zone_quals.append(zqe)
                     break
 

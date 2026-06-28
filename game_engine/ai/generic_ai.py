@@ -110,6 +110,22 @@ class GenericAI(BaseAI):
             return None
         return max(eligible, key=lambda c: get_stat(c, "atk"))
 
+    def decide_discard(
+        self, hand: list[str], state: GameState, actor: PlayerState, count: int = 1
+    ) -> list[str]:
+        """棄牌選擇：優先棄事件牌，再棄各 stat 加總最低的角色。"""
+        events = [c for c in hand if is_event(c)]
+        chars  = [c for c in hand if not is_event(c)]
+        chars_sorted = sorted(chars, key=lambda c: sum(
+            get_stat(c, s) or 0 for s in ("srv", "blk", "rcv", "tos", "atk")
+        ))
+        candidates = events + chars_sorted
+        return candidates[:count]
+
+    def decide_skill_choice(self, choices, state: GameState, actor: PlayerState) -> int:
+        """技能分支選擇：預設選第 0 項。"""
+        return 0
+
     # ── 舊 API 相容 ───────────────────────────────────────────────────────────
 
     def decide_main_phase(self, state: GameState, actor: PlayerState) -> dict:
