@@ -20,7 +20,8 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 header{
   background:linear-gradient(90deg,#0d0d1f,#14143a);
   border-bottom:1px solid var(--border);
-  padding:10px 20px;display:flex;align-items:center;gap:16px}
+  padding:10px 20px;display:flex;align-items:center;gap:16px;
+  margin-top:30px}
 header h1{font-size:16px;letter-spacing:.15em;color:var(--accent);text-transform:uppercase}
 .status-badge{
   padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
@@ -138,6 +139,20 @@ footer{
 </style>
 </head>
 <body>
+
+<!-- Legacy notice -->
+<div style="
+  background: rgba(255,200,0,.12);
+  border-bottom: 1px solid rgba(255,200,0,.4);
+  color: #ffd166;
+  font-size: 12px;
+  padding: 6px 16px;
+  text-align: center;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+">
+  ⚠️ 此為舊版除錯面板。新版競技場請用
+  <a href="/evo_arena.html" style="color:#00ffe0;font-weight:bold;">evo_arena.html</a>
+</div>
 
 <header>
   <h1>バボカ!! BREAK — 牌組進化系統</h1>
