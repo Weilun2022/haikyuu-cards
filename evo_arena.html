@@ -515,6 +515,137 @@ canvas#arena-wr-chart {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+
+/* ===== Best Deck Panel ===== */
+.best-deck-panel {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 6px;
+}
+.best-deck-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.best-deck-title { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+.best-deck-subtitle { margin-top: 3px; font-size: 10px; color: var(--text-dim); }
+.best-deck-generation-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.best-deck-generation-badge.is-bump { animation: bestDeckBadgeBump 360ms ease; }
+@keyframes bestDeckBadgeBump {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+.best-deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(48vh, 520px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.best-deck-empty {
+  padding: 10px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+}
+.best-deck-card {
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 180ms ease;
+}
+.best-deck-card.is-new { border-color: var(--accent); animation: bestDeckNewCardFlash 900ms ease; }
+.best-deck-card.has-delta { animation: bestDeckDeltaFlash 700ms ease; }
+@keyframes bestDeckNewCardFlash {
+  0% { box-shadow: 0 0 0 1px var(--accent); transform: translateX(2px); }
+  100% { box-shadow: none; transform: translateX(0); }
+}
+@keyframes bestDeckDeltaFlash {
+  0% { border-color: var(--accent); }
+  100% { border-color: var(--border); }
+}
+.best-deck-card-main { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.best-deck-card-name {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.best-deck-card-count { flex: 0 0 auto; color: var(--text-dim); font-size: 12px; }
+.best-deck-diff-tag {
+  flex: 0 0 auto; padding: 1px 4px;
+  border-radius: 4px; font-size: 9px; font-weight: 800;
+}
+.best-deck-diff-tag.is-new { border: 1px solid var(--accent); color: var(--accent); }
+.best-deck-diff-tag.is-delta { border: 1px solid var(--border); color: var(--text-dim); }
+.best-deck-score-line { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.best-deck-score-bar {
+  position: relative; flex: 1 1 auto; height: 4px;
+  overflow: hidden; border-radius: 999px; background: var(--border);
+}
+.best-deck-score-fill {
+  height: 100%; width: 0%;
+  border-radius: inherit; background: var(--accent);
+  transition: width 420ms ease;
+}
+.best-deck-score-value { flex: 0 0 auto; min-width: 38px; text-align: right; color: var(--text-dim); font-size: 10px; }
+.best-deck-total {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border);
+  color: var(--text-dim); font-size: 11px;
+}
+.best-deck-total-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; border-radius: 999px;
+  font-size: 11px; font-weight: 900; border: 1px solid var(--border);
+}
+.best-deck-total-check.is-ok { color: var(--accent); border-color: var(--accent); }
+.best-deck-total-check.is-warn { color: var(--text-dim); }
+.best-deck-panel.is-evolving { animation: bestDeckPanelShake 520ms ease; }
+.best-deck-panel.is-evolving::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit; border: 1px solid var(--accent);
+  animation: bestDeckPanelFlash 520ms ease;
+}
+@keyframes bestDeckPanelShake {
+  0%,100% { transform: translateX(0); }
+  18% { transform: translateX(-2px); }
+  36% { transform: translateX(2px); }
+  54% { transform: translateX(-1px); }
+  72% { transform: translateX(1px); }
+}
+@keyframes bestDeckPanelFlash {
+  0% { opacity: 0; }
+  35% { opacity: 1; box-shadow: 0 0 16px var(--accent); }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .best-deck-panel.is-evolving,
+  .best-deck-panel.is-evolving::after,
+  .best-deck-generation-badge.is-bump,
+  .best-deck-card.is-new,
+  .best-deck-card.has-delta { animation: none; }
+  .best-deck-score-fill { transition: none; }
+}
 </style>
 </head>
 <body>
@@ -576,12 +707,9 @@ canvas#arena-wr-chart {
 
     <button id="arena-btn-start" class="arena-btn arena-btn-start" onclick="arenaStart()">⚡ START</button>
     <button id="arena-btn-stop" class="arena-btn arena-btn-stop" onclick="arenaStop()" disabled>■ STOP</button>
-  </aside>
 
-  <!-- ── 中欄 ── -->
-  <div class="arena-main">
-    <!-- 上：Chart Panel -->
-    <div class="arena-chart-panel">
+    <!-- 進化進度 Chart -->
+    <div class="arena-chart-panel" style="margin-top:12px;">
       <div class="arena-chart-header">
         <h2>進化進度</h2>
         <div>
@@ -594,8 +722,11 @@ canvas#arena-wr-chart {
       </div>
       <canvas id="arena-wr-chart"></canvas>
     </div>
+  </aside>
 
-    <!-- 下：Replay Panel -->
+  <!-- ── 中欄 ── -->
+  <div class="arena-main">
+    <!-- Replay Panel -->
     <div class="arena-replay-panel">
       <div class="arena-replay-toolbar">
         <span class="arena-live-badge" id="arena-live-badge" title="自動跟隨最新精選對局">LIVE</span>
@@ -614,6 +745,24 @@ canvas#arena-wr-chart {
 
   <!-- ── 右欄 ── -->
   <aside class="arena-right">
+    <!-- Best Deck 40 -->
+    <section id="best-deck-panel" class="arena-analytics-section best-deck-panel">
+      <div class="best-deck-header">
+        <div>
+          <h3 class="best-deck-title">最佳牌組 40 張</h3>
+          <div id="best-deck-subtitle" class="best-deck-subtitle">等待最佳牌組資料…</div>
+        </div>
+        <span id="best-deck-generation-badge" class="best-deck-generation-badge">第 — 代最佳</span>
+      </div>
+      <ul id="best-deck-list" class="best-deck-list" aria-live="polite">
+        <li class="best-deck-empty">累積資料中…</li>
+      </ul>
+      <div class="best-deck-total">
+        <span id="best-deck-total-text">合計 0 張</span>
+        <span id="best-deck-total-check" class="best-deck-total-check is-warn">!</span>
+      </div>
+    </section>
+
     <!-- Combos -->
     <div class="arena-analytics-section">
       <h3>最強 Combo（Top 8）</h3>
@@ -634,6 +783,10 @@ canvas#arena-wr-chart {
 
 <script>
 // ── 全域狀態 ──────────────────────────────────────────────────────────────────
+// ── Best Deck 狀態 ──────────────────────────────────────────────────────────────────
+let _prevBestCounts = null;       // Map<card_no, count>
+let _prevBestSignature = '';
+
 let arenaChartData = [];
 let arenaSSE = null;
 const ARENA_SERVER = 'http://localhost:7778';
@@ -642,6 +795,146 @@ let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 
 let _replayLoadToken = 0;       // race condition 防護：每次新 load 遞增
 let _activeComboItem = null;    // 當前高亮的 combo DOM element
 let _toastTimer = null;
+
+// ── Best Deck Rendering ─────────────────────────────────────────────────────────
+function _bdFormatScore(score) {
+  if (!Number.isFinite(score)) return '0';
+  if (Math.abs(score) >= 100) return score.toFixed(0);
+  if (Math.abs(score) >= 10)  return score.toFixed(1);
+  return score.toFixed(2);
+}
+
+function _bdSignature(gen, cards) {
+  return [gen, ...cards.map(c => `${c.card_no}:${c.count}:${c.score}`)].join('|');
+}
+
+function _bdPlayEvolution(panelEl, badgeEl) {
+  panelEl.classList.remove('is-evolving');
+  badgeEl.classList.remove('is-bump');
+  void panelEl.offsetWidth;
+  panelEl.classList.add('is-evolving');
+  badgeEl.classList.add('is-bump');
+  setTimeout(() => {
+    panelEl.classList.remove('is-evolving');
+    badgeEl.classList.remove('is-bump');
+  }, 560);
+}
+
+function arenaRenderBestDeck(best_deck, fallbackGen) {
+  const panelEl      = document.getElementById('best-deck-panel');
+  const listEl       = document.getElementById('best-deck-list');
+  const subtitleEl   = document.getElementById('best-deck-subtitle');
+  const badgeEl      = document.getElementById('best-deck-generation-badge');
+  const totalTextEl  = document.getElementById('best-deck-total-text');
+  const totalCheckEl = document.getElementById('best-deck-total-check');
+  if (!panelEl || !listEl) return;
+
+  const cards = Array.isArray(best_deck?.card_list) ? best_deck.card_list : [];
+  const gen   = best_deck?.generation ?? fallbackGen ?? '—';
+  if (badgeEl) badgeEl.textContent = `第 ${gen} 代最佳`;
+
+  if (!cards.length) {
+    listEl.innerHTML = '<li class="best-deck-empty">累積資料中…</li>';
+    if (subtitleEl) subtitleEl.textContent = '等待最佳牌組資料…';
+    if (totalTextEl) totalTextEl.textContent = '合計 0 張';
+    if (totalCheckEl) { totalCheckEl.textContent = '!'; totalCheckEl.className = 'best-deck-total-check is-warn'; }
+    return;
+  }
+
+  const normalized = cards.map(c => ({
+    card_no: String(c.card_no),
+    name:    String(c.name ?? c.card_no ?? '—'),
+    count:   Number(c.count) || 0,
+    score:   Number(c.score) || 0,
+  }));
+
+  const maxScore  = Math.max(...normalized.map(c => c.score), 0.001);
+  const hasPrev   = _prevBestCounts instanceof Map;
+  let totalCount  = 0, newKinds = 0, changedKinds = 0;
+
+  listEl.innerHTML = '';
+  for (const card of normalized) {
+    totalCount += card.count;
+    const prevCount = hasPrev ? _prevBestCounts.get(card.card_no) : undefined;
+    const isNew   = hasPrev && prevCount === undefined;
+    const delta   = (hasPrev && prevCount !== undefined) ? card.count - prevCount : 0;
+    if (isNew) newKinds++;
+    if (delta !== 0) changedKinds++;
+
+    const pct = Math.max(0, Math.min(100, Math.round((card.score / maxScore) * 100)));
+
+    const li = document.createElement('li');
+    li.className = 'best-deck-card';
+    if (isNew)    li.classList.add('is-new');
+    if (delta)    li.classList.add('has-delta');
+
+    const main = document.createElement('div');
+    main.className = 'best-deck-card-main';
+
+    const nameEl  = document.createElement('span');
+    nameEl.className = 'best-deck-card-name';
+    nameEl.textContent = card.name;
+    nameEl.title       = card.name;
+
+    const cntEl   = document.createElement('span');
+    cntEl.className = 'best-deck-card-count';
+    cntEl.textContent = `×${card.count}`;
+
+    main.append(nameEl, cntEl);
+
+    if (isNew) {
+      const tag = document.createElement('span');
+      tag.className   = 'best-deck-diff-tag is-new';
+      tag.textContent = 'NEW';
+      main.appendChild(tag);
+    } else if (delta !== 0) {
+      const tag = document.createElement('span');
+      tag.className   = 'best-deck-diff-tag is-delta';
+      tag.textContent = `△${delta > 0 ? '+' : ''}${delta}`;
+      main.appendChild(tag);
+    }
+
+    const scoreLine = document.createElement('div');
+    scoreLine.className = 'best-deck-score-line';
+    const bar  = document.createElement('div');
+    bar.className = 'best-deck-score-bar';
+    const fill = document.createElement('div');
+    fill.className       = 'best-deck-score-fill';
+    fill.style.width     = pct + '%';
+    const val  = document.createElement('span');
+    val.className   = 'best-deck-score-value';
+    val.textContent = _bdFormatScore(card.score);
+    bar.appendChild(fill);
+    scoreLine.append(bar, val);
+    li.append(main, scoreLine);
+    listEl.appendChild(li);
+  }
+
+  if (totalTextEl) totalTextEl.textContent = `合計 ${totalCount} 張`;
+  if (totalCheckEl) {
+    if (totalCount === 40) {
+      totalCheckEl.textContent = '✓';
+      totalCheckEl.className   = 'best-deck-total-check is-ok';
+    } else {
+      totalCheckEl.textContent = '!';
+      totalCheckEl.className   = 'best-deck-total-check is-warn';
+    }
+  }
+
+  if (subtitleEl) {
+    subtitleEl.textContent = hasPrev
+      ? `本代變化：NEW ${newKinds} 種，張數調整 ${changedKinds} 種`
+      : '已載入最佳牌組';
+  }
+
+  const sig = _bdSignature(gen, normalized);
+  if (_prevBestSignature && sig !== _prevBestSignature && panelEl && badgeEl) {
+    _bdPlayEvolution(panelEl, badgeEl);
+  }
+
+  _prevBestCounts    = new Map(normalized.map(c => [c.card_no, c.count]));
+  _prevBestSignature = sig;
+}
 
 function arenaShowToast(msg, durationMs = 2500) {
   const el = document.getElementById('arena-toast');
@@ -898,6 +1191,11 @@ function arenaHandleUpdate(data) {
   if(data.analytics) {
     arenaRenderCombos(data.analytics.top_combos || []);
     arenaRenderTopCards(data.analytics.top_cards || []);
+  }
+
+  // 更新最佳牌組面板
+  if(data.best_deck) {
+    arenaRenderBestDeck(data.best_deck, gen);
   }
 
   // 更新 Replay（Phase 4：LIVE/REVIEW 狀態機 + SSE dedup 防護）

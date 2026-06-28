@@ -101,21 +101,30 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         flex-wrap: wrap;
         gap: 4px;
         flex: 1;
+        background-color: #040810;
+        background-image:
+          linear-gradient(rgba(0,120,255,.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0,120,255,.06) 1px, transparent 1px);
+        background-size: 20px 20px;
+        border-radius: 8px;
+        padding: 4px;
+        box-shadow: inset 0 0 0 1px rgba(0,100,255,.18), inset 0 0 30px rgba(0,60,180,.12);
       }
 
       .rv-zone {
-        width: 60px;
-        height: 80px;
-        border: 1px solid var(--border, #333);
-        border-radius: 4px;
+        width: 72px;
+        height: 96px;
+        border: 1.5px dashed var(--border, #333);
+        border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 9px;
         color: var(--text-dim, #888);
-        background: var(--surface2, #1a1a2e);
+        background: rgba(20,24,36,.85);
         overflow: hidden;
         position: relative;
+        transition: border-color .15s, box-shadow .15s;
       }
 
       .rv-zone img {
@@ -130,15 +139,31 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         box-shadow: 0 0 6px var(--arena-data-hot, #ff2d78);
       }
 
-      .rv-zone-label {
+      /* Neon zone colors */
+      .rv-zone[data-zone="block"]   { border-color: #505870; background: rgba(20,24,36,.85); box-shadow: inset 0 0 0 1px rgba(80,88,112,.35), 0 0 8px rgba(80,88,112,.3); }
+      .rv-zone[data-zone="serve"]   { border-color: #ffc800; background: rgba(90,60,0,.5);   box-shadow: inset 0 0 0 1px rgba(255,200,0,.25), 0 0 10px rgba(255,200,0,.5); }
+      .rv-zone[data-zone="receive"] { border-color: #0e7fff; background: rgba(8,32,120,.45); box-shadow: inset 0 0 0 1px rgba(14,127,255,.25), 0 0 10px rgba(14,127,255,.5); }
+      .rv-zone[data-zone="toss"]    { border-color: #00d850; background: rgba(0,80,30,.45);  box-shadow: inset 0 0 0 1px rgba(0,216,80,.25), 0 0 10px rgba(0,216,80,.45); }
+      .rv-zone[data-zone="attack"]  { border-color: #ff2820; background: rgba(100,10,8,.5);  box-shadow: inset 0 0 0 1px rgba(255,40,32,.25), 0 0 10px rgba(255,40,32,.55); }
+
+      .rv-zone::after {
         position: absolute;
-        bottom: 2px;
-        right: 2px;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 1px 3px;
-        border-radius: 2px;
-        font-size: 8px;
+        bottom: 4px;
+        left: 0; right: 0;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        pointer-events: none;
+        opacity: .9;
+        line-height: 1;
+        z-index: 2;
       }
+      .rv-zone[data-zone="block"]::after   { content: 'BLOCK';   color: #8898c8; text-shadow: 0 0 6px rgba(80,88,112,.8); }
+      .rv-zone[data-zone="serve"]::after   { content: 'SERVE';   color: #ffd840; text-shadow: 0 0 8px rgba(255,200,0,1); }
+      .rv-zone[data-zone="receive"]::after { content: 'RECEIVE'; color: #4ab4ff; text-shadow: 0 0 8px rgba(14,127,255,1); }
+      .rv-zone[data-zone="toss"]::after    { content: 'TOSS';    color: #00e85a; text-shadow: 0 0 8px rgba(0,216,80,1); }
+      .rv-zone[data-zone="attack"]::after  { content: 'ATTACK';  color: #ff6058; text-shadow: 0 0 8px rgba(255,40,32,1); }
 
       .rv-counters {
         font-size: 11px;
@@ -342,7 +367,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         if (firstCard) {
           zoneEl.dataset.cardNo = firstCard.card_no || '';
           const img = document.createElement('img');
-          img.src = `images/${firstCard.img}`;
+          img.src = `/images/${firstCard.img}`;
           img.alt = `${playerKey} block`;
           zoneEl.appendChild(img);
         }
@@ -351,7 +376,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         if (zoneData && zoneData.img) {
           zoneEl.dataset.cardNo = zoneData.card_no || '';
           const img = document.createElement('img');
-          img.src = `images/${zoneData.img}`;
+          img.src = `/images/${zoneData.img}`;
           img.alt = `${playerKey} ${zoneName}`;
           zoneEl.appendChild(img);
         }
