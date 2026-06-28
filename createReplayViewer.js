@@ -74,79 +74,122 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         color: var(--accent, #6c63ff);
       }
 
-      .rv-board {
-        display: flex;
-        gap: 8px;
-        flex: 1;
-        min-height: 300px;
+      .rv-board-compat {
+        /* placeholder - old .rv-board and .rv-player rules removed */
       }
 
-      .rv-player {
+      /* ── game.html board CSS ── */
+      .rv-board-wrap {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .rv-player-area {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        gap: 4px;
+      }
+
+      .rv-player-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--accent, #6c63ff);
+        padding: 2px 0;
+      }
+      .rv-player-label.p2 { color: var(--accent2, #ff6584); }
+
+      .rv-counters-row {
+        font-size: 11px;
+        color: var(--text-dim, #888);
+        display: flex;
+        gap: 8px;
+        padding: 2px 0;
+      }
+      .rv-counters-row span { color: var(--accent, #6c63ff); }
+
+      .board-court {
         flex: 1;
         display: flex;
         flex-direction: column;
         gap: 4px;
-        padding: 6px;
-        border: 1px solid var(--border, #333);
-        border-radius: 4px;
-        background: var(--surface2, #0f0f1e);
-      }
-
-      .rv-player.rv-p2 {
-        flex-direction: column-reverse;
-      }
-
-      .rv-zones {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        flex: 1;
+        min-height: 0;
         background-color: #040810;
         background-image:
           linear-gradient(rgba(0,120,255,.06) 1px, transparent 1px),
           linear-gradient(90deg, rgba(0,120,255,.06) 1px, transparent 1px);
         background-size: 20px 20px;
-        border-radius: 8px;
-        padding: 4px;
-        box-shadow: inset 0 0 0 1px rgba(0,100,255,.18), inset 0 0 30px rgba(0,60,180,.12);
+        border-radius: 10px;
+        padding: 5px;
+        box-shadow:
+          inset 0 0 0 1px rgba(0,100,255,.18),
+          inset 0 0 30px rgba(0,60,180,.12),
+          0 0 8px rgba(0,80,200,.15);
       }
 
-      .rv-zone {
-        width: 72px;
-        height: 96px;
-        border: 1.5px dashed var(--border, #333);
+      .court-row {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .zone-w {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+        gap: 0;
+        min-height: 0;
+      }
+
+      .z-slot {
+        width: 100%;
+        flex: 1;
+        background: rgba(20,24,36,.85);
+        border: 1.5px dashed var(--border, #2a2a3e);
         border-radius: 8px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 9px;
-        color: var(--text-dim, #888);
-        background: rgba(20,24,36,.85);
-        overflow: hidden;
         position: relative;
+        overflow: hidden;
+        min-height: 60px;
+        min-width: 0;
         transition: border-color .15s, box-shadow .15s;
       }
 
-      .rv-zone img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
+      .z-slot.z-blk {
+        border-color: #505870;
+        background: rgba(20,24,36,.85);
+        box-shadow: inset 0 0 0 1px rgba(80,88,112,.35), 0 0 8px rgba(80,88,112,.3);
+      }
+      .z-slot.z-rcv {
+        border-color: #0e7fff;
+        background: rgba(8,32,120,.45);
+        box-shadow: inset 0 0 0 1px rgba(14,127,255,.25), 0 0 10px rgba(14,127,255,.5);
+      }
+      .z-slot.z-tos {
+        border-color: #00d850;
+        background: rgba(0,80,30,.45);
+        box-shadow: inset 0 0 0 1px rgba(0,216,80,.25), 0 0 10px rgba(0,216,80,.45);
+      }
+      .z-slot.z-atk {
+        border-color: #ff2820;
+        background: rgba(100,10,8,.5);
+        box-shadow: inset 0 0 0 1px rgba(255,40,32,.25), 0 0 10px rgba(255,40,32,.55);
+      }
+      .z-slot.z-srv {
+        border-color: #ffc800;
+        background: rgba(90,60,0,.5);
+        box-shadow: inset 0 0 0 1px rgba(255,200,0,.25), 0 0 10px rgba(255,200,0,.5);
       }
 
-      .rv-zone.rv-highlight {
-        border-color: var(--arena-data-hot, #ff2d78);
-        box-shadow: 0 0 6px var(--arena-data-hot, #ff2d78);
-      }
-
-      /* Neon zone colors */
-      .rv-zone[data-zone="block"]   { border-color: #505870; background: rgba(20,24,36,.85); box-shadow: inset 0 0 0 1px rgba(80,88,112,.35), 0 0 8px rgba(80,88,112,.3); }
-      .rv-zone[data-zone="serve"]   { border-color: #ffc800; background: rgba(90,60,0,.5);   box-shadow: inset 0 0 0 1px rgba(255,200,0,.25), 0 0 10px rgba(255,200,0,.5); }
-      .rv-zone[data-zone="receive"] { border-color: #0e7fff; background: rgba(8,32,120,.45); box-shadow: inset 0 0 0 1px rgba(14,127,255,.25), 0 0 10px rgba(14,127,255,.5); }
-      .rv-zone[data-zone="toss"]    { border-color: #00d850; background: rgba(0,80,30,.45);  box-shadow: inset 0 0 0 1px rgba(0,216,80,.25), 0 0 10px rgba(0,216,80,.45); }
-      .rv-zone[data-zone="attack"]  { border-color: #ff2820; background: rgba(100,10,8,.5);  box-shadow: inset 0 0 0 1px rgba(255,40,32,.25), 0 0 10px rgba(255,40,32,.55); }
-
-      .rv-zone::after {
+      .z-slot::after {
         position: absolute;
         bottom: 4px;
         left: 0; right: 0;
@@ -155,15 +198,84 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         font-weight: 800;
         letter-spacing: 1.5px;
         pointer-events: none;
-        opacity: .9;
+        opacity: .85;
         line-height: 1;
         z-index: 2;
       }
-      .rv-zone[data-zone="block"]::after   { content: 'BLOCK';   color: #8898c8; text-shadow: 0 0 6px rgba(80,88,112,.8); }
-      .rv-zone[data-zone="serve"]::after   { content: 'SERVE';   color: #ffd840; text-shadow: 0 0 8px rgba(255,200,0,1); }
-      .rv-zone[data-zone="receive"]::after { content: 'RECEIVE'; color: #4ab4ff; text-shadow: 0 0 8px rgba(14,127,255,1); }
-      .rv-zone[data-zone="toss"]::after    { content: 'TOSS';    color: #00e85a; text-shadow: 0 0 8px rgba(0,216,80,1); }
-      .rv-zone[data-zone="attack"]::after  { content: 'ATTACK';  color: #ff6058; text-shadow: 0 0 8px rgba(255,40,32,1); }
+      .z-slot.z-blk::after { content: 'BLOCK';   color: #8898c8; text-shadow: 0 0 6px rgba(80,88,112,.8); }
+      .z-slot.z-rcv::after { content: 'RECEIVE'; color: #4ab4ff; text-shadow: 0 0 8px rgba(14,127,255,1); }
+      .z-slot.z-tos::after { content: 'TOSS';    color: #00e85a; text-shadow: 0 0 8px rgba(0,216,80,1); }
+      .z-slot.z-atk::after { content: 'ATTACK';  color: #ff6058; text-shadow: 0 0 8px rgba(255,40,32,1); }
+      .z-slot.z-srv::after { content: 'SERVE';   color: #ffd840; text-shadow: 0 0 8px rgba(255,200,0,1); }
+
+      .z-empty {
+        color: var(--text-dim, #888);
+        font-size: 12px;
+        z-index: 3;
+      }
+
+      /* z-hstack：卡牌橫排堆疊 */
+      .z-hstack {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        padding: 2px 4px;
+      }
+
+      .z-hstack-card {
+        position: relative;
+        flex: 0 0 auto;
+        height: 90%;
+        aspect-ratio: 5 / 7;
+        overflow: hidden;
+        border-radius: 5px;
+        box-shadow: 3px 4px 14px rgba(0,0,0,.85);
+        margin-left: -20%;
+      }
+      .z-hstack-card:first-child { margin-left: 0; }
+
+      .z-hstack-card img {
+        width: 100%; height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .z-hstack-name {
+        position: absolute;
+        top: 3px; left: 0; right: 0;
+        writing-mode: vertical-rl;
+        font-size: 8px;
+        color: #fff;
+        text-shadow: 0 1px 3px #000;
+        white-space: nowrap;
+        overflow: hidden;
+        text-align: center;
+        pointer-events: none;
+        z-index: 2;
+        height: calc(100% - 6px);
+      }
+
+      .z-hstack-tag {
+        position: absolute;
+        bottom: 2px; right: 2px;
+        font-size: 7px;
+        font-weight: 700;
+        background: rgba(0,0,0,.8);
+        color: #fb923c;
+        border-radius: 3px;
+        padding: 1px 3px;
+        z-index: 3;
+        pointer-events: none;
+      }
+
+      .z-slot.rv-highlight {
+        border-color: var(--arena-data-hot, #ff2d78);
+        box-shadow: 0 0 6px var(--arena-data-hot, #ff2d78);
+      }
 
       .rv-counters {
         font-size: 11px;
@@ -234,21 +346,45 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
           <span class="rv-step-counter">步驟 0 / 0</span>
         </div>
 
-        <div class="rv-board">
-          <div class="rv-player" id="rv-p1">
-            <div class="rv-zones"></div>
-            <div class="rv-counters">
-              手: <span class="rv-hand">6</span>
-              庫: <span class="rv-pile">40</span>
+        <div class="rv-board-wrap">
+          <div class="rv-player-area" id="rv-p1">
+            <div class="rv-player-label">P1 <span class="rv-p1-name-inline"></span></div>
+            <div class="board-court" id="rv-p1-court">
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-0"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-1"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-2"><div class="z-empty">—</div></div></div>
+              </div>
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-rcv" data-zone="receive"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-tos" data-zone="toss"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-atk" data-zone="attack"><div class="z-empty">—</div></div></div>
+              </div>
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
+              </div>
             </div>
+            <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
           </div>
 
-          <div class="rv-player rv-p2" id="rv-p2">
-            <div class="rv-counters">
-              手: <span class="rv-hand">6</span>
-              庫: <span class="rv-pile">40</span>
+          <div class="rv-player-area" id="rv-p2">
+            <div class="rv-player-label p2">P2 <span class="rv-p2-name-inline"></span></div>
+            <div class="board-court" id="rv-p2-court">
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-0"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-1"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-2"><div class="z-empty">—</div></div></div>
+              </div>
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-rcv" data-zone="receive"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-tos" data-zone="toss"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-atk" data-zone="attack"><div class="z-empty">—</div></div></div>
+              </div>
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
+              </div>
             </div>
-            <div class="rv-zones"></div>
+            <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
           </div>
         </div>
 
@@ -328,7 +464,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
 
     // 重建 card index（card_no → DOM elements）
     _cardIndex = new Map();
-    mount.querySelectorAll('.rv-zone[data-card-no]').forEach(el => {
+    mount.querySelectorAll('.z-slot[data-card-no]').forEach(el => {
       const cno = el.dataset.cardNo;
       if (!cno) return;
       if (!_cardIndex.has(cno)) _cardIndex.set(cno, new Set());
@@ -340,60 +476,70 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     const playerEl = mount.querySelector(`#rv-${playerKey}`);
     if (!playerEl) return;
 
-    const zonesContainer = playerEl.querySelector('.rv-zones');
     const counterHand = playerEl.querySelector('.rv-hand');
     const counterPile = playerEl.querySelector('.rv-pile');
+    const courtEl     = playerEl.querySelector('.board-court');
 
-    // 清空 zones
-    zonesContainer.innerHTML = '';
+    if (!courtEl) return;
 
-    // 定義 zone 名稱
-    const zoneNames = ['serve', 'receive', 'toss', 'attack', 'block'];
-    const zoneLabels = ['發球', '接球', '舉球', '攻撃', '攔網'];
+    const pState = state[playerKey];
+    const zones  = pState?.zones || {};
 
-    // 為每個 zone 建立容器
-    // buildSteps state 結構：{ zones: { serve: {img,guts}|null, block: [{img,guts}|null, ...] }, hand_count, pile_count }
-    zoneNames.forEach((zoneName, zIdx) => {
-      const zoneEl = document.createElement('div');
-      zoneEl.className = 'rv-zone';
-      zoneEl.dataset.zone = zoneName;
-
-      const zoneData = state[playerKey]?.zones?.[zoneName];
-
-      if (zoneName === 'block') {
-        // block 是 3-slot 陣列，只顯示第一個有卡的
-        const slots = Array.isArray(zoneData) ? zoneData : [];
-        const firstCard = slots.find(s => s && s.img);
-        if (firstCard) {
-          zoneEl.dataset.cardNo = firstCard.card_no || '';
-          const img = document.createElement('img');
-          img.src = `/images/${firstCard.img}`;
-          img.alt = `${playerKey} block`;
-          zoneEl.appendChild(img);
-        }
-      } else {
-        // 單 slot zone：null 或 {img, guts}
-        if (zoneData && zoneData.img) {
-          zoneEl.dataset.cardNo = zoneData.card_no || '';
-          const img = document.createElement('img');
-          img.src = `/images/${zoneData.img}`;
-          img.alt = `${playerKey} ${zoneName}`;
-          zoneEl.appendChild(img);
-        }
+    // 填充輔助函式：把 cardData 渲染進 z-slot
+    const fillSlot = (slotEl, cardData) => {
+      if (!slotEl) return;
+      slotEl.innerHTML = '';
+      slotEl.dataset.cardNo = '';
+      if (!cardData || !cardData.img) {
+        slotEl.innerHTML = '<div class="z-empty">—</div>';
+        return;
       }
+      slotEl.dataset.cardNo = cardData.card_no || '';
 
-      // 加上 zone 標籤（角落）
-      const label = document.createElement('div');
-      label.className = 'rv-zone-label';
-      label.textContent = zoneLabels[zIdx];
-      zoneEl.appendChild(label);
+      const guts = cardData.guts || [];
+      const allImgs = [...guts.map(g => (typeof g === 'string' ? g : g?.img)).filter(Boolean), cardData.img];
 
-      zonesContainer.appendChild(zoneEl);
+      const hstack = document.createElement('div');
+      hstack.className = 'z-hstack';
+
+      allImgs.forEach((imgFile, i) => {
+        const isTop = i === allImgs.length - 1;
+        const cardEl = document.createElement('div');
+        cardEl.className = 'z-hstack-card';
+
+        const imgEl = document.createElement('img');
+        imgEl.src = `/images/${imgFile}`;
+        imgEl.loading = 'lazy';
+        imgEl.onerror = () => { imgEl.onerror = null; imgEl.removeAttribute('src'); };
+        cardEl.appendChild(imgEl);
+
+        if (!isTop) {
+          const tag = document.createElement('span');
+          tag.className = 'z-hstack-tag';
+          tag.textContent = 'G';
+          cardEl.appendChild(tag);
+        }
+        hstack.appendChild(cardEl);
+      });
+      slotEl.appendChild(hstack);
+    };
+
+    // Block slots（3 個）
+    const blockSlots = Array.isArray(zones.block) ? zones.block : [];
+    for (let i = 0; i < 3; i++) {
+      const slotEl = courtEl.querySelector(`.z-slot[data-zone="block-${i}"]`);
+      fillSlot(slotEl, blockSlots[i] || null);
+    }
+
+    // 單 slot zones
+    ['receive', 'toss', 'attack', 'serve'].forEach(zoneName => {
+      const slotEl = courtEl.querySelector(`.z-slot[data-zone="${zoneName}"]`);
+      fillSlot(slotEl, zones[zoneName] || null);
     });
 
-    // 更新計數器（buildSteps 用 hand_count / pile_count）
-    if (counterHand) counterHand.textContent = state[playerKey]?.hand_count ?? 0;
-    if (counterPile) counterPile.textContent = state[playerKey]?.pile_count ?? 0;
+    // 更新計數器
+    if (counterHand) counterHand.textContent = pState?.hand_count ?? 0;
+    if (counterPile) counterPile.textContent = pState?.pile_count ?? 0;
   }
 
   function _zoneHasCard(playerState, cno) {
@@ -441,7 +587,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     // 清理舊狀態（idempotent）
     pause();
     _cardIndex = new Map();
-    mount.querySelectorAll('.rv-zone.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
+    mount.querySelectorAll('.z-slot.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
     _highlightedCards = new Set();
     _steps = buildSteps(newEvents);
     _meta = newMeta || _meta;
@@ -449,6 +595,17 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     _isPlaying = false;
     if (_timer) clearInterval(_timer);
     _timer = null;
+
+    // 更新玩家名稱
+    const p1label = mount.querySelector('.rv-p1-name');
+    if (p1label) p1label.textContent = _meta.p1_name || 'P1';
+    const p2label = mount.querySelector('.rv-p2-name');
+    if (p2label) p2label.textContent = _meta.p2_name || 'P2';
+    const p1inline = mount.querySelector('.rv-p1-name-inline');
+    if (p1inline) p1inline.textContent = _meta.p1_name || '';
+    const p2inline = mount.querySelector('.rv-p2-name-inline');
+    if (p2inline) p2inline.textContent = _meta.p2_name || '';
+
     _updateHeader();
     seek(0);
   }
@@ -483,7 +640,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
 
   function highlightCards(cardNos) {
     _highlightedCards = new Set(cardNos);
-    mount.querySelectorAll('.rv-zone.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
+    mount.querySelectorAll('.z-slot.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
     const found = [], missing = [];
     for (const cno of cardNos) {
       const els = _cardIndex.get(cno);
@@ -502,7 +659,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
 
   function clearHighlight() {
     _highlightedCards = new Set();
-    _renderStep(_currentStep);
+    mount.querySelectorAll('.z-slot.rv-highlight').forEach(el => el.classList.remove('rv-highlight'));
   }
 
   function seekToCards(cardNos) {
