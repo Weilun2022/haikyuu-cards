@@ -88,6 +88,11 @@ class BoardSnapshot:
     srv_bonus: int = 0
     set_score: int = 0
     set_cards: int = 2
+    serve_guts: int = 0
+    receive_guts: int = 0
+    toss_guts: int = 0
+    attack_guts: int = 0
+    block_guts: int = 0
 
 
 # ── 主要 Spectator 類別 ───────────────────────────────────────────────────────
@@ -367,25 +372,28 @@ class Spectator:
         c = _p_color(snap.player)
         name = self._p1_name if snap.player == 1 else self._p2_name
 
-        def _slot(card: str | None, bonus: int = 0) -> str:
+        def _slot(card: str | None, bonus: int = 0, guts: int = 0) -> str:
             if card is None:
                 return f"{_DIM}（空）{_R}"
             b = f"{_OK}+{bonus}{_R}" if bonus > 0 else ""
-            return f"{_B}{card}{_R}{b}"
+            g = f" {_DIM}G×{guts}{_R}" if guts > 0 else ""
+            return f"{_B}{card}{_R}{b}{g}"
 
         blocks_str = ", ".join(
             _slot(b) for b in snap.blocks if b
         ) or f"{_DIM}（空）{_R}"
+        if snap.block_guts:
+            blocks_str += f" {_DIM}G×{snap.block_guts}{_R}"
 
         grave_str = f"棄牌:{snap.grave_count}張 {_DIM}({snap.unique_grave}/6種類){_R}"
         hand_str  = f"手牌:{snap.hand_count}張 | 牌庫:{snap.pile_count}張"
         set_str   = f"SET:{snap.set_cards} 剩"
 
         print(f"  {c}場地 P{snap.player} {name}{_R} {_DIM}{set_str}{_R}")
-        print(f"    發球: {_slot(snap.serve,  snap.srv_bonus)}")
-        print(f"    舉球: {_slot(snap.toss,   snap.tos_bonus)}")
-        print(f"    攻擊: {_slot(snap.attack, snap.atk_bonus)}")
-        print(f"    接球: {_slot(snap.receive,snap.rcv_bonus)}")
+        print(f"    發球: {_slot(snap.serve,  snap.srv_bonus, snap.serve_guts)}")
+        print(f"    舉球: {_slot(snap.toss,   snap.tos_bonus, snap.toss_guts)}")
+        print(f"    攻擊: {_slot(snap.attack, snap.atk_bonus, snap.attack_guts)}")
+        print(f"    接球: {_slot(snap.receive,snap.rcv_bonus, snap.receive_guts)}")
         print(f"    攔網: {blocks_str}")
         print(f"    {hand_str}  {grave_str}")
 
@@ -609,7 +617,8 @@ function buildSteps() {
   const steps = [];
   const EMPTY = () => ({serve:null,toss:null,attack:null,receive:null,blocks:[],
                          hand_count:6,pile_count:34,grave_count:0,
-                         set_score:0,set_cards:2,unique_grave:0});
+                         set_score:0,set_cards:2,unique_grave:0,
+                         serve_guts:0,receive_guts:0,toss_guts:0,attack_guts:0,block_guts:0});
   const b = {1:EMPTY(), 2:EMPTY()};
   let lastDeploy = null; // {player, zone, card_name}
 
@@ -620,7 +629,9 @@ function buildSteps() {
         serve:d.serve, toss:d.toss, attack:d.attack, receive:d.receive,
         blocks:d.blocks||[], hand_count:d.hand_count, pile_count:d.pile_count,
         grave_count:d.grave_count, set_score:d.set_score, set_cards:d.set_cards,
-        unique_grave:d.unique_grave
+        unique_grave:d.unique_grave,
+        serve_guts:d.serve_guts||0, receive_guts:d.receive_guts||0,
+        toss_guts:d.toss_guts||0, attack_guts:d.attack_guts||0, block_guts:d.block_guts||0
       });
       if (steps.length > 0) {
         steps[steps.length-1].b1 = JSON.parse(JSON.stringify(b[1]));
@@ -635,7 +646,12 @@ function buildSteps() {
       const pn = ev.player, z = ev.data.zone;
       if (z === 'block') {
         b[pn].blocks = [...(b[pn].blocks||[]), ev.data.card_name].slice(-3);
+        // block_guts 由 board_snapshot 更新（側翼退場後會清零）
       } else if (['serve','toss','attack','receive'].includes(z)) {
+        if (b[pn][z] !== null) {
+          // 舊角色 → guts（計數+1）
+          b[pn][z+'_guts'] = (b[pn][z+'_guts']||0) + 1;
+        }
         b[pn][z] = ev.data.card_name;
       }
       b[pn].hand_count = Math.max(0, (b[pn].hand_count||0) - 1);
@@ -710,25 +726,28 @@ function renderBoard(id, b, pnum, highlight) {
   const col = pnum===1 ? 'var(--p1)' : 'var(--p2)';
   const name = pnum===1 ? P1NAME : P2NAME;
 
-  const zrow = (lbl, card, zone) => {
+  const zrow = (lbl, card, zone, guts) => {
     const isHl = highlight && highlight.player===pnum && highlight.zone===zone && highlight.card===card;
     const cls = card ? (isHl ? 'sz-val sz-highlight' : 'sz-val') : 'sz-val empty';
+    const gutsBadge = (guts > 0) ? ' <span style="color:var(--dim);font-size:.72rem">G×'+guts+'</span>' : '';
     return '<div class="sz"><span class="sz-lbl">'+lbl+'</span>'
-         + '<span class="'+cls+'">'+(card||'—')+'</span></div>';
+         + '<span class="'+cls+'">'+(card||'—')+gutsBadge+'</span></div>';
   };
 
   const blocks = (b.blocks||[]).filter(Boolean);
   const blkHl = highlight && highlight.player===pnum && highlight.zone==='block';
   const blkCls = blkHl ? 'sz-val sz-highlight' : (blocks.length ? 'sz-val' : 'sz-val empty');
-  const blkTxt = blocks.length ? blocks.join(' / ') : '—';
+  const blkGuts = b.block_guts||0;
+  const blkTxt = (blocks.length ? blocks.join(' / ') : '—')
+                + (blkGuts > 0 ? ' <span style="color:var(--dim);font-size:.72rem">G×'+blkGuts+'</span>' : '');
 
   el.innerHTML =
     '<div class="board-hdr"><span class="'+pc+'">'+name+'</span>'
     + '<span>'+setDots(b.set_cards||0)+'</span></div>'
-    + zrow('発球',b.serve,'serve')
-    + zrow('接球',b.receive,'receive')
-    + zrow('舉球',b.toss,'toss')
-    + zrow('攻擊',b.attack,'attack')
+    + zrow('発球',b.serve,'serve',b.serve_guts||0)
+    + zrow('接球',b.receive,'receive',b.receive_guts||0)
+    + zrow('舉球',b.toss,'toss',b.toss_guts||0)
+    + zrow('攻擊',b.attack,'attack',b.attack_guts||0)
     + '<div class="sz"><span class="sz-lbl">攔網</span><span class="'+blkCls+'">'+blkTxt+'</span></div>'
     + '<div class="sz-stats">'
     + '<span>手:'+b.hand_count+'</span>'

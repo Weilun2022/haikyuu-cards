@@ -367,23 +367,36 @@ class TurnFlow:
         return drawn
 
     def _deploy_to_zone(self, player: PlayerState, card_no: str, zone: str) -> None:
+        """部署角色到指定區域。被替換的角色壓入該區 Guts（不進棄牌）。"""
         zone = zone.lower()
         if zone == "serve":
-            if player.serve_zone.card:
-                self._to_grave(player, player.serve_zone.card)
-            player.serve_zone = ZoneState(card=card_no)
+            old = player.serve_zone
+            new_guts = old.guts[:]
+            if old.card:
+                new_guts.insert(0, old.card)  # 舊角色 → guts 頂
+            player.serve_zone = ZoneState(card=card_no, guts=new_guts)
+            player.g_serve = len(new_guts)
         elif zone == "toss":
-            if player.toss_zone.card:
-                self._to_grave(player, player.toss_zone.card)
-            player.toss_zone = ZoneState(card=card_no)
+            old = player.toss_zone
+            new_guts = old.guts[:]
+            if old.card:
+                new_guts.insert(0, old.card)
+            player.toss_zone = ZoneState(card=card_no, guts=new_guts)
+            player.g_toss = len(new_guts)
         elif zone == "attack":
-            if player.attack_zone.card:
-                self._to_grave(player, player.attack_zone.card)
-            player.attack_zone = ZoneState(card=card_no)
+            old = player.attack_zone
+            new_guts = old.guts[:]
+            if old.card:
+                new_guts.insert(0, old.card)
+            player.attack_zone = ZoneState(card=card_no, guts=new_guts)
+            player.g_attack = len(new_guts)
         elif zone == "receive":
-            if player.receive_zone.card:
-                self._to_grave(player, player.receive_zone.card)
-            player.receive_zone = ZoneState(card=card_no)
+            old = player.receive_zone
+            new_guts = old.guts[:]
+            if old.card:
+                new_guts.insert(0, old.card)
+            player.receive_zone = ZoneState(card=card_no, guts=new_guts)
+            player.g_receive = len(new_guts)
         elif zone == "block":
             # center (0) 先填，再填側邊
             if not player.block_zones[0].card:
@@ -392,10 +405,15 @@ class TurnFlow:
                 for i in range(1, 3):
                     if not player.block_zones[i].card:
                         player.block_zones[i] = ZoneState(card=card_no)
+                        player.g_block = sum(len(bz.guts) for bz in player.block_zones)
                         return
-                # 全滿：覆蓋 side[1]
-                self._to_grave(player, player.block_zones[1].card)
-                player.block_zones[1] = ZoneState(card=card_no)
+                # 全滿：覆蓋 side[1]，舊角色壓入 guts
+                old = player.block_zones[1]
+                new_guts = old.guts[:]
+                if old.card:
+                    new_guts.insert(0, old.card)
+                player.block_zones[1] = ZoneState(card=card_no, guts=new_guts)
+                player.g_block = sum(len(bz.guts) for bz in player.block_zones)
 
     def _to_grave(self, player: PlayerState, card_no: str | None) -> None:
         if not card_no:
@@ -408,11 +426,16 @@ class TurnFlow:
             player._grave_unique_count += 1
 
     def _drop_side_blockers(self, player: PlayerState) -> None:
-        """BLOCK PHASE 後：側翼攔網手退場至棄牌區。"""
+        """BLOCK PHASE 後：側翼攔網手連同其 Guts 一起退場至棄牌區。"""
         for i in range(1, 3):
             if player.block_zones[i].card:
+                # 先清 Guts → 棄牌
+                for g in player.block_zones[i].guts:
+                    self._to_grave(player, g)
+                # 角色本身 → 棄牌
                 self._to_grave(player, player.block_zones[i].card)
                 player.block_zones[i] = ZoneState()
+        player.g_block = sum(len(bz.guts) for bz in player.block_zones)
 
     def _interval_draw(self, state: GameState) -> None:
         """INTERVAL：雙方補到 6 張手牌。"""
@@ -442,6 +465,11 @@ class TurnFlow:
             unique_grave=actor.unique_names_in_grave(),
             set_score=actor.set_score,
             set_cards=actor.set_cards,
+            serve_guts=len(actor.serve_zone.guts),
+            receive_guts=len(actor.receive_zone.guts),
+            toss_guts=len(actor.toss_zone.guts),
+            attack_guts=len(actor.attack_zone.guts),
+            block_guts=sum(len(bz.guts) for bz in actor.block_zones),
         )
 
 
