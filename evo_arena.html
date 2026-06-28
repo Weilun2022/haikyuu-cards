@@ -652,11 +652,12 @@ async function arenaPickerChange(replayId) {
   await arenaLoadReplayById(replayId);
 }
 
-async function arenaLoadReplayById(replayId) {
+async function arenaLoadReplayById(replayId, { respectUserLock = false } = {}) {
   const token = ++_replayLoadToken;
   try {
     const evData = await fetch(ARENA_SERVER + '/api/replay_events?replay_id=' + replayId).then(r => r.json());
     if (token !== _replayLoadToken) return;  // 被更新的請求搶先
+    if (respectUserLock && _replayUserLocked) return;  // 使用者已接管（REVIEW），SSE 不覆蓋
     if (evData.error) { arenaSetReplayError('Replay 不存在'); return; }
     if (!evData.events || evData.events.length === 0) { arenaSetReplayError('Replay 無事件資料'); return; }
     const mount = document.getElementById('arena-replay-root');
@@ -687,7 +688,11 @@ async function arenaRefreshPicker() {
     const picker = document.getElementById('arena-replay-picker');
     if (!picker || !data.items) return;
     picker.innerHTML = data.items.map(item => {
-      const label = `G${item.d1_name || '?'} ${item.p1_sets}:${item.p2_sets} (${item.steps}步)`;
+      const gen = item.generation != null ? `G${item.generation}` : '';
+      const d1 = item.d1_name || '?';
+      const d2 = item.d2_name || '?';
+      const score = `${item.p1_sets}:${item.p2_sets}`;
+      const label = gen ? `${gen} · ${d1} vs ${d2} ${score}` : `${d1} vs ${d2} ${score} (${item.steps}步)`;
       return `<option value="${item.replay_id}">${label}</option>`;
     }).join('');
   } catch (e) {}
@@ -851,7 +856,7 @@ function arenaHandleUpdate(data) {
 
     if (label) label.textContent = '第 ' + gen + ' 代';
     arenaSetReplayLoading();
-    await arenaLoadReplayById(replayId);
+    await arenaLoadReplayById(replayId, { respectUserLock: true });
     arenaRefreshPicker();  // 更新下拉選單（非同步，不 await）
   })();
 }
@@ -894,10 +899,18 @@ function arenaComboClick(el) {
   const cardB = el.dataset.cardB;
   const cardNos = [cardA, cardB].filter(Boolean);
   if (cardNos.length > 0) {
-    const result = arenaViewer.highlightCards(cardNos);
+    let result = arenaViewer.highlightCards(cardNos);
     if (result && result.missing && result.missing.length > 0) {
-      // 卡片在當前步驟不可見，跳到包含這些卡的步驟（未來 enhancement）
-      console.info('[arena] combo cards not visible at current step:', result.missing);
+      // 有卡不在目前步驟，嘗試正掃找兩卡同時在場的最早 step
+      if (arenaViewer.seekToCards) {
+        const found = arenaViewer.seekToCards(cardNos);
+        if (found) {
+          result = arenaViewer.highlightCards(cardNos);
+        }
+        if (!found || (result && result.missing && result.missing.length > 0)) {
+          console.info('[arena] combo cards not visible in any step:', cardNos);
+        }
+      }
     }
   }
 }

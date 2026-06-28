@@ -321,9 +321,14 @@ class EvoHandler(BaseHTTPRequestHandler):
                     d = json.loads(jf.read_text(encoding="utf-8"))
                     meta = d.get("meta", {})
                     events = d.get("events", [])
+                    # 從檔名解析世代（gen{NNNN}）
+                    import re as _re
+                    _gen_m = _re.search(r'_gen(\d+)_', jf.stem)
+                    _generation = int(_gen_m.group(1)) if _gen_m else None
                     items.append({
                         "replay_id": d.get("replay_id", jf.stem),
                         "mtime": jf.stat().st_mtime,
+                        "generation": _generation,
                         "p1_name": meta.get("p1_name", "P1"),
                         "p2_name": meta.get("p2_name", "P2"),
                         "d1_name": meta.get("d1_name", ""),

@@ -371,6 +371,32 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     if (counterPile) counterPile.textContent = state[playerKey]?.pile_count ?? 0;
   }
 
+  function _zoneHasCard(playerState, cno) {
+    const zones = (playerState && playerState.zones) ? playerState.zones : {};
+    for (const [name, data] of Object.entries(zones)) {
+      if (name === 'block') {
+        if (Array.isArray(data) && data.some(s => s && s.card_no === cno)) return true;
+      } else {
+        if (data && data.card_no === cno) return true;
+      }
+    }
+    return false;
+  }
+
+  function _findStepWithBothCards(cardNos) {
+    // 從 _currentStep 往後掃，找第一個所有 cardNos 同時在場的 step（AND 條件）
+    for (let i = _currentStep; i < _steps.length; i++) {
+      const step = _steps[i];
+      if (!step || !step.state) continue;
+      const state = step.state;
+      const allFound = cardNos.every(cno =>
+        _zoneHasCard(state.p1, cno) || _zoneHasCard(state.p2, cno)
+      );
+      if (allFound) return i;
+    }
+    return -1;
+  }
+
   // ============ 公開方法 ============
 
   function loadReplay(newEvents, newMeta) {
@@ -445,6 +471,14 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     _renderStep(_currentStep);
   }
 
+  function seekToCards(cardNos) {
+    if (!cardNos || cardNos.length === 0) return false;
+    const idx = _findStepWithBothCards(cardNos);
+    if (idx < 0) return false;
+    seek(idx);
+    return true;
+  }
+
   function destroy() {
     pause();
     mount.innerHTML = '';
@@ -464,6 +498,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
     seek,
     highlightCards,
     clearHighlight,
+    seekToCards,
     destroy,
   };
 }
