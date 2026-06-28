@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>バボカ!! BREAK — 牌組進化儀表板</title>
+<style>
+:root{
+  --bg:#0a0a12;--panel:#111122;--border:#1e2044;--accent:#00ffe0;
+  --accent2:#ff2d78;--accent3:#c9a82f;--text:#e0e6ff;--muted:#667;
+  --win:#00e077;--lose:#ff3355;--card-bg:#161630;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;
+  font-size:13px;min-height:100vh;display:grid;
+  grid-template-rows:auto 1fr auto;grid-template-columns:1fr;
+  gap:0}
+
+/* ── Header ── */
+header{
+  background:linear-gradient(90deg,#0d0d1f,#14143a);
+  border-bottom:1px solid var(--border);
+  padding:10px 20px;display:flex;align-items:center;gap:16px}
+header h1{font-size:16px;letter-spacing:.15em;color:var(--accent);text-transform:uppercase}
+.status-badge{
+  padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em}
+.status-running{background:#1a3a20;color:var(--win);border:1px solid var(--win)}
+.status-idle{background:#2a1a1a;color:var(--muted);border:1px solid #333}
+#gen-display{margin-left:auto;color:var(--accent3);font-weight:700;font-size:14px}
+#best-wr-display{color:var(--win);font-weight:700;font-size:15px}
+
+/* ── Main Grid ── */
+main{
+  display:grid;
+  grid-template-columns:300px 1fr 280px;
+  grid-template-rows:auto 1fr;
+  gap:0;overflow:hidden;height:calc(100vh - 48px - 44px)}
+
+/* ── Left Panel: Config ── */
+.panel-config{
+  grid-row:1/3;background:var(--panel);border-right:1px solid var(--border);
+  overflow-y:auto;padding:14px}
+.section-title{
+  font-size:10px;text-transform:uppercase;letter-spacing:.12em;
+  color:var(--muted);padding:8px 0 6px;border-bottom:1px solid var(--border);
+  margin-bottom:10px}
+label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}
+select,textarea{
+  width:100%;background:#0d0d20;border:1px solid var(--border);
+  color:var(--text);padding:6px 8px;border-radius:4px;font-size:12px;
+  font-family:monospace}
+select{height:32px}
+textarea{height:120px;resize:vertical}
+.checkbox-row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.checkbox-row input[type=checkbox]{accent-color:var(--accent)}
+.range-row{display:flex;gap:8px;align-items:center;margin:6px 0}
+.range-row input[type=range]{flex:1;accent-color:var(--accent)}
+.range-val{width:30px;text-align:right;color:var(--accent);font-size:11px}
+.config-group{margin-bottom:12px}
+
+.btn{
+  width:100%;padding:9px;border:none;border-radius:4px;cursor:pointer;
+  font-weight:700;font-size:12px;letter-spacing:.08em;transition:.2s}
+.btn-start{background:var(--accent);color:#000;margin-top:8px}
+.btn-start:hover{filter:brightness(1.2)}
+.btn-stop{background:#331122;color:var(--accent2);border:1px solid var(--accent2);margin-top:6px}
+.btn-stop:hover{background:#440020}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Center Top: Win Rate Chart ── */
+.panel-chart{
+  grid-column:2;border-bottom:1px solid var(--border);
+  padding:14px;background:var(--panel)}
+.panel-chart h2{font-size:11px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.1em;margin-bottom:8px}
+canvas#wr-chart{width:100%;height:140px;display:block}
+
+/* ── Center Bottom: Best Deck + Replay ── */
+.panel-deck{
+  grid-column:2;overflow:auto;padding:14px;background:var(--bg)}
+.panel-deck h2{font-size:11px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.1em;margin-bottom:10px}
+.deck-grid{display:flex;flex-wrap:wrap;gap:8px}
+.card-chip{
+  background:var(--card-bg);border:1px solid var(--border);
+  border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:6px;
+  cursor:default;transition:.15s}
+.card-chip:hover{border-color:var(--accent)}
+.card-chip .cnt{
+  background:var(--accent);color:#000;border-radius:3px;
+  padding:1px 5px;font-size:10px;font-weight:700;min-width:18px;text-align:center}
+.card-chip .cname{font-size:12px}
+.card-chip .cscore{font-size:10px;color:var(--win);margin-left:auto}
+.card-chip .school-tag{
+  font-size:9px;color:var(--muted);background:#1a1a30;
+  padding:1px 4px;border-radius:2px}
+.card-chip.top-card{border-color:var(--accent3)}
+.card-chip.low-card{border-color:#443}
+
+/* ── Right Panel: Analytics ── */
+.panel-analytics{
+  grid-column:3;grid-row:1/3;background:var(--panel);
+  border-left:1px solid var(--border);overflow-y:auto;padding:14px}
+.combo-item{
+  background:var(--card-bg);border:1px solid var(--border);
+  border-radius:6px;padding:8px;margin-bottom:8px}
+.combo-wr{color:var(--accent);font-weight:700;font-size:14px}
+.combo-cards{font-size:11px;color:var(--text);margin-top:3px}
+.combo-meta{font-size:10px;color:var(--muted);margin-top:2px}
+.top-card-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;border-bottom:1px solid #1a1a30;font-size:11px}
+.top-card-wr{color:var(--win);font-weight:700}
+
+/* ── Footer: Replay ── */
+footer{
+  height:44px;background:#0a0a18;border-top:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;padding:0 14px;font-size:11px}
+#replay-link{color:var(--accent);text-decoration:none;font-size:11px}
+#replay-link:hover{text-decoration:underline}
+
+/* ── Modal: Replay Viewer ── */
+#replay-modal{
+  display:none;position:fixed;inset:0;background:#000a;z-index:100;
+  align-items:center;justify-content:center}
+#replay-modal.open{display:flex}
+#replay-modal .modal-box{
+  width:90vw;height:88vh;background:var(--panel);border:1px solid var(--border);
+  border-radius:8px;display:flex;flex-direction:column;overflow:hidden}
+#replay-modal .modal-header{
+  padding:8px 12px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+#replay-iframe{flex:1;border:none}
+.close-btn{background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:18px;padding:0 4px}
+.close-btn:hover{color:var(--text)}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>バボカ!! BREAK — 牌組進化系統</h1>
+  <span id="status-badge" class="status-badge status-idle">待機</span>
+  <span id="gen-display">第 0 世代</span>
+  <span id="best-wr-display">— %</span>
+</header>
+
+<main>
+  <!-- ── 左側：設定 ── -->
+  <aside class="panel-config">
+    <div class="section-title">進化設定</div>
+
+    <div class="config-group">
+      <label>種子牌組</label>
+      <select id="sel-seed">
+        <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+        <option value="ROKUNIN_V1">ROKUNIN_V1（稲荷崎P03）</option>
+        <option value="STANDARD">STANDARD（烏野）</option>
+        <option value="custom">自訂（貼 JSON）</option>
+      </select>
+      <textarea id="custom-deck" placeholder='{"HV-P01-001":3,"HV-P01-002":3,...}'
+        style="display:none;margin-top:6px"></textarea>
+    </div>
+
+    <div class="config-group">
+      <label>對手環境（Meta 牌組）</label>
+      <div class="checkbox-row">
+        <input type="checkbox" id="meta-rokunin" value="ROKUNIN" checked>
+        <label for="meta-rokunin" style="margin:0">稲荷崎 ROKUNIN</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="meta-standard" value="STANDARD" checked>
+        <label for="meta-standard" style="margin:0">烏野 STANDARD</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="meta-v1" value="ROKUNIN_V1">
+        <label for="meta-v1" style="margin:0">稲荷崎 V1</label>
+      </div>
+    </div>
+
+    <div class="config-group">
+      <label>族群規模</label>
+      <div class="range-row">
+        <input type="range" id="cfg-pop" min="8" max="32" value="16" step="4">
+        <span class="range-val" id="cfg-pop-val">16</span>
+      </div>
+
+      <label>每副評估局數</label>
+      <div class="range-row">
+        <input type="range" id="cfg-games" min="20" max="200" value="60" step="10">
+        <span class="range-val" id="cfg-games-val">60</span>
+      </div>
+
+      <label>突變替換張數</label>
+      <div class="range-row">
+        <input type="range" id="cfg-swaps" min="1" max="8" value="3" step="1">
+        <span class="range-val" id="cfg-swaps-val">3</span>
+      </div>
+
+      <label>最大世代數</label>
+      <div class="range-row">
+        <input type="range" id="cfg-gens" min="20" max="500" value="200" step="20">
+        <span class="range-val" id="cfg-gens-val">200</span>
+      </div>
+    </div>
+
+    <button class="btn btn-start" id="btn-start" onclick="startEvo()">⚡ 開始進化</button>
+    <button class="btn btn-stop" id="btn-stop" onclick="stopEvo()" disabled>■ 停止</button>
+  </aside>
+
+  <!-- ── 中上：勝率折線圖 ── -->
+  <section class="panel-chart">
+    <h2>世代勝率趨勢</h2>
+    <canvas id="wr-chart"></canvas>
+  </section>
+
+  <!-- ── 中下：當前最強牌組 ── -->
+  <section class="panel-deck">
+    <h2>當前最強牌組 <span id="deck-wr" style="color:var(--accent3)"></span></h2>
+    <div id="deck-grid" class="deck-grid">
+      <span style="color:var(--muted)">等待進化開始…</span>
+    </div>
+  </section>
+
+  <!-- ── 右側：分析 ── -->
+  <aside class="panel-analytics">
+    <div class="section-title">最強 Combo</div>
+    <div id="combos-list"><span style="color:var(--muted)">累積資料中…</span></div>
+
+    <div class="section-title" style="margin-top:16px">卡牌貢獻排行</div>
+    <div id="top-cards-list"><span style="color:var(--muted)">—</span></div>
+  </aside>
+</main>
+
+<footer>
+  <span id="footer-status">就緒 | 伺服器: http://localhost:7778</span>
+  <span style="margin-left:auto">
+    <a id="replay-link" href="#" onclick="return false">— 無回放 —</a>
+  </span>
+</footer>
+
+<!-- Modal: 回放播放器 -->
+<div id="replay-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span id="modal-title" style="color:var(--accent)">關鍵對局回放</span>
+      <button class="close-btn" onclick="closeReplay()">✕</button>
+    </div>
+    <iframe id="replay-iframe" src="about:blank"></iframe>
+  </div>
+</div>
+
+<script>
+// ── 設定面板互動 ─────────────────────────────────────────────────────────────
+document.querySelectorAll('input[type=range]').forEach(el => {
+  const valEl = document.getElementById(el.id + '-val');
+  el.addEventListener('input', () => { if(valEl) valEl.textContent = el.value; });
+});
+document.getElementById('sel-seed').addEventListener('change', function(){
+  document.getElementById('custom-deck').style.display = this.value==='custom' ? 'block':'none';
+});
+
+// ── Win Rate Chart ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('wr-chart');
+const ctx = canvas.getContext('2d');
+let chartData = [];
+
+function drawChart() {
+  const W = canvas.parentElement.clientWidth - 28;
+  const H = 140;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0,0,W,H);
+
+  const gridColor = '#1e2044';
+  const n = chartData.length;
+
+  // Grid
+  ctx.strokeStyle = gridColor; ctx.lineWidth = 0.5;
+  [0.25,0.5,0.75].forEach(y => {
+    const py = H - y*H;
+    ctx.beginPath(); ctx.moveTo(0,py); ctx.lineTo(W,py); ctx.stroke();
+    ctx.fillStyle='#555'; ctx.font='10px monospace';
+    ctx.fillText((y*100).toFixed(0)+'%', 2, py-2);
+  });
+
+  if(n < 2) return;
+
+  const maxWR = Math.max(...chartData, 0.5);
+  const step = W / (n-1);
+
+  // Avg area (fill)
+  const avgData = chartData.map(d => typeof d === 'object' ? d.avg : d * 0.9);
+
+  // Best line
+  ctx.beginPath();
+  ctx.strokeStyle='#00ffe0'; ctx.lineWidth=2;
+  chartData.forEach((d,i) => {
+    const v = typeof d === 'object' ? d.best : d;
+    const x = i*step, y = H - (v/Math.max(maxWR,0.01))*H*0.92 - 4;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Current gen dot
+  const last = typeof chartData[n-1]==='object' ? chartData[n-1].best : chartData[n-1];
+  const lx = (n-1)*step;
+  const ly = H - (last/Math.max(maxWR,0.01))*H*0.92 - 4;
+  ctx.beginPath(); ctx.arc(lx,ly,4,0,Math.PI*2);
+  ctx.fillStyle='#00ffe0'; ctx.fill();
+  ctx.fillStyle='#000';
+  ctx.font='bold 11px monospace';
+  ctx.fillText((last*100).toFixed(1)+'%', Math.max(0,lx-20), Math.max(10,ly-8));
+}
+
+// ── SSE ──────────────────────────────────────────────────────────────────────
+let es = null;
+
+function connectSSE() {
+  if(es) es.close();
+  es = new EventSource('/events');
+  es.onmessage = e => {
+    try { handleUpdate(JSON.parse(e.data)); } catch(err){}
+  };
+  es.onerror = () => {
+    document.getElementById('footer-status').textContent = 'SSE 連線中斷，嘗試重連…';
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+// ── 更新 UI ──────────────────────────────────────────────────────────────────
+let latestReplayPath = null;
+
+function handleUpdate(data) {
+  const gen = data.generation ?? 0;
+  const bestWR = data.best_win_rate ?? 0;
+  const avgWR  = data.avg_win_rate ?? 0;
+
+  document.getElementById('gen-display').textContent = `第 ${gen} 世代`;
+  document.getElementById('best-wr-display').textContent = (bestWR*100).toFixed(1) + '%';
+  document.getElementById('status-badge').className = 'status-badge status-running';
+  document.getElementById('status-badge').textContent = '進化中';
+
+  // Chart — 優先用完整 history（SSE 重連後也能補全歷史）
+  if (data.history && data.history.length > chartData.length) {
+    chartData = data.history.map((v, i) => ({
+      best: v,
+      avg: (data.history_avg || [])[i] ?? v * 0.88,
+    }));
+  } else {
+    chartData.push({ best: bestWR, avg: avgWR });
+  }
+  drawChart();
+
+  // Best deck
+  if(data.best_deck) renderDeck(data.best_deck);
+
+  // Analytics
+  if(data.analytics) renderAnalytics(data.analytics);
+
+  // Key replay
+  const replays = data.best_deck?.key_replays;
+  if(replays && replays.length > 0 && replays[0].replay_path) {
+    const fname = replays[0].replay_path.split(/[\/\\]/).pop();
+    const url = `/replays/visual_${fname.replace('replay_','')}`; // try visual first
+    latestReplayPath = `/replays/${fname}`;
+    const link = document.getElementById('replay-link');
+    link.textContent = `▶ 觀看第 ${gen} 代關鍵回放`;
+    link.onclick = () => { openReplay(latestReplayPath, `第 ${gen} 代關鍵回放`); return false; };
+  }
+
+  document.getElementById('footer-status').textContent =
+    `第 ${gen} 世代 | 最強 ${(bestWR*100).toFixed(1)}% | 族群均 ${(avgWR*100).toFixed(1)}%`;
+}
+
+// ── 牌組渲染 ─────────────────────────────────────────────────────────────────
+let _cardNames = {};
+
+function loadCardNames() {
+  if(Object.keys(_cardNames).length) return;
+  // 嘗試從 cards_data.js 讀取（非同步，頁面已引入的話直接用）
+  if(typeof CARDS_DATA !== 'undefined') {
+    CARDS_DATA.cards.forEach(c => {
+      _cardNames[c.card_no] = { name: c.name, school: c.school };
+    });
+  }
+}
+
+function renderDeck(deckData) {
+  loadCardNames();
+  const cards = deckData.cards || {};
+  const scores = deckData.card_scores || {};
+  const wr = deckData.win_rate || 0;
+  document.getElementById('deck-wr').textContent = `勝率 ${(wr*100).toFixed(1)}%`;
+
+  const sorted = Object.entries(cards).sort((a,b) =>
+    (scores[b[0]] ?? 0) - (scores[a[0]] ?? 0));
+
+  const grid = document.getElementById('deck-grid');
+  grid.innerHTML = '';
+  sorted.forEach(([cno, cnt]) => {
+    const score = scores[cno] ?? 0;
+    const info = _cardNames[cno] || { name: cno, school: '' };
+    const isTop = score >= 0.6;
+    const isLow = score < 0.35;
+    const div = document.createElement('div');
+    div.className = `card-chip${isTop?' top-card':isLow?' low-card':''}`;
+    div.title = `${cno}\n貢獻分: ${(score*100).toFixed(0)}%`;
+    div.innerHTML = `
+      <span class="cnt">×${cnt}</span>
+      <span class="cname">${info.name || cno}</span>
+      <span class="school-tag">${info.school}</span>
+      <span class="cscore">${(score*100).toFixed(0)}%</span>`;
+    grid.appendChild(div);
+  });
+}
+
+// ── Analytics 渲染 ───────────────────────────────────────────────────────────
+function renderAnalytics(data) {
+  loadCardNames();
+
+  // Combos
+  const combos = data.top_combos || [];
+  const cl = document.getElementById('combos-list');
+  if(combos.length === 0) {
+    cl.innerHTML = '<span style="color:var(--muted)">累積資料中（需數個世代）…</span>';
+  } else {
+    cl.innerHTML = combos.map(c => `
+      <div class="combo-item">
+        <div class="combo-wr">${(c.combo_win_rate*100).toFixed(1)}%</div>
+        <div class="combo-cards">
+          ${c.name_a}<br>
+          <span style="color:var(--muted)">+ </span>${c.name_b}
+        </div>
+        <div class="combo-meta">共現 ${c.appearances} 次</div>
+      </div>`).join('');
+  }
+
+  // Top Cards
+  const topCards = data.top_cards || [];
+  const tcl = document.getElementById('top-cards-list');
+  tcl.innerHTML = topCards.map((c,i) => `
+    <div class="top-card-row">
+      <span style="color:var(--muted)">#${i+1}</span>
+      <span>${c.name}</span>
+      <span class="top-card-wr">${(c.avg_win_rate*100).toFixed(1)}%</span>
+    </div>`).join('') || '<span style="color:var(--muted)">—</span>';
+}
+
+// ── 控制 ─────────────────────────────────────────────────────────────────────
+async function startEvo() {
+  const seedSel = document.getElementById('sel-seed').value;
+  let seedDeck = null;
+  if(seedSel === 'custom') {
+    try { seedDeck = JSON.parse(document.getElementById('custom-deck').value); }
+    catch(e) { alert('自訂 JSON 格式有誤'); return; }
+  }
+
+  const metaDecks = ['ROKUNIN','STANDARD','ROKUNIN_V1'].filter(n => {
+    const el = document.getElementById('meta-'+n.toLowerCase().replace('_v1','-v1').replace('rokunin','rokunin').replace('standard','standard'));
+    return el && el.checked;
+  });
+  // 修正 ID 映射
+  const metaMap = {
+    ROKUNIN: document.getElementById('meta-rokunin')?.checked,
+    STANDARD: document.getElementById('meta-standard')?.checked,
+    ROKUNIN_V1: document.getElementById('meta-v1')?.checked,
+  };
+  const metaList = Object.entries(metaMap).filter(([,v])=>v).map(([k])=>k);
+
+  const cfg = {
+    population_size: +document.getElementById('cfg-pop').value,
+    games_per_eval: +document.getElementById('cfg-games').value,
+    mutation_swaps: +document.getElementById('cfg-swaps').value,
+    max_generations: +document.getElementById('cfg-gens').value,
+  };
+
+  const payload = { meta_decks: metaList, config: cfg };
+  if(seedDeck) payload.seed_deck = seedDeck;
+  else payload.seed_deck_name = seedSel;
+
+  try {
+    const r = await fetch('/start', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if(!j.ok) { alert(j.error); return; }
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('btn-stop').disabled = false;
+    chartData = [];
+    document.getElementById('deck-grid').innerHTML = '<span style="color:var(--muted)">模擬中…</span>';
+  } catch(e) { alert('無法連線到伺服器: ' + e); }
+}
+
+async function stopEvo() {
+  await fetch('/stop', { method:'POST' });
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled = true;
+  document.getElementById('status-badge').className = 'status-badge status-idle';
+  document.getElementById('status-badge').textContent = '已停止';
+}
+
+// ── 回放 Modal ───────────────────────────────────────────────────────────────
+function openReplay(url, title) {
+  document.getElementById('modal-title').textContent = title || '回放';
+  document.getElementById('replay-iframe').src = url;
+  document.getElementById('replay-modal').classList.add('open');
+}
+function closeReplay() {
+  document.getElementById('replay-modal').classList.remove('open');
+  document.getElementById('replay-iframe').src = 'about:blank';
+}
+document.getElementById('replay-modal').addEventListener('click', function(e) {
+  if(e.target === this) closeReplay();
+});
+
+// ── 初始化 ───────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  drawChart();
+  connectSSE();
+
+  // 載入卡牌名稱
+  const s = document.createElement('script');
+  s.src = '/cards_data.js';
+  s.onload = loadCardNames;
+  document.head.appendChild(s);
+
+  // 讀取目前狀態
+  fetch('/status').then(r=>r.json()).then(d => {
+    if(!d.running) {
+      document.getElementById('btn-start').disabled = false;
+      document.getElementById('btn-stop').disabled = true;
+    }
+  }).catch(()=>{});
+});
+</script>
+</body>
+</html>

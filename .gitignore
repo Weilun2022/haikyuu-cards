@@ -6,6 +6,8 @@ node_modules/
 !game_engine/**/*.py
 !game_engine/*.py
 !battle_server.py
+!deck_evo/**/*.py
+!deck_evo/*.py
 *.csv
 *.xlsx
 *.json
