@@ -247,6 +247,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         flex-direction: row;
         align-items: center;
         justify-content: flex-start;
+        align-self: stretch;
         width: 100%;
         height: 100%;
         overflow: hidden;
