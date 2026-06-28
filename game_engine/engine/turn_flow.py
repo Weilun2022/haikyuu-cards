@@ -470,6 +470,16 @@ class TurnFlow:
             toss_guts=len(actor.toss_zone.guts),
             attack_guts=len(actor.attack_zone.guts),
             block_guts=sum(len(bz.guts) for bz in actor.block_zones),
+            serve_no=actor.serve_zone.card,
+            receive_no=actor.receive_zone.card,
+            toss_no=actor.toss_zone.card,
+            attack_no=actor.attack_zone.card,
+            block_nos=[bz.card for bz in actor.block_zones],
+            serve_guts_nos=list(actor.serve_zone.guts),
+            receive_guts_nos=list(actor.receive_zone.guts),
+            toss_guts_nos=list(actor.toss_zone.guts),
+            attack_guts_nos=list(actor.attack_zone.guts),
+            block_guts_nos=[list(bz.guts) for bz in actor.block_zones],
         )
 
 

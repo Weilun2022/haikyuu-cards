@@ -93,6 +93,17 @@ class BoardSnapshot:
     toss_guts: int = 0
     attack_guts: int = 0
     block_guts: int = 0
+    # Card numbers for replay_viewer.html image display
+    serve_no: str | None = None
+    receive_no: str | None = None
+    toss_no: str | None = None
+    attack_no: str | None = None
+    block_nos: list[str | None] = field(default_factory=list)
+    serve_guts_nos: list[str] = field(default_factory=list)
+    receive_guts_nos: list[str] = field(default_factory=list)
+    toss_guts_nos: list[str] = field(default_factory=list)
+    attack_guts_nos: list[str] = field(default_factory=list)
+    block_guts_nos: list[list[str]] = field(default_factory=list)
 
 
 # ── 主要 Spectator 類別 ───────────────────────────────────────────────────────
@@ -307,6 +318,7 @@ class Spectator:
             self._print_game_end(winner_player, total_turns)
         if self.html_out:
             self._save_html()
+            self._save_visual_html()
 
     # ── 終端機輸出函式 ────────────────────────────────────────────────────────
 
@@ -418,6 +430,33 @@ class Spectator:
         html = self._build_html()
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
+
+    def _save_visual_html(self) -> None:
+        if not self.html_out:
+            return
+        template_path = Path(__file__).parent.parent / "replay_viewer.html"
+        if not template_path.exists():
+            return
+        template = template_path.read_text(encoding="utf-8")
+        events_json = json.dumps(
+            self._events, default=lambda o: o.__dict__,
+            ensure_ascii=False, indent=2
+        )
+        out_path = Path(self.html_out)
+        visual_path = out_path.parent / ("visual_" + out_path.name)
+        # Compute relative path from output dir back to project root (where images/ live)
+        import os
+        project_root = template_path.parent
+        rel = os.path.relpath(project_root, visual_path.parent).replace("\\", "/")
+        base_tag = f'<base href="{rel}/">'
+        visual_html = (template
+            .replace("<head>", f"<head>\n{base_tag}", 1)
+            .replace("/* INJECT_PLACEHOLDER */",
+                     f"const REPLAY_EVENTS = {events_json};"))
+        with open(visual_path, "w", encoding="utf-8") as f:
+            f.write(visual_html)
+        if not self.silent:
+            print(f"  視覺回放已儲存: {visual_path}")
 
     def _build_html(self) -> str:
         events_json = json.dumps(self._events, default=lambda o: o.__dict__,

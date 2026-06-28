@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バボカ!! BREAK — 視覺回放</title>
+<script src="cards_data.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+/* ── Base ── */
+:root {
+  --bg:         #0d0d14;
+  --surface:    #16161f;
+  --surface2:   #1e1e2a;
+  --surface3:   #24242f;
+  --border:     #2a2a3e;
+  --text:       #e8e8f2;
+  --text-dim:   #6868a0;
+  --accent:     #6c63ff;
+  --accent2:    #ff6584;
+  --green:      #4ade80;
+  --orange:     #fb923c;
+  --blue:       #60a5fa;
+  --zone-bg:    #111118;
+  --net-color:  #252540;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Noto Sans TC', system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Replay toolbar ── */
+#replay-toolbar {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 7px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  z-index: 100;
+}
+#replay-toolbar button {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background .12s, border-color .12s;
+}
+#replay-toolbar button:hover { background: var(--surface3); border-color: var(--accent); }
+#btn-prev, #btn-next {
+  font-size: 14px !important;
+  padding: 3px 14px !important;
+  border-color: var(--accent) !important;
+}
+#btn-auto.playing { background: rgba(108,99,255,.25) !important; border-color: var(--accent) !important; color: var(--accent) !important; }
+#step-counter { font-size: 12px; color: var(--text-dim); min-width: 70px; text-align: center; }
+.tb-sep { color: var(--border); font-size: 14px; }
+#replay-toolbar select {
+  font-size: 11px; padding: 2px 5px;
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 4px; font-family: inherit;
+}
+
+/* ── Event box ── */
+#replay-event-box {
+  padding: 7px 16px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  min-height: 30px;
+  flex-shrink: 0;
+  letter-spacing: .3px;
+  transition: background .2s, color .2s;
+}
+#replay-event-box.kind-phase    { color: var(--orange); }
+#replay-event-box.kind-judge    { color: #fbbf24; background: rgba(251,191,36,.08); font-weight: 600; }
+#replay-event-box.kind-lost     { color: #f87171; background: rgba(248,113,113,.08); font-weight: 600; }
+#replay-event-box.kind-game_end { color: var(--green); background: rgba(74,222,128,.08); font-weight: 700; }
+#replay-event-box.kind-interval { color: var(--accent); background: rgba(108,99,255,.06); }
+#replay-event-box.kind-set_result { color: var(--green); font-weight: 600; }
+#replay-event-box.kind-board_snapshot { color: var(--text-dim); font-size: 11px; }
+
+/* ── Stats bar ── */
+#replay-stats-bar {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11px;
+}
+.stats-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  border-right: 1px solid var(--border);
+}
+.stats-row:last-child { border-right: none; }
+.stats-name {
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 50px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stats-name.p2 { color: var(--accent2); }
+.stats-num { color: var(--text); font-weight: 700; }
+.stats-lbl { color: var(--text-dim); font-size: 10px; }
+
+/* ── Game body ── */
+#game-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+#game-board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 5px 4px;
+  gap: 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+.player-area {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  min-height: 0;
+  position: relative;
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid transparent;
+}
+.area-name {
+  position: absolute;
+  top: 5px; left: 5px;
+  font-size: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  color: var(--text-dim);
+  z-index: 5;
+  pointer-events: none;
+  letter-spacing: .3px;
+  font-weight: 600;
+}
+.area-name.self { color: var(--accent); border-color: rgba(108,99,255,.4); }
+.area-name.opp2 { color: var(--accent2); border-color: rgba(255,101,132,.4); }
+
+/* ── Board layout ── */
+.board-side { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; width: 52px; }
+.info-tile {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 5px;
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.t-label { font-size: 9px; color: var(--text-dim); line-height: 1; margin-bottom: 3px; font-weight: 500; }
+.t-val   { font-size: 18px; font-weight: 800; line-height: 1; }
+
+/* ── Court ── */
+.board-court {
+  flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; min-height: 0;
+  background-color: #040810;
+  background-image:
+    linear-gradient(rgba(0,120,255,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,120,255,.06) 1px, transparent 1px);
+  background-size: 20px 20px;
+  border-radius: 10px;
+  padding: 5px;
+  box-shadow:
+    inset 0 0 0 1px rgba(0,100,255,.18),
+    inset 0 0 30px rgba(0,60,180,.12),
+    0 0 8px rgba(0,80,200,.15);
+}
+.opp-court { flex-direction: column-reverse; }
+.court-row { display: flex; gap: 4px; flex: 1; min-height: 0; }
+.court-row.back-row { flex: 1; }
+.zone-spacer { flex: 1; min-width: 0; }
+.zone-w { display: flex; flex-direction: column; align-items: center; flex: 1; min-width: 0; gap: 0; }
+
+/* ── Zone stat overlay ── */
+.z-stat-overlay {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: auto; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 0; z-index: 5; pointer-events: none;
+}
+.z-stat-val {
+  font-size: 14px; font-weight: 900; line-height: 1.2;
+  min-width: 20px; text-align: center; letter-spacing: .5px; display: inline-block;
+}
+
+/* ── Zone CSS (CYBER neon) ── */
+.z-slot.z-blk {
+  border: 1.5px solid #505870; background: rgba(20,24,36,.85);
+  box-shadow: inset 0 0 0 1px rgba(80,88,112,.35), 0 0 8px rgba(80,88,112,.3), 0 0 20px rgba(80,88,112,.1);
+}
+.z-slot.z-rcv {
+  border: 1.5px solid #0e7fff; background: rgba(8,32,120,.45);
+  box-shadow: inset 0 0 0 1px rgba(14,127,255,.25), 0 0 10px rgba(14,127,255,.5), 0 0 28px rgba(14,127,255,.2);
+}
+.z-slot.z-tos {
+  border: 1.5px solid #00d850; background: rgba(0,80,30,.45);
+  box-shadow: inset 0 0 0 1px rgba(0,216,80,.25), 0 0 10px rgba(0,216,80,.45), 0 0 28px rgba(0,216,80,.18);
+}
+.z-slot.z-atk {
+  border: 1.5px solid #ff2820; background: rgba(100,10,8,.5);
+  box-shadow: inset 0 0 0 1px rgba(255,40,32,.25), 0 0 10px rgba(255,40,32,.55), 0 0 28px rgba(255,40,32,.2);
+}
+.z-slot.z-srv {
+  border: 1.5px solid #ffc800; background: rgba(90,60,0,.5);
+  box-shadow: inset 0 0 0 1px rgba(255,200,0,.25), 0 0 10px rgba(255,200,0,.5), 0 0 28px rgba(255,200,0,.18);
+}
+
+@keyframes neonGlow {
+  0%, 100% { opacity: .55; }
+  50%       { opacity: .85; }
+}
+.z-slot::before {
+  content: '';
+  position: absolute; inset: 0; border-radius: 6px;
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.10) 0%, transparent 45%),
+    linear-gradient(0deg, rgba(0,0,0,.35) 0%, transparent 60%);
+  pointer-events: none; z-index: 1;
+  animation: neonGlow 2.4s ease-in-out infinite;
+}
+.z-slot::after {
+  content: ''; position: absolute; bottom: 4px; left: 0; right: 0;
+  text-align: center; font-family: 'Bebas Neue', sans-serif;
+  font-size: 11px; letter-spacing: 2px; pointer-events: none; opacity: .9; line-height: 1; z-index: 2;
+}
+.z-slot.z-blk::after { content: 'BLOCK';   color: #8898c8; text-shadow: 0 0 6px rgba(80,88,112,.8); }
+.z-slot.z-rcv::after { content: 'RECEIVE'; color: #4ab4ff; text-shadow: 0 0 8px rgba(14,127,255,1); }
+.z-slot.z-tos::after { content: 'TOSS';    color: #00e85a; text-shadow: 0 0 8px rgba(0,216,80,1); }
+.z-slot.z-atk::after { content: 'ATTACK';  color: #ff6058; text-shadow: 0 0 8px rgba(255,40,32,1); }
+.z-slot.z-srv::after { content: 'SERVE';   color: #ffd840; text-shadow: 0 0 8px rgba(255,200,0,1); }
+
+.z-slot {
+  width: 100%; flex: 1;
+  background: var(--zone-bg);
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+  transition: border-color .15s, background .15s, box-shadow .15s;
+  min-height: 0; cursor: default;
+}
+
+/* ── z-hstack (card stack in zone) ── */
+.z-hstack {
+  display: flex; flex-direction: row; align-items: center;
+  justify-content: flex-start; width: 100%; height: 100%; overflow: hidden; padding: 2px 4px;
+}
+.z-hstack-card {
+  position: relative; flex: 0 0 auto; height: 93%; aspect-ratio: 5/7;
+  overflow: hidden; border-radius: 5px;
+  box-shadow: 3px 4px 14px rgba(0,0,0,.85);
+  transition: transform .15s;
+}
+.z-hstack-card:hover { transform: scale(1.08); z-index: 20; }
+.z-hstack-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.z-hstack-name {
+  position: absolute; top: 3px; left: 0; right: 0;
+  writing-mode: vertical-rl; font-size: 8px; color: #fff;
+  text-shadow: 0 1px 3px #000; white-space: nowrap; overflow: hidden;
+  text-align: center; pointer-events: none; z-index: 2; height: calc(100% - 6px);
+}
+.z-hstack-tag {
+  position: absolute; bottom: 2px; right: 2px; font-size: 7px; font-weight: 700;
+  background: rgba(0,0,0,.8); color: var(--orange); border-radius: 3px; padding: 1px 3px;
+  z-index: 3; pointer-events: none;
+}
+.z-empty { font-size: 10px; color: var(--border); }
+
+/* ── Net ── */
+.net-div { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.net-line { flex: 1; height: 2px; background: var(--net-color); border-radius: 1px; }
+.net-text { font-size: 9px; color: var(--net-color); font-weight: 800; letter-spacing: 2px; flex-shrink: 0; }
+
+/* ── Card hover popup ── */
+#card-hover-popup {
+  position: fixed; z-index: 9999; pointer-events: none;
+  display: none; flex-direction: column; align-items: center; gap: 4px;
+}
+#card-hover-popup.show { display: flex; }
+#card-hover-popup img {
+  width: 120px; height: 168px; object-fit: cover;
+  border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.9);
+  border: 1px solid var(--border);
+}
+#card-hover-popup .chp-name {
+  font-size: 12px; color: var(--text); background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 5px; padding: 2px 8px;
+  text-align: center; white-space: nowrap;
+}
+</style>
+</head>
+<body>
+
+<!-- Replay toolbar -->
+<div id="replay-toolbar">
+  <button id="btn-prev" onclick="prevStep()" title="← 上一步 (←)">◀</button>
+  <span id="step-counter">0 / 0</span>
+  <button id="btn-next" onclick="nextStep()" title="→ 下一步 (→)">▶</button>
+  <span class="tb-sep">|</span>
+  <button onclick="jumpToNextPhase('serve')"   title="跳到下一個發球階段">↓ 發球</button>
+  <button onclick="jumpToNextPhase('receive')" title="跳到下一個接球階段">↓ 接球</button>
+  <button onclick="jumpToNextPhase('block')"   title="跳到下一個攔網階段">↓ 攔網</button>
+  <button onclick="jumpToNextPhase('attack')"  title="跳到下一個扣球階段">↓ 扣球</button>
+  <button onclick="jumpToNextKind('judge')"    title="跳到下一個判定">↓ 判定</button>
+  <button onclick="jumpToNextKind('lost')"     title="跳到下一個 LOST">↓ LOST</button>
+  <button onclick="jumpToNextKind('interval')" title="跳到下一個換發">↓ INTV</button>
+  <span class="tb-sep">|</span>
+  <button id="btn-auto" onclick="toggleAutoPlay()">▶▶ 自動</button>
+  <select id="auto-speed">
+    <option value="1200">1.2s</option>
+    <option value="800" selected>0.8s</option>
+    <option value="500">0.5s</option>
+    <option value="300">0.3s</option>
+  </select>
+</div>
+
+<!-- Current event description -->
+<div id="replay-event-box">—</div>
+
+<!-- Per-player stats bar -->
+<div id="replay-stats-bar">
+  <div class="stats-row" id="stats-p1">
+    <span class="stats-name" id="stats-p1-name">P1</span>
+    <span><span class="stats-lbl">手</span><span class="stats-num" id="stats-p1-hand">0</span></span>
+    <span><span class="stats-lbl">庫</span><span class="stats-num" id="stats-p1-deck">40</span></span>
+    <span><span class="stats-lbl">棄</span><span class="stats-num" id="stats-p1-grave">0</span></span>
+    <span><span class="stats-lbl">SET</span><span class="stats-num" id="stats-p1-set">0</span></span>
+  </div>
+  <div class="stats-row" id="stats-p2">
+    <span class="stats-name p2" id="stats-p2-name">P2</span>
+    <span><span class="stats-lbl">手</span><span class="stats-num" id="stats-p2-hand">0</span></span>
+    <span><span class="stats-lbl">庫</span><span class="stats-num" id="stats-p2-deck">40</span></span>
+    <span><span class="stats-lbl">棄</span><span class="stats-num" id="stats-p2-grave">0</span></span>
+    <span><span class="stats-lbl">SET</span><span class="stats-num" id="stats-p2-set">0</span></span>
+  </div>
+</div>
+
+<!-- Game board (both courts) -->
+<div id="game-body">
+  <div id="game-board">
+
+    <!-- P2 (top / "opp") -->
+    <div class="player-area" id="opp-area">
+      <span class="area-name opp2" id="opp-lbl">P2</span>
+      <div class="board-side">
+        <div class="info-tile"><div class="t-label">牌組</div><div class="t-val" id="opp-deck">?</div></div>
+        <div class="info-tile"><div class="t-label">棄牌</div><div class="t-val" id="opp-drop">0</div></div>
+      </div>
+      <div class="board-court opp-court">
+        <div class="court-row">
+          <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-0"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-1"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-blk opp" id="opp-slot-block-2"><div class="z-empty">—</div></div></div>
+        </div>
+        <div class="court-row">
+          <div class="zone-w"><div class="z-slot z-atk opp" id="opp-slot-attack"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-tos opp" id="opp-slot-toss"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-rcv opp" id="opp-slot-receive"><div class="z-empty">—</div></div></div>
+        </div>
+        <div class="court-row back-row">
+          <div class="zone-w zone-spacer"></div>
+          <div class="zone-w"><div class="z-slot z-srv opp" id="opp-slot-serve"><div class="z-empty">—</div></div></div>
+        </div>
+      </div>
+      <div class="board-side">
+        <div class="info-tile"><div class="t-label">SET</div><div class="t-val" id="opp-set">0</div></div>
+      </div>
+    </div>
+
+    <!-- NET -->
+    <div class="net-div">
+      <div class="net-line"></div>
+      <div class="net-text">NET</div>
+      <div class="net-line"></div>
+    </div>
+
+    <!-- P1 (bottom / "self") -->
+    <div class="player-area" id="self-area">
+      <span class="area-name self" id="self-lbl">P1</span>
+      <div class="board-side">
+        <div class="info-tile"><div class="t-label">SET</div><div class="t-val" id="self-set">0</div></div>
+      </div>
+      <div class="board-court" id="self-court">
+        <div class="court-row">
+          <div class="zone-w"><div class="z-slot z-blk" id="self-slot-block-0"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-blk" id="self-slot-block-1"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-blk" id="self-slot-block-2"><div class="z-empty">—</div></div></div>
+        </div>
+        <div class="court-row">
+          <div class="zone-w"><div class="z-slot z-rcv" id="self-slot-receive"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-tos" id="self-slot-toss"><div class="z-empty">—</div></div></div>
+          <div class="zone-w"><div class="z-slot z-atk" id="self-slot-attack"><div class="z-empty">—</div></div></div>
+        </div>
+        <div class="court-row back-row">
+          <div class="zone-w"><div class="z-slot z-srv" id="self-slot-serve"><div class="z-empty">—</div></div></div>
+          <div class="zone-w zone-spacer"></div>
+        </div>
+      </div>
+      <div class="board-side">
+        <div class="info-tile"><div class="t-label">牌組</div><div class="t-val" id="self-deck">40</div></div>
+        <div class="info-tile"><div class="t-label">棄牌</div><div class="t-val" id="self-drop">0</div></div>
+      </div>
+    </div>
+
+  </div><!-- #game-board -->
+</div><!-- #game-body -->
+
+<!-- Card hover popup -->
+<div id="card-hover-popup">
+  <img id="chp-img" src="" alt="">
+  <div class="chp-name" id="chp-name"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// REPLAY_EVENTS — injected by Python, or loaded from URL param
+// Python pattern:  const REPLAY_EVENTS = [...];
+// ═══════════════════════════════════════════════════════
+/* INJECT_PLACEHOLDER */
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let allCards    = {};
+let _cardNoToImg = {};   // card_no → image_file (non-premium preferred)
+let steps       = [];
+let currentStep = 0;
+let autoTimer   = null;
+let _p1Name = 'P1', _p2Name = 'P2';
+
+function imgFor(cardNo) {
+  return cardNo ? (_cardNoToImg[cardNo] || cardNo + '.jpg') : null;
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function init() {
+  try {
+    if (typeof CARDS_DATA !== 'undefined') {
+      CARDS_DATA.cards.forEach(c => { allCards[c.image_file] = c; });
+      // Build reverse map: card_no → image_file (prefer non-premium: image_end.length === 1)
+      CARDS_DATA.cards.forEach(c => {
+        const existing = _cardNoToImg[c.card_no];
+        if (!existing) {
+          _cardNoToImg[c.card_no] = c.image_file;
+        } else {
+          // Prefer non-premium (single-char image_end)
+          const existCard = allCards[existing];
+          if (existCard?.image_end?.length > 1 && c.image_end?.length === 1) {
+            _cardNoToImg[c.card_no] = c.image_file;
+          }
+        }
+      });
+    }
+  } catch(e) { console.warn('cards_data.js not available'); }
+
+  const evts = typeof REPLAY_EVENTS !== 'undefined' ? REPLAY_EVENTS : [];
+
+  // Extract player names from game_start event
+  const gs = evts.find(e => e.kind === 'game_start');
+  if (gs?.data) {
+    _p1Name = gs.data.p1 || gs.data.player1_name || 'P1';
+    _p2Name = gs.data.p2 || gs.data.player2_name || 'P2';
+  }
+  document.getElementById('self-lbl').textContent = _p1Name;
+  document.getElementById('opp-lbl').textContent  = _p2Name;
+  document.getElementById('stats-p1-name').textContent = _p1Name;
+  document.getElementById('stats-p2-name').textContent = _p2Name;
+  document.title = `${_p1Name} vs ${_p2Name} — 視覺回放`;
+
+  steps = buildSteps(evts);
+  if (steps.length > 0) goToStep(0);
+  else {
+    document.getElementById('replay-event-box').textContent = '（無回放資料）';
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); prevStep(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); nextStep(); }
+    if (e.key === ' ')          { e.preventDefault(); toggleAutoPlay(); }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+function prevStep() {
+  if (currentStep > 0) goToStep(currentStep - 1);
+}
+function nextStep() {
+  if (currentStep < steps.length - 1) goToStep(currentStep + 1);
+  else if (autoTimer) toggleAutoPlay();
+}
+function jumpToNextPhase(phaseName) {
+  for (let i = currentStep + 1; i < steps.length; i++) {
+    const ev = steps[i].event;
+    if (ev.kind === 'phase' && ev.data?.phase === phaseName) { goToStep(i); return; }
+  }
+}
+function jumpToNextKind(kind) {
+  for (let i = currentStep + 1; i < steps.length; i++) {
+    if (steps[i].event.kind === kind) { goToStep(i); return; }
+  }
+}
+function toggleAutoPlay() {
+  const btn = document.getElementById('btn-auto');
+  if (autoTimer) {
+    clearInterval(autoTimer); autoTimer = null;
+    btn.textContent = '▶▶ 自動'; btn.classList.remove('playing');
+  } else {
+    const ms = parseInt(document.getElementById('auto-speed').value, 10);
+    btn.textContent = '⏸ 暫停'; btn.classList.add('playing');
+    autoTimer = setInterval(nextStep, ms);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// GO TO STEP
+// ═══════════════════════════════════════════════════════
+function goToStep(idx) {
+  if (idx < 0 || idx >= steps.length) return;
+  currentStep = idx;
+  const step = steps[idx];
+
+  document.getElementById('step-counter').textContent = `${idx + 1} / ${steps.length}`;
+  document.getElementById('btn-prev').disabled = idx === 0;
+  document.getElementById('btn-next').disabled = idx === steps.length - 1;
+
+  const box = document.getElementById('replay-event-box');
+  box.textContent = describeEvent(step.event);
+  box.className = 'kind-' + step.event.kind;
+
+  renderBoardFromState(step.state);
+  updateStatsBars(step.state);
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER BOARD
+// ═══════════════════════════════════════════════════════
+function renderBoardFromState(state) {
+  const p1 = state.p1;
+  const p2 = state.p2;
+
+  // P1 = self (bottom)
+  renderZonesFromState('self', p1.zones, false);
+  document.getElementById('self-deck').textContent = p1.pile_count;
+  document.getElementById('self-drop').textContent = p1.grave_count;
+  document.getElementById('self-set').textContent  = p1.set_cards;
+
+  // P2 = opp (top)
+  renderZonesFromState('opp', p2.zones, true);
+  document.getElementById('opp-deck').textContent = p2.pile_count;
+  document.getElementById('opp-drop').textContent = p2.grave_count;
+  document.getElementById('opp-set').textContent  = p2.set_cards;
+}
+
+function renderZonesFromState(prefix, zones, isOpp) {
+  // Block slots
+  const blocks = zones.block || [null, null, null];
+  for (let i = 0; i < 3; i++) {
+    const slot = document.getElementById(`${prefix}-slot-block-${i}`);
+    if (slot) fillSlot(slot, blocks[i] || null, isOpp, `block:${i}`);
+  }
+  // Single-card zones
+  ['receive','toss','attack','serve'].forEach(zn => {
+    const slot = document.getElementById(`${prefix}-slot-${zn}`);
+    if (slot) fillSlot(slot, zones[zn] || null, isOpp, zn);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// UPDATE STATS BAR
+// ═══════════════════════════════════════════════════════
+function updateStatsBars(state) {
+  const p1 = state.p1, p2 = state.p2;
+  document.getElementById('stats-p1-hand').textContent  = p1.hand_count;
+  document.getElementById('stats-p1-deck').textContent  = p1.pile_count;
+  document.getElementById('stats-p1-grave').textContent = p1.grave_count;
+  document.getElementById('stats-p1-set').textContent   = p1.set_cards;
+  document.getElementById('stats-p2-hand').textContent  = p2.hand_count;
+  document.getElementById('stats-p2-deck').textContent  = p2.pile_count;
+  document.getElementById('stats-p2-grave').textContent = p2.grave_count;
+  document.getElementById('stats-p2-set').textContent   = p2.set_cards;
+}
+
+// ═══════════════════════════════════════════════════════
+// FILL SLOT (from game.html — simplified, no drag/counterDelta)
+// ═══════════════════════════════════════════════════════
+const ZONE_STAT_INFO = {
+  serve:    { stat:'srv', label:'SRV', bg:'#b45309' },
+  receive:  { stat:'rcv', label:'RCV', bg:'#1d4ed8' },
+  toss:     { stat:'tos', label:'TOS', bg:'#166534' },
+  attack:   { stat:'atk', label:'ATK', bg:'#991b1b' },
+  'block:0':{ stat:'blk', label:'BLK', bg:'#1e293b' },
+  'block:1':{ stat:'blk', label:'BLK', bg:'#1e293b' },
+  'block:2':{ stat:'blk', label:'BLK', bg:'#1e293b' },
+};
+
+function fillSlot(slot, cardData, isOpp, zoneName) {
+  slot.classList.remove('filled', 'opp');
+  if (isOpp) slot.classList.add('opp');
+  slot.innerHTML = '';
+
+  if (cardData?.img) {
+    slot.classList.add('filled');
+    const guts   = cardData.guts || [];
+    const allImgs = [...guts, cardData.img];  // guts[0]=底層, cardData.img=頂層
+
+    const hstack = document.createElement('div');
+    hstack.className = 'z-hstack';
+
+    allImgs.forEach((img, i) => {
+      const isTop = i === allImgs.length - 1;
+      const cardEl = document.createElement('div');
+      cardEl.className = 'z-hstack-card';
+      cardEl.style.zIndex = i + 1;
+
+      const cardImg = document.createElement('img');
+      cardImg.src = `images/${img}`;
+      cardImg.loading = 'lazy';
+      cardImg.alt = allCards[img]?.name || '';
+      cardEl.appendChild(cardImg);
+
+      const nm = document.createElement('span');
+      nm.className = 'z-hstack-name';
+      nm.textContent = allCards[img]?.name || img.replace('.jpg','');
+      cardEl.appendChild(nm);
+
+      if (!isTop) {
+        const tag = document.createElement('span');
+        tag.className = 'z-hstack-tag';
+        tag.textContent = 'G';
+        cardEl.appendChild(tag);
+      }
+
+      // Stat overlay on top card
+      if (isTop) {
+        const si = ZONE_STAT_INFO[zoneName];
+        if (si) {
+          const baseVal = +(allCards[img]?.[si.stat]) || 0;
+          const overlay = document.createElement('div');
+          overlay.className = 'z-stat-overlay';
+          overlay.style.cssText = `background:${si.bg};border-radius:6px;padding:0 3px;box-shadow:0 2px 6px rgba(0,0,0,.7)`;
+          const val = document.createElement('span');
+          val.className = 'z-stat-val';
+          val.style.color = '#fff';
+          val.textContent = baseVal || '—';
+          overlay.appendChild(val);
+          cardEl.appendChild(overlay);
+        }
+      }
+
+      // Hover popup
+      cardEl.addEventListener('mouseenter', e => showCardHover(img, e));
+      cardEl.addEventListener('mousemove',  e => moveCardHover(e));
+      cardEl.addEventListener('mouseleave', hideCardHover);
+
+      hstack.appendChild(cardEl);
+    });
+
+    slot.appendChild(hstack);
+    layoutHstack(hstack);
+
+  } else {
+    const e = document.createElement('div'); e.className = 'z-empty'; e.textContent = '—';
+    slot.appendChild(e);
+  }
+}
+
+// Compute card overlap so stacks don't overflow
+function layoutHstack(hstack) {
+  requestAnimationFrame(() => {
+    const cards = [...hstack.querySelectorAll('.z-hstack-card')];
+    if (cards.length < 2) return;
+    const cardW = cards[0].offsetWidth;
+    if (!cardW) return;
+    const zoneW = hstack.offsetWidth - 8;
+    const idealOverlap = Math.floor(cardW * 0.40);
+    const totalAtIdeal = cardW + (cards.length - 1) * (cardW - idealOverlap);
+    let overlap = idealOverlap;
+    if (totalAtIdeal > zoneW) {
+      overlap = Math.ceil((cardW * cards.length - zoneW) / (cards.length - 1));
+    }
+    for (let i = 1; i < cards.length; i++) {
+      cards[i].style.marginLeft = `-${overlap}px`;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// CARD HOVER POPUP
+// ═══════════════════════════════════════════════════════
+function showCardHover(img, e) {
+  const popup = document.getElementById('card-hover-popup');
+  document.getElementById('chp-img').src = `images/${img}`;
+  document.getElementById('chp-name').textContent = allCards[img]?.name || img.replace('.jpg','');
+  popup.classList.add('show');
+  moveCardHover(e);
+}
+function moveCardHover(e) {
+  const popup = document.getElementById('card-hover-popup');
+  const x = e.clientX + 16, y = e.clientY - 90;
+  popup.style.left = Math.min(x, window.innerWidth - 140) + 'px';
+  popup.style.top  = Math.max(y, 4) + 'px';
+}
+function hideCardHover() {
+  document.getElementById('card-hover-popup').classList.remove('show');
+}
+
+// ═══════════════════════════════════════════════════════
+// DESCRIBE EVENT (中文事件說明)
+// ═══════════════════════════════════════════════════════
+function describeEvent(ev) {
+  if (!ev) return '—';
+  const phaseLabel = { serve:'發球', block:'攔網', receive:'接球', toss:'舉球', attack:'扣球', start:'新一局' };
+  const zoneLabel  = { serve:'發球區', receive:'接球區', toss:'舉球區', attack:'扣球區', block:'攔網區' };
+  const typeLabel  = { dp:'DP', op:'OP', atk:'ATK', blk:'BLK', srv:'SRV' };
+  switch (ev.kind) {
+    case 'game_start':
+      return `🏐 遊戲開始 — 「${ev.data?.p1 || ev.data?.player1_name || 'P1'}」vs「${ev.data?.p2 || ev.data?.player2_name || 'P2'}」`;
+    case 'phase':
+      return `▶ 進入階段：${phaseLabel[ev.data?.phase] || ev.data?.phase}`;
+    case 'draw':
+      return `P${ev.player} 抽牌`;
+    case 'deploy':
+      return `P${ev.player} 出場 【${ev.data?.card_name}】→ ${zoneLabel[ev.data?.zone] || ev.data?.zone}`;
+    case 'judge':
+      return ev.data?.did_lose ? '⚡ 判定：失分（LOST）' : '✅ 判定：得分';
+    case 'lost':
+      return `P${ev.player} 宣告 LOST — SET 剩 ${ev.data?.set_cards} 枚`;
+    case 'action':
+      return `${typeLabel[ev.data?.type] || ev.data?.type}：${ev.data?.value}`;
+    case 'interval':
+      return '── INTERVAL — 換發球方 ──';
+    case 'set_result':
+      return `一局結束 — P1：${ev.data?.p1_sets} 組 ／ P2：${ev.data?.p2_sets} 組`;
+    case 'board_snapshot':
+      return `（場地快照 P${ev.player}）`;
+    case 'game_end':
+      return `🏆 遊戲結束！勝利者：P${ev.data?.winner || '?'}`;
+    default:
+      return `（${ev.kind}）`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// BUILD STEPS (Haiku 1)
+// ═══════════════════════════════════════════════════════
+function buildSteps(events) {
+  const emptyPlayer = () => ({
+    zones: { serve:null, receive:null, toss:null, attack:null, block:[null,null,null] },
+    hand_count:0, pile_count:40, grave_count:0, set_cards:0
+  });
+  let state = { p1: emptyPlayer(), p2: emptyPlayer() };
+  const steps = [];
+  const copyState = () => JSON.parse(JSON.stringify(state));
+  const buildCard = (no, gutsNos=[]) => no ? {img: imgFor(no), guts: gutsNos.map(n => imgFor(n))} : null;
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const pn = ev.player;
+    const ps = pn === 1 ? state.p1 : pn === 2 ? state.p2 : null;
+
+    switch (ev.kind) {
+      case 'draw':
+        if (ps) { ps.hand_count += 1; ps.pile_count = Math.max(0, ps.pile_count - 1); }
+        break;
+
+      case 'deploy':
+        if (ps) {
+          const { card_no, zone } = ev.data;
+          if (zone === 'block') {
+            let bi = ps.zones.block.findIndex(s => s === null);
+            if (bi === -1) bi = 0;
+            ps.zones.block[bi] = { img: imgFor(card_no), guts: [] };
+          } else if (['serve','receive','toss','attack'].includes(zone)) {
+            const old = ps.zones[zone];
+            const newGuts = old ? [...(old.guts||[]), old.img] : [];
+            ps.zones[zone] = { img: imgFor(card_no), guts: newGuts };
+          }
+          ps.hand_count = Math.max(0, ps.hand_count - 1);
+        }
+        break;
+
+      case 'board_snapshot': {
+        if (ps) {
+          const d = ev.data;
+          ps.zones.serve   = buildCard(d.serve_no,   d.serve_guts_nos||[]);
+          ps.zones.receive = buildCard(d.receive_no, d.receive_guts_nos||[]);
+          ps.zones.toss    = buildCard(d.toss_no,    d.toss_guts_nos||[]);
+          ps.zones.attack  = buildCard(d.attack_no,  d.attack_guts_nos||[]);
+          ps.zones.block   = [0,1,2].map(i =>
+            buildCard((d.block_nos||[])[i], ((d.block_guts_nos||[])[i])||[])
+          );
+          ps.hand_count  = d.hand_count  ?? ps.hand_count;
+          ps.pile_count  = d.pile_count  ?? ps.pile_count;
+          ps.grave_count = d.grave_count ?? ps.grave_count;
+          ps.set_cards   = d.set_cards   ?? ps.set_cards;
+        }
+        break;
+      }
+
+      case 'lost':
+        if (ps && ev.data?.set_cards != null) ps.set_cards = ev.data.set_cards;
+        break;
+    }
+
+    steps.push({ eventIdx:i, event:ev, state:copyState() });
+  }
+  return steps;
+}
+
+// ═══════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════
+window.onload = init;
+</script>
+</body>
+</html>
