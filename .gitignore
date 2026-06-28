@@ -5,6 +5,7 @@ node_modules/
 !battle_simulator/**/*.py
 !game_engine/**/*.py
 !game_engine/*.py
+!battle_server.py
 *.csv
 *.xlsx
 *.json

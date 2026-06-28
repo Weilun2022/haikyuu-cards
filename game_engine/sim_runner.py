@@ -218,6 +218,62 @@ def run_simulation(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 公開 API（供 battle_server.py import）
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_battle_from_deck_dicts(
+    deck1_cards: dict[str, int],
+    deck1_name: str,
+    deck2_cards: dict[str, int],
+    deck2_name: str,
+    ai1_name: str = "generic",
+    ai2_name: str = "generic",
+    seed: int | None = None,
+) -> dict:
+    """
+    接受兩副牌組 dict 直接跑一局並生成視覺回放 HTML。
+
+    回傳:
+        {
+            "winner": 1 | 2,
+            "turns": int,
+            "p1_sets": int,
+            "p2_sets": int,
+            "replay_path": str,          # 文字版 replay 絕對路徑
+            "visual_replay_path": str,   # 視覺版 replay 絕對路徑
+        }
+    """
+    load_cards()
+    ai1_cls = AI_CLASSES.get(ai1_name, GenericAI)
+    ai2_cls = AI_CLASSES.get(ai2_name, GenericAI)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe1 = deck1_name[:12].replace(" ", "_")
+    safe2 = deck2_name[:12].replace(" ", "_")
+    html_path = str(ROOT / "replays" / f"replay_{safe1}_vs_{safe2}_{timestamp}.html")
+
+    spec = Spectator(speed=0, html_out=html_path, silent=True)
+    result = run_one_game(
+        deck1_cards, deck2_cards,
+        deck1_name, deck2_name,
+        "P1", "P2",
+        ai1_cls, ai2_cls,
+        spectator=spec,
+        seed=seed,
+    )
+
+    visual_path = str(ROOT / "replays" / f"visual_replay_{safe1}_vs_{safe2}_{timestamp}.html")
+    return {
+        "winner":             result["winner"],
+        "turns":              result["turns"],
+        "p1_sets":            result["p1_sets"],
+        "p2_sets":            result["p2_sets"],
+        "replay_path":        html_path,
+        "visual_replay_path": visual_path,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # CLI
 # ══════════════════════════════════════════════════════════════════════════════
 
