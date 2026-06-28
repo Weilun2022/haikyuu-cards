@@ -152,11 +152,12 @@ class EvoHandler(BaseHTTPRequestHandler):
         elif path.startswith("/images/"):
             fname = path[8:]
             self._serve_file(ROOT / "images" / fname)
-        elif path == "/cards_data.js":
-            self._serve_file(ROOT / "cards_data.js", "application/javascript")
         elif path == "/lz-string.min.js":
             self._serve_file(ROOT / "node_modules" / "lz-string" / "libs" / "lz-string.min.js",
                              "application/javascript")
+        elif path.endswith(".js") and "/" not in path[1:]:
+            # 根目錄靜態 JS 檔（buildSteps.js, createReplayViewer.js, cards_data.js 等）
+            self._serve_file(ROOT / path[1:], "application/javascript")
         else:
             self.send_error(404)
 

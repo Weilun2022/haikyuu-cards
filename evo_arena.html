@@ -283,9 +283,8 @@ canvas#arena-wr-chart {
   text-align: center;
 }
 
-#arena-replay-frame {
+#arena-replay-root {
   flex: 1;
-  border: none;
   border-radius: 6px;
   background: #0a0a12;
   min-height: 0;
@@ -477,7 +476,7 @@ canvas#arena-wr-chart {
     <!-- 下：Replay Panel -->
     <div class="arena-replay-panel">
       <div class="arena-replay-label">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代最佳對局</div>
-      <iframe id="arena-replay-frame"></iframe>
+      <div id="arena-replay-root" style="flex:1; overflow:auto; min-height:200px;"></div>
     </div>
   </div>
 
@@ -503,6 +502,8 @@ canvas#arena-wr-chart {
 let arenaChartData = [];
 let arenaSSE = null;
 const ARENA_SERVER = 'http://localhost:7778';
+let arenaViewer = null;
+let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 SSE 自動覆蓋
 
 // ── Range Slider 更新 ──────────────────────────────────────────────────────────
 document.querySelectorAll('.arena-left input[type=range]').forEach(el => {
@@ -635,34 +636,49 @@ function arenaHandleUpdate(data) {
     arenaRenderTopCards(data.analytics.top_cards || []);
   }
 
-  // 更新 Replay iframe（優先用 SSE 推送的 latest_replay，fallback 到 /api/replays_list）
+  // 更新 Replay（Phase 3：用 createReplayViewer 取代 iframe）
   (async () => {
-    const frame = document.getElementById('arena-replay-frame');
+    if (_replayUserLocked) return;  // 使用者正在看，不打斷
+
     const label = document.getElementById('arena-replay-gen');
 
+    let replayId = null;
     if (data.latest_replay) {
-      // SSE v2：evolution_engine 已存好 showcase replay
-      const newSrc = ARENA_SERVER + '/' + data.latest_replay;
-      if (frame.src !== newSrc) {
-        frame.src = newSrc;
-        label.textContent = '第 ' + gen + ' 代最佳 Genome 精選展示局';
-      }
+      // SSE v2：直接拿 replay_id（去掉 replays/ 前綴和 .html 副檔名）
+      replayId = data.latest_replay
+        .replace(/^replays\//, '')
+        .replace(/\.html$/, '');
     } else {
-      // fallback：從 /api/replays_list 取最新（含 run_id 過濾）
+      // fallback：從 /api/replays_list 取最新
       const runId = data.run_id || '';
-      const url = ARENA_SERVER + '/api/replays_list' + (runId ? '?run_id=' + runId : '');
+      const listUrl = ARENA_SERVER + '/api/replays_list' + (runId ? '?run_id=' + runId : '');
       try {
-        const d = await fetch(url).then(r => r.json());
-        if (d.latest) {
-          const newSrc = ARENA_SERVER + '/replays/' + d.latest;
-          if (frame.src !== newSrc) {
-            frame.src = newSrc;
-            label.textContent = '第 ' + gen + ' 代最佳對局';
-          }
-        } else if (!frame.src || frame.src === 'about:blank') {
-          label.textContent = '等待第一個精選 Replay 產生中…';
+        const listData = await fetch(listUrl).then(r => r.json());
+        if (listData.latest) {
+          replayId = listData.latest.replace(/\.html$/, '');
         }
       } catch (e) {}
+    }
+
+    if (!replayId) {
+      if (label) label.textContent = '等待第一個精選 Replay…';
+      return;
+    }
+
+    try {
+      const evUrl = ARENA_SERVER + '/api/replay_events?replay_id=' + replayId;
+      const evData = await fetch(evUrl).then(r => r.json());
+      if (evData.events && evData.events.length > 0) {
+        const mount = document.getElementById('arena-replay-root');
+        if (arenaViewer) {
+          arenaViewer.loadReplay(evData.events, evData.meta);
+        } else if (mount) {
+          arenaViewer = createReplayViewer({ mount, events: evData.events, meta: evData.meta || {} });
+        }
+        if (label) label.textContent = '第 ' + gen + ' 代最佳 Genome 精選展示局';
+      }
+    } catch (e) {
+      console.warn('replay load failed:', e);
     }
   })();
 }
@@ -736,7 +752,8 @@ async function arenaStart() {
     document.getElementById('arena-btn-stop').disabled = false;
     arenaChartData = [];
     document.getElementById('arena-replay-gen').textContent = '—';
-    document.getElementById('arena-replay-frame').src = '';
+    _replayUserLocked = false;
+    if (arenaViewer) { arenaViewer.destroy(); arenaViewer = null; }
   } catch(e) {
     alert('連線失敗: ' + e.message);
   }
@@ -760,6 +777,9 @@ window.addEventListener('load', () => {
   arenaConnectSSE();
 });
 </script>
+
+<script src="buildSteps.js"></script>
+<script src="createReplayViewer.js"></script>
 
 <a href="/evo_dashboard.html"
    style="position:fixed;bottom:6px;right:10px;font-size:10px;color:var(--text-dim);opacity:.4;text-decoration:none;"
