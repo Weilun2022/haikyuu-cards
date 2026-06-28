@@ -209,6 +209,11 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         background: rgba(90,60,0,.5);
         box-shadow: inset 0 0 0 1px rgba(255,200,0,.25), 0 0 10px rgba(255,200,0,.5);
       }
+      .z-slot.z-evt {
+        border-color: #00d8e8;
+        background: rgba(0,70,90,.45);
+        box-shadow: inset 0 0 0 1px rgba(0,216,232,.25), 0 0 10px rgba(0,216,232,.5);
+      }
 
       .z-slot::after {
         position: absolute;
@@ -228,6 +233,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
       .z-slot.z-tos::after { content: 'TOSS';    color: #00e85a; text-shadow: 0 0 8px rgba(0,216,80,1); }
       .z-slot.z-atk::after { content: 'ATTACK';  color: #ff6058; text-shadow: 0 0 8px rgba(255,40,32,1); }
       .z-slot.z-srv::after { content: 'SERVE';   color: #ffd840; text-shadow: 0 0 8px rgba(255,200,0,1); }
+      .z-slot.z-evt::after { content: 'EVENT';   color: #40eeff; text-shadow: 0 0 8px rgba(0,216,232,1); }
 
       .z-empty {
         color: var(--text-dim, #888);
@@ -375,7 +381,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
             <div class="board-court" id="rv-p2-court">
               <div class="court-row">
                 <div class="zone-w" style="visibility:hidden;"></div>
-                <div class="zone-w" style="visibility:hidden;"></div>
+                <div class="zone-w"><div class="z-slot z-evt" data-zone="event"><div class="z-empty">—</div></div></div>
                 <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
               </div>
               <div class="court-row">
@@ -413,7 +419,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
               </div>
               <div class="court-row">
                 <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
-                <div class="zone-w" style="visibility:hidden;"></div>
+                <div class="zone-w"><div class="z-slot z-evt" data-zone="event"><div class="z-empty">—</div></div></div>
                 <div class="zone-w" style="visibility:hidden;"></div>
               </div>
             </div>
