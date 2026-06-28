@@ -153,7 +153,15 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._serve_file(ROOT / "replays" / fname)
         elif path.startswith("/images/"):
             fname = path[8:]
-            self._serve_file(ROOT / "images" / fname)
+            img_path = ROOT / "images" / fname
+            if not img_path.exists():
+                # card_no+'.jpg' fallback: strip ext, find first HV-XXXX-*.webp
+                base = fname.rsplit('.', 1)[0]
+                matches = sorted((ROOT / "images").glob(f"{base}-*.webp"))
+                if matches:
+                    self._serve_file(matches[0], "image/webp")
+                    return
+            self._serve_file(img_path)
         elif path == "/lz-string.min.js":
             self._serve_file(ROOT / "node_modules" / "lz-string" / "libs" / "lz-string.min.js",
                              "application/javascript")
