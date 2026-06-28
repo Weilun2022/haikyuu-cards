@@ -604,6 +604,10 @@ canvas#arena-wr-chart {
         <span class="arena-replay-label" style="flex:1;">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代</span>
         <select class="arena-replay-picker" id="arena-replay-picker" onchange="arenaPickerChange(this.value)"></select>
       </div>
+      <div id="arena-review-note" style="display:none;font-size:10px;color:#b36e00;padding:2px 0 4px;text-align:center;">
+        🔒 REVIEW 模式：進化仍在背景繼續。點「▶ 跟隨最新」回到即時畫面。
+        快捷鍵：← → 切換步驟。
+      </div>
       <div id="arena-replay-root" style="flex:1; overflow:auto; min-height:200px;"></div>
     </div>
   </div>
@@ -650,15 +654,18 @@ function arenaUpdateReplayState() {
   const reviewBadge = document.getElementById('arena-review-badge');
   const followBtn = document.getElementById('arena-follow-btn');
   const picker = document.getElementById('arena-replay-picker');
+  const reviewNote = document.getElementById('arena-review-note');
   if (_replayUserLocked) {
     if (liveBadge) liveBadge.style.display = 'none';
     if (reviewBadge) reviewBadge.style.display = '';
     if (followBtn) followBtn.style.display = '';
     if (picker) picker.style.display = '';
+    if (reviewNote) reviewNote.style.display = '';
   } else {
     if (liveBadge) liveBadge.style.display = '';
     if (reviewBadge) reviewBadge.style.display = 'none';
     if (followBtn) followBtn.style.display = 'none';
+    if (reviewNote) reviewNote.style.display = 'none';
   }
 }
 
@@ -834,6 +841,10 @@ function arenaDrawChart() {
 // ── SSE 連接 ───────────────────────────────────────────────────────────────────
 function arenaConnectSSE() {
   if(arenaSSE) arenaSSE.close();
+  const statusText = document.getElementById('arena-status-text');
+  if (statusText && statusText.textContent === '待機') {
+    statusText.textContent = '連線中…';
+  }
   arenaSSE = new EventSource(ARENA_SERVER + '/events');
   arenaSSE.onmessage = e => {
     try {
@@ -843,7 +854,8 @@ function arenaConnectSSE() {
     }
   };
   arenaSSE.onerror = () => {
-    console.error('SSE connection error');
+    const st = document.getElementById('arena-status-text');
+    if (st) st.textContent = '重連中…';
     setTimeout(arenaConnectSSE, 3000);
   };
 }
@@ -965,7 +977,7 @@ function arenaComboClick(el) {
           result = arenaViewer.highlightCards(cardNos);
         }
         if (!found || (result && result.missing && result.missing.length > 0)) {
-          console.info('[arena] combo cards not visible in any step:', cardNos);
+          arenaShowToast('⚠️ 此局找不到此 Combo 的完整步驟，試著切換其他 Replay', 3500);
         }
       }
     }
@@ -1039,11 +1051,29 @@ async function arenaStop() {
     document.getElementById('arena-btn-start').disabled = false;
     document.getElementById('arena-btn-stop').disabled = true;
     document.getElementById('arena-status-light').classList.remove('running');
-    document.getElementById('arena-status-text').textContent = '已停止';
+    document.getElementById('arena-status-text').textContent = '⏹ 已停止';
   } catch(e) {
     alert('停止失敗: ' + e.message);
   }
 }
+
+// ── 鍵盤快捷鍵 ────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // 在 input/select/textarea focus 時不攔截
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (!arenaViewer) return;
+
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const btn = document.querySelector('#arena-replay-root .rv-prev');
+    if (btn) btn.click();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    const btn = document.querySelector('#arena-replay-root .rv-next');
+    if (btn) btn.click();
+  }
+});
 
 // ── 初始化 ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
