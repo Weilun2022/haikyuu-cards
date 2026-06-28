@@ -10,7 +10,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SHOWCASE_PREFIX = "visual_replay_evo_"
+SHOWCASE_PREFIX = "replay_evo_"        # Spectator 加 "visual_" 前綴後變 "visual_replay_evo_*"
+VISUAL_PREFIX = "visual_replay_evo_"  # 實際 visual HTML / JSON sidecar 的前綴
 
 
 def init_run(replays_dir: Path) -> str:
@@ -98,8 +99,8 @@ def cleanup_old_showcases(replays_dir: Path, keep_latest: int = 50):
         logger.debug(f"Replays directory does not exist: {replays_dir}")
         return
 
-    # 找出所有 showcase 檔案
-    showcase_files = sorted(replays_dir.glob(f"{SHOWCASE_PREFIX}*.html"))
+    # 找出所有 visual showcase 檔案（visual_replay_evo_*）
+    showcase_files = sorted(replays_dir.glob(f"{VISUAL_PREFIX}*.html"))
 
     if len(showcase_files) <= keep_latest:
         logger.debug(f"Found {len(showcase_files)} showcases, no cleanup needed")
@@ -132,8 +133,8 @@ def latest_showcase_url(replays_dir: Path, run_id: str) -> str | None:
         logger.debug(f"Replays directory does not exist: {replays_dir}")
         return None
 
-    # 找該 run_id 的所有 showcase 檔
-    pattern = f"{SHOWCASE_PREFIX}{run_id}_gen*.html"
+    # 找該 run_id 的所有 visual showcase 檔
+    pattern = f"{VISUAL_PREFIX}{run_id}_gen*.html"
     files = sorted(replays_dir.glob(pattern))
 
     if not files:

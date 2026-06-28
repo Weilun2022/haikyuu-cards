@@ -144,6 +144,8 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_replays_list()
         elif path == "/api/config":
             self._handle_config()
+        elif path == "/api/replay_events":
+            self._handle_replay_events()
         elif path.startswith("/replays/"):
             fname = path[9:]
             self._serve_file(ROOT / "replays" / fname)
@@ -235,9 +237,9 @@ class EvoHandler(BaseHTTPRequestHandler):
                     reverse=True,
                 )
             if not replays:
-                # fallback：所有 visual_replay
+                # fallback：所有 visual_replay_evo_
                 replays = sorted(
-                    [f.name for f in replays_dir.glob("visual_replay_*.html")],
+                    [f.name for f in replays_dir.glob("visual_replay_evo_*.html")],
                     reverse=True,
                 )
 
@@ -261,6 +263,36 @@ class EvoHandler(BaseHTTPRequestHandler):
                 "crossover_rate": 0.35
             }
         })
+
+    def _handle_replay_events(self):
+        """GET /api/replay_events?replay_id=<id>
+        回傳 visual replay 的 JSON sidecar（Phase 3 arena viewer 用）。
+        replay_id 可含或不含 .json 副檔名。
+        """
+        qs = parse_qs(urlparse(self.path).query)
+        replay_id = qs.get("replay_id", [None])[0]
+        if not replay_id:
+            self._json({"error": "需要 replay_id 參數"}, 400)
+            return
+
+        # 支援有無副檔名
+        if replay_id.endswith(".html"):
+            replay_id = replay_id[:-5]
+        if replay_id.endswith(".json"):
+            replay_id = replay_id[:-5]
+
+        replays_dir = ROOT / "replays"
+        json_path = replays_dir / (replay_id + ".json")
+
+        if not json_path.exists():
+            self._json({"error": f"找不到 replay: {replay_id}"}, 404)
+            return
+
+        try:
+            data = json.loads(json_path.read_text(encoding="utf-8"))
+            self._json(data)
+        except Exception as e:
+            self._json({"error": str(e)}, 500)
 
     def _status_dict(self) -> dict:
         return {

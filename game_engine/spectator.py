@@ -457,6 +457,35 @@ class Spectator:
             f.write(visual_html)
         if not self.silent:
             print(f"  視覺回放已儲存: {visual_path}")
+        self._save_replay_json(visual_path)
+
+    def _save_replay_json(self, visual_html_path: Path) -> None:
+        """與 visual replay HTML 同名，輸出 .json sidecar（Phase 3 REST API 用）。"""
+        try:
+            json_path = visual_html_path.with_suffix(".json")
+            events_list = [
+                e.__dict__ if hasattr(e, "__dict__") else e
+                for e in self._events
+            ]
+            payload = {
+                "schema_version": 1,
+                "replay_id": visual_html_path.stem,
+                "meta": {
+                    "p1_name": self._p1_name,
+                    "p2_name": self._p2_name,
+                    "d1_name": self._d1_name,
+                    "d2_name": self._d2_name,
+                    "p1_sets": self._p1_sets,
+                    "p2_sets": self._p2_sets,
+                },
+                "events": events_list,
+            }
+            json_path.write_text(
+                json.dumps(payload, ensure_ascii=False, default=lambda o: o.__dict__),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass  # 失敗不影響主流程
 
     def _build_html(self) -> str:
         events_json = json.dumps(self._events, default=lambda o: o.__dict__,
