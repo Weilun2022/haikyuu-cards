@@ -90,8 +90,29 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
       .rv-player-area {
         display: flex;
         flex-direction: column;
+        flex: 1;
         min-height: 0;
         gap: 4px;
+      }
+
+      .rv-net {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        padding: 2px 0;
+      }
+      .rv-net-line {
+        flex: 1;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(0,200,255,.5), rgba(0,200,255,.5), transparent);
+      }
+      .rv-net-text {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 3px;
+        color: rgba(0,200,255,.7);
+        text-shadow: 0 0 8px rgba(0,200,255,.8);
       }
 
       .rv-player-label {
@@ -116,7 +137,7 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         display: flex;
         flex-direction: column;
         gap: 4px;
-        min-height: 240px;
+        min-height: 0;
         background-color: #040810;
         background-image:
           linear-gradient(rgba(0,120,255,.06) 1px, transparent 1px),
@@ -347,8 +368,38 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         </div>
 
         <div class="rv-board-wrap">
+
+          <!-- P2 在上（對手），板面鏡像：SERVE 在頂，中排 ATK|TOS|RCV，BLOCK 靠近 NET -->
+          <div class="rv-player-area" id="rv-p2">
+            <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span> — <span class="rv-player-label p2" style="display:inline;padding:0;">P2 <span class="rv-p2-name-inline"></span></span></div>
+            <div class="board-court" id="rv-p2-court">
+              <div class="court-row">
+                <div class="zone-w" style="visibility:hidden;"></div>
+                <div class="zone-w" style="visibility:hidden;"></div>
+                <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
+              </div>
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-atk" data-zone="attack"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-tos" data-zone="toss"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-rcv" data-zone="receive"><div class="z-empty">—</div></div></div>
+              </div>
+              <div class="court-row">
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-0"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-1"><div class="z-empty">—</div></div></div>
+                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-2"><div class="z-empty">—</div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- NET 分隔線 -->
+          <div class="rv-net">
+            <div class="rv-net-line"></div>
+            <div class="rv-net-text">NET</div>
+            <div class="rv-net-line"></div>
+          </div>
+
+          <!-- P1 在下（我方），正向排列：BLOCK 靠近 NET，SERVE 在底 -->
           <div class="rv-player-area" id="rv-p1">
-            <div class="rv-player-label">P1 <span class="rv-p1-name-inline"></span></div>
             <div class="board-court" id="rv-p1-court">
               <div class="court-row">
                 <div class="zone-w"><div class="z-slot z-blk" data-zone="block-0"><div class="z-empty">—</div></div></div>
@@ -366,30 +417,9 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
                 <div class="zone-w" style="visibility:hidden;"></div>
               </div>
             </div>
-            <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
+            <div class="rv-counters-row"><span class="rv-player-label" style="display:inline;padding:0;">P1 <span class="rv-p1-name-inline"></span></span> — 手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
           </div>
 
-          <div class="rv-player-area" id="rv-p2">
-            <div class="rv-player-label p2">P2 <span class="rv-p2-name-inline"></span></div>
-            <div class="board-court" id="rv-p2-court">
-              <div class="court-row">
-                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-0"><div class="z-empty">—</div></div></div>
-                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-1"><div class="z-empty">—</div></div></div>
-                <div class="zone-w"><div class="z-slot z-blk" data-zone="block-2"><div class="z-empty">—</div></div></div>
-              </div>
-              <div class="court-row">
-                <div class="zone-w"><div class="z-slot z-rcv" data-zone="receive"><div class="z-empty">—</div></div></div>
-                <div class="zone-w"><div class="z-slot z-tos" data-zone="toss"><div class="z-empty">—</div></div></div>
-                <div class="zone-w"><div class="z-slot z-atk" data-zone="attack"><div class="z-empty">—</div></div></div>
-              </div>
-              <div class="court-row">
-                <div class="zone-w"><div class="z-slot z-srv" data-zone="serve"><div class="z-empty">—</div></div></div>
-                <div class="zone-w" style="visibility:hidden;"></div>
-                <div class="zone-w" style="visibility:hidden;"></div>
-              </div>
-            </div>
-            <div class="rv-counters-row">手: <span class="rv-hand">0</span> 庫: <span class="rv-pile">40</span></div>
-          </div>
         </div>
 
         <div class="rv-event-msg"></div>
