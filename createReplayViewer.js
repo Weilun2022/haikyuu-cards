@@ -80,8 +80,8 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
 
       /* ── game.html board CSS ── */
       .rv-board-wrap {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+        display: flex;
+        flex-direction: column;
         gap: 8px;
         flex: 1;
         min-height: 0;
