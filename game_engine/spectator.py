@@ -756,7 +756,8 @@ function describeStep(s) {
     case 'draw':
       return '<div class="ev-title">🃏 <span class="'+pc+'">P'+pn+'</span> 從牌庫抽牌</div>'
            + '<div class="ev-card">'+d.card_name+'</div>'
-           + '<div class="ev-stat dim">'+d.card_no+'</div>';
+           + '<div class="ev-stat dim">'+d.card_no+'</div>'
+           + '<div class="ev-sub"><span class="ok">手牌 +1</span>　<span class="err">牌庫 −1</span></div>';
 
     case 'deploy': {
       const stats = d.stats||{};
@@ -766,7 +767,7 @@ function describeStep(s) {
       return '<div class="ev-title">▶ <span class="'+pc+'">P'+pn+'</span> 出場角色</div>'
            + '<div class="ev-card">'+d.card_name+'</div>'
            + (sp?'<div class="ev-stat">'+sp+'</div>':'')
-           + '<div class="ev-sub">→ <b>'+zn+'</b></div>';
+           + '<div class="ev-sub">→ <b>'+zn+'</b>　<span class="err">手牌 −1</span></div>';
     }
 
     case 'judge': {

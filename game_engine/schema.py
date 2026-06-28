@@ -382,6 +382,7 @@ class GameState:
     # 新規則欄位
     pending_op: int = 0        # 當前進攻值（下一個行動方需抵擋）
     server_num: int = 1        # 本 rally 發球方
+    last_deployed_name: str | None = None  # ABA規則：上一位出場角色名稱
     game_over: bool = False
     game_winner: int = 0
 

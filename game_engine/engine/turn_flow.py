@@ -153,15 +153,26 @@ class TurnFlow:
         ai_map  = {1: ai1, 2: ai2}
         pl_map  = {1: state.p1, 2: state.p2}
 
+        # 每個 rally 重置 ABA 追蹤
+        state.last_deployed_name = None
+
         # SERVE PHASE（發球方固定只發球）
         self.spec.on_phase(server_num, "serve")
         loser = self._serve_phase(state, pl_map[server_num], ai_map[server_num], server_num)
         if loser:
             return loser
 
-        # 交替回應：defender 先行動
+        # 規則：發球後對方只能 RECEIVE（不能選 BLOCK）
         current_num = defender_num
-        for _ in range(_MAX_TURNS_PER_RALLY):
+        state.current_player = current_num
+        self.spec.on_phase(current_num, "start")
+        loser = self._receive_sequence(state, pl_map[current_num], ai_map[current_num], current_num, state.pending_op)
+        if loser is not None:
+            return loser
+        current_num = 3 - current_num
+
+        # 後續回合：可選 BLOCK 或 RECEIVE
+        for _ in range(_MAX_TURNS_PER_RALLY - 1):
             state.current_player = current_num
             self.spec.on_phase(current_num, "start")
             loser = self._respond_turn(state, pl_map[current_num], ai_map[current_num], current_num)
@@ -176,22 +187,20 @@ class TurnFlow:
         self, state: GameState, server: PlayerState, ai, pnum: int
     ) -> int | None:
         """發球階段。回傳 None=成功；pnum=該方 LOST。"""
-        # 檢查場地現有發球卡
         existing_srv = server.serve_zone.card
-        existing_val = get_stat(existing_srv, "srv") if existing_srv else 0
 
-        # AI 決定是否補發球角色
         new_card = ai.decide_serve_char(server, state)
 
         if new_card and new_card in server.hand and _can_deploy(new_card, "serve"):
-            # 部署新卡
-            server.hand.remove(new_card)
-            self._deploy_to_zone(server, new_card, "serve")
-            self.spec.on_deploy(pnum, new_card, get_name(new_card), "serve",
-                               stats={"srv": get_stat(new_card, "srv")})
+            if self._aba_ok(new_card, state):
+                server.hand.remove(new_card)
+                self._deploy_to_zone(server, new_card, "serve")
+                state.last_deployed_name = get_name(new_card)
+                self.spec.on_deploy(pnum, new_card, get_name(new_card), "serve",
+                                   stats={"srv": get_stat(new_card, "srv")})
+            # ABA 違規：保留現有卡，不更新 last_deployed_name
         elif not existing_srv:
-            # 場地空且沒牌可打 → LOST
-            return pnum
+            return pnum  # 場地空且無可部署 → LOST
 
         op = _calc_serve_op(server)
         state.pending_op = op
@@ -217,15 +226,29 @@ class TurnFlow:
         self.spec.on_phase(pnum, "block")
 
         chars_to_deploy = ai.decide_block_chars(player, state, pending_op)
+
+        # 攔網唯一性：收集場上已有的攔網角色名（center 會持續留場）
+        in_zone_names: set[str] = set()
+        for bz in player.block_zones:
+            if bz.card:
+                in_zone_names.add(get_name(bz.card))
+
         deployed_count = 0
         for card_no in chars_to_deploy[:_ZONE_SLOTS]:
             if card_no not in player.hand:
                 continue
             if not _can_deploy(card_no, "block"):
                 continue
+            name = get_name(card_no)
+            if name in in_zone_names:
+                continue  # 攔網唯一性：同名角色已在場上
+            if not self._aba_ok(card_no, state):
+                continue  # ABA規則
             player.hand.remove(card_no)
             self._deploy_to_zone(player, card_no, "block")
-            self.spec.on_deploy(pnum, card_no, get_name(card_no), "block",
+            in_zone_names.add(name)
+            state.last_deployed_name = name
+            self.spec.on_deploy(pnum, card_no, name, "block",
                                stats={"blk": get_stat(card_no, "blk")})
             deployed_count += 1
 
@@ -260,13 +283,15 @@ class TurnFlow:
         for c in drawn:
             self.spec.on_draw(pnum, c, get_name(c))
 
-        # RECEIVE PHASE（強制部署，規則 5-9-2②）
+        # RECEIVE PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "receive")
-        rcv_card = ai.decide_receive_char(player, state, pending_op)
-        if not (rcv_card and rcv_card in player.hand and _can_deploy(rcv_card, "receive")):
-            return pnum  # 手牌無可接球角色 → LOST
+        rcv_card = self._select_deploy(ai.decide_receive_char(player, state, pending_op),
+                                       player.hand, "receive", state)
+        if not rcv_card:
+            return pnum  # 無合規接球角色 → LOST
         player.hand.remove(rcv_card)
         self._deploy_to_zone(player, rcv_card, "receive")
+        state.last_deployed_name = get_name(rcv_card)
         self.spec.on_deploy(pnum, rcv_card, get_name(rcv_card), "receive",
                            stats={"rcv": get_stat(rcv_card, "rcv")})
 
@@ -276,23 +301,27 @@ class TurnFlow:
         if did_lose:
             return pnum
 
-        # TOSS PHASE（強制部署，規則 5-10-2②）
+        # TOSS PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "toss")
-        tos_card = ai.decide_toss_char(player, state)
-        if not (tos_card and tos_card in player.hand and _can_deploy(tos_card, "toss")):
-            return pnum  # 手牌無可舉球角色 → LOST
+        tos_card = self._select_deploy(ai.decide_toss_char(player, state),
+                                       player.hand, "toss", state)
+        if not tos_card:
+            return pnum  # 無合規舉球角色 → LOST
         player.hand.remove(tos_card)
         self._deploy_to_zone(player, tos_card, "toss")
+        state.last_deployed_name = get_name(tos_card)
         self.spec.on_deploy(pnum, tos_card, get_name(tos_card), "toss",
                            stats={"tos": get_stat(tos_card, "tos")})
 
-        # ATTACK PHASE（強制部署，規則 5-11-2②）
+        # ATTACK PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "attack")
-        atk_card = ai.decide_attack_char(player, state)
-        if not (atk_card and atk_card in player.hand and _can_deploy(atk_card, "attack")):
-            return pnum  # 手牌無可攻擊角色 → LOST
+        atk_card = self._select_deploy(ai.decide_attack_char(player, state),
+                                       player.hand, "attack", state)
+        if not atk_card:
+            return pnum  # 無合規攻擊角色 → LOST
         player.hand.remove(atk_card)
         self._deploy_to_zone(player, atk_card, "attack")
+        state.last_deployed_name = get_name(atk_card)
         self.spec.on_deploy(pnum, atk_card, get_name(atk_card), "attack",
                            stats={"atk": get_stat(atk_card, "atk")})
 
@@ -301,6 +330,30 @@ class TurnFlow:
         self.spec.on_action(pnum, "attack", new_op, 0, notes=f"TOS+ATK={new_op}")
         self.spec.on_board_snapshot(self._make_snapshot(player, pnum))
         return None
+
+    # ── ABA / 部署選擇 helper ──────────────────────────────────────────────────
+
+    def _aba_ok(self, card_no: str, state: GameState) -> bool:
+        """ABA規則：出場角色名稱不得與上一位出場角色相同。"""
+        if state.last_deployed_name is None:
+            return True
+        return get_name(card_no) != state.last_deployed_name
+
+    def _select_deploy(
+        self, ai_choice: str | None, hand: list[str], zone: str, state: GameState
+    ) -> str | None:
+        """
+        強制部署用：從手牌找 ABA 合規且可出場的角色。
+        優先採 ai_choice；若違反 ABA 或不在手中，改選 stat 最高的合規角色。
+        無合規角色時回傳 None（→ LOST）。
+        """
+        stat_key = _ZONE_STAT.get(zone, "atk")
+        eligible = [c for c in hand if _can_deploy(c, zone) and self._aba_ok(c, state)]
+        if not eligible:
+            return None
+        if ai_choice in eligible:
+            return ai_choice
+        return max(eligible, key=lambda c: get_stat(c, stat_key))
 
     # ── 工具函式 ──────────────────────────────────────────────────────────────
 
