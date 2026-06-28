@@ -630,7 +630,7 @@ function buildSteps() {
     }
     if (SKIP.has(ev.kind)) continue;
 
-    // Update zone immediately for real-time board display
+    // Update zone/stats immediately for real-time board display
     if (ev.kind === 'deploy') {
       const pn = ev.player, z = ev.data.zone;
       if (z === 'block') {
@@ -638,7 +638,13 @@ function buildSteps() {
       } else if (['serve','toss','attack','receive'].includes(z)) {
         b[pn][z] = ev.data.card_name;
       }
+      b[pn].hand_count = Math.max(0, (b[pn].hand_count||0) - 1);
       lastDeploy = {player:pn, zone:z, card:ev.data.card_name};
+    }
+    if (ev.kind === 'draw') {
+      const pn = ev.player;
+      b[pn].hand_count = (b[pn].hand_count||0) + 1;
+      b[pn].pile_count = Math.max(0, (b[pn].pile_count||0) - 1);
     }
     if (ev.kind === 'lost') b[ev.player].set_cards = ev.data.set_cards;
     if (ev.kind === 'set_result') { b[1].set_score=ev.data.p1_sets; b[2].set_score=ev.data.p2_sets; }
@@ -756,8 +762,7 @@ function describeStep(s) {
     case 'draw':
       return '<div class="ev-title">🃏 <span class="'+pc+'">P'+pn+'</span> 從牌庫抽牌</div>'
            + '<div class="ev-card">'+d.card_name+'</div>'
-           + '<div class="ev-stat dim">'+d.card_no+'</div>'
-           + '<div class="ev-sub"><span class="ok">手牌 +1</span>　<span class="err">牌庫 −1</span></div>';
+           + '<div class="ev-stat dim">'+d.card_no+'</div>';
 
     case 'deploy': {
       const stats = d.stats||{};
@@ -767,7 +772,7 @@ function describeStep(s) {
       return '<div class="ev-title">▶ <span class="'+pc+'">P'+pn+'</span> 出場角色</div>'
            + '<div class="ev-card">'+d.card_name+'</div>'
            + (sp?'<div class="ev-stat">'+sp+'</div>':'')
-           + '<div class="ev-sub">→ <b>'+zn+'</b>　<span class="err">手牌 −1</span></div>';
+           + '<div class="ev-sub">→ <b>'+zn+'</b></div>';
     }
 
     case 'judge': {
