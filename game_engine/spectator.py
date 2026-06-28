@@ -104,6 +104,7 @@ class BoardSnapshot:
     toss_guts_nos: list[str] = field(default_factory=list)
     attack_guts_nos: list[str] = field(default_factory=list)
     block_guts_nos: list[list[str]] = field(default_factory=list)
+    event_zone_nos: list[str] = field(default_factory=list)
 
 
 # ── 主要 Spectator 類別 ───────────────────────────────────────────────────────

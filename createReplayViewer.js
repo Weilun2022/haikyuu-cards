@@ -605,6 +605,31 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
       fillSlot(slotEl, zones[zoneName] || null);
     });
 
+    // Event zone（技能區 — 0~N 張，統一用 _layoutHstack）
+    const evSlot = courtEl.querySelector('.z-slot[data-zone="event"]');
+    if (evSlot) {
+      const evCards = Array.isArray(zones.event) ? zones.event : [];
+      evSlot.innerHTML = '';
+      if (evCards.length > 0) {
+        const hstack = document.createElement('div');
+        hstack.className = 'z-hstack';
+        evCards.forEach(cardData => {
+          const cardEl = document.createElement('div');
+          cardEl.className = 'z-hstack-card';
+          const imgEl = document.createElement('img');
+          imgEl.src = `/images/${cardData.img}`;
+          imgEl.loading = 'lazy';
+          imgEl.onerror = () => { imgEl.onerror = null; imgEl.removeAttribute('src'); };
+          cardEl.appendChild(imgEl);
+          hstack.appendChild(cardEl);
+        });
+        evSlot.appendChild(hstack);
+        _layoutHstack(hstack);
+      } else {
+        evSlot.innerHTML = '<div class="z-empty">—</div>';
+      }
+    }
+
     // 更新計數器
     if (counterHand) counterHand.textContent = pState?.hand_count ?? 0;
     if (counterPile) counterPile.textContent = pState?.pile_count ?? 0;

@@ -190,11 +190,13 @@ class TurnFlow:
         """部署後嘗試觸發 [登場] 技能。例外靜默記錄。"""
         if not self.registry:
             return False
+        pnum = state.current_player
         try:
             fired = self.registry.try_activate_deploy_skill(
                 card_no=card_no, deploy_zone=zone, deploy_via_skill=False,
                 state=state, actor=actor, passive=passive, ai=ai,
             )
+            self.spec.on_skill(pnum, card_no, f"[登場]{get_name(card_no)}@{zone}", fired)
             if fired:
                 state.log(f"[SKILL] {card_no}@{zone}")
             return fired
@@ -511,6 +513,7 @@ class TurnFlow:
             toss_guts_nos=list(actor.toss_zone.guts),
             attack_guts_nos=list(actor.attack_zone.guts),
             block_guts_nos=[list(bz.guts) for bz in actor.block_zones],
+            event_zone_nos=list(actor.event_zone),
         )
 
 

@@ -1,7 +1,7 @@
 function buildSteps(events) {
   // Initialize empty player state
   const emptyPlayer = () => ({
-    zones: { serve: null, receive: null, toss: null, attack: null, block: [null, null, null] },
+    zones: { serve: null, receive: null, toss: null, attack: null, block: [null, null, null], event: [] },
     hand_count: 0,
     pile_count: 40,
     grave_count: 0,
@@ -97,7 +97,7 @@ function buildSteps(events) {
           const playerState = player === 1 ? state.p1 : state.p2;
           const { serve_no, receive_no, toss_no, attack_no, block_nos } = event.data;
           const { serve_guts_nos, receive_guts_nos, toss_guts_nos, attack_guts_nos, block_guts_nos } = event.data;
-          const { hand_count, pile_count, grave_count, set_cards } = event.data;
+          const { hand_count, pile_count, grave_count, set_cards, event_zone_nos } = event.data;
 
           // Update zones
           playerState.zones.serve = buildCardData(serve_no, serve_guts_nos || []);
@@ -112,6 +112,9 @@ function buildSteps(events) {
             const blockGuts = (block_guts_nos && block_guts_nos[idx]) || [];
             playerState.zones.block[idx] = buildCardData(blockNo, blockGuts);
           }
+
+          // Update event zone (list of card_nos, no guts)
+          playerState.zones.event = (event_zone_nos || []).map(no => buildCardData(no, [])).filter(Boolean);
 
           // Update counters
           playerState.hand_count = hand_count || 0;

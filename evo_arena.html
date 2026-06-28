@@ -672,7 +672,30 @@ section.best-deck-panel {
   min-height: 0;
   overflow-y: auto;
 }
+.arena-qr-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--arena-input-bg, #1e2235);
+  border: 1px solid var(--arena-panel-border, #2e3450);
+  border-radius: 6px;
+  color: var(--text-main, #e4e8f0);
+  font-size: 11px;
+  resize: none;
+  font-family: monospace;
+}
+.arena-qr-status {
+  font-size: 11px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+.arena-qr-status.ok   { color: #4ade80; }
+.arena-qr-status.warn { color: #facc15; }
+.arena-qr-status.err  { color: #f87171; }
 </style>
+<script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
+<script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
 </head>
 <body>
 
@@ -695,6 +718,9 @@ section.best-deck-panel {
         <option value="ROKUNIN_V1">ROKUNIN_V1（稲荷崎P03）</option>
         <option value="STANDARD">STANDARD（烏野）</option>
       </select>
+      <textarea id="arena-qr-input" class="arena-qr-textarea" rows="2"
+        placeholder="或貼上 QR Code 網址 (?deck=…)"></textarea>
+      <div id="arena-qr-status" class="arena-qr-status"></div>
     </div>
 
     <div class="arena-config-group">
@@ -1344,6 +1370,52 @@ function arenaRenderTopCards(cards) {
   `).join('');
 }
 
+// ── QR Code 牌組輸入 ──────────────────────────────────────────────────────────
+let _qrDeck = null;
+
+function _decodeDeckUrl(qrString) {
+  let encoded = qrString.trim();
+  try {
+    const urlStr = encoded.startsWith('http') ? encoded : 'https://x.com/?' + encoded;
+    const url = new URL(urlStr);
+    const deckParam = url.searchParams.get('deck');
+    if (deckParam) encoded = deckParam;
+  } catch (e) {}
+  const json = LZString.decompressFromEncodedURIComponent(encoded);
+  if (!json) throw new Error('解碼失敗');
+  const data = JSON.parse(json);
+  if (!data.c || !Array.isArray(data.c)) throw new Error('格式不正確');
+  const cards = {};
+  let total = 0;
+  for (const [id, cnt] of data.c) {
+    const cardNo = String(id).replace(/-[A-Z]+\.webp$/i, '');
+    cards[cardNo] = (cards[cardNo] || 0) + cnt;
+    total += cnt;
+  }
+  return { name: data.n || '自定牌組', cards, totalCount: total };
+}
+
+document.getElementById('arena-qr-input').addEventListener('input', function() {
+  const val = this.value.trim();
+  const statusEl = document.getElementById('arena-qr-status');
+  if (!val) {
+    _qrDeck = null;
+    statusEl.textContent = '';
+    statusEl.className = 'arena-qr-status';
+    return;
+  }
+  try {
+    _qrDeck = _decodeDeckUrl(val);
+    const ok = _qrDeck.totalCount === 40;
+    statusEl.textContent = `${ok ? '✓' : '⚠'} ${_qrDeck.name}（${_qrDeck.totalCount}/40）`;
+    statusEl.className = `arena-qr-status ${ok ? 'ok' : 'warn'}`;
+  } catch (e) {
+    _qrDeck = null;
+    statusEl.textContent = '✗ 解析失敗';
+    statusEl.className = 'arena-qr-status err';
+  }
+});
+
 // ── 控制按鈕 ──────────────────────────────────────────────────────────────────
 async function arenaStart() {
   const seedSel = document.getElementById('arena-seed-select').value;
@@ -1354,11 +1426,9 @@ async function arenaStart() {
     games_per_eval: +document.getElementById('arena-cfg-games').value,
   };
 
-  const payload = {
-    seed_deck_name: seedSel,
-    meta_decks: [metaSel],
-    config: cfg
-  };
+  const payload = _qrDeck
+    ? { seed_deck: _qrDeck.cards, meta_decks: [metaSel], config: cfg }
+    : { seed_deck_name: seedSel, meta_decks: [metaSel], config: cfg };
 
   try {
     const r = await fetch(ARENA_SERVER + '/start', {
