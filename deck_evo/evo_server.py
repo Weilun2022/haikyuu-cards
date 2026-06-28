@@ -24,6 +24,7 @@ ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
 from game_engine.sim_runner import DECKS, load_cards
+from game_engine.card_db import get_card
 from deck_evo.evolution_engine import EvoEngine
 
 # ── 全域狀態 ──────────────────────────────────────────────────────────────────
@@ -33,18 +34,85 @@ _latest_stats: dict = {}
 _lock = threading.Lock()
 
 
+def _card_display_name(card_no: str) -> str:
+    """查卡片顯示名稱，找不到 fallback 回 card_no。"""
+    try:
+        c = get_card(card_no)
+        return c.get("name", card_no) if c else card_no
+    except Exception:
+        return card_no
+
+
+def _enrich_analytics(analytics: dict) -> dict:
+    """在 analytics dict 補卡片名稱欄位（不改動原有欄位）。"""
+    if not analytics:
+        return analytics
+    result = dict(analytics)
+
+    # top_cards：加 name
+    if "top_cards" in result:
+        result["top_cards"] = [
+            {**card, "name": _card_display_name(card.get("card_no", ""))}
+            for card in result["top_cards"]
+        ]
+
+    # top_combos：加 display_name / name_a / name_b
+    if "top_combos" in result:
+        enriched = []
+        for combo in result["top_combos"]:
+            cards = combo.get("cards", [])
+            names = [_card_display_name(c) for c in cards]
+            enriched.append({
+                **combo,
+                "names": names,
+                "name_a": names[0] if len(names) > 0 else "",
+                "name_b": names[1] if len(names) > 1 else "",
+                "display_name": " × ".join(names),
+            })
+        result["top_combos"] = enriched
+
+    return result
+
+
+def _enrich_best_deck(best_deck: dict) -> dict:
+    """在 best_deck 補 card_list（含名稱/數量/貢獻分）。"""
+    if not best_deck:
+        return best_deck
+    cards = best_deck.get("cards", {})
+    scores = best_deck.get("card_scores", {})
+    card_list = [
+        {
+            "card_no": cno,
+            "name": _card_display_name(cno),
+            "count": cnt,
+            "score": round(scores.get(cno, 0.0), 4),
+        }
+        for cno, cnt in cards.items()
+    ]
+    card_list.sort(key=lambda x: x["score"], reverse=True)
+    return {**best_deck, "card_list": card_list}
+
+
 def _push(data: dict):
+    # Enrich 名稱欄位
+    enriched = dict(data)
+    if "analytics" in enriched:
+        enriched["analytics"] = _enrich_analytics(enriched["analytics"])
+    if "best_deck" in enriched:
+        enriched["best_deck"] = _enrich_best_deck(enriched["best_deck"])
+    enriched["schema_version"] = 2
+
     with _lock:
         global _latest_stats
-        _latest_stats = data
+        _latest_stats = enriched
     try:
-        _update_queue.put_nowait(data)
+        _update_queue.put_nowait(enriched)
     except queue.Full:
         try:
             _update_queue.get_nowait()
         except queue.Empty:
             pass
-        _update_queue.put_nowait(data)
+        _update_queue.put_nowait(enriched)
 
 
 # ── HTTP Handler ──────────────────────────────────────────────────────────────
@@ -57,10 +125,10 @@ class EvoHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
 
-        if path in ("/", "/index.html"):
-            self._serve_file(ROOT / "evo_dashboard.html", "text/html")
-        elif path == "/evo_arena.html":
+        if path in ("/", "/index.html", "/evo_arena.html"):
             self._serve_file(ROOT / "evo_arena.html", "text/html")
+        elif path == "/evo_dashboard.html":
+            self._serve_file(ROOT / "evo_dashboard.html", "text/html")
         elif path == "/events":
             self._sse_stream()
         elif path == "/status":
@@ -147,22 +215,32 @@ class EvoHandler(BaseHTTPRequestHandler):
         self._json({"ok": True, "message": "進化已停止"})
 
     def _handle_replays_list(self):
-        """GET /api/replays_list - 列出所有 replay HTML 檔案"""
+        """GET /api/replays_list?run_id=<id> — 列出 visual_replay 檔案"""
+        from urllib.parse import urlparse, parse_qs
+        qs = parse_qs(urlparse(self.path).query)
+        run_id = qs.get("run_id", [None])[0]
+
         replays_dir = ROOT / "replays"
         replays = []
 
         if replays_dir.exists() and replays_dir.is_dir():
-            # 掃描 visual_replay_*.html 檔案
-            for fpath in replays_dir.glob("visual_replay_*.html"):
-                replays.append(fpath.name)
+            if run_id:
+                # 優先回傳本輪 evo showcase
+                pattern = f"visual_replay_evo_{run_id}_*.html"
+                replays = sorted(
+                    [f.name for f in replays_dir.glob(pattern)],
+                    reverse=True,
+                )
+            if not replays:
+                # fallback：所有 visual_replay
+                replays = sorted(
+                    [f.name for f in replays_dir.glob("visual_replay_*.html")],
+                    reverse=True,
+                )
 
-        # 按時間戳倒序排列（新的在前）
-        replays.sort(reverse=True)
-
-        latest = replays[0] if replays else None
         self._json({
             "replays": replays,
-            "latest": latest
+            "latest": replays[0] if replays else None,
         })
 
     def _handle_config(self):

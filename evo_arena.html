@@ -476,7 +476,7 @@ canvas#arena-wr-chart {
 
     <!-- 下：Replay Panel -->
     <div class="arena-replay-panel">
-      <div class="arena-replay-label">第 <span id="arena-replay-gen">—</span> 代最佳對局</div>
+      <div class="arena-replay-label">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代最佳對局</div>
       <iframe id="arena-replay-frame"></iframe>
     </div>
   </div>
@@ -600,6 +600,7 @@ function arenaConnectSSE() {
 
 // ── 更新 UI ────────────────────────────────────────────────────────────────────
 function arenaHandleUpdate(data) {
+  const schemaV2 = (data.schema_version || 1) >= 2;
   const gen = data.generation ?? 0;
   const bestWR = data.best_win_rate ?? 0;
   const avgWR = data.avg_win_rate ?? 0;
@@ -634,20 +635,36 @@ function arenaHandleUpdate(data) {
     arenaRenderTopCards(data.analytics.top_cards || []);
   }
 
-  // 更新 Replay iframe（從 /api/replays_list 取最新）
-  fetch(ARENA_SERVER + '/api/replays_list')
-    .then(r => r.json())
-    .then(d => {
-      if(d.latest) {
-        const frame = document.getElementById('arena-replay-frame');
-        const newSrc = ARENA_SERVER + '/replays/' + d.latest;
-        if(frame.src !== newSrc) {
-          frame.src = newSrc;
-          document.getElementById('arena-replay-gen').textContent = '第 ' + gen + ' 代最佳對局';
-        }
+  // 更新 Replay iframe（優先用 SSE 推送的 latest_replay，fallback 到 /api/replays_list）
+  (async () => {
+    const frame = document.getElementById('arena-replay-frame');
+    const label = document.getElementById('arena-replay-gen');
+
+    if (data.latest_replay) {
+      // SSE v2：evolution_engine 已存好 showcase replay
+      const newSrc = ARENA_SERVER + '/' + data.latest_replay;
+      if (frame.src !== newSrc) {
+        frame.src = newSrc;
+        label.textContent = '第 ' + gen + ' 代最佳 Genome 精選展示局';
       }
-    })
-    .catch(() => {});
+    } else {
+      // fallback：從 /api/replays_list 取最新（含 run_id 過濾）
+      const runId = data.run_id || '';
+      const url = ARENA_SERVER + '/api/replays_list' + (runId ? '?run_id=' + runId : '');
+      try {
+        const d = await fetch(url).then(r => r.json());
+        if (d.latest) {
+          const newSrc = ARENA_SERVER + '/replays/' + d.latest;
+          if (frame.src !== newSrc) {
+            frame.src = newSrc;
+            label.textContent = '第 ' + gen + ' 代最佳對局';
+          }
+        } else if (!frame.src || frame.src === 'about:blank') {
+          label.textContent = '等待第一個精選 Replay 產生中…';
+        }
+      } catch (e) {}
+    }
+  })();
 }
 
 // ── Combo 渲染 ─────────────────────────────────────────────────────────────────
@@ -657,16 +674,19 @@ function arenaRenderCombos(combos) {
     list.innerHTML = '<div class="arena-empty-msg">累積資料中…</div>';
     return;
   }
-  list.innerHTML = combos.slice(0, 8).map(c => `
+  list.innerHTML = combos.slice(0, 8).map(c => {
+    const comboLabel = c.display_name
+      || (c.name_a && c.name_b ? c.name_a + ' × ' + c.name_b : null)
+      || (c.names && c.names.length >= 2 ? c.names.join(' × ') : null)
+      || (c.cards || []).join(' / ');
+    return `
     <div class="arena-combo-item">
       <div class="arena-combo-wr">${(c.combo_win_rate * 100).toFixed(1)}%</div>
-      <div class="arena-combo-cards">
-        ${c.name_a || c.cards[0]}<br>
-        <span style="color: var(--text-dim);">+ </span>${c.name_b || c.cards[1]}
-      </div>
+      <div class="arena-combo-cards">${comboLabel}</div>
       <div class="arena-combo-meta">共現 ${c.appearances} 次</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // ── Top Cards 渲染 ─────────────────────────────────────────────────────────────
@@ -679,7 +699,7 @@ function arenaRenderTopCards(cards) {
   list.innerHTML = cards.slice(0, 10).map((c, i) => `
     <div class="arena-top-card-row">
       <span class="arena-top-card-idx">#${i + 1}</span>
-      <span class="arena-top-card-name">${c.name}</span>
+      <span class="arena-top-card-name">${c.name || c.card_no || '—'}</span>
       <span class="arena-top-card-wr">${(c.avg_win_rate * 100).toFixed(1)}%</span>
     </div>
   `).join('');
@@ -740,6 +760,10 @@ window.addEventListener('load', () => {
   arenaConnectSSE();
 });
 </script>
+
+<a href="/evo_dashboard.html"
+   style="position:fixed;bottom:6px;right:10px;font-size:10px;color:var(--text-dim);opacity:.4;text-decoration:none;"
+   title="舊版除錯面板">Legacy Debug</a>
 
 </body>
 </html>
