@@ -841,7 +841,7 @@ let _prevBestSignature = '';
 
 let arenaChartData = [];
 let arenaSSE = null;
-const ARENA_SERVER = 'http://localhost:7778';
+const ARENA_SERVER = `http://${location.hostname}:7778`;
 let arenaViewer = null;
 let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 SSE 自動覆蓋
 let _replayLoadToken = 0;       // race condition 防護：每次新 load 遞增
