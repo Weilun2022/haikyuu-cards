@@ -66,6 +66,12 @@ def chars_by_school(school: str) -> list[str]:
     return [cno for cno in _chars if _all_unique.get(cno, {}).get("school") == school]
 
 
+def events_by_school(school: str) -> list[str]:
+    """傳回屬於指定學校的事件牌列表。"""
+    _load()
+    return [cno for cno in _events if _all_unique.get(cno, {}).get("school") == school]
+
+
 def is_legal(deck: dict[str, int]) -> bool:
     """檢查牌組合法性：40 張、≤5 份、≤8 事件。"""
     _load()
@@ -85,14 +91,17 @@ def mutate(deck: dict[str, int], n_swaps: int = 3,
     """
     突變：移除 n_swaps 張低貢獻牌，加入隨機新牌。
     low_score_cards 若提供，優先從中選擇要移除的牌。
-    school_lock 若提供，角色牌只能從指定學校選取（事件牌不受限）。
+    school_lock 若提供，角色牌與事件牌都只能從指定學校選取。
     """
     _load()
     from game_engine.card_db import is_event
     new = dict(deck)
     char_pool = chars_by_school(school_lock) if school_lock else _chars
     if not char_pool:
-        char_pool = _chars  # fallback: 學校無角色牌時退回全卡池
+        char_pool = _chars
+    event_pool = events_by_school(school_lock) if school_lock else _events
+    if not event_pool:
+        event_pool = _events
 
     for _ in range(n_swaps):
         # 選擇移除候選（優先低分 → 單張 → 隨機）
@@ -116,9 +125,9 @@ def mutate(deck: dict[str, int], n_swaps: int = 3,
         # 選擇加入新牌（維持事件比例上限）
         ev_cnt = sum(v for k, v in new.items() if is_event(k))
         if is_ev_remove and ev_cnt < MAX_EVENT:
-            pool = random.choice([char_pool, _events, char_pool])
+            pool = random.choice([char_pool, event_pool, char_pool])
         elif ev_cnt < MAX_EVENT - 1:
-            pool = random.choice([char_pool, char_pool, _events])
+            pool = random.choice([char_pool, char_pool, event_pool])
         else:
             pool = char_pool
 
@@ -147,6 +156,9 @@ def crossover(deck_a: dict[str, int], deck_b: dict[str, int],
     char_pool = chars_by_school(school_lock) if school_lock else _chars
     if not char_pool:
         char_pool = _chars
+    event_pool = events_by_school(school_lock) if school_lock else _events
+    if not event_pool:
+        event_pool = _events
 
     # 候選牌集合（兩親所有卡，最大份數取兩者平均上限）
     all_cards = set(deck_a) | set(deck_b)
@@ -177,10 +189,10 @@ def crossover(deck_a: dict[str, int], deck_b: dict[str, int],
         if ev:
             ev_cnt += cnt
 
-    # 補足至 40 張（school_lock 限制角色牌來源）
+    # 補足至 40 張（school_lock 限制角色牌與事件牌來源）
     while sum(child.values()) < MAX_DECK:
         ev_cnt = sum(v for k, v in child.items() if is_event(k))
-        pool = _events if ev_cnt < MAX_EVENT and random.random() < 0.15 else char_pool
+        pool = event_pool if ev_cnt < MAX_EVENT and random.random() < 0.15 else char_pool
         for _ in range(20):
             cand = random.choice(pool)
             if child.get(cand, 0) < MAX_COPY:
