@@ -42,6 +42,7 @@ class EvoEngine:
         meta_decks: dict[str, dict],
         cfg: dict | None = None,
         on_generation: Callable[[dict], None] | None = None,
+        school_lock: str | None = "auto",
     ):
         self.cfg = {**DEFAULT_CFG, **(cfg or {})}
         self.meta_decks = meta_decks
@@ -57,6 +58,13 @@ class EvoEngine:
 
         # 種子牌組
         self._seed_deck = seed_deck
+
+        # 學校鎖定：auto = 從種子偵測，None = 自由進化，字串 = 指定學校
+        if school_lock == "auto":
+            from deck_evo.card_pool import detect_school
+            self._school_lock: str | None = detect_school(seed_deck) if seed_deck else None
+        else:
+            self._school_lock = school_lock
 
         # replay 管理
         _rdir = Path(__file__).parent.parent / "replays"
@@ -114,7 +122,8 @@ class EvoEngine:
         self.population = [seed]
         while len(self.population) < pop_size:
             n_swaps = random.randint(2, 6)
-            mutated = mutate(self._seed_deck, n_swaps=n_swaps)
+            mutated = mutate(self._seed_deck, n_swaps=n_swaps,
+                             school_lock=self._school_lock)
             g = DeckGenome(cards=mutated, name=f"init-{len(self.population)}", generation=0)
             self.population.append(g)
 
@@ -176,6 +185,7 @@ class EvoEngine:
             "history_avg": [h["avg_win_rate"]  for h in self.history] + [avg_wr],
             "run_id": self._run_id,
             "latest_replay": self._latest_replay_url,
+            "school_lock": self._school_lock,
         }
 
     def _check_convergence(self) -> bool:
@@ -206,7 +216,8 @@ class EvoEngine:
         for _ in range(n_cross):
             p1, p2 = random.choices(elites + self.population[elite_n:elite_n+4], k=2)
             child_cards = crossover(p1.cards, p2.cards,
-                                    p1.card_scores, p2.card_scores)
+                                    p1.card_scores, p2.card_scores,
+                                    school_lock=self._school_lock)
             g = DeckGenome(cards=child_cards,
                            name=f"cross-{self.generation}",
                            generation=self.generation + 1)
@@ -216,7 +227,8 @@ class EvoEngine:
         while len(new_pop) < pop_size:
             parent = random.choice(self.population[:max(4, elite_n + 2)])
             low = parent.low_score_cards(n=5)
-            child_cards = mutate(parent.cards, n_swaps=n_swaps, low_score_cards=low)
+            child_cards = mutate(parent.cards, n_swaps=n_swaps, low_score_cards=low,
+                                 school_lock=self._school_lock)
             g = DeckGenome(cards=child_cards,
                            name=f"mut-{self.generation}",
                            generation=self.generation + 1)

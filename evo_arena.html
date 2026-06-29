@@ -693,6 +693,20 @@ section.best-deck-panel {
 .arena-qr-status.ok   { color: #4ade80; }
 .arena-qr-status.warn { color: #facc15; }
 .arena-qr-status.err  { color: #f87171; }
+.arena-school-lock-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.82em;
+  color: #aaa;
+  margin-top: 4px;
+  user-select: none;
+}
+#arena-school-lock-name {
+  color: #7dd3fc;
+  font-weight: 600;
+}
 </style>
 <script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
 <script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
@@ -721,6 +735,10 @@ section.best-deck-panel {
       <textarea id="arena-qr-input" class="arena-qr-textarea" rows="2"
         placeholder="或貼上 QR Code 網址 (?deck=…)"></textarea>
       <div id="arena-qr-status" class="arena-qr-status"></div>
+      <label class="arena-school-lock-label">
+        <input type="checkbox" id="arena-school-lock" checked>
+        學校鎖定 <span id="arena-school-lock-name"></span>
+      </label>
     </div>
 
     <div class="arena-config-group">
@@ -1245,6 +1263,15 @@ function arenaHandleUpdate(data) {
     arenaRenderTopCards(data.analytics.top_cards || []);
   }
 
+  // 顯示學校鎖定名稱（只在第一次設定，避免閃爍）
+  if (data.school_lock) {
+    const nameEl = document.getElementById('arena-school-lock-name');
+    if (nameEl && !nameEl.dataset.set) {
+      nameEl.textContent = '(' + data.school_lock + ')';
+      nameEl.dataset.set = '1';
+    }
+  }
+
   // 更新最佳牌組面板
   if(data.best_deck) {
     arenaRenderBestDeck(data.best_deck, gen);
@@ -1426,9 +1453,14 @@ async function arenaStart() {
     games_per_eval: +document.getElementById('arena-cfg-games').value,
   };
 
+  // 重置學校鎖定顯示（避免跨 run 殘留）
+  const schoolNameEl = document.getElementById('arena-school-lock-name');
+  if (schoolNameEl) { schoolNameEl.textContent = ''; delete schoolNameEl.dataset.set; }
+
+  const schoolLock = document.getElementById('arena-school-lock').checked ? 'auto' : null;
   const payload = _qrDeck
-    ? { seed_deck: _qrDeck.cards, meta_decks: [metaSel], config: cfg }
-    : { seed_deck_name: seedSel, meta_decks: [metaSel], config: cfg };
+    ? { seed_deck: _qrDeck.cards, meta_decks: [metaSel], config: cfg, school_lock: schoolLock }
+    : { seed_deck_name: seedSel, meta_decks: [metaSel], config: cfg, school_lock: schoolLock };
 
   try {
     const r = await fetch(ARENA_SERVER + '/start', {

@@ -217,11 +217,15 @@ class EvoHandler(BaseHTTPRequestHandler):
             try: _update_queue.get_nowait()
             except queue.Empty: break
 
+        # school_lock: "auto"(預設)=從種子偵測, null=自由進化, 字串=指定學校
+        school_lock = body.get("school_lock", "auto")
+
         _engine = EvoEngine(
             seed_deck=seed_deck,
             meta_decks=meta_decks,
             cfg=cfg or None,
             on_generation=_push,
+            school_lock=school_lock,
         )
         _engine.start()
         self._json({"ok": True, "message": "進化已啟動", "meta_decks": list(meta_decks)})
