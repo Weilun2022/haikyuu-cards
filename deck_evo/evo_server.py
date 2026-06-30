@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT))
 from game_engine.sim_runner import DECKS, load_cards
 from game_engine.card_db import get_card
 from deck_evo.evolution_engine import EvoEngine
+from deck_evo import deck_validator, persistence
 
 # ── 全域狀態 ──────────────────────────────────────────────────────────────────
 _engine: EvoEngine | None = None
@@ -144,6 +145,8 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_replays_list()
         elif path == "/api/config":
             self._handle_config()
+        elif path == "/api/hall_of_fame":
+            self._handle_hall_of_fame()
         elif path == "/api/replay_events":
             self._handle_replay_events()
         elif path == "/api/replay_list":
@@ -187,6 +190,12 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_start(body)
         elif path == "/stop":
             self._handle_stop()
+        elif path == "/api/validate_deck":
+            self._handle_validate_deck(body)
+        elif path == "/api/control":
+            self._handle_control(body)
+        elif path == "/api/battle/practice":
+            self._handle_practice(body)
         else:
             self.send_error(404)
 
@@ -206,6 +215,10 @@ class EvoHandler(BaseHTTPRequestHandler):
             # 從 seed_deck_name 取得內建牌組
             seed_name = body.get("seed_deck_name", "ROKUNIN")
             seed_deck = dict(DECKS.get(seed_name, DECKS["ROKUNIN"]))
+
+        # 單一 meta → 自動補全所有 preset 以避免過擬合
+        if isinstance(meta_names, list) and len(meta_names) <= 1:
+            meta_names = list(DECKS.keys())
 
         # 只取資料庫中存在的 meta 牌組
         meta_decks = {n: DECKS[n] for n in meta_names if n in DECKS}
@@ -235,6 +248,92 @@ class EvoHandler(BaseHTTPRequestHandler):
         if _engine:
             _engine.stop()
         self._json({"ok": True, "message": "進化已停止"})
+
+    def _handle_validate_deck(self, body: dict):
+        cards = (body or {}).get("cards", {})
+        result = deck_validator.validate(cards)
+        self._json(result)
+
+    def _handle_control(self, body: dict):
+        global _engine
+        if _engine is None:
+            self._json({"error": "目前無進化引擎"}, 409)
+            return
+        action = (body or {}).get("action")
+        if action == "pause":
+            _engine.pause()
+            self._json({"status": "paused"})
+        elif action == "resume":
+            _engine.resume()
+            self._json({"status": "running"})
+        else:
+            self._json({"error": "action 須為 'pause' 或 'resume'"}, 400)
+
+    def _handle_hall_of_fame(self):
+        qs = parse_qs(urlparse(self.path).query)
+        try:
+            limit = int(qs.get("limit", ["20"])[0])
+        except (ValueError, IndexError):
+            limit = 20
+        try:
+            data = persistence.get_hall_of_fame(limit=limit)
+            self._json({"hall_of_fame": data, "count": len(data)})
+        except Exception as e:
+            self._json({"error": str(e), "hall_of_fame": []}, 500)
+
+    def _handle_practice(self, body: dict):
+        """
+        POST /api/battle/practice
+        body: {
+          "player_deck": {card_no: count},
+          "ai_deck":     {card_no: count},   # 可選，預設 STANDARD
+          "difficulty":  "easy"|"normal"|"hard",
+          "seed":        int
+        }
+        回傳: { ok, winner, turns, log }
+        """
+        from game_engine.ai.greedy_ai import GreedyAI
+        from game_engine.ai.generic_ai import GenericAI
+        from game_engine.sim_runner import run_one_game
+        from deck_evo.card_pool import detect_school
+
+        player_deck = (body or {}).get("player_deck", {})
+        ai_deck = (body or {}).get("ai_deck") or DECKS.get("STANDARD", {})
+        difficulty = (body or {}).get("difficulty", "normal")
+        seed_val = int((body or {}).get("seed", 42))
+
+        if not player_deck:
+            self._json({"ok": False, "error": "player_deck 不可為空"}, 400)
+            return
+
+        # 建立有難度設定的 AI class（run_one_game 期待 class，不是實例）
+        def _make_ai_class(diff: str):
+            class _DiffAI(GreedyAI):
+                def __init__(self, player_num: int, name: str = "AI"):
+                    super().__init__(player_num, difficulty=diff, name=name)
+                    self.seed(seed_val)
+            return _DiffAI
+
+        try:
+            school1 = detect_school(player_deck)
+            school2 = detect_school(ai_deck)
+            result = run_one_game(
+                deck1=player_deck, deck2=ai_deck,
+                name1="Player", name2=f"AI({difficulty})",
+                school1=school1, school2=school2,
+                ai1_class=GenericAI,
+                ai2_class=_make_ai_class(difficulty),
+                seed=seed_val,
+            )
+            self._json({
+                "ok":     True,
+                "winner": result.get("winner"),
+                "turns":  result.get("turns"),
+                "p1_sets": result.get("p1_sets"),
+                "p2_sets": result.get("p2_sets"),
+            })
+        except Exception as e:
+            self._json({"ok": False, "error": str(e)}, 500)
 
     def _handle_replays_list(self):
         """GET /api/replays_list?run_id=<id> — 列出 visual_replay 檔案"""

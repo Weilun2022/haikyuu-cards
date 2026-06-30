@@ -710,6 +710,7 @@ section.best-deck-panel {
 </style>
 <script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
 <script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -833,6 +834,19 @@ section.best-deck-panel {
       </div>
     </section>
 
+    <!-- QR 匯出 -->
+    <div id="qr-export-block" class="arena-analytics-section" style="text-align:center">
+      <h3 style="text-align:left">匯出最佳牌組 QR</h3>
+      <button id="qr-export-btn" onclick="exportQR()"
+        style="margin-bottom:8px;padding:6px 18px;border-radius:6px;
+               border:1px solid var(--border);background:var(--panel);
+               color:var(--text);cursor:pointer;font-size:13px;">
+        生成 QR Code
+      </button>
+      <div id="qr-canvas-wrapper" style="display:none;margin:0 auto;width:fit-content"></div>
+      <div id="qr-export-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px"></div>
+    </div>
+
     <!-- Combos -->
     <div class="arena-analytics-section">
       <h3>最強 Combo（Top 8）</h3>
@@ -865,6 +879,7 @@ let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 
 let _replayLoadToken = 0;       // race condition 防護：每次新 load 遞增
 let _activeComboItem = null;    // 當前高亮的 combo DOM element
 let _toastTimer = null;
+let _lastBestDeck = null;       // 最新 SSE best_deck（供 QR 匯出使用）
 
 // ── Best Deck Rendering ─────────────────────────────────────────────────────────
 function _bdFormatScore(score) {
@@ -1274,6 +1289,7 @@ function arenaHandleUpdate(data) {
 
   // 更新最佳牌組面板
   if(data.best_deck) {
+    _lastBestDeck = data.best_deck;
     arenaRenderBestDeck(data.best_deck, gen);
   }
 
@@ -1395,6 +1411,56 @@ function arenaRenderTopCards(cards) {
       <span class="arena-top-card-wr">${(c.avg_win_rate * 100).toFixed(1)}%</span>
     </div>
   `).join('');
+}
+
+// ── QR Code 最佳牌組匯出 ─────────────────────────────────────────────────────
+function exportQR() {
+  const wrapper = document.getElementById('qr-canvas-wrapper');
+  const hint    = document.getElementById('qr-export-hint');
+  if (!wrapper || !hint) return;
+
+  if (!_lastBestDeck) {
+    hint.textContent = '尚無最佳牌組資料，請等待進化產生結果。';
+    return;
+  }
+
+  const cards = Array.isArray(_lastBestDeck.card_list) ? _lastBestDeck.card_list : [];
+  if (!cards.length) {
+    hint.textContent = '牌組為空，無法生成 QR。';
+    return;
+  }
+
+  const gen    = _lastBestDeck.generation ?? '?';
+  const name   = `最佳牌組 第${gen}代`;
+  const cPairs = cards.map(c => [String(c.card_no), Number(c.count)]);
+  const payload = JSON.stringify({ c: cPairs, n: name });
+
+  let encoded;
+  try {
+    encoded = LZString.compressToEncodedURIComponent(payload);
+  } catch (e) {
+    hint.textContent = `壓縮失敗：${e.message}`;
+    return;
+  }
+
+  const deckUrl = `${location.origin}/?deck=${encoded}`;
+
+  wrapper.innerHTML = '';
+  wrapper.style.display = 'block';
+
+  try {
+    new QRCode(wrapper, {
+      text:          deckUrl,
+      width:         160,
+      height:        160,
+      colorDark:     '#000000',
+      colorLight:    '#ffffff',
+      correctLevel:  QRCode.CorrectLevel.M,
+    });
+    hint.textContent = `${name}（掃描後可匯入牌組）`;
+  } catch (e) {
+    hint.textContent = `QR 生成失敗：${e.message}`;
+  }
 }
 
 // ── QR Code 牌組輸入 ──────────────────────────────────────────────────────────

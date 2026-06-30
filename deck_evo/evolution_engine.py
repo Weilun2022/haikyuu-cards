@@ -16,14 +16,15 @@ import deck_evo.replay_saver as _replay_saver
 
 # ── 預設配置 ──────────────────────────────────────────────────────────────────
 DEFAULT_CFG = {
-    "population_size": 16,     # 族群規模
-    "elite_count": 3,          # 精英直接保留
-    "games_per_eval": 60,      # 每副牌評估局數
-    "mutation_swaps": 3,       # 每次突變替換幾張
-    "crossover_rate": 0.35,    # 新世代中交叉的比例
-    "convergence_window": 6,   # 收斂判斷世代數
-    "convergence_delta": 0.005,# 勝率改善閾值
-    "max_generations": 200,    # 最多跑幾代
+    "population_size": 16,       # 族群規模
+    "elite_count": 3,            # 精英直接保留
+    "games_per_eval": 60,        # 每副牌評估局數
+    "mutation_swaps": 3,         # 每次突變替換幾張
+    "crossover_rate": 0.35,      # 新世代中交叉的比例
+    "convergence_window": 6,     # 收斂判斷世代數
+    "convergence_delta": 0.005,  # 移動平均差閾值
+    "convergence_min_gen": 20,   # 至少跑滿這麼多代才允許收斂判定
+    "max_generations": 200,      # 最多跑幾代
 }
 
 
@@ -54,6 +55,8 @@ class EvoEngine:
         self.best: DeckGenome | None = None
         self.analytics = Analytics()
         self._stop_event = threading.Event()
+        self._pause_event = threading.Event()
+        self._pause_event.set()               # 預設 set = running（未暫停）
         self._running = False
 
         # 種子牌組
@@ -79,11 +82,34 @@ class EvoEngine:
         if self._running:
             return
         self._stop_event.clear()
+        self._pause_event.set()  # 確保啟動時未暫停
+        # 記錄本次進化到持久化 DB
+        try:
+            from deck_evo import persistence
+            persistence.start_run(
+                self._run_id,
+                self._school_lock,
+                list(self.meta_decks.keys()),
+            )
+        except Exception:
+            pass
         t = threading.Thread(target=self._run_loop, daemon=True)
         t.start()
 
     def stop(self):
         self._stop_event.set()
+        self._pause_event.set()  # 喚醒暫停狀態，讓 thread 能偵測到 stop_event
+
+    def pause(self):
+        """暫停進化（當前代評估完成後生效）。"""
+        self._pause_event.clear()
+
+    def resume(self):
+        """繼續進化。"""
+        self._pause_event.set()
+
+    def is_paused(self) -> bool:
+        return not self._pause_event.is_set()
 
     @property
     def running(self) -> bool:
@@ -96,6 +122,7 @@ class EvoEngine:
         try:
             self._initialize()
             for _ in range(self.cfg["max_generations"]):
+                self._pause_event.wait()        # 暫停時阻塞於此，resume 後繼續
                 if self._stop_event.is_set():
                     break
                 self._evaluate_all()
@@ -106,6 +133,12 @@ class EvoEngine:
                 self.history.append(stats)
                 if self.on_generation:
                     self.on_generation(stats)
+                # 持久化（失敗不影響進化主流程）
+                try:
+                    from deck_evo import persistence
+                    persistence.save_generation(self._run_id, stats)
+                except Exception:
+                    pass
                 if self._check_convergence():
                     break
                 self._breed_next_generation()
@@ -189,12 +222,24 @@ class EvoEngine:
         }
 
     def _check_convergence(self) -> bool:
-        window = self.cfg["convergence_window"]
-        delta = self.cfg["convergence_delta"]
-        if len(self.history) < window:
+        """
+        收斂判據：以兩段移動平均之差判定穩定（比「極差」更能抗評估雜訊）。
+        且至少需跑滿 convergence_min_gen 代，避免過早收斂。
+        """
+        window   = self.cfg["convergence_window"]
+        delta    = self.cfg["convergence_delta"]
+        min_gen  = self.cfg.get("convergence_min_gen", 0)
+
+        if self.generation < min_gen:
             return False
-        recent = [h["best_win_rate"] for h in self.history[-window:]]
-        return max(recent) - min(recent) < delta
+        # 需要兩個完整 window 才能比較相鄰移動平均
+        if len(self.history) < window * 2:
+            return False
+
+        series     = [h["best_win_rate"] for h in self.history]
+        prev_avg   = sum(series[-window * 2: -window]) / window
+        curr_avg   = sum(series[-window:]) / window
+        return abs(curr_avg - prev_avg) < delta
 
     def _breed_next_generation(self):
         """選擇 → 精英保留 → 突變 + 交叉 填充新世代。"""

@@ -16,7 +16,7 @@ from game_engine.card_db import get_card, get_stat, is_event, is_character, get_
 
 _INITIAL_HAND = 6           # 開局抽牌數（規則書 6 張）
 _INTERVAL_HAND_TARGET = 6  # INTERVAL 後補到幾張
-_MAX_TURNS_PER_RALLY = 200  # 安全上限（每 rally 最多回合數）
+_MAX_TURNS_PER_RALLY = 40   # 硬上限（兩方各約 20 回合，防止回收型牌組無限 rally）
 
 
 # ── 卡片部署能力判定 ───────────────────────────────────────────────────────────
@@ -180,8 +180,8 @@ class TurnFlow:
                 return loser
             current_num = 3 - current_num  # 換手
 
-        # 超過安全上限 → 發球方判負
-        return server_num
+        # 超過硬上限 → 確定性強制結束（以場上戰力比較，非隨機）
+        return self._forced_end_loser(state, pl_map, server_num)
 
     def _try_skill(
         self, card_no: str, zone: str,
@@ -434,6 +434,7 @@ class TurnFlow:
             # center (0) 先填，再填側邊
             if not player.block_zones[0].card:
                 player.block_zones[0] = ZoneState(card=card_no)
+                player.g_block = sum(len(bz.guts) for bz in player.block_zones)  # BUG FIX: 補上計數更新
             else:
                 for i in range(1, 3):
                     if not player.block_zones[i].card:
@@ -469,6 +470,28 @@ class TurnFlow:
                 self._to_grave(player, player.block_zones[i].card)
                 player.block_zones[i] = ZoneState()
         player.g_block = sum(len(bz.guts) for bz in player.block_zones)
+
+    def _forced_end_loser(self, state: GameState, pl_map: dict, server_num: int) -> int:
+        """
+        Rally 硬上限觸發時，以場上進攻戰力確定性比較決定敗者（避免隨機引入評估雜訊）。
+        勝者 = 綜合進攻戰力較高者；平手 → 發球方敗。
+        """
+        defender_num = 3 - server_num
+        srv = pl_map[server_num]
+        dfn = pl_map[defender_num]
+        srv_power = _calc_serve_op(srv) + _calc_attack_op(srv)
+        dfn_power = _calc_serve_op(dfn) + _calc_attack_op(dfn)
+        if srv_power > dfn_power:
+            loser = defender_num
+        elif dfn_power > srv_power:
+            loser = server_num
+        else:
+            loser = server_num  # 平手 → 發球方敗
+        state.log(
+            f"[FORCED_END] max_turns={_MAX_TURNS_PER_RALLY} "
+            f"server={server_num}({srv_power}) defender={defender_num}({dfn_power}) loser={loser}"
+        )
+        return loser
 
     def _interval_draw(self, state: GameState) -> None:
         """INTERVAL：雙方補到 6 張手牌。"""

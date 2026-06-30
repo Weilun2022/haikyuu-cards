@@ -122,7 +122,11 @@ class EffectRegistry:
                     setattr(actor, attr, getattr(actor, attr) + (effect.amount or 1))
             case EffectType.COUNTER_ADD:
                 key = str(effect.zone or "counter")
-                actor.counters[key] = actor.counters.get(key, 0) + (effect.amount or 1)
+                new_val = actor.counters.get(key, 0) + (effect.amount or 1)
+                # 六種類相關計數上限 6，與 _grave_unique_count 邏輯一致
+                if key in {"unique", "six_type", "grave_unique"}:
+                    new_val = min(6, new_val)
+                actor.counters[key] = new_val
             case EffectType.NAME_CHANGE:
                 pass  # 融合角色卡改名：AI 模擬暫不追蹤，略過不影響遊戲流程
             case _:
