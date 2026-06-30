@@ -707,6 +707,70 @@ section.best-deck-panel {
   color: #7dd3fc;
   font-weight: 600;
 }
+
+/* === 新增功能樣式 === */
+.arena-btn-pause {
+  background: transparent;
+  color: var(--arena-data-warn);
+  border: 1.5px solid var(--arena-data-warn);
+  margin-top: 6px;
+}
+.arena-btn-pause.is-paused {
+  background: rgba(255, 166, 0, 0.2);
+}
+.arena-btn-pause:hover:not(:disabled) {
+  background: rgba(255, 166, 0, 0.1);
+}
+/* 可折疊 section */
+.arena-collapse {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.arena-collapse-title {
+  width: 100%; padding: 9px 10px; border: 0;
+  background: var(--surface2); color: var(--text);
+  cursor: pointer; font-weight: 700; font-size: 13px; text-align: left;
+  display: flex; justify-content: space-between; align-items: center; user-select: none;
+}
+.arena-collapse-title .chevron { color: var(--text-dim); font-size: 10px; transition: transform .2s; }
+.arena-collapse.open .arena-collapse-title .chevron { transform: rotate(90deg); }
+.arena-collapse-body { display: none; padding: 10px; }
+.arena-collapse.open .arena-collapse-body { display: block; }
+/* textarea 覆寫（基底 .arena-input 不含 resize） */
+textarea.arena-input { resize: vertical; min-height: 78px; font-family: monospace; }
+/* 結果框 */
+.arena-result { margin-top: 8px; font-size: 12px; line-height: 1.55; word-break: break-word; }
+.arena-result .ar-ok   { color: var(--green); }
+.arena-result .ar-err  { color: var(--accent2); }
+.arena-result .ar-warn { color: var(--orange); }
+/* 名人堂 */
+#hall-of-fame-block { margin-top: 14px; }
+.hof-head { display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 8px; }
+.hof-head h3 { margin: 0; font-size: 14px; color: var(--accent); }
+.hof-load-btn {
+  width: auto; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px;
+  background: transparent; color: var(--accent); font-size: 11px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase;
+}
+.hof-load-btn:hover { background: rgba(108, 99, 255, 0.15); }
+.hof-item { padding: 6px; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; }
+.hof-item:hover { background: var(--surface2); }
+.hof-main { display: flex; justify-content: space-between; gap: 8px; color: var(--text); }
+.hof-rank { color: var(--arena-data-warn); font-weight: 700; }
+.hof-wr   { color: var(--green); font-weight: 700; }
+.hof-sub  { margin-top: 3px; font-size: 10px; color: var(--text-dim); }
+.hof-deck {
+  display: none; margin-top: 6px; padding: 6px; border-radius: 4px;
+  background: var(--bg); color: var(--text-dim); font-size: 11px; line-height: 1.45;
+  border-left: 2px solid var(--arena-panel-border);
+}
+.hof-item.open .hof-deck { display: block; }
+.hof-empty, .hof-err { font-size: 12px; padding: 6px; color: var(--text-dim); }
+.hof-err { color: var(--arena-data-hot); }
 </style>
 <script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
 <script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
@@ -777,7 +841,42 @@ section.best-deck-panel {
     <div style="flex: 1;"></div>
 
     <button id="arena-btn-start" class="arena-btn arena-btn-start" onclick="arenaStart()">⚡ START</button>
+    <button id="arena-btn-pause" class="arena-btn arena-btn-pause" onclick="arenaPause()" disabled>⏸ PAUSE</button>
     <button id="arena-btn-stop" class="arena-btn arena-btn-stop" onclick="arenaStop()" disabled>■ STOP</button>
+
+    <!-- 🔍 牌組驗證 -->
+    <div id="deck-validator-block" class="arena-collapse">
+      <button class="arena-collapse-title" onclick="this.parentNode.classList.toggle('open')">
+        <span>🔍 牌組驗證</span><span class="chevron">▶</span>
+      </button>
+      <div class="arena-collapse-body">
+        <textarea id="validate-input" class="arena-input" rows="4"
+          placeholder='貼入 JSON 格式牌組&#10;{"HV-P02-001":5,...}'></textarea>
+        <button class="arena-btn arena-btn-start" style="margin-top:0" onclick="validateDeck()">驗證</button>
+        <div id="validate-result" class="arena-result"></div>
+      </div>
+    </div>
+
+    <!-- ⚔ 練習對戰 -->
+    <div id="practice-battle-block" class="arena-collapse">
+      <button class="arena-collapse-title" onclick="this.parentNode.classList.toggle('open')">
+        <span>⚔ 練習對戰</span><span class="chevron">▶</span>
+      </button>
+      <div class="arena-collapse-body">
+        <select id="practice-difficulty" class="arena-select">
+          <option value="easy">Easy（簡單）</option>
+          <option value="normal" selected>Normal（普通）</option>
+          <option value="hard">Hard（困難）</option>
+        </select>
+        <select id="practice-meta" class="arena-select">
+          <option value="ROKUNIN">ROKUNIN</option>
+          <option value="STANDARD" selected>STANDARD</option>
+          <option value="YOUTH_P03">YOUTH_P03</option>
+        </select>
+        <button class="arena-btn arena-btn-start" style="margin-top:0" onclick="practiceBattle()">對戰</button>
+        <div id="practice-result" class="arena-result"></div>
+      </div>
+    </div>
 
     <!-- 進化進度 Chart -->
     <div class="arena-chart-panel" style="margin-top:12px;">
@@ -845,6 +944,17 @@ section.best-deck-panel {
       </button>
       <div id="qr-canvas-wrapper" style="display:none;margin:0 auto;width:fit-content"></div>
       <div id="qr-export-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px"></div>
+    </div>
+
+    <!-- 🏆 歷史名人堂 -->
+    <div id="hall-of-fame-block" class="arena-analytics-section">
+      <div class="hof-head">
+        <h3>🏆 歷史名人堂</h3>
+        <button class="hof-load-btn" onclick="loadHallOfFame()">載入</button>
+      </div>
+      <div id="hof-list">
+        <div class="hof-empty">點擊「載入」查看歷史最佳牌組</div>
+      </div>
     </div>
 
     <!-- Combos -->
@@ -1593,6 +1703,132 @@ window.addEventListener('load', () => {
   arenaConnectSSE();
   arenaShowOnboarding();  // 顯示引導步驟直到第一個 replay 載入
 });
+
+/* === 新增功能 JS === */
+let _isPaused = false;
+
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function updatePauseButton(running, paused) {
+  const btn = document.getElementById('arena-btn-pause');
+  if (!btn) return;
+  if (running === undefined) {
+    const s = document.getElementById('arena-btn-start');
+    running = s ? s.disabled : false;
+  }
+  if (paused !== undefined) _isPaused = !!paused;
+  if (!running) _isPaused = false;
+  btn.disabled = !running;
+  btn.classList.toggle('is-paused', _isPaused);
+  btn.innerHTML = _isPaused ? '▶ RESUME' : '⏸ PAUSE';
+}
+
+async function arenaPause() {
+  const action = _isPaused ? 'resume' : 'pause';
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/control`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _isPaused = (action === 'pause');
+    updatePauseButton(true, _isPaused);
+  } catch (e) { console.error('arenaPause:', e); }
+}
+
+async function loadHallOfFame() {
+  const list = document.getElementById('hof-list');
+  list.innerHTML = '<div class="hof-empty">載入中…</div>';
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/hall_of_fame?limit=10`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = (await res.json()).hall_of_fame || [];
+    if (!rows.length) { list.innerHTML = '<div class="hof-empty">尚無紀錄</div>'; return; }
+    list.innerHTML = rows.map((r, i) => {
+      const wr = ((r.best_win_rate || 0) * 100).toFixed(1);
+      const school = r.school_lock ? `🔒 ${_esc(r.school_lock)}` : '無學校鎖定';
+      const deck = Object.entries(r.best_deck || {})
+        .map(([cn, c]) => `${_esc(cn)} ×${_esc(c)}`).join('<br>') || '（無資料）';
+      return `<div class="hof-item" onclick="this.classList.toggle('open')">
+        <div class="hof-main">
+          <span><span class="hof-rank">#${i+1}</span> 第 ${_esc(r.generation)} 代</span>
+          <span class="hof-wr">${wr}%</span>
+        </div>
+        <div class="hof-sub">${school}</div>
+        <div class="hof-deck">${deck}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="hof-err">載入失敗：${_esc(e.message)}</div>`;
+  }
+}
+
+async function validateDeck() {
+  const box = document.getElementById('validate-result');
+  const raw = document.getElementById('validate-input').value.trim();
+  if (!raw) { box.innerHTML = '<div class="ar-warn">⚠ 請先貼入牌組 JSON</div>'; return; }
+  let cards;
+  try { cards = JSON.parse(raw); }
+  catch { box.innerHTML = '<div class="ar-err">❌ JSON 格式錯誤，請檢查輸入</div>'; return; }
+  box.innerHTML = '驗證中…';
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/validate_deck`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cards })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    let html = d.valid ? '<div class="ar-ok">✅ 合法牌組</div>' : '';
+    (d.errors || []).forEach(m => html += `<div class="ar-err">❌ ${_esc(m)}</div>`);
+    (d.warnings || []).forEach(m => html += `<div class="ar-warn">⚠ ${_esc(m)}</div>`);
+    box.innerHTML = html || '（無訊息）';
+  } catch (e) {
+    box.innerHTML = `<div class="ar-err">❌ 驗證失敗：${_esc(e.message)}</div>`;
+  }
+}
+
+async function practiceBattle() {
+  const box = document.getElementById('practice-result');
+  if (!_lastBestDeck || !_lastBestDeck.card_list || !_lastBestDeck.card_list.length) {
+    box.innerHTML = '<div class="ar-warn">⚠ 請先進化取得牌組</div>'; return;
+  }
+  const difficulty = document.getElementById('practice-difficulty').value;
+  const meta = document.getElementById('practice-meta').value;
+  const player_deck = {};
+  _lastBestDeck.card_list.forEach(c => { player_deck[c.card_no] = c.count; });
+  box.innerHTML = `<div class="ar-warn">正在對戰 ${_esc(meta)} AI…</div>`;
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/battle/practice`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_deck, ai_deck: null, difficulty,
+        seed: Math.floor(Math.random() * 99999) })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    if (!d.ok) { box.innerHTML = `<div class="ar-err">❌ ${_esc(d.error || '練習對戰失敗')}</div>`; return; }
+    const { winner, turns, p1_sets, p2_sets } = d;
+    box.innerHTML = winner === 1
+      ? `<div class="ar-ok">✅ Player 勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`
+      : `<div class="ar-err">❌ AI 勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="ar-err">❌ 對戰失敗：${_esc(e.message)}</div>`;
+  }
+}
+
+// 自動連動 Pause 按鈕到既有 arenaStart/arenaStop（免手動修改原函式）
+(function hookStartStop() {
+  const os = window.arenaStart, ot = window.arenaStop;
+  if (typeof os === 'function') window.arenaStart = function() {
+    const r = os.apply(this, arguments); updatePauseButton(true, false); return r;
+  };
+  if (typeof ot === 'function') window.arenaStop = function() {
+    const r = ot.apply(this, arguments); updatePauseButton(false, false); return r;
+  };
+  updatePauseButton(false, false);
+})();
 </script>
 
 <script src="buildSteps.js"></script>
