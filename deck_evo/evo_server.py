@@ -297,13 +297,22 @@ class EvoHandler(BaseHTTPRequestHandler):
         from game_engine.sim_runner import run_one_game
         from deck_evo.card_pool import detect_school
 
-        player_deck = (body or {}).get("player_deck", {})
-        ai_deck = (body or {}).get("ai_deck") or DECKS.get("STANDARD", {})
         difficulty = (body or {}).get("difficulty", "normal")
         seed_val = int((body or {}).get("seed", 42))
 
+        # player_deck / ai_deck 支援 dict（自訂）或 str（preset 名稱）
+        def _resolve_deck(raw, fallback_key: str) -> dict:
+            if isinstance(raw, str) and raw:
+                return dict(DECKS.get(raw, DECKS.get(fallback_key, {})))
+            if isinstance(raw, dict) and raw:
+                return raw
+            return dict(DECKS.get(fallback_key, {}))
+
+        player_deck = _resolve_deck((body or {}).get("player_deck"), "ROKUNIN")
+        ai_deck     = _resolve_deck((body or {}).get("ai_deck"),     "STANDARD")
+
         if not player_deck:
-            self._json({"ok": False, "error": "player_deck 不可為空"}, 400)
+            self._json({"ok": False, "error": "player_deck 不可為空，請確認牌組或 preset 名稱"}, 400)
             return
 
         # 建立有難度設定的 AI class（run_one_game 期待 class，不是實例）

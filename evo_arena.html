@@ -868,12 +868,40 @@ textarea.arena-input { resize: vertical; min-height: 78px; font-family: monospac
           <option value="normal" selected>Normal（普通）</option>
           <option value="hard">Hard（困難）</option>
         </select>
-        <select id="practice-meta" class="arena-select">
-          <option value="ROKUNIN">ROKUNIN</option>
-          <option value="STANDARD" selected>STANDARD</option>
-          <option value="YOUTH_P03">YOUTH_P03</option>
+
+        <!-- 我方牌組 -->
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin:8px 0 2px">我方牌組</label>
+        <select id="p1-src" class="arena-select" onchange="switchDeckSrc('p1',this.value)">
+          <option value="evo">進化最佳</option>
+          <option value="preset">內建 Preset</option>
+          <option value="json">自訂 JSON</option>
         </select>
-        <button class="arena-btn arena-btn-start" style="margin-top:0" onclick="practiceBattle()">對戰</button>
+        <div id="p1-evo-hint" style="font-size:11px;color:var(--text-dim);margin:2px 0 4px">尚無進化資料</div>
+        <select id="p1-preset" class="arena-select" style="display:none">
+          <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+          <option value="ROKUNIN_V1">ROKUNIN_V1（P03強化版）</option>
+          <option value="STANDARD">STANDARD（烏野）</option>
+          <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+        </select>
+        <textarea id="p1-json" class="arena-input" rows="3" style="display:none;font-family:monospace;font-size:11px" placeholder='{"HV-P02-001":5,...}'></textarea>
+
+        <!-- 對手牌組 -->
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin:8px 0 2px">對手牌組</label>
+        <select id="p2-src" class="arena-select" onchange="switchDeckSrc('p2',this.value)">
+          <option value="preset" selected>內建 Preset</option>
+          <option value="evo">進化最佳</option>
+          <option value="json">自訂 JSON</option>
+        </select>
+        <div id="p2-evo-hint" style="font-size:11px;color:var(--text-dim);margin:2px 0 4px;display:none">尚無進化資料</div>
+        <select id="p2-preset" class="arena-select">
+          <option value="STANDARD" selected>STANDARD（烏野）</option>
+          <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+          <option value="ROKUNIN_V1">ROKUNIN_V1（P03強化版）</option>
+          <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+        </select>
+        <textarea id="p2-json" class="arena-input" rows="3" style="display:none;font-family:monospace;font-size:11px" placeholder='{"HV-P02-001":5,...}'></textarea>
+
+        <button class="arena-btn arena-btn-start" style="margin-top:8px" onclick="practiceBattle()">⚔ 對戰</button>
         <div id="practice-result" class="arena-result"></div>
       </div>
     </div>
@@ -1401,6 +1429,12 @@ function arenaHandleUpdate(data) {
   if(data.best_deck) {
     _lastBestDeck = data.best_deck;
     arenaRenderBestDeck(data.best_deck, gen);
+    // 同步練習對戰的「進化最佳」提示
+    const hint = `當前最佳：第${gen}代 勝率${((data.best_win_rate||0)*100).toFixed(1)}%`;
+    ['p1','p2'].forEach(pid => {
+      const el = document.getElementById(pid + '-evo-hint');
+      if (el) el.textContent = hint;
+    });
   }
 
   // 更新 Replay（Phase 4：LIVE/REVIEW 狀態機 + SSE dedup 防護）
@@ -1790,29 +1824,56 @@ async function validateDeck() {
   }
 }
 
+function switchDeckSrc(pid, src) {
+  document.getElementById(pid + '-evo-hint').style.display  = src === 'evo'    ? '' : 'none';
+  document.getElementById(pid + '-preset').style.display    = src === 'preset' ? '' : 'none';
+  document.getElementById(pid + '-json').style.display      = src === 'json'   ? '' : 'none';
+}
+
+function _getDeckPayload(pid) {
+  const src = document.getElementById(pid + '-src').value;
+  if (src === 'evo') {
+    if (!_lastBestDeck?.card_list?.length)
+      return { err: '尚無進化資料，請先執行進化' };
+    const deck = {};
+    _lastBestDeck.card_list.forEach(c => { deck[c.card_no] = c.count; });
+    return { deck, label: `進化最佳(第${_lastBestDeck.generation ?? '?'}代)` };
+  }
+  if (src === 'preset') {
+    const name = document.getElementById(pid + '-preset').value;
+    return { deck: name, label: name };  // backend resolves preset name to card dict
+  }
+  const raw = document.getElementById(pid + '-json').value.trim();
+  try {
+    const deck = JSON.parse(raw);
+    if (!deck || typeof deck !== 'object' || Array.isArray(deck)) throw new Error('需為物件格式');
+    return { deck, label: '自訂 JSON' };
+  } catch (e) {
+    return { err: 'JSON 格式錯誤：' + e.message };
+  }
+}
+
 async function practiceBattle() {
   const box = document.getElementById('practice-result');
-  if (!_lastBestDeck || !_lastBestDeck.card_list || !_lastBestDeck.card_list.length) {
-    box.innerHTML = '<div class="ar-warn">⚠ 請先進化取得牌組</div>'; return;
-  }
+  const p1 = _getDeckPayload('p1');
+  const p2 = _getDeckPayload('p2');
+  if (p1.err) { box.innerHTML = `<div class="ar-warn">⚠ 我方：${_esc(p1.err)}</div>`; return; }
+  if (p2.err) { box.innerHTML = `<div class="ar-warn">⚠ 對手：${_esc(p2.err)}</div>`; return; }
   const difficulty = document.getElementById('practice-difficulty').value;
-  const meta = document.getElementById('practice-meta').value;
-  const player_deck = {};
-  _lastBestDeck.card_list.forEach(c => { player_deck[c.card_no] = c.count; });
-  box.innerHTML = `<div class="ar-warn">正在對戰 ${_esc(meta)} AI…</div>`;
+  box.innerHTML = `<div class="ar-warn">我方：${_esc(p1.label)} vs 對手：${_esc(p2.label)} 對戰中…</div>`;
   try {
     const res = await fetch(`${ARENA_SERVER}/api/battle/practice`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_deck, ai_deck: null, difficulty,
+      body: JSON.stringify({ player_deck: p1.deck, ai_deck: p2.deck, difficulty,
         seed: Math.floor(Math.random() * 99999) })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const d = await res.json();
-    if (!d.ok) { box.innerHTML = `<div class="ar-err">❌ ${_esc(d.error || '練習對戰失敗')}</div>`; return; }
+    if (!d.ok) { box.innerHTML = `<div class="ar-err">❌ ${_esc(d.error || '對戰失敗')}</div>`; return; }
     const { winner, turns, p1_sets, p2_sets } = d;
     box.innerHTML = winner === 1
-      ? `<div class="ar-ok">✅ Player 勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`
-      : `<div class="ar-err">❌ AI 勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`;
+      ? `<div class="ar-ok">✅ 我方勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`
+      : `<div class="ar-err">❌ 對手勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`;
   } catch (e) {
     box.innerHTML = `<div class="ar-err">❌ 對戰失敗：${_esc(e.message)}</div>`;
   }
