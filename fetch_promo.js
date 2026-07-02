@@ -1,14 +1,20 @@
 #!/usr/bin/env node
 /**
  * fetch_promo.js — 情報站影片爬蟲
- * 抓取合作商家 YouTube 頻道 RSS → 過濾排球少年相關 → 按學校分類 → 產出 promo_data.js
- * 跑在 GitHub Actions（每 4 小時）或本地：node fetch_promo.js
+ * 透過 YouTube Data API v3 抓取合作商家頻道最新影片 → 過濾排球少年相關 → 按學校分類 → 產出 promo_data.js
+ * 跑在 GitHub Actions（每 4 小時）或本地：YOUTUBE_API_KEY=xxx node fetch_promo.js
+ *
+ * 原本用 RSS（feeds/videos.xml），但 GitHub Actions 共用 IP 池常被 YouTube 擋下（403）。
+ * 改用官方 API：每頻道 2 quota units/次（channels.list + playlistItems.list），10,000/日額度綽綽有餘。
  */
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
 // ── 設定 ──────────────────────────────────────────────
+const API_KEY = process.env.YOUTUBE_API_KEY;
+const MAX_RESULTS = 15; // 每頻道抓取最新幾部
+
 const CHANNELS = [
   // 執貳（@unique7purify31）
   { id: 'UCWTVsru0nSGFIaRGbiN5o-w', name: '執貳' },
@@ -35,47 +41,55 @@ const SCHOOL_KEYWORDS = {
 const OUT_PATH = path.join(__dirname, 'promo_data.js');
 const MAX_RETRY = 3;
 
-// ── 抓取（含重試：RSS 偶發 404）──────────────────────
-function fetchText(url, attempt = 1) {
+// ── 抓取（含重試：quota/網路偶發錯誤）──────────────────
+function fetchJson(url, attempt = 1) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, r => {
       let body = '';
       r.on('data', d => body += d);
       r.on('end', () => {
+        let parsed = null;
+        try { parsed = JSON.parse(body); } catch { /* 非 JSON 回應，交給下方狀態碼分支處理 */ }
         if (r.statusCode !== 200) {
+          const reason = parsed?.error?.message || `HTTP ${r.statusCode}`;
           if (attempt < MAX_RETRY) {
-            console.log(`  HTTP ${r.statusCode}，重試 ${attempt}/${MAX_RETRY - 1}...`);
-            return setTimeout(() => fetchText(url, attempt + 1).then(resolve, reject), 2000 * attempt);
+            console.log(`  ${reason}，重試 ${attempt}/${MAX_RETRY - 1}...`);
+            return setTimeout(() => fetchJson(url, attempt + 1).then(resolve, reject), 2000 * attempt);
           }
-          return reject(new Error(`HTTP ${r.statusCode}: ${url}`));
+          return reject(new Error(reason));
         }
-        resolve(body);
+        resolve(parsed);
       });
     }).on('error', e => {
-      if (attempt < MAX_RETRY) return setTimeout(() => fetchText(url, attempt + 1).then(resolve, reject), 2000 * attempt);
+      if (attempt < MAX_RETRY) return setTimeout(() => fetchJson(url, attempt + 1).then(resolve, reject), 2000 * attempt);
       reject(e);
     });
   });
 }
 
-function unescapeXml(s) {
-  return (s || '')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(n));
+// 頻道 ID → uploads 播放清單 ID（1 quota unit）
+async function getUploadsPlaylistId(channelId) {
+  const url = `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${API_KEY}`;
+  const data = await fetchJson(url);
+  const uploads = data?.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+  if (!uploads) throw new Error('查無 uploads playlist（頻道 ID 是否正確？）');
+  return uploads;
 }
 
-function parseEntries(xml, channelName) {
-  return xml.split('<entry>').slice(1).map(e => {
-    const pick = re => unescapeXml((e.match(re) || [])[1] || '');
-    return {
-      videoId:   pick(/<yt:videoId>([^<]*)<\/yt:videoId>/),
-      title:     pick(/<title>([^<]*)<\/title>/),
-      published: pick(/<published>([^<]*)<\/published>/),   // 完整 ISO 時間戳，前端轉當地時間顯示
+// uploads 播放清單 → 最新影片列表（1 quota unit）
+async function getPlaylistVideos(playlistId, channelName) {
+  const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${MAX_RESULTS}&key=${API_KEY}`;
+  const data = await fetchJson(url);
+  return (data?.items || [])
+    .filter(item => item.snippet?.resourceId?.videoId)
+    .map(item => ({
+      videoId:   item.snippet.resourceId.videoId,
+      title:     item.snippet.title || '',
+      published: item.snippet.publishedAt || '',   // 完整 ISO 時間戳，前端轉當地時間顯示
       // 描述只用於分類，不輸出（控制檔案大小）
-      _desc:     pick(/<media:description>([\s\S]*?)<\/media:description>/),
+      _desc:     item.snippet.description || '',
       channel:   channelName,
-    };
-  }).filter(v => v.videoId);
+    }));
 }
 
 function isRelevant(title) {
@@ -116,13 +130,18 @@ function extractStage(text) {
 
 // ── 主流程 ────────────────────────────────────────────
 (async () => {
+  if (!API_KEY) {
+    console.error('缺少 YOUTUBE_API_KEY 環境變數，中止（保留舊 promo_data.js 不覆寫）');
+    process.exit(1);
+  }
+
   console.log('情報站爬蟲開始', new Date().toISOString());
   let all = [];
   for (const ch of CHANNELS) {
     try {
-      const xml = await fetchText(`https://www.youtube.com/feeds/videos.xml?channel_id=${ch.id}`);
-      const entries = parseEntries(xml, ch.name);
-      console.log(`[${ch.name}] RSS ${entries.length} 部`);
+      const uploadsId = await getUploadsPlaylistId(ch.id);
+      const entries = await getPlaylistVideos(uploadsId, ch.name);
+      console.log(`[${ch.name}] API ${entries.length} 部`);
       all = all.concat(entries);
     } catch (e) {
       console.error(`[${ch.name}] 抓取失敗：${e.message}`);

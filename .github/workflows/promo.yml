@@ -18,7 +18,9 @@ jobs:
         with:
           node-version: '20'
 
-      - name: 抓取商家 YouTube RSS
+      - name: 抓取商家 YouTube 影片
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: node fetch_promo.js
 
       - name: 有變動才 commit + push
