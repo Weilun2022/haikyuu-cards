@@ -713,6 +713,9 @@ function createReplayViewer({ mount, events, meta = {}, options = {} }) {
         seek(_currentStep + 1);
       } else {
         pause();
+        if (typeof _opts.onPlaybackEnd === 'function') {
+          try { _opts.onPlaybackEnd(); } catch (e) {}
+        }
       }
     }, 600);
   }

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🏐 PK 競技場 — AI 即時對戰</title>
+<style>
+:root {
+  --bg: #0d0d14; --surface: #16161f; --surface2: #1e1e2a;
+  --border: #2a2a3e; --text: #e8e8f2; --text-dim: #6868a0;
+  --accent: #6c63ff; --accent2: #ff6584; --green: #4ade80; --orange: #fb923c;
+  --p1: #f97316; --p2: #38bdf8;
+  --arena-data-good: #00ffe0; --arena-data-hot: #ff2d78; --arena-data-warn: #ffd166;
+  --panel-bg: rgba(10, 0, 28, .82); --panel-border: rgba(180, 92, 255, .35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+  min-height: 100vh;
+}
+
+/* ══ 大廳（入口）══ */
+#pk-lobby {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 22px; padding: 30px 16px;
+  background:
+    radial-gradient(ellipse at 20% 10%, rgba(108, 99, 255, .12), transparent 55%),
+    radial-gradient(ellipse at 80% 90%, rgba(255, 45, 120, .10), transparent 55%);
+}
+.lobby-title { font-size: 30px; font-weight: 900; letter-spacing: 2px; text-align: center; }
+.lobby-title small { display: block; font-size: 13px; color: var(--text-dim); font-weight: 400; margin-top: 6px; letter-spacing: 1px; }
+.lobby-decks { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; }
+
+.deck-slot {
+  width: 340px; background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 12px; padding: 16px;
+}
+.deck-slot.p1 { border-top: 3px solid var(--p1); }
+.deck-slot.p2 { border-top: 3px solid var(--p2); }
+.deck-slot h2 { font-size: 15px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.deck-slot.p1 h2 { color: var(--p1); }
+.deck-slot.p2 h2 { color: var(--p2); }
+
+.src-tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+.src-tab {
+  flex: 1; padding: 7px 2px; font-size: 11px; text-align: center; cursor: pointer;
+  background: var(--surface2); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 6px; user-select: none;
+}
+.src-tab.active { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
+
+.pk-input, .pk-select, .pk-textarea {
+  width: 100%; background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 8px; font-size: 12px; margin-bottom: 8px;
+}
+.pk-textarea { font-family: monospace; font-size: 11px; resize: vertical; min-height: 64px; }
+.pk-input:focus, .pk-select:focus, .pk-textarea:focus { outline: 1px solid var(--accent); }
+
+.slot-status { font-size: 11px; min-height: 17px; margin-bottom: 6px; }
+.slot-status.ok { color: var(--green); }
+.slot-status.err { color: var(--arena-data-hot); }
+
+.evolve-row { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text); cursor: pointer; }
+.evolve-row input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+.evolve-hint { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+
+.lobby-settings {
+  display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center;
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 12px 20px;
+}
+.setting-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+.setting-item input[type=range] { width: 130px; accent-color: var(--accent); }
+.setting-item .val { color: var(--arena-data-good); font-weight: 700; min-width: 30px; font-family: monospace; }
+.mode-btns { display: flex; gap: 4px; }
+.mode-btn {
+  padding: 7px 14px; font-size: 12px; cursor: pointer; border-radius: 6px;
+  background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border);
+}
+.mode-btn.active { background: var(--accent); color: #000; font-weight: 700; }
+
+.btn-big-start {
+  padding: 14px 60px; font-size: 17px; font-weight: 900; letter-spacing: 3px;
+  background: linear-gradient(135deg, var(--accent), #9b59ff); color: #fff;
+  border: none; border-radius: 10px; cursor: pointer;
+  box-shadow: 0 0 24px rgba(108, 99, 255, .45);
+}
+.btn-big-start:hover { filter: brightness(1.15); }
+.btn-big-start:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+#lobby-err { font-size: 12px; color: var(--arena-data-hot); min-height: 18px; text-align: center; }
+.lobby-nav { font-size: 12px; }
+.lobby-nav a { color: var(--text-dim); text-decoration: none; }
+.lobby-nav a:hover { color: var(--accent); }
+
+/* ══ 對戰畫面 ══ */
+#pk-battle { display: none; flex-direction: column; height: 100vh; padding: 10px; gap: 10px; }
+
+.pk-scoreboard {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 10px 18px;
+}
+.sb-side { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.sb-side.right { justify-content: flex-end; }
+.sb-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-side.left  .sb-name { color: var(--p1); }
+.sb-side.right .sb-name { color: var(--p2); }
+.sb-wins { font-size: 26px; font-weight: 900; font-family: monospace; }
+.sb-side.left  .sb-wins { color: var(--p1); }
+.sb-side.right .sb-wins { color: var(--p2); }
+.sb-evo-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: rgba(108, 99, 255, .2); color: #b7b1ff; border: 1px solid rgba(108, 99, 255, .4); white-space: nowrap; }
+.sb-center { text-align: center; min-width: 150px; }
+.sb-game-no { font-size: 13px; color: var(--text); font-weight: 700; }
+.sb-status { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.sb-wr-bar { height: 6px; border-radius: 3px; background: var(--p2); overflow: hidden; margin-top: 5px; }
+.sb-wr-fill { height: 100%; background: var(--p1); width: 50%; transition: width .4s; }
+
+.pk-shell { display: flex; gap: 10px; flex: 1; min-height: 0; }
+.pk-main {
+  flex: 1; min-width: 0; background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 10px; display: flex; flex-direction: column;
+}
+#pk-replay-root { flex: 1; overflow: auto; min-height: 200px; }
+.pk-replay-note { font-size: 11px; color: var(--text-dim); text-align: center; padding: 4px 0; }
+
+.pk-right {
+  width: 350px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto;
+}
+.pk-panel {
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 12px;
+}
+
+.deck-tabs { display: flex; gap: 5px; margin-bottom: 8px; }
+.deck-tab {
+  flex: 1; padding: 7px; font-size: 12px; font-weight: 700; text-align: center;
+  cursor: pointer; border-radius: 6px; background: var(--surface2);
+  color: var(--text-dim); border: 1px solid var(--border); user-select: none;
+}
+.deck-tab.active.t1 { background: rgba(249, 115, 22, .18); color: var(--p1); border-color: var(--p1); }
+.deck-tab.active.t2 { background: rgba(56, 189, 248, .15); color: var(--p2); border-color: var(--p2); }
+
+.deck-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.deck-meta .school { color: var(--arena-data-warn); }
+.deck-list { list-style: none; max-height: 44vh; overflow-y: auto; font-size: 12px; }
+.deck-list li {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; border-bottom: 1px solid rgba(42, 42, 62, .6);
+}
+.deck-list .dl-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deck-list .dl-count { color: var(--text-dim); font-family: monospace; }
+.dl-tag { font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 700; }
+.dl-tag.add { background: rgba(74, 222, 128, .16); color: var(--green); }
+.dl-tag.del { background: rgba(255, 45, 120, .16); color: var(--arena-data-hot); }
+.deck-changes { font-size: 11px; margin-top: 6px; line-height: 1.7; }
+.deck-changes .add { color: var(--green); }
+.deck-changes .del { color: var(--arena-data-hot); }
+.deck-total { font-size: 11px; color: var(--text-dim); margin-top: 6px; display: flex; justify-content: space-between; }
+
+.pk-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.pk-btn {
+  flex: 1; padding: 9px; font-size: 12px; font-weight: 700; cursor: pointer;
+  border-radius: 6px; border: none; text-transform: uppercase; white-space: nowrap;
+}
+.pk-btn-next { background: var(--accent); color: #000; }
+.pk-btn-stop { background: transparent; color: var(--accent2); border: 1.5px solid var(--accent2); }
+.pk-btn-back { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+.pk-btn:disabled { opacity: .35; cursor: not-allowed; }
+.auto-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); width: 100%; cursor: pointer; }
+.auto-row input { accent-color: var(--accent); cursor: pointer; }
+
+.pk-panel h3 { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+#pk-wr-canvas { width: 100%; height: 90px; }
+.qr-btn {
+  width: 100%; padding: 7px; font-size: 11px; cursor: pointer; margin-top: 8px;
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+}
+#pk-qr-wrap { display: none; margin: 8px auto 0; width: fit-content; background: #fff; padding: 8px; border-radius: 6px; }
+
+.finish-banner {
+  display: none; text-align: center; padding: 8px; border-radius: 8px; font-size: 13px; font-weight: 700;
+  background: rgba(0, 255, 224, .08); border: 1px solid rgba(0, 255, 224, .35); color: var(--arena-data-good);
+}
+@media (max-width: 900px) {
+  .pk-shell { flex-direction: column; }
+  .pk-right { width: 100%; }
+}
+</style>
+<script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
+<script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="/buildSteps.js"></script>
+<script src="/createReplayViewer.js"></script>
+</head>
+<body>
+
+<!-- ══════════ 大廳（使用者入口）══════════ -->
+<div id="pk-lobby">
+  <div class="lobby-title">🏐 PK 競技場
+    <small>兩副牌組 AI 即時對戰 · 每場結束可自動演化 · 勝率統計</small>
+  </div>
+
+  <div class="lobby-decks">
+    <!-- P1 我方 -->
+    <div class="deck-slot p1" id="slot-p1">
+      <h2>🟠 我方牌組</h2>
+      <input id="pk1-name" class="pk-input" maxlength="12" placeholder="名稱（預設：我方）">
+      <div class="src-tabs">
+        <div class="src-tab active" data-slot="pk1" data-src="qr">📷 QR網址</div>
+        <div class="src-tab" data-slot="pk1" data-src="preset">📦 內建</div>
+        <div class="src-tab" data-slot="pk1" data-src="json">{ } JSON</div>
+      </div>
+      <textarea id="pk1-qr" class="pk-textarea" rows="2"
+        placeholder="貼上 QR Code 掃出的網址（?deck=…）"></textarea>
+      <select id="pk1-preset" class="pk-select" style="display:none">
+        <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+        <option value="ROKUNIN_V1">ROKUNIN_V1（P03強化版）</option>
+        <option value="STANDARD">STANDARD（烏野）</option>
+        <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+      </select>
+      <textarea id="pk1-json" class="pk-textarea" rows="3" style="display:none"
+        placeholder='{"HV-P02-024":5, ...}'></textarea>
+      <div id="pk1-status" class="slot-status"></div>
+      <label class="evolve-row">
+        <input type="checkbox" id="pk1-evolve" checked> 🧬 啟用演化
+      </label>
+      <div class="evolve-hint">敗北後自動突變 2 張（鎖定同學校）</div>
+    </div>
+
+    <!-- P2 對方 -->
+    <div class="deck-slot p2" id="slot-p2">
+      <h2>🔵 對方牌組</h2>
+      <input id="pk2-name" class="pk-input" maxlength="12" placeholder="名稱（預設：對方）">
+      <div class="src-tabs">
+        <div class="src-tab active" data-slot="pk2" data-src="qr">📷 QR網址</div>
+        <div class="src-tab" data-slot="pk2" data-src="preset">📦 內建</div>
+        <div class="src-tab" data-slot="pk2" data-src="json">{ } JSON</div>
+      </div>
+      <textarea id="pk2-qr" class="pk-textarea" rows="2"
+        placeholder="貼上 QR Code 掃出的網址（?deck=…）"></textarea>
+      <select id="pk2-preset" class="pk-select" style="display:none">
+        <option value="STANDARD">STANDARD（烏野）</option>
+        <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+        <option value="ROKUNIN_V1">ROKUNIN_V1（P03強化版）</option>
+        <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+      </select>
+      <textarea id="pk2-json" class="pk-textarea" rows="3" style="display:none"
+        placeholder='{"HV-P01-001":3, ...}'></textarea>
+      <div id="pk2-status" class="slot-status"></div>
+      <label class="evolve-row">
+        <input type="checkbox" id="pk2-evolve"> 🧬 啟用演化
+      </label>
+      <div class="evolve-hint">關閉雙方演化 = 固定牌組純統計勝率</div>
+    </div>
+  </div>
+
+  <div class="lobby-settings">
+    <div class="setting-item">
+      對戰場數
+      <input type="range" id="pk-max-games" min="1" max="300" value="30">
+      <span class="val" id="pk-max-games-val">30</span>
+    </div>
+    <div class="setting-item">
+      模式
+      <div class="mode-btns">
+        <button class="mode-btn active" data-mode="watch">🎬 觀戰（逐場播放）</button>
+        <button class="mode-btn" data-mode="fast">⚡ 快速（連續統計）</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-big-start" onclick="pkStart()">⚔ 開始對戰</button>
+  <div id="lobby-err"></div>
+  <div class="lobby-nav"><a href="/evo_arena.html">→ 前往牌組進化競技場</a></div>
+</div>
+
+<!-- ══════════ 對戰畫面 ══════════ -->
+<div id="pk-battle">
+  <div class="pk-scoreboard">
+    <div class="sb-side left">
+      <span class="sb-wins" id="sb-wins1">0</span>
+      <div style="min-width:0">
+        <div class="sb-name" id="sb-name1">我方</div>
+        <span class="sb-evo-badge" id="sb-evo1" style="display:none">🧬 演化中</span>
+      </div>
+    </div>
+    <div class="sb-center">
+      <div class="sb-game-no" id="sb-game-no">第 0 / 0 場</div>
+      <div class="sb-status" id="sb-status">準備中…</div>
+      <div class="sb-wr-bar"><div class="sb-wr-fill" id="sb-wr-fill"></div></div>
+    </div>
+    <div class="sb-side right">
+      <div style="min-width:0;text-align:right">
+        <div class="sb-name" id="sb-name2">對方</div>
+        <span class="sb-evo-badge" id="sb-evo2" style="display:none">🧬 演化中</span>
+      </div>
+      <span class="sb-wins" id="sb-wins2">0</span>
+    </div>
+  </div>
+
+  <div class="finish-banner" id="pk-finish-banner"></div>
+
+  <div class="pk-shell">
+    <!-- 中央：即時戰鬥畫面 -->
+    <div class="pk-main">
+      <div id="pk-replay-root"></div>
+      <div class="pk-replay-note" id="pk-replay-note">等待第一場對戰…</div>
+    </div>
+
+    <!-- 右側 BAR -->
+    <aside class="pk-right">
+      <!-- 控制 -->
+      <div class="pk-panel">
+        <div class="pk-controls">
+          <button class="pk-btn pk-btn-next" id="pk-btn-next" onclick="pkNext()" style="display:none">⏭ 下一場</button>
+          <button class="pk-btn pk-btn-stop" id="pk-btn-stop" onclick="pkStop()">■ 結束</button>
+          <button class="pk-btn pk-btn-back" onclick="pkBackToLobby()">↩ 重新設定</button>
+          <label class="auto-row" id="pk-auto-row" style="display:none">
+            <input type="checkbox" id="pk-auto-next" checked> 播放完自動開始下一場
+          </label>
+        </div>
+      </div>
+
+      <!-- 雙方牌組即時查詢 -->
+      <div class="pk-panel">
+        <div class="deck-tabs">
+          <div class="deck-tab t1 active" id="deck-tab-1" onclick="pkShowDeck(1)">🟠 我方 40 張</div>
+          <div class="deck-tab t2" id="deck-tab-2" onclick="pkShowDeck(2)">🔵 對方 40 張</div>
+        </div>
+        <div class="deck-meta">
+          <span class="school" id="deck-school">—</span>
+          <span id="deck-evolve-state">—</span>
+        </div>
+        <div class="deck-changes" id="deck-changes"></div>
+        <ul class="deck-list" id="deck-list"><li style="color:var(--text-dim)">等待資料…</li></ul>
+        <div class="deck-total">
+          <span id="deck-total">合計 0 張</span>
+        </div>
+        <button class="qr-btn" onclick="pkExportQR()">📷 匯出目前牌組 QR</button>
+        <div id="pk-qr-wrap"></div>
+      </div>
+
+      <!-- 累積勝率曲線 -->
+      <div class="pk-panel">
+        <h3>我方累積勝率</h3>
+        <canvas id="pk-wr-canvas"></canvas>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const PK_SERVER = `http://${location.hostname}:7778`;
+let pkSSE = null;
+let pkViewer = null;
+let pkState = null;           // 最新 SSE payload
+let pkMode = 'watch';
+let _shownDeck = 1;           // 右欄目前顯示哪一方
+let _playingReplayId = null;  // 目前播放中的 replay
+let _isPlaying = false;
+let _pendingReplayId = null;  // fast 模式：播放中先暫存最新 replay
+let _lastDiffs = { 1: null, 2: null };
+
+// ── 大廳：來源分頁切換 ──────────────────────────────────────────────────────
+document.querySelectorAll('.src-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const slot = tab.dataset.slot;
+    document.querySelectorAll(`.src-tab[data-slot=${slot}]`).forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    ['qr', 'preset', 'json'].forEach(src => {
+      document.getElementById(`${slot}-${src}`).style.display =
+        src === tab.dataset.src ? '' : 'none';
+    });
+    pkValidateSlot(slot);
+  });
+});
+
+// 場數 slider
+document.getElementById('pk-max-games').addEventListener('input', function () {
+  document.getElementById('pk-max-games-val').textContent = this.value;
+});
+// 模式切換
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    pkMode = btn.dataset.mode;
+  });
+});
+
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+// ── QR 網址解析（與 evo_arena 相同格式：LZString ?deck=）─────────────────────
+function parseQrDeck(input) {
+  let encoded = input.trim();
+  try {
+    const url = new URL(encoded);
+    const p = url.searchParams.get('deck');
+    if (p) encoded = p;
+  } catch (e) { /* 不是完整 URL，當作已是壓縮字串 */ }
+  const json = LZString.decompressFromEncodedURIComponent(encoded);
+  if (!json) throw new Error('QR 內容解碼失敗');
+  const data = JSON.parse(json);
+  if (!data.c || !Array.isArray(data.c)) throw new Error('QR 格式不正確');
+  const cards = {};
+  let total = 0;
+  for (const [no, cnt] of data.c) {
+    cards[no] = cnt; total += cnt;
+  }
+  return { name: data.n || '', cards, total };
+}
+
+// ── 取得 slot 牌組（回傳 {deck, label} 或 {err}）────────────────────────────
+function pkGetDeck(slot) {
+  const activeTab = document.querySelector(`.src-tab[data-slot=${slot}].active`);
+  const src = activeTab ? activeTab.dataset.src : 'qr';
+  if (src === 'qr') {
+    const raw = document.getElementById(`${slot}-qr`).value.trim();
+    if (!raw) return { err: '請貼上 QR Code 網址' };
+    try {
+      const r = parseQrDeck(raw);
+      return { deck: r.cards, label: r.name || 'QR牌組', total: r.total };
+    } catch (e) { return { err: e.message }; }
+  }
+  if (src === 'preset') {
+    const name = document.getElementById(`${slot}-preset`).value;
+    return { deck: name, label: name, total: 40 };
+  }
+  const raw = document.getElementById(`${slot}-json`).value.trim();
+  if (!raw) return { err: '請輸入 JSON 牌組' };
+  try {
+    const deck = JSON.parse(raw);
+    if (!deck || typeof deck !== 'object' || Array.isArray(deck)) throw new Error('需為物件格式');
+    const total = Object.values(deck).reduce((a, b) => a + (Number(b) || 0), 0);
+    return { deck, label: '自訂JSON', total };
+  } catch (e) { return { err: 'JSON 錯誤：' + e.message }; }
+}
+
+// 輸入即時驗證顯示
+function pkValidateSlot(slot) {
+  const el = document.getElementById(`${slot}-status`);
+  const r = pkGetDeck(slot);
+  if (r.err) { el.className = 'slot-status err'; el.textContent = '⚠ ' + r.err; return; }
+  el.className = 'slot-status ok';
+  el.textContent = `✔ 已載入「${r.label}」${r.total ? `（${r.total} 張）` : ''}`;
+}
+['pk1', 'pk2'].forEach(slot => {
+  ['qr', 'json'].forEach(src => {
+    document.getElementById(`${slot}-${src}`).addEventListener('input', () => pkValidateSlot(slot));
+  });
+  document.getElementById(`${slot}-preset`).addEventListener('change', () => pkValidateSlot(slot));
+});
+
+// URL 參數自動帶入：?deck1=…&deck2=…
+(function initFromUrl() {
+  const qs = new URLSearchParams(location.search);
+  for (const [i, key] of [['pk1', 'deck1'], ['pk2', 'deck2']]) {
+    const v = qs.get(key);
+    if (v) {
+      document.getElementById(`${i}-qr`).value = v;
+      pkValidateSlot(i);
+    }
+  }
+})();
+
+// ── 開始對戰 ────────────────────────────────────────────────────────────────
+async function pkStart() {
+  const errEl = document.getElementById('lobby-err');
+  errEl.textContent = '';
+  const d1 = pkGetDeck('pk1');
+  const d2 = pkGetDeck('pk2');
+  if (d1.err) { errEl.textContent = '我方牌組：' + d1.err; return; }
+  if (d2.err) { errEl.textContent = '對方牌組：' + d2.err; return; }
+
+  const body = {
+    deck1: d1.deck, deck2: d2.deck,
+    name1: document.getElementById('pk1-name').value.trim() || d1.label || '我方',
+    name2: document.getElementById('pk2-name').value.trim() || d2.label || '對方',
+    evolve1: document.getElementById('pk1-evolve').checked,
+    evolve2: document.getElementById('pk2-evolve').checked,
+    max_games: parseInt(document.getElementById('pk-max-games').value, 10),
+    mode: pkMode,
+  };
+
+  try {
+    const res = await fetch(`${PK_SERVER}/pk/start`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (!d.ok) { errEl.textContent = d.error || '啟動失敗'; return; }
+    if (d.warnings && d.warnings.length) {
+      console.warn('[PK]', d.warnings.join('；'));
+    }
+    pkEnterBattle();
+  } catch (e) {
+    errEl.textContent = '無法連線伺服器：' + e.message +
+      '（請先執行 python deck_evo/evo_server.py）';
+  }
+}
+
+function pkEnterBattle() {
+  document.getElementById('pk-lobby').style.display = 'none';
+  document.getElementById('pk-battle').style.display = 'flex';
+  document.getElementById('pk-finish-banner').style.display = 'none';
+  document.getElementById('pk-btn-stop').disabled = false;
+  // watch 模式顯示下一場控制
+  const isWatch = pkMode === 'watch';
+  document.getElementById('pk-btn-next').style.display = isWatch ? '' : 'none';
+  document.getElementById('pk-auto-row').style.display = isWatch ? '' : 'none';
+  _playingReplayId = null; _pendingReplayId = null; _isPlaying = false;
+  _lastDiffs = { 1: null, 2: null };
+  if (pkViewer) { pkViewer.destroy(); pkViewer = null; }
+  pkOpenSSE();
+}
+
+function pkOpenSSE() {
+  if (pkSSE) pkSSE.close();
+  pkSSE = new EventSource(`${PK_SERVER}/pk/events`);
+  pkSSE.onmessage = ev => {
+    try { pkHandleUpdate(JSON.parse(ev.data)); } catch (e) {}
+  };
+}
+
+// ── SSE 更新處理 ────────────────────────────────────────────────────────────
+function pkHandleUpdate(data) {
+  if (!data || data.type !== 'pk_update') return;
+  pkState = data;
+
+  // 計分板
+  document.getElementById('sb-name1').textContent = data.deck1?.name || '我方';
+  document.getElementById('sb-name2').textContent = data.deck2?.name || '對方';
+  document.getElementById('sb-wins1').textContent = data.wins1;
+  document.getElementById('sb-wins2').textContent = data.wins2;
+  document.getElementById('sb-game-no').textContent = `第 ${data.game_no} / ${data.max_games} 場`;
+  document.getElementById('sb-evo1').style.display = data.deck1?.evolve ? '' : 'none';
+  document.getElementById('sb-evo2').style.display = data.deck2?.evolve ? '' : 'none';
+  const total = data.wins1 + data.wins2;
+  document.getElementById('sb-wr-fill').style.width =
+    total ? `${(data.wins1 / total * 100).toFixed(1)}%` : '50%';
+  const wrTxt = total ? `我方勝率 ${(data.win_rate1 * 100).toFixed(1)}%` : '';
+  document.getElementById('sb-status').textContent =
+    data.finished ? `對戰結束 · ${wrTxt}` : (data.running ? `對戰中 · ${wrTxt}` : '準備中…');
+
+  // 記錄最新突變差異（顯示在對應 deck 分頁）
+  if (data.last) {
+    if (data.last.diff1) _lastDiffs[1] = { game: data.game_no, diff: data.last.diff1 };
+    if (data.last.diff2) _lastDiffs[2] = { game: data.game_no, diff: data.last.diff2 };
+  }
+
+  pkRenderDeckPanel();
+  pkDrawChart();
+
+  // Replay 載入
+  const rid = data.last?.replay_id;
+  if (rid && rid !== _playingReplayId) {
+    if (_isPlaying) {
+      _pendingReplayId = rid;      // 播放中先暫存（fast 模式常見）
+    } else {
+      pkLoadReplay(rid);
+    }
+  }
+
+  if (data.finished) {
+    const banner = document.getElementById('pk-finish-banner');
+    banner.style.display = 'block';
+    banner.textContent =
+      `🏁 對戰結束！${data.deck1?.name} ${data.wins1} — ${data.wins2} ${data.deck2?.name}` +
+      (total ? `（我方勝率 ${(data.win_rate1 * 100).toFixed(1)}%）` : '');
+    document.getElementById('pk-btn-next').disabled = true;
+    document.getElementById('pk-btn-stop').disabled = true;
+  }
+}
+
+// ── Replay 播放 ─────────────────────────────────────────────────────────────
+async function pkLoadReplay(replayId) {
+  _playingReplayId = replayId;
+  _pendingReplayId = null;
+  try {
+    const evData = await fetch(`${PK_SERVER}/api/replay_events?replay_id=${replayId}`)
+      .then(r => r.json());
+    if (evData.error || !evData.events?.length) {
+      document.getElementById('pk-replay-note').textContent = 'Replay 載入失敗';
+      return;
+    }
+    const mount = document.getElementById('pk-replay-root');
+    if (!pkViewer) {
+      pkViewer = createReplayViewer({
+        mount, events: evData.events, meta: evData.meta || {},
+        options: { onPlaybackEnd: pkOnPlaybackEnd },
+      });
+    } else {
+      pkViewer.loadReplay(evData.events, evData.meta);
+    }
+    document.getElementById('pk-replay-note').textContent =
+      `第 ${pkState?.game_no ?? '?'} 場 · ${evData.meta?.p1_sets}–${evData.meta?.p2_sets}`;
+    _isPlaying = true;
+    pkViewer.play();
+  } catch (e) {
+    document.getElementById('pk-replay-note').textContent = '載入失敗：' + e.message;
+    _isPlaying = false;
+  }
+}
+
+function pkOnPlaybackEnd() {
+  _isPlaying = false;
+  if (_pendingReplayId) {           // fast 模式：接著播最新
+    pkLoadReplay(_pendingReplayId);
+    return;
+  }
+  // watch 模式：自動下一場
+  if (pkMode === 'watch' && !pkState?.finished &&
+      document.getElementById('pk-auto-next').checked) {
+    setTimeout(pkNext, 900);
+  }
+}
+
+async function pkNext() {
+  try { await fetch(`${PK_SERVER}/pk/next`, { method: 'POST' }); } catch (e) {}
+}
+
+async function pkStop() {
+  try { await fetch(`${PK_SERVER}/pk/stop`, { method: 'POST' }); } catch (e) {}
+  document.getElementById('sb-status').textContent = '已手動結束';
+  document.getElementById('pk-btn-stop').disabled = true;
+}
+
+function pkBackToLobby() {
+  pkStop();
+  if (pkSSE) { pkSSE.close(); pkSSE = null; }
+  if (pkViewer) { pkViewer.destroy(); pkViewer = null; }
+  document.getElementById('pk-battle').style.display = 'none';
+  document.getElementById('pk-lobby').style.display = 'flex';
+}
+
+// ── 右欄：雙方 40 張即時牌組 ────────────────────────────────────────────────
+function pkShowDeck(n) {
+  _shownDeck = n;
+  document.getElementById('deck-tab-1').classList.toggle('active', n === 1);
+  document.getElementById('deck-tab-2').classList.toggle('active', n === 2);
+  pkRenderDeckPanel();
+}
+
+function pkRenderDeckPanel() {
+  if (!pkState) return;
+  const deck = _shownDeck === 1 ? pkState.deck1 : pkState.deck2;
+  if (!deck) return;
+
+  document.getElementById('deck-school').textContent = deck.school || '—';
+  document.getElementById('deck-evolve-state').textContent =
+    deck.evolve ? '🧬 演化開啟（敗北突變2張）' : '🔒 固定牌組';
+
+  // 最近一次突變差異
+  const diffRec = _lastDiffs[_shownDeck];
+  const chEl = document.getElementById('deck-changes');
+  if (diffRec && diffRec.diff?.length) {
+    chEl.innerHTML = `<span style="color:var(--text-dim)">第 ${diffRec.game} 場後突變：</span> ` +
+      diffRec.diff.map(d =>
+        `<span class="${d.delta > 0 ? 'add' : 'del'}">${d.delta > 0 ? '＋' : '－'}${_esc(d.name)}×${Math.abs(d.delta)}</span>`
+      ).join('　');
+  } else {
+    chEl.innerHTML = '';
+  }
+
+  const diffMap = new Map((diffRec?.diff || []).map(d => [d.card_no, d.delta]));
+  const listEl = document.getElementById('deck-list');
+  listEl.innerHTML = '';
+  for (const c of (deck.card_list || [])) {
+    const li = document.createElement('li');
+    const name = document.createElement('span');
+    name.className = 'dl-name';
+    name.textContent = c.name;
+    name.title = c.card_no;
+    const no = document.createElement('span');
+    no.style.cssText = 'font-size:9px;color:var(--text-dim);font-family:monospace;flex-shrink:0';
+    no.textContent = c.card_no.replace(/^HV-/, '');
+    const cnt = document.createElement('span');
+    cnt.className = 'dl-count';
+    cnt.textContent = `×${c.count}`;
+    li.append(name, no, cnt);
+    const delta = diffMap.get(c.card_no);
+    if (delta > 0) {
+      const tag = document.createElement('span');
+      tag.className = 'dl-tag add';
+      tag.textContent = `＋${delta}`;
+      li.appendChild(tag);
+    }
+    listEl.appendChild(li);
+  }
+  document.getElementById('deck-total').textContent =
+    `合計 ${deck.total ?? 0} 張`;
+}
+
+// QR 匯出目前顯示中的牌組
+function pkExportQR() {
+  const wrap = document.getElementById('pk-qr-wrap');
+  const deck = _shownDeck === 1 ? pkState?.deck1 : pkState?.deck2;
+  if (!deck?.card_list?.length) return;
+  const cPairs = deck.card_list.map(c => [c.card_no, c.count]);
+  const payload = JSON.stringify({ c: cPairs, n: deck.name || 'PK牌組' });
+  const encoded = LZString.compressToEncodedURIComponent(payload);
+  const url = `${location.origin}/?deck=${encoded}`;
+  wrap.innerHTML = '';
+  wrap.style.display = 'block';
+  new QRCode(wrap, { text: url, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M });
+}
+
+// ── 累積勝率曲線 ────────────────────────────────────────────────────────────
+function pkDrawChart() {
+  const canvas = document.getElementById('pk-wr-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.clientWidth || 300, H = 90;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  // 50% 基準線
+  ctx.strokeStyle = 'rgba(180,92,255,.25)';
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(104,104,160,.7)';
+  ctx.font = '9px monospace';
+  ctx.fillText('50%', 2, H / 2 - 3);
+
+  const hist = pkState?.history || [];
+  if (hist.length < 2) return;
+  const step = W / (hist.length - 1);
+  ctx.beginPath();
+  ctx.strokeStyle = '#00ffe0';
+  ctx.lineWidth = 2;
+  hist.forEach((h, i) => {
+    const x = i * step;
+    const y = H - h.wr1 * (H - 8) - 4;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+</script>
+</body>
+</html>

@@ -34,6 +34,26 @@ _update_queue: queue.Queue = queue.Queue(maxsize=500)
 _latest_stats: dict = {}
 _lock = threading.Lock()
 
+# PK 競技場（獨立於進化引擎的狀態）
+_pk_engine = None
+_pk_queue: queue.Queue = queue.Queue(maxsize=500)
+_pk_latest: dict = {}
+_pk_lock = threading.Lock()
+
+
+def _pk_push(data: dict):
+    with _pk_lock:
+        global _pk_latest
+        _pk_latest = data
+    try:
+        _pk_queue.put_nowait(data)
+    except queue.Full:
+        try:
+            _pk_queue.get_nowait()
+        except queue.Empty:
+            pass
+        _pk_queue.put_nowait(data)
+
 
 def _card_display_name(card_no: str) -> str:
     """查卡片顯示名稱，找不到 fallback 回 card_no。"""
@@ -131,10 +151,16 @@ class EvoHandler(BaseHTTPRequestHandler):
 
         if path in ("/", "/index.html", "/evo_arena.html"):
             self._serve_file(ROOT / "evo_arena.html", "text/html")
+        elif path in ("/pk", "/pk_arena.html"):
+            self._serve_file(ROOT / "pk_arena.html", "text/html")
         elif path == "/evo_dashboard.html":
             self._serve_file(ROOT / "evo_dashboard.html", "text/html")
         elif path == "/events":
             self._sse_stream()
+        elif path == "/pk/events":
+            self._sse_stream(pk=True)
+        elif path == "/pk/status":
+            self._json(_pk_latest or {"running": False, "game_no": 0})
         elif path == "/status":
             self._json(self._status_dict())
         elif path == "/best_deck":
@@ -196,6 +222,12 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_control(body)
         elif path == "/api/battle/practice":
             self._handle_practice(body)
+        elif path == "/pk/start":
+            self._handle_pk_start(body)
+        elif path == "/pk/stop":
+            self._handle_pk_stop()
+        elif path == "/pk/next":
+            self._handle_pk_next()
         else:
             self.send_error(404)
 
@@ -343,6 +375,78 @@ class EvoHandler(BaseHTTPRequestHandler):
             })
         except Exception as e:
             self._json({"ok": False, "error": str(e)}, 500)
+
+    # ── PK 競技場 ─────────────────────────────────────────────────────────────
+
+    def _handle_pk_start(self, body: dict):
+        """
+        POST /pk/start
+        body: {
+          "deck1": {card_no: count} | "PRESET名",
+          "deck2": {card_no: count} | "PRESET名",
+          "name1": "我方", "name2": "對方",
+          "evolve1": bool, "evolve2": bool,
+          "max_games": int, "mode": "watch"|"fast"
+        }
+        """
+        global _pk_engine
+        from deck_evo.pk_engine import PKEngine
+
+        if _pk_engine and _pk_engine.running:
+            self._json({"ok": False, "error": "PK 已在進行中，請先結束"}, 400)
+            return
+
+        def _resolve(raw) -> dict:
+            if isinstance(raw, str) and raw:
+                return dict(DECKS.get(raw, {}))
+            if isinstance(raw, dict):
+                return dict(raw)
+            return {}
+
+        deck1 = _resolve((body or {}).get("deck1"))
+        deck2 = _resolve((body or {}).get("deck2"))
+        if not deck1 or not deck2:
+            self._json({"ok": False, "error": "deck1 / deck2 不可為空"}, 400)
+            return
+
+        warnings = []
+        for label, d in (("我方", deck1), ("對方", deck2)):
+            n = sum(d.values())
+            if n != 40:
+                warnings.append(f"{label}牌組共 {n} 張（標準為 40 張）")
+
+        # 清空 PK 更新佇列
+        while not _pk_queue.empty():
+            try:
+                _pk_queue.get_nowait()
+            except queue.Empty:
+                break
+
+        _pk_engine = PKEngine(
+            deck1=deck1, deck2=deck2,
+            name1=str((body or {}).get("name1") or "我方")[:20],
+            name2=str((body or {}).get("name2") or "對方")[:20],
+            evolve1=bool((body or {}).get("evolve1")),
+            evolve2=bool((body or {}).get("evolve2")),
+            max_games=int((body or {}).get("max_games", 50)),
+            mode=(body or {}).get("mode", "watch"),
+            on_update=_pk_push,
+        )
+        _pk_engine.start()
+        self._json({"ok": True, "run_id": _pk_engine.run_id, "warnings": warnings})
+
+    def _handle_pk_stop(self):
+        global _pk_engine
+        if _pk_engine:
+            _pk_engine.stop()
+        self._json({"ok": True, "message": "PK 已停止"})
+
+    def _handle_pk_next(self):
+        if _pk_engine and _pk_engine.running:
+            _pk_engine.next_game()
+            self._json({"ok": True})
+        else:
+            self._json({"ok": False, "error": "PK 未在進行中"}, 409)
 
     def _handle_replays_list(self):
         """GET /api/replays_list?run_id=<id> — 列出 visual_replay 檔案"""
@@ -525,7 +629,7 @@ class EvoHandler(BaseHTTPRequestHandler):
 
     # ── SSE 串流 ─────────────────────────────────────────────────────────────
 
-    def _sse_stream(self):
+    def _sse_stream(self, pk: bool = False):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
@@ -533,14 +637,17 @@ class EvoHandler(BaseHTTPRequestHandler):
         self._cors()
         self.end_headers()
 
+        src_queue = _pk_queue if pk else _update_queue
+        latest = _pk_latest if pk else _latest_stats
+
         # 立即發送目前狀態
-        if _latest_stats:
-            self._sse_write(_latest_stats)
+        if latest:
+            self._sse_write(latest)
 
         # 持續等待新更新
         while True:
             try:
-                data = _update_queue.get(timeout=30)
+                data = src_queue.get(timeout=30)
                 self._sse_write(data)
             except queue.Empty:
                 # 心跳
