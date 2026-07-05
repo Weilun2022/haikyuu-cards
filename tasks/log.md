@@ -2,6 +2,67 @@
 
 ---
 
+## 2026-07-04 ~ 07-05（Session：TCG 模擬系統大改造）
+
+分支：`claude/tcg-battle-simulator-MHDCo`（所有 commit 都在此分支）
+
+### ⚔ PK 競技場（`ccaec06`）
+- 新頁 `pk_arena.html`：兩副牌自由指定（QR網址/內建preset/JSON 三源）AI 對戰
+- `deck_evo/pk_engine.py`：watch 逐場播放 / fast 連續統計；敗方每場突變 2 張（鎖同校）；雙方關演化＝純勝率統計
+- `evo_server.py` 新路由：`/pk/start` `/pk/stop` `/pk/next` `/pk/events`(SSE) `/pk/status`
+- `createReplayViewer.js` 加 `onPlaybackEnd` 回調（播完自動下一場）
+- 右側 BAR：雙方 40 張即時清單＋突變差異標記＋勝率曲線＋QR 匯出
+
+### 🔧 技能系統執行層補齊（`c6e3c58`）— 本次最重要
+**診斷**（多方討論確認）：
+- 引擎只在[登場]一個時機呼叫技能 → 98/264 張卡（全部 Event＋階段角色技）永不執行
+- `combat.py` 是孤兒模組：stat_bonus 寫入後結算函數從不讀 → 連會發動的技能加成也全是裝飾品
+
+**修正**：
+- turn_flow 結算全面改走 combat.py（bonus/stat_override/next_turn_blk_zero 感知）
+- 6 個 phase hooks（serve/receive/toss/attack/block/draw），全部 **pre-resolution** 時點
+- `registry.try_activate_phase_skills`：場上角色階段技＋手牌 Event 打出（先驗條件→AI 資源守門→進 Event 區）
+- bonus 生命週期：當次判定消耗、跨階段存活、回合結束清理（含 once_per_turn 重置）
+- 黃金測試 `game_engine/tests/test_skill_system.py`：12 案例 28 斷言全過
+
+**300 局前後對比（vs STANDARD）**：ROKUNIN 17.7%→55.0%｜ROKUNIN_V1 14.3%→48.7%｜YOUTH_P03 0%→11.7%
+⚠ **修復前所有進化/模擬結論作廢**（GA 學的是「避開 Event」假訊號）
+
+### 🔥 最強牌組鍛造所（`c5299b6`）— 使用者指定的唯一系統
+- `deck_forge.html` 服務於根路徑 **http://localhost:7778/**
+- 流程：貼 QR → 自動偵測＋鎖定學校（`POST /api/detect_school` 新增）→ GA 迭代（打全 Meta）→ 每代展示對局自動連播 → 最強 40 張即時清單（NEW/±標記）→ 完成自動彈 QR
+- evo_arena.html / pk_arena.html 保留為進階入口
+- 啟動方式：`cd 專案目錄 && python deck_evo/evo_server.py` → 開 http://localhost:7778/
+
+### 🤝 協作制度變更（使用者指定，記憶已更新）
+- **只與 `openai/gpt-5.5` 合作**（reviewer.js 已改直連，Fusion/多方全停用）
+- 分工：GPT-5.5＝架構師/Debug顧問/複審員；Claude＝首席工程師（寫碼/改檔/git）
+- 三段工作流：GPT 出框架 → Claude 實作 → GPT 複審
+
+---
+
+## 下一步：人機對戰系統（遊戲王 Master Duel 式）
+
+使用者目標：給 AI 一副牌，自己在網頁上跟它對戰。設計討論已完成，8 流程清單已定案：
+
+1. **決策協定 schema 凍結**（DecisionRequest：decision_id/type/legal_actions/snapshot）— 前後端合約最先定
+2. **LegalMoveProvider 純函數抽取**（can_deploy/ABA/數值非None）— 引擎與 UI 共用同一份
+3. **視角過濾（白名單）＋事件流分視角** — ⚠ 現有 Spectator/replay JSON 是上帝視角，F12 就能看 AI 手牌
+4. **HumanAgent＋DecisionGateway** — 引擎跑背景執行緒，BaseAI 的 10 個 decide_* 是天然接縫，queue 阻塞等前端 POST（**不重構狀態機**，三方共識）
+5. **Match Session API**（/match/start 吃兩副 QR＋難度、/match/action、SSE）
+6. **前端動畫佇列** — 引擎 1ms 噴事件必須排隊定速播放，播到「輪到你」才解鎖（Master Duel 核心秘密）
+7. 逾時/斷線/重連（decision_id 去重）
+8. 測試流程（ScriptedAgent 重播、洩漏 grep 測試、seed 外部化）
+
+三個護欄（必做）：背景執行緒例外→SSE error 事件＋queue timeout；PendingDecision 可序列化；RNG seed 外部化。
+先做 1-6 就能玩。**開工第一步：照新分工把流程清單丟 GPT-5.5 出架構框架**（決策協定 JSON schema＋LegalMoveProvider 介面草案）。
+
+### 其他待辦
+- 用修復後的引擎重跑進化，取得可信的最強牌組（舊結論已作廢）
+- game_engine 舊 bug 清單（memory: project_game_engine_bugs）可順手覆核是否已被本次修復解決
+
+---
+
 ## 2026-05-07（Session 12）
 
 ### game.html：版面 CYBER 風格化 + 效能優化
