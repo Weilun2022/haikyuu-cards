@@ -126,6 +126,23 @@ class GenericAI(BaseAI):
         """技能分支選擇：預設選第 0 項。"""
         return 0
 
+    def decide_play_event(
+        self, card_no: str, skill, phase: str, state: GameState, actor: PlayerState
+    ) -> bool:
+        """
+        Event 牌出牌決策（固定受限啟發式，GA 只演化牌組不演化此策略）：
+        - 條件已由引擎先驗過，這裡只做資源守門
+        - 手牌 ≤ 2 且效果不含抽牌 → 保留（避免手牌枯竭 LOST）
+        - 其他情況 → 打出（立即收益優先）
+        """
+        has_draw = any(
+            getattr(e.effect_type, "value", str(e.effect_type)) == "draw"
+            for e in (skill.effects or [])
+        )
+        if len(actor.hand) <= 2 and not has_draw:
+            return False
+        return True
+
     # ── 舊 API 相容 ───────────────────────────────────────────────────────────
 
     def decide_main_phase(self, state: GameState, actor: PlayerState) -> dict:

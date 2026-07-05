@@ -248,6 +248,112 @@ class EffectRegistry:
             ai=ai,
         )
 
+    # ── 階段觸發（Phase Hooks）───────────────────────────────────────────────
+
+    # phase 名稱 → cards_skills.json 中 triggers 標籤的對應集合
+    _PHASE_TRIGGERS: dict[str, set] = {
+        "serve":   {"發球", "發球階段", "serve", "serve_phase"},
+        "receive": {"接球", "接球階段", "receive", "receive_phase"},
+        "toss":    {"舉球", "舉球階段", "toss", "toss_phase"},
+        "attack":  {"攻擊", "攻擊階段", "attack", "attack_phase"},
+        "block":   {"攔網", "攔網階段", "block", "block_phase"},
+        "draw":    {"抽牌", "抽牌階段", "draw", "draw_phase", "=抽牌"},
+    }
+
+    def _skill_matches_phase(self, skill: CardSkill, phase: str) -> bool:
+        labels = self._PHASE_TRIGGERS.get(phase, set())
+        for t in skill.triggers:
+            t_val = t.value if hasattr(t, "value") else str(t)
+            if t_val in labels:
+                return True
+        return False
+
+    def _is_nullified(self, actor: PlayerState, skill: CardSkill) -> bool:
+        """對手 opp_skill_nullify 效果：封鎖含指定觸發標籤的技能。"""
+        if not actor.next_turn_skill_nullify:
+            return False
+        blocked = set(actor.next_turn_skill_nullify)
+        for t in skill.triggers:
+            t_val = t.value if hasattr(t, "value") else str(t)
+            if t_val in blocked:
+                return True
+        return "ALL" in blocked
+
+    def try_activate_phase_skills(
+        self,
+        phase: str,
+        state: GameState,
+        actor: PlayerState,
+        passive: PlayerState,
+        ai=None,
+    ) -> list[str]:
+        """
+        階段觸發掛鉤（pre-resolution 時點呼叫，在該階段判定/OP計算「之前」）：
+          1. actor 場上角色卡：技能 triggers 含該 phase 標籤 → 條件符合即自動發動
+          2. actor 手牌 Event 卡：triggers 含該 phase 標籤 → 先驗條件，AI 決定後打出
+             （打出 = 手牌移入 event_zone，再套用效果）
+        回傳實際發動的 card_no 清單。
+        """
+        from game_engine.card_db import is_event
+        from game_engine.engine.conditions import evaluate_all_conditions
+        fired: list[str] = []
+
+        # 1. 場上角色階段技
+        board_cards: list[str] = []
+        for z in (actor.serve_zone, actor.toss_zone, actor.attack_zone, actor.receive_zone):
+            if z.card:
+                board_cards.append(z.card)
+        for bz in actor.block_zones:
+            if bz.card:
+                board_cards.append(bz.card)
+        for cno in board_cards:
+            skill = self.get_skill(cno)
+            if not skill or not self._skill_matches_phase(skill, phase):
+                continue
+            if self._is_nullified(actor, skill):
+                state.log(f"[NULLIFY] {cno}@{phase} 被封鎖")
+                continue
+            try:
+                if self.apply_skill(skill, state, actor, passive, cno,
+                                    deploy_zone=None, deploy_via_skill=False, ai=ai):
+                    fired.append(cno)
+                    state.log(f"[PHASE_SKILL] {cno}@{phase}")
+            except Exception as e:
+                state.log(f"[PHASE_SKILL ERR] {cno}@{phase}: {e}")
+
+        # 2. 手牌 Event 卡
+        for cno in list(actor.hand):
+            if not is_event(cno):
+                continue
+            skill = self.get_skill(cno)
+            if not skill or not self._skill_matches_phase(skill, phase):
+                continue
+            if self._is_nullified(actor, skill):
+                continue
+            # 先驗條件（不符不打出，避免浪費）
+            try:
+                if not evaluate_all_conditions(skill.conditions, state, actor, cno):
+                    continue
+            except Exception:
+                continue
+            # AI 決定是否打出（無 AI 或無此方法 → 預設打出）
+            decide = getattr(ai, "decide_play_event", None)
+            if decide and not decide(cno, skill, phase, state, actor):
+                continue
+            try:
+                actor.hand.remove(cno)
+                actor.event_zone.append(cno)
+                if self.apply_skill(skill, state, actor, passive, cno,
+                                    deploy_zone=None, deploy_via_skill=False, ai=ai):
+                    fired.append(cno)
+                    state.log(f"[EVENT] {cno}@{phase}")
+                else:
+                    state.log(f"[EVENT] {cno}@{phase} 打出但未發動")
+            except Exception as e:
+                state.log(f"[EVENT ERR] {cno}@{phase}: {e}")
+
+        return fired
+
     # ── JSON → CardSkill 解析 ────────────────────────────────────────────────
 
     def _parse_card_skill(self, card_no: str, data: dict) -> CardSkill | None:

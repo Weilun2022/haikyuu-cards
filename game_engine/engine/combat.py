@@ -39,6 +39,17 @@ def calc_serve_score(actor: PlayerState) -> int:
     return max(0, srv_base + actor.srv_bonus)
 
 
+def calc_block_score(defender: PlayerState) -> int:
+    """攔網判定 DP：Σ BLK（全格）+ 加成。next_turn_blk_zero → 全部歸零。"""
+    if defender.next_turn_blk_zero:
+        return max(0, defender.blk_bonus)
+    total = 0
+    for bz in defender.block_zones:
+        if bz.card:
+            total += _effective_stat(defender, bz.card, "blk")
+    return max(0, total + defender.blk_bonus)
+
+
 def calc_receive_score(defender: PlayerState) -> int:
     """接球階段：只計 RCV（無攔網）。"""
     rcv_c = defender.receive_zone.card

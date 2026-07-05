@@ -13,6 +13,7 @@ from __future__ import annotations
 import random
 from game_engine.schema import GameState, PlayerState, ZoneState
 from game_engine.card_db import get_card, get_stat, is_event, is_character, get_name
+from game_engine.engine import combat
 
 _INITIAL_HAND = 6           # 開局抽牌數（規則書 6 張）
 _INTERVAL_HAND_TARGET = 6  # INTERVAL 後補到幾張
@@ -46,32 +47,8 @@ def _zone_stat(card_no: str, zone: str) -> int:
 
 
 # ── OP / DP 計算 ──────────────────────────────────────────────────────────────
-
-def _calc_serve_op(player: PlayerState) -> int:
-    c = player.serve_zone.card
-    return max(0, get_stat(c, "srv")) if c else 0
-
-
-def _calc_block_dp(player: PlayerState) -> int:
-    total = 0
-    for bz in player.block_zones:
-        if bz.card:
-            total += max(0, get_stat(bz.card, "blk"))
-    return total
-
-
-def _calc_receive_dp(player: PlayerState) -> int:
-    c = player.receive_zone.card
-    return max(0, get_stat(c, "rcv")) if c else 0
-
-
-def _calc_attack_op(player: PlayerState) -> int:
-    tos_c = player.toss_zone.card
-    atk_c = player.attack_zone.card
-    tos = max(0, get_stat(tos_c, "tos")) if tos_c else 0
-    atk = max(0, get_stat(atk_c, "atk")) if atk_c else 0
-    return tos + atk
-
+# 結算一律走 combat.py（含 bonus / stat_override / next_turn_blk_zero），
+# 舊版無加成 _calc_* 已移除。
 
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -167,6 +144,7 @@ class TurnFlow:
         state.current_player = current_num
         self.spec.on_phase(current_num, "start")
         loser = self._receive_sequence(state, pl_map[current_num], ai_map[current_num], current_num, state.pending_op)
+        self._end_turn_cleanup(pl_map[current_num])
         if loser is not None:
             return loser
         current_num = 3 - current_num
@@ -176,12 +154,47 @@ class TurnFlow:
             state.current_player = current_num
             self.spec.on_phase(current_num, "start")
             loser = self._respond_turn(state, pl_map[current_num], ai_map[current_num], current_num)
+            self._end_turn_cleanup(pl_map[current_num])
             if loser is not None:
                 return loser
             current_num = 3 - current_num  # 換手
 
         # 超過硬上限 → 確定性強制結束（以場上戰力比較，非隨機）
         return self._forced_end_loser(state, pl_map, server_num)
+
+    def _phase_hook(
+        self, phase: str,
+        state: GameState, actor: PlayerState, passive: PlayerState, ai=None,
+    ) -> None:
+        """
+        階段觸發掛鉤（pre-resolution）：在該階段「判定/OP 計算之前」呼叫。
+        觸發場上角色階段技 + 手牌 Event 牌。例外靜默記錄，不中斷對局。
+        """
+        if not self.registry:
+            return
+        try:
+            fired = self.registry.try_activate_phase_skills(
+                phase, state, actor, passive, ai=ai)
+            for cno in fired:
+                self.spec.on_skill(state.current_player, cno,
+                                   f"[{phase}]{get_name(cno)}", True)
+        except Exception as e:
+            state.log(f"[PHASE_HOOK ERR] {phase}: {e}")
+
+    @staticmethod
+    def _consume_bonus(player: PlayerState, *fields: str) -> None:
+        """判定/OP 固定後歸零已消耗的加成（bonus 生命週期 = 技能發動 → 當次結算）。"""
+        for f in fields:
+            setattr(player, f, 0)
+
+    @staticmethod
+    def _end_turn_cleanup(player: PlayerState) -> None:
+        """該玩家回合結束：清除跨回合旗標、stat 覆蓋、免疫、once_per_turn 記錄。"""
+        combat.apply_next_turn_cleanup(player)
+        for k in [k for k in player.counters if k.startswith("once_used:")]:
+            del player.counters[k]
+        player.atk_bonus = player.rcv_bonus = 0
+        player.blk_bonus = player.tos_bonus = player.srv_bonus = 0
 
     def _try_skill(
         self, card_no: str, zone: str,
@@ -226,8 +239,14 @@ class TurnFlow:
         elif not existing_srv:
             return pnum  # 場地空且無可部署 → LOST
 
-        op = _calc_serve_op(server)
+        # 階段觸發（[發球] Event / 場上角色發球技）→ 在 OP 計算前生效
+        passive = state.p2 if pnum == 1 else state.p1
+        state.current_player = pnum
+        self._phase_hook("serve", state, server, passive, ai)
+
+        op = combat.calc_serve_score(server)   # 含 srv_bonus / stat_override
         state.pending_op = op
+        self._consume_bonus(server, "srv_bonus")
         self.spec.on_action(pnum, "serve", op, 0, notes=f"OP={op}")
         self.spec.on_board_snapshot(self._make_snapshot(server, pnum))
         return None
@@ -284,7 +303,11 @@ class TurnFlow:
             self._drop_side_blockers(player)
             return pnum
 
-        dp = _calc_block_dp(player)
+        # 階段觸發（[攔網] Event / 場上角色攔網技）→ 在 DP 判定前生效
+        self._phase_hook("block", state, player, passive, ai)
+
+        dp = combat.calc_block_score(player)   # 含 blk_bonus / next_turn_blk_zero
+        self._consume_bonus(player, "blk_bonus")
         did_lose = dp < pending_op
         self.spec.on_judge(pnum, "block", dp, pending_op, did_lose)
         self.spec.on_action(pnum, "block", dp, pending_op,
@@ -305,13 +328,15 @@ class TurnFlow:
         self, state: GameState, player: PlayerState, ai, pnum: int, pending_op: int
     ) -> int | None:
         """RECEIVE → TOSS → ATTACK 序列。各步驟均強制從手牌部署，否則 LOST。"""
+        passive = state.p2 if pnum == 1 else state.p1
+        state.current_player = pnum
+
         # ドローフェイズ（抽 1 張）
         drawn = self._draw(player, 1, state)
         for c in drawn:
             self.spec.on_draw(pnum, c, get_name(c))
-
-        passive = state.p2 if pnum == 1 else state.p1
-        state.current_player = pnum
+        # 階段觸發（[抽牌] Event / 抽牌階段技）
+        self._phase_hook("draw", state, player, passive, ai)
 
         # RECEIVE PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "receive")
@@ -325,8 +350,11 @@ class TurnFlow:
         self.spec.on_deploy(pnum, rcv_card, get_name(rcv_card), "receive",
                            stats={"rcv": get_stat(rcv_card, "rcv")})
         self._try_skill(rcv_card, "receive", state, player, passive, ai)
+        # 階段觸發（[接球] Event / 接球階段技）→ 在 DP 判定前生效
+        self._phase_hook("receive", state, player, passive, ai)
 
-        dp = _calc_receive_dp(player)
+        dp = combat.calc_receive_score(player)   # 含 rcv_bonus / stat_override
+        self._consume_bonus(player, "rcv_bonus")
         did_lose = dp < pending_op
         self.spec.on_judge(pnum, "receive", dp, pending_op, did_lose)
         if did_lose:
@@ -344,6 +372,8 @@ class TurnFlow:
         self.spec.on_deploy(pnum, tos_card, get_name(tos_card), "toss",
                            stats={"tos": get_stat(tos_card, "tos")})
         self._try_skill(tos_card, "toss", state, player, passive, ai)
+        # 階段觸發（[舉球] Event / 舉球階段技）
+        self._phase_hook("toss", state, player, passive, ai)
 
         # ATTACK PHASE（強制部署，ABA合規）
         self.spec.on_phase(pnum, "attack")
@@ -357,9 +387,12 @@ class TurnFlow:
         self.spec.on_deploy(pnum, atk_card, get_name(atk_card), "attack",
                            stats={"atk": get_stat(atk_card, "atk")})
         self._try_skill(atk_card, "attack", state, player, passive, ai)
+        # 階段觸發（[攻擊] Event / 攻擊階段技）→ 在 OP 計算前生效
+        self._phase_hook("attack", state, player, passive, ai)
 
-        new_op = _calc_attack_op(player)
+        new_op = combat.calc_attack_score(player)   # 含 tos/atk_bonus / stat_override
         state.pending_op = new_op
+        self._consume_bonus(player, "tos_bonus", "atk_bonus")
         self.spec.on_action(pnum, "attack", new_op, 0, notes=f"TOS+ATK={new_op}")
         self.spec.on_board_snapshot(self._make_snapshot(player, pnum))
         return None
@@ -479,8 +512,8 @@ class TurnFlow:
         defender_num = 3 - server_num
         srv = pl_map[server_num]
         dfn = pl_map[defender_num]
-        srv_power = _calc_serve_op(srv) + _calc_attack_op(srv)
-        dfn_power = _calc_serve_op(dfn) + _calc_attack_op(dfn)
+        srv_power = combat.calc_serve_score(srv) + combat.calc_attack_score(srv)
+        dfn_power = combat.calc_serve_score(dfn) + combat.calc_attack_score(dfn)
         if srv_power > dfn_power:
             loser = defender_num
         elif dfn_power > srv_power:
