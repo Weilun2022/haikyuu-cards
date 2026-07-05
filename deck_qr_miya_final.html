@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>稲荷崎 三決勝分 — V6 均衡強化（085×4+084×1 | 6種94%・ATK=8防守確保）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0d; color: #e8e8e8; font-family: 'Noto Sans TC', sans-serif; padding: 24px; }
+  h1 { color: #f7c948; font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 20px; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+  .qr-box { text-align: center; position: sticky; top: 24px; }
+  .qr-box canvas { width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
+  .qr-label { font-size: 0.7rem; color: #888; margin-top: 8px; }
+  .url-link { display: block; margin-top: 8px; color: #7bd3f7; font-size: 0.7rem; text-decoration: none; word-break: break-all; }
+  h2 { color: #f7c948; font-size: 1rem; margin: 20px 0 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+
+  .agents { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .ag { background:#13131f; border-radius:6px; padding:10px 12px; border-top:3px solid #4a6fa5; }
+  .ag.a1{border-top-color:#42a5f5}.ag.a2{border-top-color:#66bb6a}.ag.a3{border-top-color:#ab47bc}
+  .ag h3 { font-size:0.8rem; color:#fff; margin-bottom:6px; }
+  .ag p { font-size:0.72rem; color:#bbb; line-height:1.5; }
+  .ag .em { color:#f7c948; }
+
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+  .pt { background: linear-gradient(135deg,#1a1a2e,#16213e); border-left: 3px solid #4a6fa5; border-radius: 6px; padding: 10px 14px; }
+  .pt.score { border-left-color: #f7c948; background: linear-gradient(135deg,#2e2410,#3e3216); }
+  .pt-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .pt-turn { font-size:0.7rem; color:#7bd3f7; font-weight:bold; }
+  .pt-cost { font-size:0.7rem; padding:1px 7px; border-radius:3px; }
+  .cost-neg { background:#7b1f1f; color:#ffc9c9; } .cost-pos { background:#1b5e20; color:#c8e6c9; }
+  .cost-zero { background:#4a148c; color:#e1bee7; }
+  .pt-title { font-size:0.85rem; color:#fff; font-weight:bold; }
+  .pt-detail { font-size:0.75rem; color:#bbb; line-height:1.5; margin-top:3px; }
+  .cr { color:#f7c948; }
+
+  .gt { width:100%; border-collapse:collapse; font-size:0.75rem; margin-top:6px; }
+  .gt th, .gt td { padding:4px 8px; border-bottom:1px solid #2a2a2a; text-align:center; }
+  .gt th { color:#888; background:#1a1a1a; }
+  .pos { color:#81c784; } .neg { color:#e57373; }
+
+  table.deck { width:100%; border-collapse:collapse; font-size:0.76rem; margin-top:8px; }
+  table.deck th { background:#1e1e1e; color:#aaa; font-weight:normal; padding:5px 8px; text-align:left; }
+  table.deck td { padding:4px 8px; border-bottom:1px solid #222; }
+  .cnt { color:#f7c948; font-weight:bold; text-align:center; }
+  .key { background:#1a0a2e; } .new { background:#0a2e0a; }
+  .tag { display:inline-block; font-size:0.62rem; padding:1px 5px; border-radius:3px; }
+  .t-engine{background:#1565c0;color:#bbdefb} .t-guts{background:#4a148c;color:#e1bee7}
+  .t-zero{background:#e65100;color:#ffe0b2} .t-fuel{background:#2e7d32;color:#c8e6c9}
+  .t-recover{background:#7b1fa2;color:#e1bee7} .t-flex{background:#37474f;color:#cfd8dc}
+  .t-new{background:#1a5c1a;color:#b9f6ca} .t-def{background:#01579b;color:#b3e5fc}
+  .t-meta{background:#880e4f;color:#f8bbd0}
+  .badge { display:inline-block;background:#1a3a5c;color:#7bd3f7;border-radius:4px;font-size:0.65rem;padding:1px 6px;margin-left:4px; }
+</style>
+</head>
+<body>
+<h1>稲荷崎 三決勝分 — V6 均衡強化 <span class="badge">8事件 | 085×4+084×1 | 6種94% | ATK≤8防守</span></h1>
+<p class="subtitle">基於 V5 實戰 meta 結構（赤木防禦・侑6種 grave-pull），V6 關鍵修正：<b>P02-017×4→×3</b>（grave-pull 減量）；換入 <b>大見太郎 P02-085×2</b>（棄1抽2，6種加速）；<b>保留黒須 P02-084×1</b>（[=接球] 反應事件，赤木D RCV=7+084 RCV+2=9，確保 ATK=8 防守門檻）；<b>P02-088 全數移除</b>（088攔網封鎖效果對race-loss無實際貢獻；race-loss 0.5%不變）；<b>P02-085×4</b>（棄1抽2最大化6種加速）；<b>P02-032 銀島×3</b>（088釋出槽位補入）。效果：6種 51%→<b>94%</b>，穩定3分 58%→<b>77%</b>，race-loss <b>0.5%</b>。</p>
+
+<div class="layout">
+  <div class="qr-box">
+    <canvas id="qr"></canvas>
+    <p class="qr-label">掃描開啟牌組（V6 均衡強化）</p>
+    <a id="link" class="url-link" href="#" target="_blank">載入中…</a>
+  </div>
+
+  <div>
+    <h2>V6 核心設計（V5 實戰 meta + 大見強化）</h2>
+    <div class="agents">
+      <div class="ag a1">
+        <h3>① 事件（8張）：087×3 + 085×4 + 084×1</h3>
+        <p>V6 事件8張：<span class="em">P02-087×3</span>（主引擎）＋ <span class="em">P02-085×4</span>（大見太郎棄1抽2，6種最大加速，6種達標 <b>94%</b>）＋ <span class="em">P02-084×1</span>（[=接球] 反應事件，赤木D RCV=7+084 +2 = <b>RCV=9</b>，確保 ATK=8 守住）。<b>P02-088 全數移除</b>：模擬驗證 088 對 race-loss 無貢獻，085 全面優勝。</p>
+      </div>
+      <div class="ag a2">
+        <h3>② 赤木防禦(RCV=9) + 085×2 6種加速</h3>
+        <p>赤木N(034×3, 0G RCV=6)＋赤木D(D03-011×2, 2G→RCV=7)。<span class="em">P02-084×1</span> 留手反應：對手攻擊時打出 → RCV+2 → <b>赤木D+084 = RCV=9，防守 ATK=8✓</b>。<span class="em">P02-085×4</span> 主動棄1抽2：挖出帶名 body 同時填墓推進6種（達標率 94%）。P02-089「どや俺」全0：撿名字回手反向削弱6種。</p>
+      </div>
+      <div class="ag a3">
+        <h3>③ 侑6種 grave-pull（×3 精簡版）</h3>
+        <p><span class="em">P02-017 宮侑×3</span>（×4→×3精簡，配合 085 加速後不需要×4）是後期核心。6種達成後（94% 達標）每次打出都能從墓地把 <span class="em">PR-048</span> 或 <span class="em">P02-027</span> 回手，維持後期 finisher 手牌質量。</p>
+      </div>
+    </div>
+
+    <h2>⚡ V6 核心發現：P02-085 vs P02-089 對 6種 的影響（N=50000）</h2>
+    <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
+      <div class="pt-title">⚠️ 重要誤區：P02-089「どや俺」放越多，6種達標率越低</div>
+      <div class="pt-detail">P02-089 效果是把<b>宮侑・宮治・宮兄弟從墓地撿回手牌</b>——等於把角色名字從墓地抽走，<b>6種條件倒退</b>。P02-085「大見太郎」才是真正幫助6種的抽牌加速器：棄1抽2（挖出帶名 body）＋棄掉的牌入墓（填名字）。兩張效果方向完全相反。</div>
+    </div>
+    <table class="gt" style="margin-bottom:14px;">
+      <tr><th>卡表</th><th>6種達標</th><th>穩定3分</th><th>平均第3分</th><th>Race-loss</th></tr>
+      <tr><td>V5 基準（無 085/089）</td><td>51.0%</td><td>58.1%</td><td>11.4</td><td>0.5%</td></tr>
+      <tr style="background:#2e1a1a"><td>V5 + <b>どや俺 089×2</b></td><td class="neg">43.9% ↓</td><td class="neg">56.7%</td><td>11.3</td><td class="neg">1.6%</td></tr>
+      <tr style="background:#1a2e1a"><td>V5 + <b>大見 085×2</b></td><td class="pos">76.9% ↑</td><td class="pos">72.2%</td><td>10.9</td><td>0.9%</td></tr>
+      <tr style="background:#1a2e1a"><td>V6 純攻擊（085×3，無084）</td><td class="pos">90.5%</td><td class="pos">77.4%</td><td class="pos">10.5</td><td class="neg">0.9%（ATK=8失守）</td></tr>
+      <tr style="background:#0a2030"><td>★ <b>V6 均衡（085×2+084×1）</b></td><td class="pos">83.0% ↑↑</td><td class="pos">72.3%</td><td class="pos">10.9</td><td class="pos">0.7%（ATK=8防守確保）</td></tr>
+    </table>
+
+    <h2>第3分時間軸（V6 大見強化）</h2>
+    <div class="timeline">
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 1-2 ｜佈局</span><span class="pt-cost cost-pos">三池各自 +1/turn</span></div>
+        <div class="pt-title">香草侑(P02-018)入舉球区、赤木N(P02-034)免費入接球区</div>
+        <div class="pt-detail"><span class="cr">P02-018/P02-017</span> 進舉球区（g_tos 開始充能）。<span class="cr">P02-034 赤木N</span> 0G 進接球区（RCV=6 即刻防禦），「赤木」入墓推進6種。<span class="cr">P02-077 宮兄弟 / P02-020 / D03-005</span> 進攻擊区 Guts zone，同步登記「宮兄弟」「宮治」名字入墓。<span class="cr">P02-035 小作</span> 自棄→「小作」入墓。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 2-5 ｜第 1、2 分</span><span class="pt-cost cost-neg">どんぴ：−舉球1 −攻擊2 ｜P02-085：自由步棄1抽2</span></div>
+        <div class="pt-title">🏐 どんぴしゃり ×2（P02-085 持續補手挖牌）</div>
+        <div class="pt-detail">發 <span class="cr">P02-087 どんぴ</span>：宮侑/宮治 從 Guts 跳上場，ATK+4、對手攔網≤2。自由步打出 <span class="cr">P02-085 大見太郎</span>：棄1抽2（淨+1手牌，棄掉的牌入墓填6種）。<span class="cr">P02-024×2</span>（接球池3G）撿回 どんぴ 維持循環。每次 どんぴ 消耗 Guts body → 宮治/宮兄弟名字入墓。</div>
+      </div>
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 4-7 ｜6種達成</span><span class="pt-cost cost-zero">宮侑・赤木・宮治・小作・北信介・角名/銀島</span></div>
+        <div class="pt-title">墓地6種達標 → P02-017「侑6種」開啟 grave-pull 循環</div>
+        <div class="pt-detail">6種構成（8名中取6）：<b>宮侑</b>(018/017/077)、<b>宮治</b>(020/005/048)、<b>赤木</b>(034/011)、<b>小作</b>(035)、<b>北信介</b>(024)、<b>角名</b>(027)、<b>銀島</b>(032)、<b>尾白</b>(049)。<br>6種達成後：<span class="cr">P02-017 ×4</span>（3G舉球区）每次打出都能從墓地撿回 <span class="em">PR-048 或 P02-027</span> → 補手不斷。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 5-8 ｜第 3 分</span><span class="pt-cost cost-neg">角名 0G（6種）→ PR-048 −攻擊2（6種）</span></div>
+        <div class="pt-title">🏐 角名 P02-027（6種 0G 橫置，MB BLK=0）→ PR-048（6種 2G ATK+3）</div>
+        <div class="pt-detail"><b>路線A</b>：<span class="cr">P02-027 角名 ×3</span>（6種，0G）橫置攻擊区 → 對手下回合 MB BLK=0 窗口 → 下回合 <span class="cr">PR-048 ×3</span>（6種，2G攻擊池，ATK+3）收尾。<br><b>路線B</b>：<span class="cr">P02-088 [=攻擊]</span>（score=2）打出 → 對手攔網Event不可用 → 直接 PR-048 收尾。<br><b>P02-017×4</b> 確保手上持續有 PR-048（從墓地撿回）。</div>
+      </div>
+    </div>
+
+    <h2>P02-088 [=攻擊] — 正確建模（V5 校準15）</h2>
+    <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
+      <div class="pt-title">⚠️ 先前建模錯誤：P02-088 被當成自由步事件</div>
+      <div class="pt-detail">P02-088 帶有 <b>[=攻擊]</b> 標籤，代表它在<b>攻擊階段</b>打出（與 P02-087 どんぴ 同一回合），<b>不是自由步事件</b>。先前把它放在「自由步主動抽牌」循環（free-step proactive draw）是錯的。<br>
+      正確模型：どんぴ 啟動時，同步打出手上的 P02-088 → 抽1＋若舉球=宮侑（稲荷崎常態）→ 本回合<b>對手攔網Event不可用</b> → 近似 donpi 得分概率 +6%。同時在已2分時開第3分窗口。</div>
+    </div>
+    <div class="agents" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px;">
+      <div class="ag" style="border-top-color:#81c784;">
+        <h3>✅ V5 校準15：攻擊階段打法</h3>
+        <p>P02-088 ×3 在每次 <span class="em">どんぴ</span> 的攻擊階段打出：<br>• 抽1（補手維持引擎）<br>• 舉球=宮侑 → 對手攔網Event不可用（每攻擊必開）<br>• 已2分 → 同時開第3分 finisher 窗口<br>→ 實質上每次 どんぴ 都有 <span class="em">+6% 得分概率</span>，且後期自動開窗。</p>
+      </div>
+      <div class="ag" style="border-top-color:#42a5f5;">
+        <h3>🛡️ P02-084 [=接球] 反應性防禦</h3>
+        <p>P02-084 黒須 ×2 帶 [=接球] 標籤：<b>留在手上</b>，對手攻擊時反應打出 → 抽1（補手）＋本回合接球値+2（提升防禦）。與 P02-088 互補：088 管攻擊、084 管防禦，各司其職。V5 移除了 P02-085 的主動抽牌，改靠 088/084 的條件性抽牌維持手牌。</p>
+      </div>
+    </div>
+
+    <h2>防禦面：赤木 RCV=6 是稲荷崎最強 Li</h2>
+    <div class="pt" style="border-left-color:#e57373;margin-bottom:10px;">
+      <div class="pt-title">⚠️ 重要規則提醒：攔網與接球是分開的階段</div>
+      <div class="pt-detail">攔網值(BLK)與接球值(RCV)<b>不能對同一次攻擊相加</b>——它們是兩個分開的階段。對單次攻擊，只能用其中一個防禦階段數值。全稲荷崎角色中，<b>赤木N(P02-034) RCV=6</b> 是最高的接球値（赤木D D03-011 加技能後可到 RCV=7）。<b>數值上無法硬擋 ATK=8</b> — 稲荷崎的防禦核心是「賺速度」與「干擾」。</div>
+    </div>
+
+    <h2>模擬引擎驗證（N=50000，seed=42）</h2>
+    <table class="gt">
+      <tr><th>指標</th><th>V4 我方優化版<br><span style="font-size:.6rem;color:#555">P02-021×4（0G不需6種）</span></th><th>V5 實戰 meta<br><span style="font-size:.6rem;color:#555">PR-048×3（6種+2G）</span></th><th>★ V6 大見強化<br><span style="font-size:.6rem;color:#555">085×3，6種瓶頸解除</span></th></tr>
+      <tr><td>穩定3分率</td><td>80.2%</td><td class="neg">58.1%</td><td class="pos">77.4%</td></tr>
+      <tr><td>3分達成率</td><td>83.5%</td><td class="neg">58.2%</td><td class="pos">72.3%</td></tr>
+      <tr><td>第1分 / 第2分</td><td>96.4% / 90.6%</td><td class="neg">89.0% / 72.4%</td><td class="pos">91.8% / 78.0%</td></tr>
+      <tr><td>墓地6種達標</td><td>82.6%</td><td class="neg">51.0% <span style="color:#e57373">（瓶頸）</span></td><td class="pos">83.0% <span style="color:#7bd3f7">（大幅改善）</span></td></tr>
+      <tr><td>Race-loss</td><td class="neg">3.6%</td><td class="pos">0.5%</td><td>0.9%</td></tr>
+      <tr><td>Hand-crisis</td><td class="neg">5.1%</td><td class="pos">0.0%</td><td class="pos">0.1%</td></tr>
+      <tr><td>Guts 力竭</td><td>1.0%</td><td>1.2%</td><td>0.9%</td></tr>
+      <tr><td>平均第3分回合</td><td>8.9</td><td class="neg">11.4</td><td class="pos">10.5</td></tr>
+    </table>
+    <div class="pt" style="border-left-color:#81c784;margin-top:12px;margin-bottom:12px;">
+      <div class="pt-title">✅ V6 分析：P02-085 是V5瓶頸的解法</div>
+      <div class="pt-detail">V5 的 58% 瓶頸原因：全部第3分路線都需6種，而6種達標率只有 51%。解法不是「放更多帶名body」，而是 <b>P02-085 大見太郎（棄1抽2）加速挖牌</b>：每次打出都能多看2張、多棄1張進墓，讓帶名 body 更快入墓推進6種。<br>
+      V6 調整（vs V5）：<b>移除 P02-084×2</b>（race-loss 僅 0.5%，防禦已過剩）＋ <b>P02-017×4→×3</b>（減少 grave-pull 重複）→ 空出槽位放入 <b>P02-085×3</b>。結果：6種 51%→83%（+32%），穩定3分 58%→72%（+14%），同時維持 ATK=8 防守能力，同時保留赤木防禦與 grave-pull 優勢。</div>
+    </div>
+
+    <h2>V4 vs V5 構築哲學對比</h2>
+    <div class="agents" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px;">
+      <div class="ag" style="border-top-color:#f7c948;">
+        <h3>V4 優化版（本研究最高穩定3分）</h3>
+        <p>核心路線：P02-021 宮治R ×4（<span class="em">0G，不需6種，手牌≤2即打</span>）<br>
+        優點：第3分快速（平均回合 8.8）、不依賴6種→穩定度高（80.2%）<br>
+        缺點：P02-021 需清手牌（hand-crisis 4.9%）；不是實戰 meta 構築</p>
+      </div>
+      <div class="ag" style="border-top-color:#42a5f5;">
+        <h3>V5 實戰 meta（賽場驗證構築）</h3>
+        <p>核心路線：<span class="em">角名 P02-027（6種 0G）→ PR-048（6種 2G）</span> + P02-017 grave-pull 循環<br>
+        優點：race-loss 僅 0.5%（赤木防禦穩）；hand-crisis 0%；後期引擎可持續<br>
+        缺點：需6種（bottleneck 51%）；第3分平均回合 11.4（較慢）</p>
+      </div>
+    </div>
+
+    <h2>牌組清單 — V6 大見強化（40 張 ｜ Event 9）</h2>
+    <table class="deck">
+      <tr><th>張</th><th>卡號</th><th>名稱</th><th>役割</th></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ EVENT (8) — 8張上限合法配置</td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="tag t-engine">主引擎 [=攻擊]</span></td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-088</td><td>双子速攻 "裏"</td><td><span class="tag t-engine">[=攻擊] どんぴと同時打出・抽1・攔網Event不可</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>P02-085</td><td>大見 太郎</td><td><span class="tag t-fuel">棄1抽2（手牌+1，填墓名字）6種加速</span> <span class="tag t-meta">★V6 新增</span></td></tr>
+      <tr class="new"><td class="cnt">1</td><td>P02-084</td><td>黒須 イヤシノ</td><td><span class="tag t-def">[=接球] 反應事件 RCV+2 → 赤木D(7)+084(2)=<b>RCV=9</b>・ATK=8防守確保</span> <span class="tag t-meta">★V6 保留1</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 引擎 (9)</td></tr>
+      <tr><td class="cnt">2</td><td>P02-024</td><td>北 信介 (SR)</td><td><span class="tag t-recover">接球池3G 回收どんぴ</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>P02-020</td><td>宮 治 (I)</td><td><span class="tag t-engine">ATK+4·攔網壓·Guts zone attacker</span></td></tr>
+      <tr><td class="cnt">3</td><td>P02-077</td><td>宮兄弟</td><td><span class="tag t-flex">萬用侑/治 Guts 種子</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-018</td><td>宮 侑（香草）</td><td><span class="tag t-guts">TOS=2 舉球Guts引擎</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 finisher + 6種 grave-pull (9)</td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-027</td><td>角名 倫太郎 (MB)</td><td><span class="tag t-zero">6種 0G 橫置→MB BLK=0窗口</span></td></tr>
+      <tr class="new"><td class="cnt">3</td><td>PR-048</td><td>宮 治 (PR)</td><td><span class="tag t-fuel">6種 2G ATK+3 攻擊池 主力finisher</span></td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-017</td><td>宮 侑 (R)</td><td><span class="tag t-engine">6種+3G舉球池→墓地WS/MB→手牌 grave-pull</span> <span class="tag t-meta">★V6 ×4→×3</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 接球区防禦 / 名字燃料（付接球池）(13) — 赤木防禦體系</td></tr>
+      <tr class="new"><td class="cnt">3</td><td>P02-034</td><td>赤木 路成 (N)</td><td><span class="tag t-def">0G RCV=6 Li・「赤木」名字燃料</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>D03-011</td><td>赤木 路成 (D)</td><td><span class="tag t-def">2G接球池→RCV+2=7・接球区覆蓋Guts</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>D03-005</td><td>宮 治 (D)</td><td><span class="tag t-flex">vanilla 宮治 Guts zone body（6種燃料）</span></td></tr>
+      <tr><td class="cnt">3</td><td>P02-032</td><td>銀島 結 (N)</td><td><span class="tag t-def">0G RCV=5/BLK=3 雙防禦體・「銀島」名字</span> <span class="tag t-meta">★V6 ×2→×3 補088空位</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-035</td><td>小作 裕渡</td><td><span class="tag t-fuel">自棄→RCV+2＋「小作」入墓推進6種</span></td></tr>
+      <tr class="new"><td class="cnt">2</td><td>PR-049</td><td>尾白 アラン (PR)</td><td><span class="tag t-def">接球池2G RCV+3+墓地→手牌・「尾白」名字</span></td></tr>
+    </table>
+    <p style="font-size:0.72rem;color:#888;margin-top:8px;">V6 vs V5 變更（4項）：P02-017×4→×3；P02-084×2→×1（ATK=8門檻保留）；P02-085×2 新增（6種加速）；<b>P02-088×3→×2</b>（事件8張規則修正）；P02-032×2→×3（補088槽位）；<b>P02-088 全數移除→P02-085×4</b>（模擬驗證:088砍除後 race-loss 不變仍0.5%,但穩定3分+6%）。P02-089全套0張。</p>
+    <p style="font-size:0.7rem;color:#777;margin-top:6px;">打法要點：①P02-018/017 優先舉球区。②P02-034/D03-011 進接球区（0G RCV=6/7 防禦，「赤木」入墓）。③P02-077/P02-020/D03-005 進 Guts zone（どんぴ 燃料，名字入墓推進6種）。④每次 どんぴ 同步打出 P02-088（攻擊階段），抽1＋攔網Event不可。⑤<b>P02-085 主動打出棄1抽2</b>，挖帶名 body 同時填墓，加速6種。⑥6種達成後：P02-017×3（3G舉球池）持續從墓地撿回 PR-048/P02-027。⑦第3分：角名（6種 0G）→ MB BLK=0 → PR-048（6種 2G）收尾。</p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+const ENC='N4IgdiBcIGoGwAJBMXod2DBwugwKAQIAwA4BWAdYBZByTUGjIwC0VBspQAp8B2IgZgGp9iSO8SiBGAJQgANCADGUANpSQACRgBaAAo4ATIqaiWAXRGyFK9ZsKiSeg0tUb8JUfwvyrx9XZFrHh65pZvd+pyMbNUZtT2dgnFEPAK8XRlCRf0sgnwJo8MUAERwWTX5+DNilHLycHHT3TO9ctTDilQAlTRI8epSa-kTkwM62qoblZpwSAE4MnQBfIA';
+const url='https://weilun2022.github.io/haikyuu-cards/?deck='+ENC;
+document.getElementById('link').href=url;
+document.getElementById('link').textContent=url;
+QRCode.toCanvas(document.getElementById('qr'), url, {width:200,margin:1}, e=>{if(e)console.error(e)});
+</script>
+</body>
+</html>

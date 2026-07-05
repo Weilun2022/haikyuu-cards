@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>宮侑 Loop Engine v2 — 北信介回收核心</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0d; color: #e8e8e8; font-family: 'Noto Sans TC', 'Yu Gothic', sans-serif; padding: 24px; }
+  h1 { color: #f7c948; font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 24px; }
+
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+
+  .qr-box { text-align: center; }
+  .qr-box img, .qr-box svg { width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
+  .qr-label { font-size: 0.7rem; color: #888; margin-top: 8px; word-break: break-all; }
+  .url-link { display: block; margin-top: 8px; color: #7bd3f7; font-size: 0.75rem; text-decoration: none; word-break: break-all; }
+  .url-link:hover { text-decoration: underline; }
+
+  .deck-info h2 { color: #f7c948; font-size: 1rem; margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+
+  .loop-box {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #4a6fa5;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+  }
+  .loop-box h3 { color: #7bd3f7; font-size: 0.85rem; margin-bottom: 10px; }
+  .loop-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; font-size: 0.8rem; line-height: 1.5; }
+  .step-num { background: #4a6fa5; color: #fff; border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.7rem; font-weight: bold; }
+  .card-ref { color: #f7c948; font-weight: bold; }
+  .arrow { color: #7bd3f7; margin: 4px 0; text-align: center; font-size: 1rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; }
+  th { background: #1e1e1e; color: #aaa; font-weight: normal; padding: 5px 8px; text-align: left; border-bottom: 1px solid #333; }
+  td { padding: 4px 8px; border-bottom: 1px solid #222; }
+  tr:hover td { background: #1a1a1a; }
+  .cnt { color: #f7c948; font-weight: bold; text-align: center; }
+  .role-tag { display: inline-block; font-size: 0.65rem; padding: 1px 5px; border-radius: 3px; margin-left: 4px; vertical-align: middle; }
+  .tag-core   { background: #7b1fa2; color: #e1bee7; }
+  .tag-engine { background: #1565c0; color: #bbdefb; }
+  .tag-payoff { background: #2e7d32; color: #c8e6c9; }
+  .tag-fuel   { background: #e65100; color: #ffe0b2; }
+  .tag-flex   { background: #37474f; color: #cfd8dc; }
+
+  .section-sep { margin-top: 18px; }
+  .phase-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+  .phase { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px; }
+  .phase h4 { color: #7bd3f7; font-size: 0.75rem; margin-bottom: 6px; }
+  .phase ul { font-size: 0.72rem; color: #ccc; padding-left: 12px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<h1>宮侑 Loop Engine v2 — 北信介回收核心</h1>
+<p class="subtitle">稲荷崎 40張 ／ どんぴしゃり無限Loop × 墓地豐度雙引擎</p>
+
+<div class="layout">
+
+  <!-- QR Code Column -->
+  <div class="qr-box">
+    <canvas id="qrCanvas" width="200" height="200"></canvas>
+    <p class="qr-label">掃描或點擊連結開啟牌組</p>
+    <a class="url-link" id="deckLink" href="#" target="_blank">載入中…</a>
+  </div>
+
+  <!-- Deck Info Column -->
+  <div class="deck-info">
+
+    <!-- Loop Diagram -->
+    <div class="loop-box">
+      <h3>♻️ 核心Loop：どんぴしゃり → Event區 → 北信介回收 → 重複</h3>
+      <div class="loop-step">
+        <div class="step-num">1</div>
+        <div><span class="card-ref">どんぴしゃり</span> 發動（攻擊階段）<br>→ 從 Guts 出 <span class="card-ref">宮侑</span>（舉球區）+ <span class="card-ref">宮治</span>（攻擊區）<br>→ 宮侑 [=登場] SRV+2，宮治 [=登場] ATK+4</div>
+      </div>
+      <div class="arrow">↓ どんぴしゃり 進入 Event 區</div>
+      <div class="loop-step">
+        <div class="step-num">2</div>
+        <div><span class="card-ref">北信介 P02-024</span>（接球區）[=登場] 發動<br>→ 棄1張手牌（填墓地，累積多樣性）<br>→ 支付3 Guts<br>→ 接球值 +1，<b>從 Event 區取稲荷崎牌最多1張→手牌</b></div>
+      </div>
+      <div class="arrow">↓ どんぴしゃり 回到手牌</div>
+      <div class="loop-step">
+        <div class="step-num">3</div>
+        <div><span class="card-ref">P02-089 どや俺…</span>（[=抽牌] 事件）<br>→ 從墓地回收 宮侑＋宮治＋宮兄弟 各1張至手牌<br>→ 手牌放入 Guts → 下回合 Loop 重啟</div>
+      </div>
+    </div>
+
+    <!-- Card Table -->
+    <h2>牌組清單（40張）</h2>
+    <table>
+      <tr><th>張</th><th>卡號</th><th>名稱</th><th>役割</th><th>ATK</th><th>RCV</th><th>SRV</th></tr>
+
+      <tr><td colspan="7" style="color:#7bd3f7;padding:6px 8px;background:#0d1117;">▸ EVENT（8張）</td></tr>
+      <tr><td class="cnt">4</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="role-tag tag-engine">エンジン</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td class="cnt">2</td><td>P02-089</td><td>どや俺…</td><td><span class="role-tag tag-core">手牌回收</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td class="cnt">1</td><td>P02-084</td><td>黒須法宗</td><td><span class="role-tag tag-fuel">接球支援</span></td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td class="cnt">1</td><td>P02-086</td><td>稲荷崎応援団</td><td><span class="role-tag tag-fuel">発球支援</span></td><td>—</td><td>—</td><td>—</td></tr>
+
+      <tr><td colspan="7" style="color:#7bd3f7;padding:6px 8px;background:#0d1117;">▸ CHARACTER（32張）</td></tr>
+      <tr><td colspan="7" style="color:#555;padding:3px 8px;font-size:0.7rem;">── Guts Loop 核心目標</td></tr>
+      <tr><td class="cnt">2</td><td>P02-016 (I)</td><td>宮 侑</td><td><span class="role-tag tag-engine">舉球Core</span></td><td>0</td><td>0</td><td>5</td></tr>
+      <tr><td class="cnt">2</td><td>P02-017 (R)</td><td>宮 侑</td><td><span class="role-tag tag-payoff">多様性Payoff</span></td><td>1</td><td>0</td><td>4</td></tr>
+      <tr><td class="cnt">2</td><td>P02-020 (IP)</td><td>宮 治</td><td><span class="role-tag tag-engine">攻撃Core</span></td><td>2</td><td>3</td><td>3</td></tr>
+      <tr><td class="cnt">2</td><td>P02-021 (R)</td><td>宮 治</td><td><span class="role-tag tag-flex">手牌少ATK+2</span></td><td>2</td><td>1</td><td>3</td></tr>
+      <tr><td class="cnt">2</td><td>P02-022 (N)</td><td>宮 治</td><td><span class="role-tag tag-flex">高数値</span></td><td>3</td><td>5</td><td>1</td></tr>
+      <tr><td class="cnt">2</td><td>PR-048</td><td>宮 治</td><td><span class="role-tag tag-payoff">多様性Payoff</span></td><td>2</td><td>0</td><td>3</td></tr>
+      <tr><td class="cnt">4</td><td>P02-077 (S)</td><td>宮兄弟</td><td><span class="role-tag tag-engine">汎用Guts</span></td><td>3</td><td>0</td><td>1</td></tr>
+
+      <tr><td colspan="7" style="color:#555;padding:3px 8px;font-size:0.7rem;">── Event回収核心（最重要）</td></tr>
+      <tr style="background:#1a0a2e"><td class="cnt">3</td><td>P02-024 (S)</td><td>北 信介</td><td><span class="role-tag tag-core">Event回収★</span></td><td>0</td><td>5</td><td>1</td></tr>
+
+      <tr><td colspan="7" style="color:#555;padding:3px 8px;font-size:0.7rem;">── 墓地燃料 / 多様性補完</td></tr>
+      <tr><td class="cnt">2</td><td>P02-025 (R)</td><td>北 信介</td><td><span class="role-tag tag-fuel">抽1棄1</span></td><td>0</td><td>5</td><td>1</td></tr>
+      <tr><td class="cnt">2</td><td>P02-027 (S)</td><td>角名 倫太郎</td><td><span class="role-tag tag-payoff">6種→MB無効</span></td><td>2</td><td>2</td><td>2</td></tr>
+      <tr><td class="cnt">2</td><td>P02-028 (R)</td><td>角名 倫太郎</td><td><span class="role-tag tag-flex">数値+名前</span></td><td>3</td><td>4</td><td>2</td></tr>
+      <tr><td class="cnt">2</td><td>P02-029 (R)</td><td>尾白 アラン</td><td><span class="role-tag tag-payoff">6種→接球無効</span></td><td>2</td><td>2</td><td>5</td></tr>
+      <tr><td class="cnt">2</td><td>P02-030 (N)</td><td>尾白 アラン</td><td><span class="role-tag tag-flex">高数値</span></td><td>3</td><td>4</td><td>5</td></tr>
+      <tr><td class="cnt">2</td><td>PR-049</td><td>尾白 アラン</td><td><span class="role-tag tag-core">角色回収</span></td><td>3</td><td>3</td><td>2</td></tr>
+      <tr><td class="cnt">1</td><td>P02-032 (N)</td><td>銀島 結</td><td><span class="role-tag tag-flex">名前カバー</span></td><td>0</td><td>5</td><td>1</td></tr>
+    </table>
+
+    <!-- Game Plan -->
+    <div class="section-sep">
+      <h2>回合計劃</h2>
+      <div class="phase-grid">
+        <div class="phase">
+          <h4>前期（第1-2回合）</h4>
+          <ul>
+            <li>多放宮兄弟進 Guts</li>
+            <li>P02-025 draw+棄1填墓地</li>
+            <li>北信介×3 部署接球區</li>
+            <li>尋找どんぴしゃり</li>
+          </ul>
+        </div>
+        <div class="phase">
+          <h4>中期（第3-4回合）</h4>
+          <ul>
+            <li>どんぴしゃり發動</li>
+            <li>→ 宮侑+宮治出場</li>
+            <li>北信介撿回どんぴしゃり</li>
+            <li>P02-089 回收宮兄弟</li>
+          </ul>
+        </div>
+        <div class="phase">
+          <h4>後期（第5+回合）</h4>
+          <ul>
+            <li>墓地6種 → 多樣性解鎖</li>
+            <li>角名フリー出場</li>
+            <li>尾白 接球スキル無効</li>
+            <li>PR-048 ATK+3 致勝</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /deck-info -->
+</div><!-- /layout -->
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+const DECK_ENCODED = 'N4IgdiBcKHXaiJ8gGQPZIA4AIBuAmdh0ZUEP5QablA9tUDZTQDgtBh-RABoQBjKAbWZAAkA1AWgAUAGbN34AOAOzcAygDoA7gFMARqjoAWALq02XPoOEiAnFLlKVtbJu08BQ0au4A5E8roBGSx2t7RANkfOzdy1PXVtXPwBJALoLYJ0bYVcJACVo8w9472x+biiFF3S4r1tsV25U-LNYq1DhbCEnSpiM62ThVRE+NOqQhP4xCRkm2g0i2sF7IdM6AGYW8ewAVnLu+b7sQdWx9c6K6cKa9aM9gp7M2xmcxv2z1vajXi3D7xmGtPd1AF8gA';
+const BASE_URL = 'https://weilun2022.github.io/haikyuu-cards/';
+const fullUrl = BASE_URL + '?deck=' + DECK_ENCODED;
+
+document.getElementById('deckLink').href = fullUrl;
+document.getElementById('deckLink').textContent = fullUrl;
+
+QRCode.toCanvas(document.getElementById('qrCanvas'), fullUrl, {
+  width: 200, margin: 1,
+  color: { dark: '#000000', light: '#ffffff' }
+}, err => { if (err) console.error(err); });
+</script>
+</body>
+</html>

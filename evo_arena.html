@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>バボカ!! BREAK — 牌組進化競技場</title>
+<style>
+:root {
+  /* 沿用 game.html 紫色 neon + evo 資料色 */
+  --bg: #0d0d14;
+  --surface: #16161f;
+  --surface2: #1e1e2a;
+  --border: #2a2a3e;
+  --text: #e8e8f2;
+  --text-dim: #6868a0;
+  --accent: #6c63ff;       /* 紫色 neon */
+  --accent2: #ff6584;      /* 粉紅 */
+  --green: #4ade80;
+  --orange: #fb923c;
+  /* evo 資料色 */
+  --arena-data-good: #00ffe0;
+  --arena-data-hot:  #ff2d78;
+  --arena-data-warn: #ffd166;
+  --arena-panel-bg:  rgba(10,0,28,.82);
+  --arena-panel-border: rgba(180,92,255,.35);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', 'Noto Sans TC', system-ui, sans-serif;
+  font-size: 13px;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── 主容器 ── */
+.arena-shell {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 300px minmax(720px, 1fr) 340px;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ── 左欄：設定 ── */
+.arena-left {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.arena-header-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--arena-panel-border);
+  flex-shrink: 0;
+}
+
+.arena-status-light {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #444;
+  animation: pulse-idle 2s infinite;
+}
+.arena-status-light.running {
+  background: var(--arena-data-good);
+  animation: pulse-active 0.8s infinite;
+}
+@keyframes pulse-idle { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@keyframes pulse-active { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.arena-gen-display {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--arena-data-good);
+}
+
+.arena-wr-display {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--arena-data-hot);
+}
+
+.arena-section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-dim);
+  margin: 8px 0 6px;
+  border-bottom: 1px solid var(--arena-panel-border);
+  padding-bottom: 6px;
+}
+
+.arena-config-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.arena-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.arena-select, .arena-input {
+  width: 100%;
+  background: rgba(20, 20, 40, 0.8);
+  border: 1px solid var(--arena-panel-border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.arena-select:hover, .arena-input:hover,
+.arena-select:focus, .arena-input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.arena-select {
+  height: 32px;
+}
+
+.arena-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.arena-range-row input[type=range] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.arena-range-val {
+  width: 35px;
+  text-align: right;
+  color: var(--arena-data-good);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: monospace;
+}
+
+.arena-btn {
+  width: 100%;
+  padding: 9px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .08em;
+  transition: 0.2s;
+  text-transform: uppercase;
+}
+
+.arena-btn-start {
+  background: var(--accent);
+  color: #000;
+  margin-top: 8px;
+}
+
+.arena-btn-start:hover:not(:disabled) {
+  filter: brightness(1.2);
+}
+
+.arena-btn-stop {
+  background: transparent;
+  color: var(--accent2);
+  border: 1.5px solid var(--accent2);
+  margin-top: 6px;
+}
+
+.arena-btn-stop:hover:not(:disabled) {
+  background: rgba(255, 45, 120, 0.15);
+  border-color: var(--arena-data-hot);
+}
+
+.arena-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── 中欄（上下分段） ── */
+.arena-main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.arena-chart-panel {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 14px;
+  flex-shrink: 0;
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.arena-chart-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.arena-chart-header h2 {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin: 0;
+}
+
+.arena-chart-gen {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--arena-data-good);
+  font-family: monospace;
+}
+
+.arena-chart-wr {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--arena-data-hot);
+  font-family: monospace;
+}
+
+.arena-chart-wr-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: -4px;
+}
+
+canvas#arena-wr-chart {
+  width: 100%;
+  flex: 1;
+  display: block;
+}
+
+.arena-replay-panel {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.arena-replay-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  text-align: center;
+}
+
+#arena-replay-root {
+  flex: 1;
+  border-radius: 6px;
+  background: #0a0a12;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── 右欄：Analytics ── */
+.arena-right {
+  background: var(--arena-panel-bg);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 8px;
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.arena-analytics-section h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--arena-panel-border);
+}
+
+.arena-combo-item {
+  background: rgba(30, 30, 50, 0.6);
+  border: 1px solid var(--arena-panel-border);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 6px;
+  transition: border-color 0.2s;
+}
+
+.arena-combo-item:hover {
+  border-color: var(--accent);
+}
+
+.arena-combo-wr {
+  color: var(--arena-data-good);
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.arena-combo-cards {
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+
+.arena-combo-meta {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.arena-top-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.arena-top-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px;
+  background: rgba(30, 30, 50, 0.4);
+  border-radius: 4px;
+  font-size: 11px;
+  border-left: 2px solid var(--accent);
+  transition: background 0.2s;
+}
+
+.arena-top-card-row:hover {
+  background: rgba(30, 30, 50, 0.8);
+}
+
+.arena-top-card-idx {
+  color: var(--text-dim);
+  font-weight: 700;
+  min-width: 20px;
+}
+
+.arena-top-card-name {
+  flex: 1;
+  margin: 0 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.arena-top-card-wr {
+  color: var(--arena-data-good);
+  font-weight: 700;
+  min-width: 50px;
+  text-align: right;
+}
+
+.arena-empty-msg {
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+  padding: 16px 0;
+}
+
+/* ── LIVE / REVIEW 狀態機 ── */
+.arena-replay-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.arena-live-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  background: var(--arena-data-good);
+  color: #000;
+}
+
+.arena-review-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  background: #b36e00;
+  color: #fff;
+  display: none;
+  cursor: default;
+}
+
+.arena-follow-btn {
+  padding: 3px 10px;
+  font-size: 10px;
+  background: transparent;
+  border: 1px solid var(--arena-data-good);
+  color: var(--arena-data-good);
+  border-radius: 3px;
+  cursor: pointer;
+  display: none;
+}
+
+.arena-follow-btn:hover {
+  background: rgba(0, 255, 224, 0.1);
+}
+
+.arena-replay-picker {
+  flex: 1;
+  max-width: 200px;
+  background: rgba(20, 20, 40, 0.8);
+  border: 1px solid var(--arena-panel-border);
+  color: var(--text);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: inherit;
+  display: none;
+}
+
+/* 載入 / 錯誤 狀態 */
+.rv-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 12px;
+  gap: 8px;
+}
+
+.rv-loading::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: rv-spin 0.6s linear infinite;
+  display: inline-block;
+}
+
+@keyframes rv-spin { to { transform: rotate(360deg); } }
+
+.rv-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--arena-data-hot);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px;
+}
+
+.arena-combo-item { cursor: pointer; }
+.arena-combo-item.active {
+  border-color: var(--arena-data-hot);
+  background: rgba(255, 45, 120, 0.1);
+}
+
+/* Toast 提示 */
+.arena-toast {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(30,30,60,0.95);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 11px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 999;
+  white-space: nowrap;
+}
+.arena-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== Best Deck Panel ===== */
+.best-deck-panel {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 6px;
+}
+.best-deck-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.best-deck-title { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim); }
+.best-deck-subtitle { margin-top: 3px; font-size: 10px; color: var(--text-dim); }
+.best-deck-generation-badge {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.best-deck-generation-badge.is-bump { animation: bestDeckBadgeBump 360ms ease; }
+@keyframes bestDeckBadgeBump {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.14); }
+  100% { transform: scale(1); }
+}
+.best-deck-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: min(48vh, 520px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.best-deck-empty {
+  padding: 10px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+}
+.best-deck-card {
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 180ms ease;
+}
+.best-deck-card.is-new { border-color: var(--accent); animation: bestDeckNewCardFlash 900ms ease; }
+.best-deck-card.has-delta { animation: bestDeckDeltaFlash 700ms ease; }
+@keyframes bestDeckNewCardFlash {
+  0% { box-shadow: 0 0 0 1px var(--accent); transform: translateX(2px); }
+  100% { box-shadow: none; transform: translateX(0); }
+}
+@keyframes bestDeckDeltaFlash {
+  0% { border-color: var(--accent); }
+  100% { border-color: var(--border); }
+}
+.best-deck-card-main { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.best-deck-card-name {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.best-deck-card-count { flex: 0 0 auto; color: var(--text-dim); font-size: 12px; }
+.best-deck-diff-tag {
+  flex: 0 0 auto; padding: 1px 4px;
+  border-radius: 4px; font-size: 9px; font-weight: 800;
+}
+.best-deck-diff-tag.is-new { border: 1px solid var(--accent); color: var(--accent); }
+.best-deck-diff-tag.is-delta { border: 1px solid var(--border); color: var(--text-dim); }
+.best-deck-score-line { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.best-deck-score-bar {
+  position: relative; flex: 1 1 auto; height: 4px;
+  overflow: hidden; border-radius: 999px; background: var(--border);
+}
+.best-deck-score-fill {
+  height: 100%; width: 0%;
+  border-radius: inherit; background: var(--accent);
+  transition: width 420ms ease;
+}
+.best-deck-score-value { flex: 0 0 auto; min-width: 38px; text-align: right; color: var(--text-dim); font-size: 10px; }
+.best-deck-total {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border);
+  color: var(--text-dim); font-size: 11px;
+}
+.best-deck-total-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; border-radius: 999px;
+  font-size: 11px; font-weight: 900; border: 1px solid var(--border);
+}
+.best-deck-total-check.is-ok { color: var(--accent); border-color: var(--accent); }
+.best-deck-total-check.is-warn { color: var(--text-dim); }
+.best-deck-panel.is-evolving { animation: bestDeckPanelShake 520ms ease; }
+.best-deck-panel.is-evolving::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border-radius: inherit; border: 1px solid var(--accent);
+  animation: bestDeckPanelFlash 520ms ease;
+}
+@keyframes bestDeckPanelShake {
+  0%,100% { transform: translateX(0); }
+  18% { transform: translateX(-2px); }
+  36% { transform: translateX(2px); }
+  54% { transform: translateX(-1px); }
+  72% { transform: translateX(1px); }
+}
+@keyframes bestDeckPanelFlash {
+  0% { opacity: 0; }
+  35% { opacity: 1; box-shadow: 0 0 16px var(--accent); }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .best-deck-panel.is-evolving,
+  .best-deck-panel.is-evolving::after,
+  .best-deck-generation-badge.is-bump,
+  .best-deck-card.is-new,
+  .best-deck-card.has-delta { animation: none; }
+  .best-deck-score-fill { transition: none; }
+}
+
+/* ── Bug③ 修正：右側三段各自 flex，不讓任何一段擠壓其他 ── */
+.arena-right {
+  overflow: hidden;
+  gap: 8px;
+}
+section.best-deck-panel {
+  flex: 2;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+.best-deck-header { flex-shrink: 0; }
+.best-deck-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+.best-deck-total { flex-shrink: 0; }
+.arena-right .arena-analytics-section:not(.best-deck-panel) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.arena-qr-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: var(--arena-input-bg, #1e2235);
+  border: 1px solid var(--arena-panel-border, #2e3450);
+  border-radius: 6px;
+  color: var(--text-main, #e4e8f0);
+  font-size: 11px;
+  resize: none;
+  font-family: monospace;
+}
+.arena-qr-status {
+  font-size: 11px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+.arena-qr-status.ok   { color: #4ade80; }
+.arena-qr-status.warn { color: #facc15; }
+.arena-qr-status.err  { color: #f87171; }
+.arena-school-lock-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.82em;
+  color: #aaa;
+  margin-top: 4px;
+  user-select: none;
+}
+#arena-school-lock-name {
+  color: #7dd3fc;
+  font-weight: 600;
+}
+
+/* === 新增功能樣式 === */
+.arena-btn-pause {
+  background: transparent;
+  color: var(--arena-data-warn);
+  border: 1.5px solid var(--arena-data-warn);
+  margin-top: 6px;
+}
+.arena-btn-pause.is-paused {
+  background: rgba(255, 166, 0, 0.2);
+}
+.arena-btn-pause:hover:not(:disabled) {
+  background: rgba(255, 166, 0, 0.1);
+}
+/* 可折疊 section */
+.arena-collapse {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.arena-collapse-title {
+  width: 100%; padding: 9px 10px; border: 0;
+  background: var(--surface2); color: var(--text);
+  cursor: pointer; font-weight: 700; font-size: 13px; text-align: left;
+  display: flex; justify-content: space-between; align-items: center; user-select: none;
+}
+.arena-collapse-title .chevron { color: var(--text-dim); font-size: 10px; transition: transform .2s; }
+.arena-collapse.open .arena-collapse-title .chevron { transform: rotate(90deg); }
+.arena-collapse-body { display: none; padding: 10px; }
+.arena-collapse.open .arena-collapse-body { display: block; }
+/* textarea 覆寫（基底 .arena-input 不含 resize） */
+textarea.arena-input { resize: vertical; min-height: 78px; font-family: monospace; }
+/* 結果框 */
+.arena-result { margin-top: 8px; font-size: 12px; line-height: 1.55; word-break: break-word; }
+.arena-result .ar-ok   { color: var(--green); }
+.arena-result .ar-err  { color: var(--accent2); }
+.arena-result .ar-warn { color: var(--orange); }
+/* 名人堂 */
+#hall-of-fame-block { margin-top: 14px; }
+.hof-head { display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--border); padding-bottom: 5px; margin-bottom: 8px; }
+.hof-head h3 { margin: 0; font-size: 14px; color: var(--accent); }
+.hof-load-btn {
+  width: auto; padding: 4px 10px; border: 1px solid var(--accent); border-radius: 4px;
+  background: transparent; color: var(--accent); font-size: 11px; font-weight: 700;
+  cursor: pointer; text-transform: uppercase;
+}
+.hof-load-btn:hover { background: rgba(108, 99, 255, 0.15); }
+.hof-item { padding: 6px; border-bottom: 1px solid var(--border); font-size: 12px; cursor: pointer; }
+.hof-item:hover { background: var(--surface2); }
+.hof-main { display: flex; justify-content: space-between; gap: 8px; color: var(--text); }
+.hof-rank { color: var(--arena-data-warn); font-weight: 700; }
+.hof-wr   { color: var(--green); font-weight: 700; }
+.hof-sub  { margin-top: 3px; font-size: 10px; color: var(--text-dim); }
+.hof-deck {
+  display: none; margin-top: 6px; padding: 6px; border-radius: 4px;
+  background: var(--bg); color: var(--text-dim); font-size: 11px; line-height: 1.45;
+  border-left: 2px solid var(--arena-panel-border);
+}
+.hof-item.open .hof-deck { display: block; }
+.hof-empty, .hof-err { font-size: 12px; padding: 6px; color: var(--text-dim); }
+.hof-err { color: var(--arena-data-hot); }
+</style>
+<script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
+<script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="arena-shell">
+
+  <!-- ── 左欄：設定 ── -->
+  <aside class="arena-left">
+    <div class="arena-header-status">
+      <div>
+        <span class="arena-status-light" id="arena-status-light"></span>
+        <span id="arena-status-text" style="font-size: 11px; color: var(--text-dim); margin-left: 6px;">待機</span>
+      </div>
+      <span class="arena-gen-display" id="arena-gen-display">第 0 世代</span>
+    </div>
+
+    <a href="/pk_arena.html" style="display:block;text-align:center;padding:7px;margin-bottom:10px;
+       font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;
+       border:1px solid var(--arena-panel-border);border-radius:6px;">⚔ PK 競技場（兩副牌對戰）</a>
+
+    <div class="arena-config-group">
+      <label class="arena-label">種子牌組</label>
+      <select id="arena-seed-select" class="arena-select">
+        <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+        <option value="ROKUNIN_V1">ROKUNIN_V1（稲荷崎P03）</option>
+        <option value="STANDARD">STANDARD（烏野）</option>
+      </select>
+      <textarea id="arena-qr-input" class="arena-qr-textarea" rows="2"
+        placeholder="或貼上 QR Code 網址 (?deck=…)"></textarea>
+      <div id="arena-qr-status" class="arena-qr-status"></div>
+      <label class="arena-school-lock-label">
+        <input type="checkbox" id="arena-school-lock" checked>
+        學校鎖定 <span id="arena-school-lock-name"></span>
+      </label>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">Meta 對手</label>
+      <select id="arena-meta-select" class="arena-select">
+        <option value="STANDARD">STANDARD（烏野）</option>
+        <option value="ROKUNIN">ROKUNIN（稲荷崎）</option>
+      </select>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">族群規模</label>
+      <div class="arena-range-row">
+        <input type="range" id="arena-cfg-pop" min="6" max="32" value="16" step="2" class="arena-input">
+        <span class="arena-range-val" id="arena-cfg-pop-val">16</span>
+      </div>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">最大世代</label>
+      <div class="arena-range-row">
+        <input type="range" id="arena-cfg-gens" min="10" max="200" value="50" step="10" class="arena-input">
+        <span class="arena-range-val" id="arena-cfg-gens-val">50</span>
+      </div>
+    </div>
+
+    <div class="arena-config-group">
+      <label class="arena-label">評估局數</label>
+      <div class="arena-range-row">
+        <input type="range" id="arena-cfg-games" min="10" max="60" value="30" step="5" class="arena-input">
+        <span class="arena-range-val" id="arena-cfg-games-val">30</span>
+      </div>
+    </div>
+
+    <div style="flex: 1;"></div>
+
+    <button id="arena-btn-start" class="arena-btn arena-btn-start" onclick="arenaStart()">⚡ START</button>
+    <button id="arena-btn-pause" class="arena-btn arena-btn-pause" onclick="arenaPause()" disabled>⏸ PAUSE</button>
+    <button id="arena-btn-stop" class="arena-btn arena-btn-stop" onclick="arenaStop()" disabled>■ STOP</button>
+
+    <!-- 🔍 牌組驗證 -->
+    <div id="deck-validator-block" class="arena-collapse">
+      <button class="arena-collapse-title" onclick="this.parentNode.classList.toggle('open')">
+        <span>🔍 牌組驗證</span><span class="chevron">▶</span>
+      </button>
+      <div class="arena-collapse-body">
+        <textarea id="validate-input" class="arena-input" rows="4"
+          placeholder='貼入 JSON 格式牌組&#10;{"HV-P02-001":5,...}'></textarea>
+        <button class="arena-btn arena-btn-start" style="margin-top:0" onclick="validateDeck()">驗證</button>
+        <div id="validate-result" class="arena-result"></div>
+      </div>
+    </div>
+
+    <!-- ⚔ 練習對戰 -->
+    <div id="practice-battle-block" class="arena-collapse">
+      <button class="arena-collapse-title" onclick="this.parentNode.classList.toggle('open')">
+        <span>⚔ 練習對戰</span><span class="chevron">▶</span>
+      </button>
+      <div class="arena-collapse-body">
+        <select id="practice-difficulty" class="arena-select">
+          <option value="easy">Easy（簡單）</option>
+          <option value="normal" selected>Normal（普通）</option>
+          <option value="hard">Hard（困難）</option>
+        </select>
+
+        <!-- 我方牌組 -->
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin:8px 0 2px">我方牌組</label>
+        <select id="p1-src" class="arena-select" onchange="switchDeckSrc('p1',this.value)">
+          <option value="evo">進化最佳</option>
+          <option value="preset">內建 Preset</option>
+          <option value="json">自訂 JSON</option>
+        </select>
+        <div id="p1-evo-hint" style="font-size:11px;color:var(--text-dim);margin:2px 0 4px">尚無進化資料</div>
+        <select id="p1-preset" class="arena-select" style="display:none">
+          <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+          <option value="ROKUNIN_V1">ROKUNIN_V1（P03強化版）</option>
+          <option value="STANDARD">STANDARD（烏野）</option>
+          <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+        </select>
+        <textarea id="p1-json" class="arena-input" rows="3" style="display:none;font-family:monospace;font-size:11px" placeholder='{"HV-P02-001":5,...}'></textarea>
+
+        <!-- 對手牌組 -->
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin:8px 0 2px">對手牌組</label>
+        <select id="p2-src" class="arena-select" onchange="switchDeckSrc('p2',this.value)">
+          <option value="preset" selected>內建 Preset</option>
+          <option value="evo">進化最佳</option>
+          <option value="json">自訂 JSON</option>
+        </select>
+        <div id="p2-evo-hint" style="font-size:11px;color:var(--text-dim);margin:2px 0 4px;display:none">尚無進化資料</div>
+        <select id="p2-preset" class="arena-select">
+          <option value="STANDARD" selected>STANDARD（烏野）</option>
+          <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+          <option value="ROKUNIN_V1">ROKUNIN_V1（P03強化版）</option>
+          <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+        </select>
+        <textarea id="p2-json" class="arena-input" rows="3" style="display:none;font-family:monospace;font-size:11px" placeholder='{"HV-P02-001":5,...}'></textarea>
+
+        <button class="arena-btn arena-btn-start" style="margin-top:8px" onclick="practiceBattle()">⚔ 對戰</button>
+        <div id="practice-result" class="arena-result"></div>
+      </div>
+    </div>
+
+    <!-- 進化進度 Chart -->
+    <div class="arena-chart-panel" style="margin-top:12px;">
+      <div class="arena-chart-header">
+        <h2>進化進度</h2>
+        <div>
+          <div class="arena-chart-gen" id="arena-chart-gen">0</div>
+        </div>
+        <div style="margin-left: auto;">
+          <div class="arena-chart-wr" id="arena-chart-wr">—</div>
+          <div class="arena-chart-wr-label">最佳勝率</div>
+        </div>
+      </div>
+      <canvas id="arena-wr-chart"></canvas>
+    </div>
+  </aside>
+
+  <!-- ── 中欄 ── -->
+  <div class="arena-main">
+    <!-- Replay Panel -->
+    <div class="arena-replay-panel">
+      <div class="arena-replay-toolbar">
+        <span class="arena-live-badge" id="arena-live-badge" title="自動跟隨最新精選對局">LIVE</span>
+        <span class="arena-review-badge" id="arena-review-badge" title="已鎖定此局 — 點「跟隨最新」可回到 LIVE">🔒 REVIEW</span>
+        <button class="arena-follow-btn" id="arena-follow-btn" onclick="arenaUnlockReplay()">▶ 跟隨最新</button>
+        <span class="arena-replay-label" style="flex:1;">第 <span id="arena-replay-gen">等待精選 Replay…</span> 代</span>
+        <select class="arena-replay-picker" id="arena-replay-picker" onchange="arenaPickerChange(this.value)"></select>
+      </div>
+      <div id="arena-review-note" style="display:none;font-size:10px;color:#b36e00;padding:2px 0 4px;text-align:center;">
+        🔒 REVIEW 模式：進化仍在背景繼續。點「▶ 跟隨最新」回到即時畫面。
+        快捷鍵：← → 切換步驟。
+      </div>
+      <div id="arena-replay-root" style="flex:1; overflow:auto; min-height:200px;"></div>
+    </div>
+  </div>
+
+  <!-- ── 右欄 ── -->
+  <aside class="arena-right">
+    <!-- Best Deck 40 -->
+    <section id="best-deck-panel" class="arena-analytics-section best-deck-panel">
+      <div class="best-deck-header">
+        <div>
+          <h3 class="best-deck-title">最佳牌組 40 張</h3>
+          <div id="best-deck-subtitle" class="best-deck-subtitle">等待最佳牌組資料…</div>
+        </div>
+        <span id="best-deck-generation-badge" class="best-deck-generation-badge">第 — 代最佳</span>
+      </div>
+      <ul id="best-deck-list" class="best-deck-list" aria-live="polite">
+        <li class="best-deck-empty">累積資料中…</li>
+      </ul>
+      <div class="best-deck-total">
+        <span id="best-deck-total-text">合計 0 張</span>
+        <span id="best-deck-total-check" class="best-deck-total-check is-warn">!</span>
+      </div>
+    </section>
+
+    <!-- QR 匯出 -->
+    <div id="qr-export-block" class="arena-analytics-section" style="text-align:center">
+      <h3 style="text-align:left">匯出最佳牌組 QR</h3>
+      <button id="qr-export-btn" onclick="exportQR()"
+        style="margin-bottom:8px;padding:6px 18px;border-radius:6px;
+               border:1px solid var(--border);background:var(--panel);
+               color:var(--text);cursor:pointer;font-size:13px;">
+        生成 QR Code
+      </button>
+      <div id="qr-canvas-wrapper" style="display:none;margin:0 auto;width:fit-content"></div>
+      <div id="qr-export-hint" style="font-size:11px;color:var(--text-dim);margin-top:4px"></div>
+    </div>
+
+    <!-- 🏆 歷史名人堂 -->
+    <div id="hall-of-fame-block" class="arena-analytics-section">
+      <div class="hof-head">
+        <h3>🏆 歷史名人堂</h3>
+        <button class="hof-load-btn" onclick="loadHallOfFame()">載入</button>
+      </div>
+      <div id="hof-list">
+        <div class="hof-empty">點擊「載入」查看歷史最佳牌組</div>
+      </div>
+    </div>
+
+    <!-- Combos -->
+    <div class="arena-analytics-section">
+      <h3>最強 Combo（Top 8）</h3>
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;line-height:1.6;">
+        進化中頻繁共現且勝率高的卡對。點擊任一 Combo 可鎖定檢視該卡出現的對局步驟。
+      </div>
+      <div id="arena-combos-list" class="arena-empty-msg">累積資料中…</div>
+    </div>
+
+    <!-- Top Cards -->
+    <div class="arena-analytics-section">
+      <h3>頂牌排行（Top 10）</h3>
+      <div id="arena-top-cards-list" class="arena-empty-msg">—</div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// ── 全域狀態 ──────────────────────────────────────────────────────────────────
+// ── Best Deck 狀態 ──────────────────────────────────────────────────────────────────
+let _prevBestCounts = null;       // Map<card_no, count>
+let _prevBestSignature = '';
+
+let arenaChartData = [];
+let arenaSSE = null;
+const ARENA_SERVER = `http://${location.hostname}:7778`;
+let arenaViewer = null;
+let _replayUserLocked = false;  // 使用者手動選 replay 時鎖定，不被 SSE 自動覆蓋
+let _replayLoadToken = 0;       // race condition 防護：每次新 load 遞增
+let _activeComboItem = null;    // 當前高亮的 combo DOM element
+let _toastTimer = null;
+let _lastBestDeck = null;       // 最新 SSE best_deck（供 QR 匯出使用）
+
+// ── Best Deck Rendering ─────────────────────────────────────────────────────────
+function _bdFormatScore(score) {
+  if (!Number.isFinite(score)) return '0';
+  if (Math.abs(score) >= 100) return score.toFixed(0);
+  if (Math.abs(score) >= 10)  return score.toFixed(1);
+  return score.toFixed(2);
+}
+
+function _bdSignature(gen, cards) {
+  return [gen, ...cards.map(c => `${c.card_no}:${c.count}:${c.score}`)].join('|');
+}
+
+function _bdPlayEvolution(panelEl, badgeEl) {
+  panelEl.classList.remove('is-evolving');
+  badgeEl.classList.remove('is-bump');
+  void panelEl.offsetWidth;
+  panelEl.classList.add('is-evolving');
+  badgeEl.classList.add('is-bump');
+  setTimeout(() => {
+    panelEl.classList.remove('is-evolving');
+    badgeEl.classList.remove('is-bump');
+  }, 560);
+}
+
+function arenaRenderBestDeck(best_deck, fallbackGen) {
+  const panelEl      = document.getElementById('best-deck-panel');
+  const listEl       = document.getElementById('best-deck-list');
+  const subtitleEl   = document.getElementById('best-deck-subtitle');
+  const badgeEl      = document.getElementById('best-deck-generation-badge');
+  const totalTextEl  = document.getElementById('best-deck-total-text');
+  const totalCheckEl = document.getElementById('best-deck-total-check');
+  if (!panelEl || !listEl) return;
+
+  const cards = Array.isArray(best_deck?.card_list) ? best_deck.card_list : [];
+  const gen   = best_deck?.generation ?? fallbackGen ?? '—';
+  if (badgeEl) badgeEl.textContent = `第 ${gen} 代最佳`;
+
+  if (!cards.length) {
+    listEl.innerHTML = '<li class="best-deck-empty">累積資料中…</li>';
+    if (subtitleEl) subtitleEl.textContent = '等待最佳牌組資料…';
+    if (totalTextEl) totalTextEl.textContent = '合計 0 張';
+    if (totalCheckEl) { totalCheckEl.textContent = '!'; totalCheckEl.className = 'best-deck-total-check is-warn'; }
+    return;
+  }
+
+  const normalized = cards.map(c => ({
+    card_no: String(c.card_no),
+    name:    String(c.name ?? c.card_no ?? '—'),
+    count:   Number(c.count) || 0,
+    score:   Number(c.score) || 0,
+  }));
+
+  const maxScore  = Math.max(...normalized.map(c => c.score), 0.001);
+  const hasPrev   = _prevBestCounts instanceof Map;
+  let totalCount  = 0, newKinds = 0, changedKinds = 0;
+
+  listEl.innerHTML = '';
+  for (const card of normalized) {
+    totalCount += card.count;
+    const prevCount = hasPrev ? _prevBestCounts.get(card.card_no) : undefined;
+    const isNew   = hasPrev && prevCount === undefined;
+    const delta   = (hasPrev && prevCount !== undefined) ? card.count - prevCount : 0;
+    if (isNew) newKinds++;
+    if (delta !== 0) changedKinds++;
+
+    const pct = Math.max(0, Math.min(100, Math.round((card.score / maxScore) * 100)));
+
+    const li = document.createElement('li');
+    li.className = 'best-deck-card';
+    if (isNew)    li.classList.add('is-new');
+    if (delta)    li.classList.add('has-delta');
+
+    const main = document.createElement('div');
+    main.className = 'best-deck-card-main';
+
+    const nameEl  = document.createElement('span');
+    nameEl.className = 'best-deck-card-name';
+    nameEl.textContent = card.name;
+    nameEl.title       = card.name;
+
+    const cntEl   = document.createElement('span');
+    cntEl.className = 'best-deck-card-count';
+    cntEl.textContent = `×${card.count}`;
+
+    main.append(nameEl, cntEl);
+
+    if (isNew) {
+      const tag = document.createElement('span');
+      tag.className   = 'best-deck-diff-tag is-new';
+      tag.textContent = 'NEW';
+      main.appendChild(tag);
+    } else if (delta !== 0) {
+      const tag = document.createElement('span');
+      tag.className   = 'best-deck-diff-tag is-delta';
+      tag.textContent = `△${delta > 0 ? '+' : ''}${delta}`;
+      main.appendChild(tag);
+    }
+
+    const scoreLine = document.createElement('div');
+    scoreLine.className = 'best-deck-score-line';
+    const bar  = document.createElement('div');
+    bar.className = 'best-deck-score-bar';
+    const fill = document.createElement('div');
+    fill.className       = 'best-deck-score-fill';
+    fill.style.width     = pct + '%';
+    const val  = document.createElement('span');
+    val.className   = 'best-deck-score-value';
+    val.textContent = _bdFormatScore(card.score);
+    bar.appendChild(fill);
+    scoreLine.append(bar, val);
+    li.append(main, scoreLine);
+    listEl.appendChild(li);
+  }
+
+  if (totalTextEl) totalTextEl.textContent = `合計 ${totalCount} 張`;
+  if (totalCheckEl) {
+    if (totalCount === 40) {
+      totalCheckEl.textContent = '✓';
+      totalCheckEl.className   = 'best-deck-total-check is-ok';
+    } else {
+      totalCheckEl.textContent = '!';
+      totalCheckEl.className   = 'best-deck-total-check is-warn';
+    }
+  }
+
+  if (subtitleEl) {
+    subtitleEl.textContent = hasPrev
+      ? `本代變化：NEW ${newKinds} 種，張數調整 ${changedKinds} 種`
+      : '已載入最佳牌組';
+  }
+
+  const sig = _bdSignature(gen, normalized);
+  if (_prevBestSignature && sig !== _prevBestSignature && panelEl && badgeEl) {
+    _bdPlayEvolution(panelEl, badgeEl);
+  }
+
+  _prevBestCounts    = new Map(normalized.map(c => [c.card_no, c.count]));
+  _prevBestSignature = sig;
+}
+
+function arenaShowToast(msg, durationMs = 2500) {
+  const el = document.getElementById('arena-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), durationMs);
+}
+
+function arenaUpdateReplayState() {
+  const liveBadge = document.getElementById('arena-live-badge');
+  const reviewBadge = document.getElementById('arena-review-badge');
+  const followBtn = document.getElementById('arena-follow-btn');
+  const picker = document.getElementById('arena-replay-picker');
+  const reviewNote = document.getElementById('arena-review-note');
+  if (_replayUserLocked) {
+    if (liveBadge) liveBadge.style.display = 'none';
+    if (reviewBadge) reviewBadge.style.display = '';
+    if (followBtn) followBtn.style.display = '';
+    if (picker) picker.style.display = '';
+    if (reviewNote) reviewNote.style.display = '';
+  } else {
+    if (liveBadge) liveBadge.style.display = '';
+    if (reviewBadge) reviewBadge.style.display = 'none';
+    if (followBtn) followBtn.style.display = 'none';
+    if (reviewNote) reviewNote.style.display = 'none';
+  }
+}
+
+function arenaUnlockReplay() {
+  _replayUserLocked = false;
+  if (_activeComboItem) { _activeComboItem.classList.remove('active'); _activeComboItem = null; }
+  if (arenaViewer) arenaViewer.clearHighlight();
+  arenaUpdateReplayState();
+}
+
+function arenaShowOnboarding() {
+  const mount = document.getElementById('arena-replay-root');
+  if (mount && !arenaViewer) mount.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text-dim);text-align:center;padding:20px;">
+      <div style="font-size:28px;">⚡</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text);">開始牌組進化</div>
+      <div style="font-size:11px;line-height:1.8;">
+        ① 左欄選擇<span style="color:var(--accent)">種子牌組</span>與 Meta 對手<br>
+        ② 調整族群規模與代數<br>
+        ③ 按下 <span style="color:var(--accent);font-weight:700;">⚡ START</span> 開始進化
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:8px;">精選對局 Replay 將自動出現在此區域</div>
+    </div>
+  `;
+}
+
+function arenaSetReplayLoading() {
+  const mount = document.getElementById('arena-replay-root');
+  if (mount && !arenaViewer) mount.innerHTML = '<div class="rv-loading">載入 Replay…</div>';
+}
+
+function arenaSetReplayError(msg) {
+  const mount = document.getElementById('arena-replay-root');
+  if (mount && !arenaViewer) mount.innerHTML = `<div class="rv-error">${msg}</div>`;
+}
+
+async function arenaPickerChange(replayId) {
+  if (!replayId) return;
+  _replayUserLocked = true;
+  arenaUpdateReplayState();
+  await arenaLoadReplayById(replayId);
+}
+
+async function arenaLoadReplayById(replayId, { respectUserLock = false } = {}) {
+  const token = ++_replayLoadToken;
+  try {
+    const evData = await fetch(ARENA_SERVER + '/api/replay_events?replay_id=' + replayId).then(r => r.json());
+    if (token !== _replayLoadToken) return;  // 被更新的請求搶先
+    if (respectUserLock && _replayUserLocked) return;  // 使用者已接管（REVIEW），SSE 不覆蓋
+    if (evData.error) { arenaSetReplayError('Replay 不存在'); return; }
+    if (!evData.events || evData.events.length === 0) { arenaSetReplayError('Replay 無事件資料'); return; }
+    const mount = document.getElementById('arena-replay-root');
+    if (arenaViewer) {
+      arenaViewer.loadReplay(evData.events, evData.meta);
+      // 同步 picker selected 值
+      const picker = document.getElementById('arena-replay-picker');
+      if (picker && replayId) picker.value = replayId;
+    } else if (mount) {
+      arenaViewer = createReplayViewer({
+        mount,
+        events: evData.events,
+        meta: evData.meta || {},
+        options: {
+          onUserIntent: (reason) => {
+            _replayUserLocked = true;
+            arenaUpdateReplayState();
+          }
+        }
+      });
+      // 同步 picker selected 值
+      const picker = document.getElementById('arena-replay-picker');
+      if (picker && replayId) picker.value = replayId;
+    }
+  } catch (e) {
+    if (token !== _replayLoadToken) return;
+    arenaSetReplayError('載入失敗: ' + e.message);
+  }
+}
+
+async function arenaRefreshPicker() {
+  try {
+    const data = await fetch(ARENA_SERVER + '/api/replay_list?limit=30').then(r => r.json());
+    const picker = document.getElementById('arena-replay-picker');
+    if (!picker || !data.items) return;
+    picker.innerHTML = data.items.map(item => {
+      const gen = item.generation != null ? `G${item.generation}` : '';
+      const d1 = item.d1_name || '?';
+      const d2 = item.d2_name || '?';
+      const score = `${item.p1_sets}:${item.p2_sets}`;
+      const label = gen ? `${gen} · ${d1} vs ${d2} ${score}` : `${d1} vs ${d2} ${score} (${item.steps}步)`;
+      return `<option value="${item.replay_id}">${label}</option>`;
+    }).join('');
+  } catch (e) {}
+}
+
+// ── Range Slider 更新 ──────────────────────────────────────────────────────────
+document.querySelectorAll('.arena-left input[type=range]').forEach(el => {
+  const valEl = document.getElementById(el.id + '-val');
+  el.addEventListener('input', () => {
+    if(valEl) valEl.textContent = el.value;
+  });
+});
+
+// ── Win Rate Chart ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('arena-wr-chart');
+const ctx = canvas.getContext('2d');
+
+function arenaDrawChart() {
+  const W = canvas.parentElement.clientWidth - 28;
+  const H = canvas.parentElement.clientHeight - 60;
+  canvas.width = W;
+  canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+
+  const gridColor = 'rgba(180, 92, 255, 0.15)';
+  const n = arenaChartData.length;
+
+  // Grid lines
+  ctx.strokeStyle = gridColor;
+  ctx.lineWidth = 0.5;
+  [0.25, 0.5, 0.75].forEach(y => {
+    const py = H - y * H;
+    ctx.beginPath();
+    ctx.moveTo(0, py);
+    ctx.lineTo(W, py);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(104, 104, 160, 0.5)';
+    ctx.font = '10px monospace';
+    ctx.fillText((y * 100).toFixed(0) + '%', 2, py - 2);
+  });
+
+  if (n < 2) return;
+
+  const maxWR = Math.max(...arenaChartData.map(d => d.best ?? d), 0.5);
+  const step = W / (n - 1);
+
+  // Best line
+  ctx.beginPath();
+  ctx.strokeStyle = 'var(--arena-data-good)';
+  ctx.strokeStyle = '#00ffe0';
+  ctx.lineWidth = 2.5;
+  arenaChartData.forEach((d, i) => {
+    const v = d.best ?? d;
+    const x = i * step;
+    const y = H - (v / Math.max(maxWR, 0.01)) * H * 0.92 - 4;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Avg line (lighter)
+  ctx.beginPath();
+  ctx.strokeStyle = 'rgba(255, 45, 120, 0.6)';
+  ctx.lineWidth = 1.5;
+  arenaChartData.forEach((d, i) => {
+    const v = d.avg ?? (d * 0.85);
+    const x = i * step;
+    const y = H - (v / Math.max(maxWR, 0.01)) * H * 0.92 - 4;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Current gen dot
+  const last = arenaChartData[n - 1];
+  const lastV = last.best ?? last;
+  const lx = (n - 1) * step;
+  const ly = H - (lastV / Math.max(maxWR, 0.01)) * H * 0.92 - 4;
+  ctx.beginPath();
+  ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#00ffe0';
+  ctx.fill();
+}
+
+// ── SSE 連接 ───────────────────────────────────────────────────────────────────
+function arenaConnectSSE() {
+  if(arenaSSE) arenaSSE.close();
+  const statusText = document.getElementById('arena-status-text');
+  if (statusText && statusText.textContent === '待機') {
+    statusText.textContent = '連線中…';
+  }
+  arenaSSE = new EventSource(ARENA_SERVER + '/events');
+  arenaSSE.onmessage = e => {
+    try {
+      arenaHandleUpdate(JSON.parse(e.data));
+    } catch(err) {
+      console.error('SSE parse error:', err);
+    }
+  };
+  arenaSSE.onerror = () => {
+    const st = document.getElementById('arena-status-text');
+    if (st) st.textContent = '重連中…';
+    setTimeout(arenaConnectSSE, 3000);
+  };
+}
+
+// ── 更新 UI ────────────────────────────────────────────────────────────────────
+function arenaHandleUpdate(data) {
+  const schemaV2 = (data.schema_version || 1) >= 2;
+  const gen = data.generation ?? 0;
+  const bestWR = data.best_win_rate ?? 0;
+  const avgWR = data.avg_win_rate ?? 0;
+
+  // 更新狀態燈
+  const light = document.getElementById('arena-status-light');
+  const statusText = document.getElementById('arena-status-text');
+  if(gen > 0) {
+    light.classList.add('running');
+    statusText.textContent = '進化中';
+  }
+
+  // 更新代數及勝率
+  document.getElementById('arena-gen-display').textContent = `第 ${gen} 世代`;
+  document.getElementById('arena-chart-gen').textContent = gen;
+  document.getElementById('arena-chart-wr').textContent = (bestWR * 100).toFixed(1) + '%';
+
+  // 更新圖表數據
+  if(data.history && data.history.length > arenaChartData.length) {
+    arenaChartData = data.history.map((v, i) => ({
+      best: v,
+      avg: (data.history_avg || [])[i] ?? v * 0.88,
+    }));
+  } else {
+    arenaChartData.push({ best: bestWR, avg: avgWR });
+  }
+  arenaDrawChart();
+
+  // 更新 Analytics
+  if(data.analytics) {
+    arenaRenderCombos(data.analytics.top_combos || []);
+    arenaRenderTopCards(data.analytics.top_cards || []);
+  }
+
+  // 顯示學校鎖定名稱（只在第一次設定，避免閃爍）
+  if (data.school_lock) {
+    const nameEl = document.getElementById('arena-school-lock-name');
+    if (nameEl && !nameEl.dataset.set) {
+      nameEl.textContent = '(' + data.school_lock + ')';
+      nameEl.dataset.set = '1';
+    }
+  }
+
+  // 更新最佳牌組面板
+  if(data.best_deck) {
+    _lastBestDeck = data.best_deck;
+    arenaRenderBestDeck(data.best_deck, gen);
+    // 同步練習對戰的「進化最佳」提示
+    const hint = `當前最佳：第${gen}代 勝率${((data.best_win_rate||0)*100).toFixed(1)}%`;
+    ['p1','p2'].forEach(pid => {
+      const el = document.getElementById(pid + '-evo-hint');
+      if (el) el.textContent = hint;
+    });
+  }
+
+  // 更新 Replay（Phase 4：LIVE/REVIEW 狀態機 + SSE dedup 防護）
+  (async () => {
+    if (_replayUserLocked) return;  // REVIEW 模式，不打斷
+
+    const label = document.getElementById('arena-replay-gen');
+
+    let replayId = null;
+    if (data.latest_replay) {
+      replayId = data.latest_replay
+        .replace(/^replays\//, '')
+        .replace(/\.html$/, '');
+    } else {
+      const runId = data.run_id || '';
+      const listUrl = ARENA_SERVER + '/api/replays_list' + (runId ? '?run_id=' + runId : '');
+      try {
+        const listData = await fetch(listUrl).then(r => r.json());
+        if (listData.latest) replayId = listData.latest.replace(/\.html$/, '');
+      } catch (e) {}
+    }
+
+    if (!replayId) {
+      if (label) label.textContent = '等待第一個精選 Replay…';
+      return;
+    }
+
+    if (label) label.textContent = gen;
+    arenaSetReplayLoading();
+    await arenaLoadReplayById(replayId, { respectUserLock: true });
+    arenaRefreshPicker();  // 更新下拉選單（非同步，不 await）
+  })();
+}
+
+// ── Combo 渲染 ─────────────────────────────────────────────────────────────────
+function arenaRenderCombos(combos) {
+  const list = document.getElementById('arena-combos-list');
+  if(combos.length === 0) {
+    list.innerHTML = '<div class="arena-empty-msg">累積資料中…</div>';
+    return;
+  }
+  list.innerHTML = combos.slice(0, 8).map((c, idx) => {
+    const comboLabel = c.display_name
+      || (c.name_a && c.name_b ? c.name_a + ' × ' + c.name_b : null)
+      || (c.names && c.names.length >= 2 ? c.names.join(' × ') : null)
+      || (c.cards || []).join(' / ');
+    const cardA = c.card_a || (c.cards && c.cards[0]) || '';
+    const cardB = c.card_b || (c.cards && c.cards[1]) || '';
+    return `
+    <div class="arena-combo-item" data-card-a="${cardA}" data-card-b="${cardB}" data-idx="${idx}" onclick="arenaComboClick(this)">
+      <div class="arena-combo-wr">${(c.combo_win_rate * 100).toFixed(1)}%</div>
+      <div class="arena-combo-cards">${comboLabel}</div>
+      <div class="arena-combo-meta">共現 ${c.appearances} 次</div>
+    </div>
+  `;
+  }).join('');
+}
+
+// ── Combo 高亮點擊 ───────────────────────────────────────────────────────────────
+async function arenaComboClick(el) {
+  if (!arenaViewer) return;
+  // 取消前一個高亮
+  if (_activeComboItem) _activeComboItem.classList.remove('active');
+  _activeComboItem = el;
+  el.classList.add('active');
+  // 進入 REVIEW 模式
+  _replayUserLocked = true;
+  arenaUpdateReplayState();
+  arenaShowToast('🔒 已鎖定此 Combo — 點「▶ 跟隨最新」可回到 LIVE');
+  const cardA = el.dataset.cardA;
+  const cardB = el.dataset.cardB;
+  const cardNos = [cardA, cardB].filter(Boolean);
+  if (cardNos.length === 0) return;
+
+  // 先在目前 replay 搜尋兩卡同時在場的步驟
+  const _tryHighlight = () => {
+    if (arenaViewer.seekToCards) arenaViewer.seekToCards(cardNos);
+    return arenaViewer.highlightCards(cardNos);
+  };
+
+  let result = _tryHighlight();
+  const allFound = !result || !result.missing || result.missing.length === 0;
+  if (!allFound) {
+    // 目前 replay 找不到 → 向 server 詢問含此 Combo 的 replay
+    try {
+      arenaShowToast('🔍 搜尋含此 Combo 的 Replay…');
+      const comboData = await fetch(
+        `${ARENA_SERVER}/api/find_replay_with_combo?card_a=${encodeURIComponent(cardA)}&card_b=${encodeURIComponent(cardB)}`
+      ).then(r => r.json());
+
+      if (comboData.replay_id) {
+        await arenaLoadReplayById(comboData.replay_id);
+        result = _tryHighlight();
+        const nowFound = !result || !result.missing || result.missing.length === 0;
+        if (!nowFound) {
+          arenaShowToast('⚠️ 已切換 Replay，但兩卡未同時在場', 3000);
+        }
+      } else {
+        arenaShowToast('⚠️ 所有 Replay 均找不到此 Combo 同場', 3500);
+      }
+    } catch (e) {
+      arenaShowToast('⚠️ 此局找不到此 Combo 的完整步驟', 3500);
+    }
+  }
+}
+
+// ── Top Cards 渲染 ─────────────────────────────────────────────────────────────
+function arenaRenderTopCards(cards) {
+  const list = document.getElementById('arena-top-cards-list');
+  if(cards.length === 0) {
+    list.innerHTML = '<div class="arena-empty-msg">—</div>';
+    return;
+  }
+  list.innerHTML = cards.slice(0, 10).map((c, i) => `
+    <div class="arena-top-card-row">
+      <span class="arena-top-card-idx">#${i + 1}</span>
+      <span class="arena-top-card-name">${c.name || c.card_no || '—'}</span>
+      <span class="arena-top-card-wr">${(c.avg_win_rate * 100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+}
+
+// ── QR Code 最佳牌組匯出 ─────────────────────────────────────────────────────
+function exportQR() {
+  const wrapper = document.getElementById('qr-canvas-wrapper');
+  const hint    = document.getElementById('qr-export-hint');
+  if (!wrapper || !hint) return;
+
+  if (!_lastBestDeck) {
+    hint.textContent = '尚無最佳牌組資料，請等待進化產生結果。';
+    return;
+  }
+
+  const cards = Array.isArray(_lastBestDeck.card_list) ? _lastBestDeck.card_list : [];
+  if (!cards.length) {
+    hint.textContent = '牌組為空，無法生成 QR。';
+    return;
+  }
+
+  const gen    = _lastBestDeck.generation ?? '?';
+  const name   = `最佳牌組 第${gen}代`;
+  const cPairs = cards.map(c => [String(c.card_no), Number(c.count)]);
+  const payload = JSON.stringify({ c: cPairs, n: name });
+
+  let encoded;
+  try {
+    encoded = LZString.compressToEncodedURIComponent(payload);
+  } catch (e) {
+    hint.textContent = `壓縮失敗：${e.message}`;
+    return;
+  }
+
+  const deckUrl = `${location.origin}/?deck=${encoded}`;
+
+  wrapper.innerHTML = '';
+  wrapper.style.display = 'block';
+
+  try {
+    new QRCode(wrapper, {
+      text:          deckUrl,
+      width:         160,
+      height:        160,
+      colorDark:     '#000000',
+      colorLight:    '#ffffff',
+      correctLevel:  QRCode.CorrectLevel.M,
+    });
+    hint.textContent = `${name}（掃描後可匯入牌組）`;
+  } catch (e) {
+    hint.textContent = `QR 生成失敗：${e.message}`;
+  }
+}
+
+// ── QR Code 牌組輸入 ──────────────────────────────────────────────────────────
+let _qrDeck = null;
+
+function _decodeDeckUrl(qrString) {
+  let encoded = qrString.trim();
+  try {
+    const urlStr = encoded.startsWith('http') ? encoded : 'https://x.com/?' + encoded;
+    const url = new URL(urlStr);
+    const deckParam = url.searchParams.get('deck');
+    if (deckParam) encoded = deckParam;
+  } catch (e) {}
+  const json = LZString.decompressFromEncodedURIComponent(encoded);
+  if (!json) throw new Error('解碼失敗');
+  const data = JSON.parse(json);
+  if (!data.c || !Array.isArray(data.c)) throw new Error('格式不正確');
+  const cards = {};
+  let total = 0;
+  for (const [id, cnt] of data.c) {
+    const cardNo = String(id).replace(/-[A-Z]+\.webp$/i, '');
+    cards[cardNo] = (cards[cardNo] || 0) + cnt;
+    total += cnt;
+  }
+  return { name: data.n || '自定牌組', cards, totalCount: total };
+}
+
+document.getElementById('arena-qr-input').addEventListener('input', function() {
+  const val = this.value.trim();
+  const statusEl = document.getElementById('arena-qr-status');
+  if (!val) {
+    _qrDeck = null;
+    statusEl.textContent = '';
+    statusEl.className = 'arena-qr-status';
+    return;
+  }
+  try {
+    _qrDeck = _decodeDeckUrl(val);
+    const ok = _qrDeck.totalCount === 40;
+    statusEl.textContent = `${ok ? '✓' : '⚠'} ${_qrDeck.name}（${_qrDeck.totalCount}/40）`;
+    statusEl.className = `arena-qr-status ${ok ? 'ok' : 'warn'}`;
+  } catch (e) {
+    _qrDeck = null;
+    statusEl.textContent = '✗ 解析失敗';
+    statusEl.className = 'arena-qr-status err';
+  }
+});
+
+// ── 控制按鈕 ──────────────────────────────────────────────────────────────────
+async function arenaStart() {
+  const seedSel = document.getElementById('arena-seed-select').value;
+  const metaSel = document.getElementById('arena-meta-select').value;
+  const cfg = {
+    population_size: +document.getElementById('arena-cfg-pop').value,
+    max_generations: +document.getElementById('arena-cfg-gens').value,
+    games_per_eval: +document.getElementById('arena-cfg-games').value,
+  };
+
+  // 重置學校鎖定顯示（避免跨 run 殘留）
+  const schoolNameEl = document.getElementById('arena-school-lock-name');
+  if (schoolNameEl) { schoolNameEl.textContent = ''; delete schoolNameEl.dataset.set; }
+
+  const schoolLock = document.getElementById('arena-school-lock').checked ? 'auto' : null;
+  const payload = _qrDeck
+    ? { seed_deck: _qrDeck.cards, meta_decks: [metaSel], config: cfg, school_lock: schoolLock }
+    : { seed_deck_name: seedSel, meta_decks: [metaSel], config: cfg, school_lock: schoolLock };
+
+  try {
+    const r = await fetch(ARENA_SERVER + '/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const j = await r.json();
+    if(!j.ok) {
+      alert('啟動失敗: ' + (j.error || '未知錯誤'));
+      return;
+    }
+    document.getElementById('arena-btn-start').disabled = true;
+    document.getElementById('arena-btn-stop').disabled = false;
+    // 關閉舊 SSE，避免舊 run 事件汙染新 run
+    if (arenaSSE) { arenaSSE.close(); arenaSSE = null; }
+    arenaChartData = [];
+    document.getElementById('arena-replay-gen').textContent = '—';
+    _replayUserLocked = false;
+    if (arenaViewer) { arenaViewer.destroy(); arenaViewer = null; }
+    _replayLoadToken = 0;
+    if (_activeComboItem) { _activeComboItem.classList.remove('active'); _activeComboItem = null; }
+    arenaUpdateReplayState();
+    // 開新 SSE 連線
+    arenaConnectSSE();
+  } catch(e) {
+    alert('連線失敗: ' + e.message);
+  }
+}
+
+async function arenaStop() {
+  try {
+    await fetch(ARENA_SERVER + '/stop', { method: 'POST' });
+    document.getElementById('arena-btn-start').disabled = false;
+    document.getElementById('arena-btn-stop').disabled = true;
+    document.getElementById('arena-status-light').classList.remove('running');
+    document.getElementById('arena-status-text').textContent = '⏹ 已停止';
+  } catch(e) {
+    alert('停止失敗: ' + e.message);
+  }
+}
+
+// ── 鍵盤快捷鍵 ────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  // 在 input/select/textarea focus 時不攔截
+  const tag = document.activeElement && document.activeElement.tagName;
+  if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+  if (!arenaViewer) return;
+
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const btn = document.querySelector('#arena-replay-root .rv-prev');
+    if (btn) btn.click();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    const btn = document.querySelector('#arena-replay-root .rv-next');
+    if (btn) btn.click();
+  }
+});
+
+// ── 初始化 ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  arenaDrawChart();
+  arenaConnectSSE();
+  arenaShowOnboarding();  // 顯示引導步驟直到第一個 replay 載入
+});
+
+/* === 新增功能 JS === */
+let _isPaused = false;
+
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+function updatePauseButton(running, paused) {
+  const btn = document.getElementById('arena-btn-pause');
+  if (!btn) return;
+  if (running === undefined) {
+    const s = document.getElementById('arena-btn-start');
+    running = s ? s.disabled : false;
+  }
+  if (paused !== undefined) _isPaused = !!paused;
+  if (!running) _isPaused = false;
+  btn.disabled = !running;
+  btn.classList.toggle('is-paused', _isPaused);
+  btn.innerHTML = _isPaused ? '▶ RESUME' : '⏸ PAUSE';
+}
+
+async function arenaPause() {
+  const action = _isPaused ? 'resume' : 'pause';
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/control`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _isPaused = (action === 'pause');
+    updatePauseButton(true, _isPaused);
+  } catch (e) { console.error('arenaPause:', e); }
+}
+
+async function loadHallOfFame() {
+  const list = document.getElementById('hof-list');
+  list.innerHTML = '<div class="hof-empty">載入中…</div>';
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/hall_of_fame?limit=10`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = (await res.json()).hall_of_fame || [];
+    if (!rows.length) { list.innerHTML = '<div class="hof-empty">尚無紀錄</div>'; return; }
+    list.innerHTML = rows.map((r, i) => {
+      const wr = ((r.best_win_rate || 0) * 100).toFixed(1);
+      const school = r.school_lock ? `🔒 ${_esc(r.school_lock)}` : '無學校鎖定';
+      const deck = Object.entries(r.best_deck || {})
+        .map(([cn, c]) => `${_esc(cn)} ×${_esc(c)}`).join('<br>') || '（無資料）';
+      return `<div class="hof-item" onclick="this.classList.toggle('open')">
+        <div class="hof-main">
+          <span><span class="hof-rank">#${i+1}</span> 第 ${_esc(r.generation)} 代</span>
+          <span class="hof-wr">${wr}%</span>
+        </div>
+        <div class="hof-sub">${school}</div>
+        <div class="hof-deck">${deck}</div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="hof-err">載入失敗：${_esc(e.message)}</div>`;
+  }
+}
+
+async function validateDeck() {
+  const box = document.getElementById('validate-result');
+  const raw = document.getElementById('validate-input').value.trim();
+  if (!raw) { box.innerHTML = '<div class="ar-warn">⚠ 請先貼入牌組 JSON</div>'; return; }
+  let cards;
+  try { cards = JSON.parse(raw); }
+  catch { box.innerHTML = '<div class="ar-err">❌ JSON 格式錯誤，請檢查輸入</div>'; return; }
+  box.innerHTML = '驗證中…';
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/validate_deck`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cards })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    let html = d.valid ? '<div class="ar-ok">✅ 合法牌組</div>' : '';
+    (d.errors || []).forEach(m => html += `<div class="ar-err">❌ ${_esc(m)}</div>`);
+    (d.warnings || []).forEach(m => html += `<div class="ar-warn">⚠ ${_esc(m)}</div>`);
+    box.innerHTML = html || '（無訊息）';
+  } catch (e) {
+    box.innerHTML = `<div class="ar-err">❌ 驗證失敗：${_esc(e.message)}</div>`;
+  }
+}
+
+function switchDeckSrc(pid, src) {
+  document.getElementById(pid + '-evo-hint').style.display  = src === 'evo'    ? '' : 'none';
+  document.getElementById(pid + '-preset').style.display    = src === 'preset' ? '' : 'none';
+  document.getElementById(pid + '-json').style.display      = src === 'json'   ? '' : 'none';
+}
+
+function _getDeckPayload(pid) {
+  const src = document.getElementById(pid + '-src').value;
+  if (src === 'evo') {
+    if (!_lastBestDeck?.card_list?.length)
+      return { err: '尚無進化資料，請先執行進化' };
+    const deck = {};
+    _lastBestDeck.card_list.forEach(c => { deck[c.card_no] = c.count; });
+    return { deck, label: `進化最佳(第${_lastBestDeck.generation ?? '?'}代)` };
+  }
+  if (src === 'preset') {
+    const name = document.getElementById(pid + '-preset').value;
+    return { deck: name, label: name };  // backend resolves preset name to card dict
+  }
+  const raw = document.getElementById(pid + '-json').value.trim();
+  try {
+    const deck = JSON.parse(raw);
+    if (!deck || typeof deck !== 'object' || Array.isArray(deck)) throw new Error('需為物件格式');
+    return { deck, label: '自訂 JSON' };
+  } catch (e) {
+    return { err: 'JSON 格式錯誤：' + e.message };
+  }
+}
+
+async function practiceBattle() {
+  const box = document.getElementById('practice-result');
+  const p1 = _getDeckPayload('p1');
+  const p2 = _getDeckPayload('p2');
+  if (p1.err) { box.innerHTML = `<div class="ar-warn">⚠ 我方：${_esc(p1.err)}</div>`; return; }
+  if (p2.err) { box.innerHTML = `<div class="ar-warn">⚠ 對手：${_esc(p2.err)}</div>`; return; }
+  const difficulty = document.getElementById('practice-difficulty').value;
+  box.innerHTML = `<div class="ar-warn">我方：${_esc(p1.label)} vs 對手：${_esc(p2.label)} 對戰中…</div>`;
+  try {
+    const res = await fetch(`${ARENA_SERVER}/api/battle/practice`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_deck: p1.deck, ai_deck: p2.deck, difficulty,
+        seed: Math.floor(Math.random() * 99999) })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+    if (!d.ok) { box.innerHTML = `<div class="ar-err">❌ ${_esc(d.error || '對戰失敗')}</div>`; return; }
+    const { winner, turns, p1_sets, p2_sets } = d;
+    box.innerHTML = winner === 1
+      ? `<div class="ar-ok">✅ 我方勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`
+      : `<div class="ar-err">❌ 對手勝利！${p1_sets}–${p2_sets}（${turns} 回合）</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="ar-err">❌ 對戰失敗：${_esc(e.message)}</div>`;
+  }
+}
+
+// 自動連動 Pause 按鈕到既有 arenaStart/arenaStop（免手動修改原函式）
+(function hookStartStop() {
+  const os = window.arenaStart, ot = window.arenaStop;
+  if (typeof os === 'function') window.arenaStart = function() {
+    const r = os.apply(this, arguments); updatePauseButton(true, false); return r;
+  };
+  if (typeof ot === 'function') window.arenaStop = function() {
+    const r = ot.apply(this, arguments); updatePauseButton(false, false); return r;
+  };
+  updatePauseButton(false, false);
+})();
+</script>
+
+<script src="buildSteps.js"></script>
+<script src="createReplayViewer.js"></script>
+
+<a href="/evo_dashboard.html"
+   style="position:fixed;bottom:6px;right:10px;font-size:10px;color:var(--text-dim);opacity:.4;text-decoration:none;"
+   title="舊版除錯面板">Legacy Debug</a>
+
+<div class="arena-toast" id="arena-toast"></div>
+
+</body>
+</html>

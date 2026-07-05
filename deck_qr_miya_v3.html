@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>稲荷崎 三決勝分 — 0-Guts 終盤型</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0d0d0d; color: #e8e8e8; font-family: 'Noto Sans TC', sans-serif; padding: 24px; }
+  h1 { color: #f7c948; font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 20px; }
+  .layout { display: grid; grid-template-columns: 220px 1fr; gap: 32px; align-items: start; }
+  .qr-box { text-align: center; }
+  .qr-box canvas { width: 200px; height: 200px; border-radius: 8px; background: #fff; padding: 8px; }
+  .qr-label { font-size: 0.7rem; color: #888; margin-top: 8px; }
+  .url-link { display: block; margin-top: 8px; color: #7bd3f7; font-size: 0.72rem; text-decoration: none; word-break: break-all; }
+  h2 { color: #f7c948; font-size: 1rem; margin: 18px 0 10px; border-bottom: 1px solid #333; padding-bottom: 6px; }
+
+  .timeline { display: flex; flex-direction: column; gap: 10px; }
+  .pt { background: linear-gradient(135deg,#1a1a2e,#16213e); border-left: 3px solid #4a6fa5; border-radius: 6px; padding: 10px 14px; }
+  .pt.score { border-left-color: #f7c948; background: linear-gradient(135deg,#2e2410,#3e3216); }
+  .pt-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .pt-turn { font-size:0.7rem; color:#7bd3f7; font-weight:bold; }
+  .pt-cost { font-size:0.7rem; padding:1px 7px; border-radius:3px; }
+  .cost-neg { background:#7b1f1f; color:#ffc9c9; }
+  .cost-pos { background:#1b5e20; color:#c8e6c9; }
+  .cost-zero { background:#4a148c; color:#e1bee7; }
+  .pt-title { font-size:0.85rem; color:#fff; font-weight:bold; }
+  .pt-detail { font-size:0.75rem; color:#bbb; line-height:1.5; margin-top:3px; }
+  .cr { color:#f7c948; }
+
+  .guts-table { width:100%; border-collapse:collapse; font-size:0.75rem; margin-top:6px; }
+  .guts-table th, .guts-table td { padding:4px 8px; border-bottom:1px solid #2a2a2a; text-align:center; }
+  .guts-table th { color:#888; background:#1a1a1a; }
+  .running.pos { color:#81c784; } .running.neg { color:#e57373; }
+
+  table.deck { width:100%; border-collapse:collapse; font-size:0.76rem; margin-top:8px; }
+  table.deck th { background:#1e1e1e; color:#aaa; font-weight:normal; padding:5px 8px; text-align:left; }
+  table.deck td { padding:4px 8px; border-bottom:1px solid #222; }
+  .cnt { color:#f7c948; font-weight:bold; text-align:center; }
+  .key { background:#1a0a2e; }
+  .tag { display:inline-block; font-size:0.62rem; padding:1px 5px; border-radius:3px; }
+  .t-engine{background:#1565c0;color:#bbdefb} .t-guts{background:#4a148c;color:#e1bee7}
+  .t-zero{background:#e65100;color:#ffe0b2} .t-fuel{background:#2e7d32;color:#c8e6c9}
+  .t-recover{background:#7b1fa2;color:#e1bee7} .t-flex{background:#37474f;color:#cfd8dc}
+</style>
+</head>
+<body>
+<h1>稲荷崎 三決勝分 — 0-Guts 終盤型</h1>
+<p class="subtitle">解決「打完兩分就沒 Guts」的結構問題：第3分設計成零 Guts 取得</p>
+
+<div class="layout">
+  <div class="qr-box">
+    <canvas id="qr"></canvas>
+    <p class="qr-label">掃描開啟牌組</p>
+    <a id="link" class="url-link" href="#" target="_blank">載入中…</a>
+  </div>
+
+  <div>
+    <h2>三分時間軸 & Guts 收支</h2>
+    <div class="timeline">
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 1-2 ｜佈局</span><span class="pt-cost cost-pos">Guts 蓄積</span></div>
+        <div class="pt-title">塞宮兄弟進 Guts、部署香草宮侑(TOS=2)</div>
+        <div class="pt-detail"><span class="cr">P02-018 宮侑</span> 放舉球區，每回合 +2 Guts。<span class="cr">P02-025/小作</span> 開始填墓地。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 3-4 ｜第 1 分</span><span class="pt-cost cost-neg">−9 Guts</span></div>
+        <div class="pt-title">🏐 どんぴしゃり 速攻</div>
+        <div class="pt-detail">場上侑(舉)+治(攻)→發動 <span class="cr">P02-087</span>。從 Guts 出 <span class="cr">P02-016</span>(舉球，否定對手一觸/接球手牌技能) + <span class="cr">P02-020</span>(攻擊 ATK+4，對手攔網≤2)。<span class="cr">P02-024 北信介</span>把どんぴしゃり撿回手牌。</div>
+      </div>
+      <div class="pt">
+        <div class="pt-head"><span class="pt-turn">回合 5-6 ｜回血</span><span class="pt-cost cost-pos">+4~6 Guts</span></div>
+        <div class="pt-title">香草宮侑回 Guts、P02-089 回收宮兄弟</div>
+        <div class="pt-detail">關鍵喘息期：<span class="cr">P02-018 ×TOS2</span> 連續 2 回合補滿 Guts。<span class="cr">P02-089</span>從墓地撿回侑/治/兄弟，重新填 Guts。墓地多樣性逼近 6 種。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 7-8 ｜第 2 分</span><span class="pt-cost cost-neg">−9 Guts</span></div>
+        <div class="pt-title">🏐 どんぴしゃり 速攻（第二次）</div>
+        <div class="pt-detail">用回收的 <span class="cr">P02-087</span> 再打一次。同樣 P02-016 + P02-020 雙層壓制。</div>
+      </div>
+      <div class="pt score">
+        <div class="pt-head"><span class="pt-turn">回合 9+ ｜第 3 分</span><span class="pt-cost cost-zero">0 Guts</span></div>
+        <div class="pt-title">🏐 零 Guts 多樣性殺手</div>
+        <div class="pt-detail">墓地已達 6 種：<span class="cr">角名 P02-027</span> 橫置免費出場(不耗 Guts) → 對手 MB 攔網值=0。攻擊手放 <span class="cr">宮治 P02-021</span>，此時手牌已被掏空≤2 → 自動 ATK+2，<b>完全不花 Guts</b>。這就是第三分的來源。</div>
+      </div>
+    </div>
+
+    <h2>Guts 收支總表</h2>
+    <table class="guts-table">
+      <tr><th>回合</th><th>行動</th><th>本回合</th><th>累計</th></tr>
+      <tr><td>1-2</td><td>佈局 (香草侑 TOS2)</td><td class="running pos">+4</td><td class="running pos">+4</td></tr>
+      <tr><td>3-4</td><td>第1分 どんぴしゃり</td><td class="running neg">−9</td><td class="running neg">−5</td></tr>
+      <tr><td>5-6</td><td>香草侑回血 ×2回合</td><td class="running pos">+6</td><td class="running pos">+1</td></tr>
+      <tr><td>7-8</td><td>第2分 どんぴしゃり</td><td class="running neg">−9</td><td class="running neg">−8…</td></tr>
+      <tr><td>9+</td><td>第3分 角名+宮治R</td><td class="running pos">0</td><td class="running pos">✓ 不需要 Guts</td></tr>
+    </table>
+    <p style="font-size:0.72rem;color:#888;margin-top:6px;">→ 關鍵在第3分零成本：角名橫置 + 宮治R 的條件(手牌≤2)在引擎運轉後自動成立，不與前兩分搶 Guts。</p>
+
+    <h2>牌組清單（40 張）</h2>
+    <table class="deck">
+      <tr><th>張</th><th>卡號</th><th>名稱</th><th>役割</th></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ EVENT (8)</td></tr>
+      <tr><td class="cnt">4</td><td>P02-087</td><td>どんぴしゃり</td><td><span class="tag t-engine">主引擎</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-089</td><td>どや俺…</td><td><span class="tag t-recover">手牌回收</span></td></tr>
+      <tr><td class="cnt">1</td><td>P02-085</td><td>大見太郎</td><td><span class="tag t-fuel">棄1抽2</span></td></tr>
+      <tr><td class="cnt">1</td><td>P02-084</td><td>黒須法宗</td><td><span class="tag t-fuel">接球抽牌</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ どんぴしゃり 核心 (8)</td></tr>
+      <tr><td class="cnt">2</td><td>P02-016</td><td>宮 侑 (I)</td><td><span class="tag t-engine">舉球/否定</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-020</td><td>宮 治 (IP)</td><td><span class="tag t-engine">攻擊 ATK+4</span></td></tr>
+      <tr><td class="cnt">4</td><td>P02-077</td><td>宮兄弟 (S)</td><td><span class="tag t-flex">汎用Guts目標</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ Guts 回收引擎 (3) ★第2分的燃料</td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-018</td><td>宮 侑 (香草)</td><td><span class="tag t-guts">TOS=2 Guts引擎</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 第3分 0-Guts 殺手 (5) ★</td></tr>
+      <tr class="key"><td class="cnt">2</td><td>P02-027</td><td>角名倫太郎 (S)</td><td><span class="tag t-zero">6種橫置免費 MB=0</span></td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-021</td><td>宮 治 (R)</td><td><span class="tag t-zero">手牌≤2 ATK+2 0費</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 多樣性 Payoff + 回收 (9)</td></tr>
+      <tr><td class="cnt">2</td><td>P02-017</td><td>宮 侑 (R)</td><td><span class="tag t-fuel">6種 SRV+2+回收</span></td></tr>
+      <tr><td class="cnt">2</td><td>PR-048</td><td>宮 治 (PR)</td><td><span class="tag t-fuel">6種 ATK+3</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-029</td><td>尾白アラン (R)</td><td><span class="tag t-fuel">6種 接球技能死</span></td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-024</td><td>北 信介 (S)</td><td><span class="tag t-recover">Event區回收★</span></td></tr>
+      <tr><td colspan="4" style="color:#7bd3f7;background:#0d1117;padding:5px 8px;">▸ 多樣性燃料 + 數值 (7)</td></tr>
+      <tr class="key"><td class="cnt">3</td><td>P02-035</td><td>小作裕渡</td><td><span class="tag t-fuel">接球自棄·不佔場★</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-028</td><td>角名倫太郎 (R)</td><td><span class="tag t-flex">數值+名字</span></td></tr>
+      <tr><td class="cnt">2</td><td>P02-030</td><td>尾白アラン (N)</td><td><span class="tag t-flex">高數值</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+<script>
+const ENC='N4IgdiBcKExejuwYOF0AEhIOUF42hdpUGBKSAMBaAcQFcAXAZ0CFfQE7dBo9RABoQBjKAbTZAAkA1fABVwAmfLgAcAdnwBlAHQB3AKYAjAA6MALAF0GnXgOGixAThkKV6hkJ16+gkeICs+AHLm1jAIw3udw+I1Xd0tvXV8DB08ANnwASWDGazD9e1EhAnilDysfFP8JKTksy21kv0ixIOLGAGZc8rTChJyyiLTPfAAlZrrW1NxPKW7qltsBTtENSv5mpLH+oVNhi0T6tuFAopWGXvn-Guc3Ed3whcrl7LnT-YIj7estAF8gA';
+const url='https://weilun2022.github.io/haikyuu-cards/?deck='+ENC;
+document.getElementById('link').href=url;
+document.getElementById('link').textContent=url;
+QRCode.toCanvas(document.getElementById('qr'), url, {width:200,margin:1}, e=>{if(e)console.error(e)});
+</script>
+</body>
+</html>

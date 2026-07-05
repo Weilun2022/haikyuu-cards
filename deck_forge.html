@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🏐 最強牌組鍛造所 — QR 輸入 · AI 迭代 · 學校最強</title>
+<style>
+:root {
+  --bg: #0d0d14; --surface: #16161f; --surface2: #1e1e2a;
+  --border: #2a2a3e; --text: #e8e8f2; --text-dim: #6868a0;
+  --accent: #6c63ff; --accent2: #ff6584; --green: #4ade80; --orange: #fb923c;
+  --good: #00ffe0; --hot: #ff2d78; --warn: #ffd166;
+  --panel-bg: rgba(10, 0, 28, .82); --panel-border: rgba(180, 92, 255, .35);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text);
+  font-family: "Segoe UI", "Noto Sans TC", sans-serif; min-height: 100vh; }
+
+/* ══ 大廳 ══ */
+#forge-lobby {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px; padding: 30px 16px;
+  background:
+    radial-gradient(ellipse at 25% 15%, rgba(108, 99, 255, .13), transparent 55%),
+    radial-gradient(ellipse at 75% 85%, rgba(255, 45, 120, .09), transparent 55%);
+}
+.lobby-title { font-size: 30px; font-weight: 900; letter-spacing: 3px; text-align: center; }
+.lobby-title small { display: block; font-size: 13px; color: var(--text-dim);
+  font-weight: 400; margin-top: 8px; letter-spacing: 1px; line-height: 1.7; }
+
+.forge-card {
+  width: min(480px, 94vw); background: var(--panel-bg);
+  border: 1px solid var(--panel-border); border-top: 3px solid var(--accent);
+  border-radius: 14px; padding: 22px;
+}
+.src-tabs { display: flex; gap: 5px; margin-bottom: 12px; }
+.src-tab {
+  flex: 1; padding: 8px 2px; font-size: 12px; text-align: center; cursor: pointer;
+  background: var(--surface2); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: 6px; user-select: none;
+}
+.src-tab.active { background: var(--accent); color: #000; font-weight: 700; border-color: var(--accent); }
+
+.pk-select, .pk-textarea {
+  width: 100%; background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 10px; font-size: 13px; margin-bottom: 8px;
+}
+.pk-textarea { font-family: monospace; font-size: 11px; resize: vertical; min-height: 74px; }
+.pk-select:focus, .pk-textarea:focus { outline: 1px solid var(--accent); }
+
+.slot-status { font-size: 12px; min-height: 18px; margin-bottom: 4px; }
+.slot-status.ok { color: var(--green); }
+.slot-status.err { color: var(--hot); }
+.school-badge {
+  display: none; margin: 4px 0 8px; padding: 8px 12px; border-radius: 8px;
+  background: rgba(255, 209, 102, .1); border: 1px solid rgba(255, 209, 102, .4);
+  color: var(--warn); font-size: 13px; font-weight: 700; text-align: center;
+}
+
+.adv-toggle { font-size: 11px; color: var(--text-dim); cursor: pointer;
+  user-select: none; margin: 8px 0 4px; }
+.adv-toggle:hover { color: var(--accent); }
+#adv-body { display: none; padding: 8px 0; }
+.setting-item { display: flex; align-items: center; gap: 10px;
+  font-size: 12px; color: var(--text-dim); margin-bottom: 8px; }
+.setting-item label { width: 72px; flex-shrink: 0; }
+.setting-item input[type=range] { flex: 1; accent-color: var(--accent); }
+.setting-item .val { color: var(--good); font-weight: 700; min-width: 34px;
+  font-family: monospace; text-align: right; }
+
+.btn-big-start {
+  width: 100%; padding: 15px; font-size: 17px; font-weight: 900; letter-spacing: 3px;
+  background: linear-gradient(135deg, var(--accent), #9b59ff); color: #fff;
+  border: none; border-radius: 10px; cursor: pointer; margin-top: 10px;
+  box-shadow: 0 0 24px rgba(108, 99, 255, .45);
+}
+.btn-big-start:hover { filter: brightness(1.15); }
+#lobby-err { font-size: 12px; color: var(--hot); min-height: 18px; text-align: center; }
+
+/* ══ 鍛造畫面 ══ */
+#forge-run { display: none; flex-direction: column; height: 100vh; padding: 10px; gap: 10px; }
+
+.forge-header {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 10px 16px;
+}
+.fh-school { font-size: 14px; font-weight: 900; color: var(--warn); }
+.fh-stat { text-align: center; }
+.fh-stat .num { font-size: 20px; font-weight: 900; font-family: monospace; color: var(--good); }
+.fh-stat .lbl { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.fh-spacer { flex: 1; }
+.fh-btn {
+  padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer;
+  border-radius: 6px; border: none; white-space: nowrap;
+}
+.fh-btn-pause { background: rgba(255, 209, 102, .15); color: var(--warn); border: 1.5px solid var(--warn); }
+.fh-btn-stop { background: transparent; color: var(--accent2); border: 1.5px solid var(--accent2); }
+.fh-btn-back { background: var(--surface2); color: var(--text-dim); border: 1px solid var(--border); }
+.fh-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.finish-banner {
+  display: none; text-align: center; padding: 10px; border-radius: 8px;
+  font-size: 14px; font-weight: 700;
+  background: rgba(0, 255, 224, .08); border: 1px solid rgba(0, 255, 224, .4); color: var(--good);
+}
+
+.forge-shell { display: flex; gap: 10px; flex: 1; min-height: 0; }
+.forge-main {
+  flex: 1; min-width: 0; background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 10px; display: flex; flex-direction: column;
+}
+#forge-replay-root { flex: 1; overflow: auto; min-height: 200px; }
+.replay-note { font-size: 11px; color: var(--text-dim); text-align: center; padding: 4px 0; }
+
+.forge-right { width: 350px; flex-shrink: 0; display: flex; flex-direction: column;
+  gap: 10px; overflow-y: auto; }
+.panel { background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 10px; padding: 12px; }
+.panel h3 { font-size: 12px; color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.panel h3 .gen-tag { font-size: 10px; color: var(--good); font-family: monospace; }
+
+.deck-list { list-style: none; max-height: 42vh; overflow-y: auto; font-size: 12px; }
+.deck-list li { display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; border-bottom: 1px solid rgba(42, 42, 62, .6); }
+.dl-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dl-no { font-size: 9px; color: var(--text-dim); font-family: monospace; flex-shrink: 0; }
+.dl-count { color: var(--text-dim); font-family: monospace; }
+.dl-tag { font-size: 9px; padding: 1px 5px; border-radius: 8px; font-weight: 700; }
+.dl-tag.new { background: rgba(74, 222, 128, .16); color: var(--green); }
+.dl-tag.delta { background: rgba(255, 209, 102, .14); color: var(--warn); }
+.deck-total { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+#wr-canvas { width: 100%; height: 100px; }
+.qr-btn {
+  width: 100%; padding: 9px; font-size: 12px; font-weight: 700; cursor: pointer; margin-top: 8px;
+  background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
+}
+.qr-btn:hover { border-color: var(--accent); color: var(--accent); }
+#qr-wrap { display: none; margin: 10px auto 0; width: fit-content;
+  background: #fff; padding: 8px; border-radius: 6px; }
+
+@media (max-width: 900px) {
+  .forge-shell { flex-direction: column; }
+  .forge-right { width: 100%; }
+}
+</style>
+<script src="/node_modules/lz-string/libs/lz-string.min.js"></script>
+<script>if(typeof LZString==='undefined'){const _s=document.createElement('script');_s.src='https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js';document.head.appendChild(_s);}</script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="/buildSteps.js"></script>
+<script src="/createReplayViewer.js"></script>
+</head>
+<body>
+
+<!-- ══════════ 大廳 ══════════ -->
+<div id="forge-lobby">
+  <div class="lobby-title">🏐 最強牌組鍛造所
+    <small>QR 輸入牌組 → 自動鎖定學校 → AI 對戰不斷迭代 → 產出該學校最強 40 張</small>
+  </div>
+
+  <div class="forge-card">
+    <div class="src-tabs">
+      <div class="src-tab active" data-src="qr">📷 QR 網址輸入</div>
+      <div class="src-tab" data-src="preset">📦 內建牌組</div>
+    </div>
+    <textarea id="seed-qr" class="pk-textarea" rows="3"
+      placeholder="貼上牌組 QR Code 掃出的網址（?deck=…）&#10;此牌組的學校將被鎖定並強化"></textarea>
+    <select id="seed-preset" class="pk-select" style="display:none">
+      <option value="ROKUNIN">ROKUNIN（稲荷崎六種類）</option>
+      <option value="ROKUNIN_V1">ROKUNIN_V1（稲荷崎P03）</option>
+      <option value="STANDARD">STANDARD（烏野）</option>
+      <option value="YOUTH_P03">YOUTH_P03（疑似ユース）</option>
+    </select>
+    <div id="seed-status" class="slot-status"></div>
+    <div id="school-badge" class="school-badge"></div>
+
+    <div class="adv-toggle" onclick="document.getElementById('adv-body').style.display =
+      document.getElementById('adv-body').style.display === 'block' ? 'none' : 'block'">
+      ⚙ 進階設定 ▾
+    </div>
+    <div id="adv-body">
+      <div class="setting-item">
+        <label>迭代世代</label>
+        <input type="range" id="cfg-gens" min="10" max="200" value="60" step="10">
+        <span class="val" id="cfg-gens-val">60</span>
+      </div>
+      <div class="setting-item">
+        <label>族群規模</label>
+        <input type="range" id="cfg-pop" min="8" max="32" value="16" step="2">
+        <span class="val" id="cfg-pop-val">16</span>
+      </div>
+      <div class="setting-item">
+        <label>每副評估局數</label>
+        <input type="range" id="cfg-games" min="10" max="60" value="30" step="5">
+        <span class="val" id="cfg-games-val">30</span>
+      </div>
+    </div>
+
+    <button class="btn-big-start" onclick="forgeStart()">🔥 開始鍛造</button>
+    <div id="lobby-err"></div>
+  </div>
+</div>
+
+<!-- ══════════ 鍛造畫面 ══════════ -->
+<div id="forge-run">
+  <div class="forge-header">
+    <span class="fh-school" id="fh-school">—</span>
+    <div class="fh-stat"><div class="num" id="fh-gen">0</div><div class="lbl">世代</div></div>
+    <div class="fh-stat"><div class="num" id="fh-wr">—</div><div class="lbl">最佳勝率</div></div>
+    <div class="fh-stat"><div class="num" id="fh-avg">—</div><div class="lbl">族群平均</div></div>
+    <div class="fh-spacer"></div>
+    <button class="fh-btn fh-btn-pause" id="fh-pause" onclick="forgePause()">⏸ 暫停</button>
+    <button class="fh-btn fh-btn-stop" id="fh-stop" onclick="forgeStop()">■ 停止</button>
+    <button class="fh-btn fh-btn-back" onclick="forgeBack()">↩ 重新設定</button>
+  </div>
+
+  <div class="finish-banner" id="finish-banner"></div>
+
+  <div class="forge-shell">
+    <div class="forge-main">
+      <div id="forge-replay-root"></div>
+      <div class="replay-note" id="replay-note">等待第一場展示對局…（每世代自動更新）</div>
+    </div>
+
+    <aside class="forge-right">
+      <div class="panel">
+        <h3>最強牌組 40 張 <span class="gen-tag" id="deck-gen-tag">第 — 代</span></h3>
+        <ul class="deck-list" id="deck-list"><li style="color:var(--text-dim)">累積資料中…</li></ul>
+        <div class="deck-total" id="deck-total">合計 0 張</div>
+        <button class="qr-btn" onclick="forgeExportQR()">📷 匯出最強牌組 QR</button>
+        <div id="qr-wrap"></div>
+      </div>
+      <div class="panel">
+        <h3>勝率演進</h3>
+        <canvas id="wr-canvas"></canvas>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const SERVER = `http://${location.hostname}:7778`;
+let sse = null;
+let viewer = null;
+let latest = null;             // 最新 SSE stats
+let _prevCounts = null;        // 上一代牌組 Map（diff 標記用）
+let _playingReplay = null;
+let _pendingReplay = null;
+let _isPlaying = false;
+let _paused = false;
+let _statusTimer = null;
+let _started = false;
+
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g,
+    m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+// ── 大廳：來源切換 + QR 解析 + 學校偵測 ─────────────────────────────────────
+document.querySelectorAll('.src-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.src-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('seed-qr').style.display = tab.dataset.src === 'qr' ? '' : 'none';
+    document.getElementById('seed-preset').style.display = tab.dataset.src === 'preset' ? '' : 'none';
+    validateSeed();
+  });
+});
+['cfg-gens', 'cfg-pop', 'cfg-games'].forEach(id => {
+  document.getElementById(id).addEventListener('input', function () {
+    document.getElementById(id + '-val').textContent = this.value;
+  });
+});
+
+function parseQrDeck(input) {
+  let encoded = input.trim();
+  try {
+    const url = new URL(encoded);
+    const p = url.searchParams.get('deck');
+    if (p) encoded = p;
+  } catch (e) { /* 非完整 URL，視為壓縮字串 */ }
+  const json = LZString.decompressFromEncodedURIComponent(encoded);
+  if (!json) throw new Error('QR 內容解碼失敗');
+  const data = JSON.parse(json);
+  if (!data.c || !Array.isArray(data.c)) throw new Error('QR 格式不正確');
+  const cards = {};
+  let total = 0;
+  for (const [no, cnt] of data.c) { cards[no] = cnt; total += cnt; }
+  return { name: data.n || 'QR牌組', cards, total };
+}
+
+function getSeed() {
+  const src = document.querySelector('.src-tab.active').dataset.src;
+  if (src === 'preset') {
+    const name = document.getElementById('seed-preset').value;
+    return { preset: name, label: name };
+  }
+  const raw = document.getElementById('seed-qr').value.trim();
+  if (!raw) return { err: '請貼上 QR Code 網址' };
+  try {
+    const r = parseQrDeck(raw);
+    return { cards: r.cards, label: r.name, total: r.total };
+  } catch (e) { return { err: e.message }; }
+}
+
+let _detectTimer = null;
+async function validateSeed() {
+  const el = document.getElementById('seed-status');
+  const badge = document.getElementById('school-badge');
+  const r = getSeed();
+  if (r.err) {
+    el.className = 'slot-status err'; el.textContent = '⚠ ' + r.err;
+    badge.style.display = 'none'; return;
+  }
+  if (r.preset) {
+    el.className = 'slot-status ok'; el.textContent = `✔ 內建牌組「${r.label}」`;
+    badge.style.display = 'none'; return;
+  }
+  el.className = 'slot-status ok';
+  el.textContent = `✔ 已載入「${r.label}」（${r.total} 張），偵測學校中…`;
+  try {
+    const d = await fetch(`${SERVER}/api/detect_school`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cards: r.cards }),
+    }).then(x => x.json());
+    if (d.school) {
+      badge.style.display = 'block';
+      badge.textContent = `🔒 鎖定學校：${d.school} — 迭代只會使用此學校的卡強化`;
+      el.textContent = `✔ 已載入「${r.label}」（${r.total} 張）`;
+    }
+  } catch (e) { /* 伺服器未啟動時略過，start 會再報錯 */ }
+}
+document.getElementById('seed-qr').addEventListener('input', () => {
+  clearTimeout(_detectTimer);
+  _detectTimer = setTimeout(validateSeed, 400);
+});
+document.getElementById('seed-preset').addEventListener('change', validateSeed);
+
+// URL 參數自動帶入 ?deck=
+(function initFromUrl() {
+  const v = new URLSearchParams(location.search).get('deck');
+  if (v) { document.getElementById('seed-qr').value = v; validateSeed(); }
+})();
+
+// ── 開始鍛造 ────────────────────────────────────────────────────────────────
+async function forgeStart() {
+  const errEl = document.getElementById('lobby-err');
+  errEl.textContent = '';
+  const seed = getSeed();
+  if (seed.err) { errEl.textContent = seed.err; return; }
+
+  const body = {
+    meta_decks: ['ROKUNIN', 'ROKUNIN_V1', 'YOUTH_P03', 'STANDARD'],
+    school_lock: 'auto',
+    config: {
+      max_generations: parseInt(document.getElementById('cfg-gens').value, 10),
+      population_size: parseInt(document.getElementById('cfg-pop').value, 10),
+      games_per_eval: parseInt(document.getElementById('cfg-games').value, 10),
+    },
+  };
+  if (seed.cards) body.seed_deck = seed.cards;
+  else body.seed_deck_name = seed.preset;
+
+  try {
+    const res = await fetch(`${SERVER}/start`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (!d.ok) { errEl.textContent = d.error || '啟動失敗'; return; }
+    enterForge();
+  } catch (e) {
+    errEl.textContent = '無法連線伺服器：' + e.message +
+      '（請先執行 python deck_evo/evo_server.py）';
+  }
+}
+
+function enterForge() {
+  document.getElementById('forge-lobby').style.display = 'none';
+  document.getElementById('forge-run').style.display = 'flex';
+  document.getElementById('finish-banner').style.display = 'none';
+  document.getElementById('fh-pause').disabled = false;
+  document.getElementById('fh-stop').disabled = false;
+  _prevCounts = null; latest = null; _started = true; _paused = false;
+  _playingReplay = null; _pendingReplay = null; _isPlaying = false;
+  if (viewer) { viewer.destroy(); viewer = null; }
+  openSSE();
+  // 完成偵測：輪詢 /status
+  clearInterval(_statusTimer);
+  _statusTimer = setInterval(checkFinished, 4000);
+}
+
+function openSSE() {
+  if (sse) sse.close();
+  sse = new EventSource(`${SERVER}/events`);
+  sse.onmessage = ev => {
+    try { handleUpdate(JSON.parse(ev.data)); } catch (e) {}
+  };
+}
+
+async function checkFinished() {
+  if (!_started) return;
+  try {
+    const d = await fetch(`${SERVER}/status`).then(r => r.json());
+    if (!d.running && latest) {
+      clearInterval(_statusTimer);
+      const banner = document.getElementById('finish-banner');
+      banner.style.display = 'block';
+      banner.textContent =
+        `🏆 鍛造完成！第 ${latest.generation} 代 · ${latest.school_lock || ''} 最強牌組` +
+        ` · 勝率 ${((latest.best_win_rate || 0) * 100).toFixed(1)}% — 點右側「匯出 QR」帶走成果`;
+      document.getElementById('fh-pause').disabled = true;
+      document.getElementById('fh-stop').disabled = true;
+      forgeExportQR();
+    }
+  } catch (e) {}
+}
+
+// ── SSE 更新 ────────────────────────────────────────────────────────────────
+function handleUpdate(data) {
+  if (!data || data.generation === undefined) return;
+  latest = data;
+
+  document.getElementById('fh-school').textContent =
+    '🔒 ' + (data.school_lock || '自由');
+  document.getElementById('fh-gen').textContent = data.generation;
+  document.getElementById('fh-wr').textContent =
+    ((data.best_win_rate || 0) * 100).toFixed(1) + '%';
+  document.getElementById('fh-avg').textContent =
+    ((data.avg_win_rate || 0) * 100).toFixed(1) + '%';
+
+  renderDeck(data.best_deck);
+  drawChart(data.history || [], data.history_avg || []);
+
+  // 展示對局：latest_replay = "replays/visual_replay_evo_..._gen0000_00.html"
+  if (data.latest_replay) {
+    const rid = data.latest_replay.split('/').pop().replace(/\.html$/, '');
+    if (rid !== _playingReplay) {
+      if (_isPlaying) _pendingReplay = rid;
+      else loadReplay(rid);
+    }
+  }
+}
+
+async function loadReplay(rid) {
+  _playingReplay = rid;
+  _pendingReplay = null;
+  try {
+    const d = await fetch(`${SERVER}/api/replay_events?replay_id=${rid}`).then(r => r.json());
+    if (d.error || !d.events?.length) return;
+    const mount = document.getElementById('forge-replay-root');
+    if (!viewer) {
+      viewer = createReplayViewer({
+        mount, events: d.events, meta: d.meta || {},
+        options: { onPlaybackEnd: onPlaybackEnd },
+      });
+    } else {
+      viewer.loadReplay(d.events, d.meta);
+    }
+    const g = rid.match(/_gen(\d+)_/);
+    document.getElementById('replay-note').textContent =
+      `第 ${g ? parseInt(g[1], 10) : '?'} 代最佳 vs Meta · ${d.meta?.p1_sets}–${d.meta?.p2_sets}`;
+    _isPlaying = true;
+    viewer.play();
+  } catch (e) { _isPlaying = false; }
+}
+
+function onPlaybackEnd() {
+  _isPlaying = false;
+  if (_pendingReplay) loadReplay(_pendingReplay);
+}
+
+// ── 右欄：最強牌組 40 張 ────────────────────────────────────────────────────
+function renderDeck(best) {
+  const cards = best?.card_list || [];
+  if (!cards.length) return;
+  document.getElementById('deck-gen-tag').textContent =
+    `第 ${best.generation ?? latest?.generation ?? '—'} 代`;
+
+  const counts = new Map(cards.map(c => [c.card_no, c.count]));
+  const listEl = document.getElementById('deck-list');
+  listEl.innerHTML = '';
+  let total = 0;
+  for (const c of cards) {
+    total += c.count;
+    const li = document.createElement('li');
+    const name = document.createElement('span');
+    name.className = 'dl-name'; name.textContent = c.name; name.title = c.card_no;
+    const no = document.createElement('span');
+    no.className = 'dl-no'; no.textContent = c.card_no.replace(/^HV-/, '');
+    const cnt = document.createElement('span');
+    cnt.className = 'dl-count'; cnt.textContent = `×${c.count}`;
+    li.append(name, no, cnt);
+    if (_prevCounts) {
+      const prev = _prevCounts.get(c.card_no);
+      if (prev === undefined) {
+        const t = document.createElement('span');
+        t.className = 'dl-tag new'; t.textContent = 'NEW';
+        li.appendChild(t);
+      } else if (prev !== c.count) {
+        const t = document.createElement('span');
+        t.className = 'dl-tag delta';
+        t.textContent = `${c.count > prev ? '＋' : '－'}${Math.abs(c.count - prev)}`;
+        li.appendChild(t);
+      }
+    }
+    listEl.appendChild(li);
+  }
+  _prevCounts = counts;
+  document.getElementById('deck-total').textContent = `合計 ${total} 張`;
+}
+
+function forgeExportQR() {
+  const cards = latest?.best_deck?.card_list;
+  if (!cards?.length) return;
+  const payload = JSON.stringify({
+    c: cards.map(c => [c.card_no, c.count]),
+    n: `${latest.school_lock || ''}鍛造G${latest.generation}`,
+  });
+  const encoded = LZString.compressToEncodedURIComponent(payload);
+  const wrap = document.getElementById('qr-wrap');
+  wrap.innerHTML = '';
+  wrap.style.display = 'block';
+  new QRCode(wrap, {
+    text: `${location.origin}/?deck=${encoded}`,
+    width: 172, height: 172, correctLevel: QRCode.CorrectLevel.M,
+  });
+}
+
+// ── 勝率曲線 ────────────────────────────────────────────────────────────────
+function drawChart(hist, histAvg) {
+  const canvas = document.getElementById('wr-canvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.clientWidth || 300, H = 100;
+  canvas.width = W; canvas.height = H;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(180,92,255,.22)';
+  ctx.setLineDash([4, 4]);
+  [0.25, 0.5, 0.75].forEach(y => {
+    ctx.beginPath(); ctx.moveTo(0, H - y * H); ctx.lineTo(W, H - y * H); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  if (hist.length < 2) return;
+  const step = W / (hist.length - 1);
+  const line = (arr, color, width) => {
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width;
+    arr.forEach((v, i) => {
+      const x = i * step, y = H - v * (H - 8) - 4;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  };
+  if (histAvg.length === hist.length) line(histAvg, 'rgba(255,45,120,.55)', 1.5);
+  line(hist, '#00ffe0', 2.2);
+}
+
+// ── 控制 ────────────────────────────────────────────────────────────────────
+async function forgePause() {
+  const btn = document.getElementById('fh-pause');
+  try {
+    const d = await fetch(`${SERVER}/api/control`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: _paused ? 'resume' : 'pause' }),
+    }).then(r => r.json());
+    _paused = d.status === 'paused';
+    btn.textContent = _paused ? '▶ 繼續' : '⏸ 暫停';
+  } catch (e) {}
+}
+
+async function forgeStop() {
+  try { await fetch(`${SERVER}/stop`, { method: 'POST' }); } catch (e) {}
+  document.getElementById('fh-stop').disabled = true;
+}
+
+function forgeBack() {
+  forgeStop();
+  clearInterval(_statusTimer);
+  if (sse) { sse.close(); sse = null; }
+  if (viewer) { viewer.destroy(); viewer = null; }
+  _started = false;
+  document.getElementById('forge-run').style.display = 'none';
+  document.getElementById('forge-lobby').style.display = 'flex';
+}
+</script>
+</body>
+</html>
