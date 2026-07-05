@@ -149,7 +149,9 @@ class EvoHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
 
-        if path in ("/", "/index.html", "/evo_arena.html"):
+        if path in ("/", "/index.html", "/deck_forge.html"):
+            self._serve_file(ROOT / "deck_forge.html", "text/html")
+        elif path == "/evo_arena.html":
             self._serve_file(ROOT / "evo_arena.html", "text/html")
         elif path in ("/pk", "/pk_arena.html"):
             self._serve_file(ROOT / "pk_arena.html", "text/html")
@@ -218,6 +220,8 @@ class EvoHandler(BaseHTTPRequestHandler):
             self._handle_stop()
         elif path == "/api/validate_deck":
             self._handle_validate_deck(body)
+        elif path == "/api/detect_school":
+            self._handle_detect_school(body)
         elif path == "/api/control":
             self._handle_control(body)
         elif path == "/api/battle/practice":
@@ -285,6 +289,21 @@ class EvoHandler(BaseHTTPRequestHandler):
         cards = (body or {}).get("cards", {})
         result = deck_validator.validate(cards)
         self._json(result)
+
+    def _handle_detect_school(self, body: dict):
+        """POST /api/detect_school {cards:{card_no:count}} → {school, total}"""
+        from deck_evo.card_pool import detect_school
+        cards = (body or {}).get("cards", {})
+        if not isinstance(cards, dict) or not cards:
+            self._json({"school": None, "total": 0, "error": "cards 不可為空"}, 400)
+            return
+        try:
+            self._json({
+                "school": detect_school(cards),
+                "total": sum(int(v) for v in cards.values()),
+            })
+        except Exception as e:
+            self._json({"school": None, "total": 0, "error": str(e)}, 500)
 
     def _handle_control(self, body: dict):
         global _engine
