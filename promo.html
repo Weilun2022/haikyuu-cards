@@ -204,10 +204,17 @@
     padding:14px 34px; border-radius:50px; text-decoration:none;
     box-shadow:0 6px 24px rgba(88,101,242,.45);
     transition:transform .15s, box-shadow .15s;
+    position:relative; overflow:hidden;
+    animation:dc-join-pulse 2s ease-in-out infinite;
   }
-  .dc-join-btn:hover { transform:translateY(-2px) scale(1.03); box-shadow:0 10px 32px rgba(88,101,242,.62); }
+  .dc-join-btn:hover { transform:translateY(-2px) scale(1.03); box-shadow:0 10px 32px rgba(88,101,242,.62); animation-play-state:paused; }
   .dc-join-btn:active { transform:scale(.97); }
   .dc-join-btn svg { width:22px; height:22px; flex-shrink:0; }
+  .dc-join-btn::after {
+    content:''; position:absolute; inset:0; left:-65%; width:42%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+    animation:dc-tab-shine 3s ease-in-out infinite;
+  }
   .dc-schools-title {
     font-size:11px; font-weight:800; letter-spacing:2px; color:var(--text-dim);
     text-transform:uppercase; text-align:center; margin-bottom:14px;
@@ -253,6 +260,11 @@
     85% { opacity:1; }
     100% { left:130%; opacity:0; }
   }
+  /* 加入 Discord 按鈕閃爍吸引（呼應上方分頁的橙色掃光） */
+  @keyframes dc-join-pulse {
+    0%,100% { box-shadow:0 6px 24px rgba(88,101,242,.45), 0 0 0 0 rgba(249,115,22,0); }
+    50% { box-shadow:0 6px 30px rgba(88,101,242,.6), 0 0 0 8px rgba(249,115,22,.32); }
+  }
   .tab[data-tab="dc"]:not(.active) {
     animation:dc-tab-pulse 2s ease-in-out infinite;
     position:relative; overflow:hidden;
@@ -291,6 +303,13 @@
     background:#5865F2; color:#fff; font-size:15px; font-weight:800;
     padding:13px 0; border-radius:14px; text-decoration:none;
     box-shadow:0 4px 24px rgba(88,101,242,.55);
+    position:relative; overflow:hidden;
+    animation:dc-join-pulse 2s ease-in-out infinite;
+  }
+  .dc-sticky-cta a::after {
+    content:''; position:absolute; inset:0; left:-65%; width:42%;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+    animation:dc-tab-shine 3s ease-in-out infinite;
   }
   @media (max-width:600px) { .dc-sticky-cta { display:block; } }
 
