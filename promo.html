@@ -212,8 +212,14 @@
   .dc-join-btn svg { width:22px; height:22px; flex-shrink:0; }
   .dc-join-btn::after {
     content:''; position:absolute; inset:0; left:-65%; width:42%;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+    background:linear-gradient(90deg,transparent,rgba(249,115,22,.5),transparent);
     animation:dc-tab-shine 3s ease-in-out infinite;
+  }
+  .dc-join-btn::before {
+    content:''; position:absolute; top:6px; right:16px;
+    width:8px; height:8px; border-radius:50%;
+    background:#f97316; box-shadow:0 0 8px rgba(249,115,22,.9);
+    animation:dc-dot-pulse 1.5s ease-in-out infinite;
   }
   .dc-schools-title {
     font-size:11px; font-weight:800; letter-spacing:2px; color:var(--text-dim);
@@ -260,10 +266,10 @@
     85% { opacity:1; }
     100% { left:130%; opacity:0; }
   }
-  /* 加入 Discord 按鈕閃爍吸引（呼應上方分頁的橙色掃光） */
+  /* 加入 Discord 按鈕閃爍吸引（與上方分頁同色調：橙色光暈＋掃光＋圓點） */
   @keyframes dc-join-pulse {
     0%,100% { box-shadow:0 6px 24px rgba(88,101,242,.45), 0 0 0 0 rgba(249,115,22,0); }
-    50% { box-shadow:0 6px 30px rgba(88,101,242,.6), 0 0 0 8px rgba(249,115,22,.32); }
+    50% { box-shadow:0 6px 24px rgba(88,101,242,.45), 0 0 22px 6px rgba(249,115,22,.65); }
   }
   .tab[data-tab="dc"]:not(.active) {
     animation:dc-tab-pulse 2s ease-in-out infinite;
@@ -308,7 +314,7 @@
   }
   .dc-sticky-cta a::after {
     content:''; position:absolute; inset:0; left:-65%; width:42%;
-    background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);
+    background:linear-gradient(90deg,transparent,rgba(249,115,22,.5),transparent);
     animation:dc-tab-shine 3s ease-in-out infinite;
   }
   @media (max-width:600px) { .dc-sticky-cta { display:block; } }
