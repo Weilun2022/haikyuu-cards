@@ -2526,6 +2526,28 @@ function getColorStats(deck) {
   return stats;
 }
 
+// Render/update the 自由/接球/舉球/攻擊/事件 stats row; creates the element if missing.
+function renderColorStatsRow(deck) {
+  const stats = getColorStats(deck);
+  const statsRow = [
+    ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, count: stats[key] })),
+    { label: '事件', hex: EVENT_COLOR_HEX, count: stats.event }
+  ];
+  let statsEl = document.getElementById('deck-color-stats');
+  if (!statsEl) {
+    statsEl = document.createElement('div');
+    statsEl.id = 'deck-color-stats';
+    statsEl.className = 'deck-color-stats';
+    const body = document.querySelector('.deck-panel-body');
+    body.parentNode.insertBefore(statsEl, body);
+  }
+  statsEl.innerHTML = statsRow.map(({ label, hex, count }) =>
+    `<span class="deck-color-stat-item">
+       <span class="deck-color-dot" style="background:${hex}"></span>${label} ${count}
+     </span>`
+  ).join('');
+}
+
 // Expand deck.cards into canvas entries (each color group → separate slot)
 // Flat expansion in deck order (used internally)
 function expandEntriesForCanvas(deck) {
@@ -2794,25 +2816,7 @@ function renderDeckPanel() {
   document.getElementById('deck-panel-info-text').innerHTML = infoHtml;
 
   // ── Color stats row ─────────────────────────────────────────────────
-  const stats = getColorStats(deck);
-  const statsRow = [
-    ...COLOR_TAGS.map(({ key, label, hex }) => ({ key, label, hex, count: stats[key] })),
-    { key: 'event', label: '事件', hex: EVENT_COLOR_HEX, count: stats.event }
-  ];
-  let statsEl = document.getElementById('deck-color-stats');
-  if (!statsEl) {
-    statsEl = document.createElement('div');
-    statsEl.id = 'deck-color-stats';
-    statsEl.className = 'deck-color-stats';
-    // Insert just before deck-panel-body
-    const body = document.querySelector('.deck-panel-body');
-    body.parentNode.insertBefore(statsEl, body);
-  }
-  statsEl.innerHTML = statsRow.map(({ label, hex, count }) =>
-    `<span class="deck-color-stat-item">
-       <span class="deck-color-dot" style="background:${hex}"></span>${label} ${count}
-     </span>`
-  ).join('');
+  renderColorStatsRow(deck);
 
   // ── 上色模式：交由 renderColorModeGrid 接管 body ──────────────────
   if (colorModeActive) {
@@ -3571,6 +3575,7 @@ function _colorModeAdjustCount(imageFile, dir) {
   if (!entry) return;
   const newCount = Math.max(1, entry.count + dir);
   if (newCount === entry.count) return;
+  trimCardColorMap(deck.id, imageFile, newCount);
   entry.count = newCount;
   saveDecks();
   // Rebuild slots (preserve color assignments that still fit)
@@ -3580,6 +3585,7 @@ function _colorModeAdjustCount(imageFile, dir) {
   document.getElementById('color-pick-count').textContent = '已選 0 張';
   renderColorModeGrid();
   updateDeckInfoText();
+  renderColorStatsRow(deck);
   updateTray();
 }
 
@@ -3658,19 +3664,7 @@ function applyBatchColor(colorKey) {
   colorModeSlots = buildColorModeSlots();
 
   // 更新統計列
-  const stats = getColorStats(deck);
-  const statsEl = document.getElementById('deck-color-stats');
-  if (statsEl) {
-    const statsRow = [
-      ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, count: stats[key] })),
-      { label: '事件', hex: EVENT_COLOR_HEX, count: stats.event }
-    ];
-    statsEl.innerHTML = statsRow.map(({ label, hex, count }) =>
-      `<span class="deck-color-stat-item">
-         <span class="deck-color-dot" style="background:${hex}"></span>${label} ${count}
-       </span>`
-    ).join('');
-  }
+  renderColorStatsRow(deck);
 
   document.getElementById('color-pick-count').textContent = '已選 0 張';
   renderColorModeGrid();
