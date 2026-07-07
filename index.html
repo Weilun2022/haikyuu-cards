@@ -306,6 +306,10 @@
   }
   .card-no { font-size: 10px; color: var(--text-dim); margin-bottom: 2px; }
   .card-name { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 4px; }
+  .card-name-zh {
+    font-size: 11px; color: var(--accent); opacity: .85; line-height: 1.3;
+    margin: -2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .card-school {
     display: inline-block;
     font-size: 10px;
@@ -461,7 +465,9 @@
     cursor: default;
     pointer-events: none;
   }
-  .modal-name { font-size: 22px; font-weight: 700; margin-bottom: 8px; line-height: 1.2; }
+  .modal-name { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .modal-name-zh { font-size: 14px; font-weight: 600; color: var(--accent); opacity: .9; line-height: 1.3; margin-top: 3px; }
+  .modal-name-wrap { margin-bottom: 8px; }
 
   .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   .tag {
@@ -1543,7 +1549,10 @@
     </div>
     <div class="modal-body">
       <div class="modal-no" id="modal-no"></div>
-      <div class="modal-name" id="modal-name"></div>
+      <div class="modal-name-wrap">
+        <div class="modal-name" id="modal-name"></div>
+        <div class="modal-name-zh" id="modal-name-zh" style="display:none"></div>
+      </div>
       <div class="modal-tags" id="modal-tags"></div>
       <div class="modal-stats-grid" id="modal-stats"></div>
       <div class="modal-skill-title">技能文字</div>
@@ -2023,8 +2032,9 @@ function applyFilters() {
         c.tos && `舉球${c.tos}`, c.blk && `攔網${c.blk}`, c.srv && `發球${c.srv}`
       ].filter(Boolean).join(' ');
       const typeZh = ({CHARACTER:'角色',EVENT:'事件',SERVE:'發球'})[c.category] || '';
-      const haystack = [c.card_no, c.name, c.affiliation, c.skill_zh, c.rarity, stats, typeZh,
-        c.position, c.position_zh]
+      const haystack = [c.card_no, c.name, (c.name || '').replace(/\s+/g, ''),
+        c.name_zh, (c.name_zh || '').replace(/\s+/g, ''),
+        c.affiliation, c.skill_zh, c.rarity, stats, typeZh, c.position, c.position_zh]
         .filter(Boolean).join(' ').toLowerCase();
       const terms = searchText.split(/\s+/).filter(Boolean);
       if (!terms.every(t => haystack.includes(t))) return false;
@@ -2158,6 +2168,8 @@ function buildCardEl(card) {
   }
 
   const deckCount = getCardCountInDeck(card.image_file);
+  const nameZhHtml = (card.name_zh && card.name_zh !== card.name)
+    ? `<div class="card-name-zh">${escapeHtml(card.name_zh)}</div>` : '';
 
   div.innerHTML = `
     <div class="card-img-wrap">
@@ -2178,6 +2190,7 @@ function buildCardEl(card) {
     <div class="card-info">
       <div class="card-no">${card.card_no || ''}</div>
       <div class="card-name">${card.name || '（無名稱）'}</div>
+      ${nameZhHtml}
       <div class="card-school" style="background:${schoolColor}">${card.school || ''}</div>
       ${statsHtml}
     </div>`;
@@ -2254,6 +2267,13 @@ function openModal(card) {
   }
 
   document.getElementById('modal-name').textContent = card.name || '（無名稱）';
+  const modalNameZhEl = document.getElementById('modal-name-zh');
+  if (card.name_zh && card.name_zh !== card.name) {
+    modalNameZhEl.textContent = card.name_zh;
+    modalNameZhEl.style.display = 'block';
+  } else {
+    modalNameZhEl.style.display = 'none';
+  }
   const modalImg = document.getElementById('modal-img');
   modalImg.src = card.image_file ? `images/${card.image_file}` : '';
   modalImg.onclick = () => {

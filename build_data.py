@@ -86,6 +86,7 @@ build_data.py - 生成網站用的 cards_data.js
 ════════════════════════════════════════════════════════════════
 """
 import json, re, sys, os
+from name_zh_data import NAME_ZH_ENTRIES
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ── 翻譯函式（改良版，從 convert_cards.py 移植並強化） ─────────────
@@ -1478,6 +1479,24 @@ def translate_annotation(text):
     return '\n'.join(translate_skill(line) or line for line in raw.split('\n'))
 
 
+# ── 卡片名稱中文翻譯（name_zh）────────────────────────────────────
+def normalize_name_key(s):
+    """全形空白轉半形、連續空白壓成一個，供 name_zh 查表比對用；不影響輸出的 name 原文。"""
+    if not isinstance(s, str):
+        return ''
+    s = s.replace('　', ' ')
+    s = re.sub(r'\s+', ' ', s)
+    return s.strip()
+
+
+NAME_ZH_LOOKUP = {}
+for _entry in NAME_ZH_ENTRIES:
+    _key = normalize_name_key(_entry['jp'])
+    if _key in NAME_ZH_LOOKUP and NAME_ZH_LOOKUP[_key]['zh'] != _entry['zh']:
+        print(f"[WARN] name_zh 正規化後 key 衝突：「{_key}」同時對應「{NAME_ZH_LOOKUP[_key]['zh']}」與「{_entry['zh']}」")
+    NAME_ZH_LOOKUP[_key] = _entry
+
+
 # ── 主處理 ─────────────────────────────────────────────────────────
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
@@ -1531,6 +1550,7 @@ def main():
             'product_label': PRODUCT_LABELS.get(pt, pt),
             'name':          c.get('name', ''),
             'name_ruby':     c.get('name_ruby', ''),
+            'name_zh':       NAME_ZH_LOOKUP.get(normalize_name_key(c.get('name', '')), {}).get('zh', ''),
             'category':      c.get('category', ''),
             'category_zh':   CATEGORY_ZH.get(c.get('category',''), c.get('category','')),
             'affiliation':   c.get('affiliation', ''),
@@ -1600,6 +1620,14 @@ def main():
     print(f'     總卡片數        : {len(cards)} 張')
     print(f'     學校            : {schools}')
     print(f'     系列            : {product_types}')
+
+    missing_zh = sorted(set(
+        c['name'] for c in cards
+        if c['category'] in ('CHARACTER', 'EVENT') and not c['name_zh']
+    ))
+    print(f'[INFO] name_zh 查無翻譯（預期只有純漢字組合卡/無變化名稱，共 {len(missing_zh)} 個）：')
+    for n in missing_zh:
+        print(f'       - {n}')
 
 if __name__ == '__main__':
     main()
