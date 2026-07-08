@@ -163,9 +163,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "バレーは!!! 常に上を向くスポーツだ",
-        "zh": "排球就是！！！永遠向上看的運動",
+        "zh": "排球是！！！永遠向上看的運動",
         "kind": "quote",
-        "status": "high",
+        "status": "confirmed",
         "note": "烏養繋心/動畫3期10話",
     },
     {
@@ -310,9 +310,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "前のめりで行くぜ",
-        "zh": "向前衝吧",
+        "zh": "勇往直前地衝吧！",
         "kind": "quote",
-        "status": "high",
+        "status": "confirmed",
         "note": "西谷夕/第65話",
     },
     {
@@ -646,9 +646,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "探せ",
-        "zh": "去找吧",
+        "zh": "找出來！",
         "kind": "quote",
-        "status": "low",
+        "status": "confirmed",
         "note": "查無明確出處",
     },
     {
@@ -772,9 +772,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "楽してこうぜ 百沢ァー!!",
-        "zh": "輕鬆點來吧，百澤——！！",
+        "zh": "別繃得那麼緊啦，百澤——！！",
         "kind": "quote",
-        "status": "high",
+        "status": "confirmed",
         "note": "日向翔陽對百沢雄大/動畫4期4話",
     },
     {
@@ -1045,9 +1045,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "絶望の継続や",
-        "zh": "這是絕望的延續啊",
+        "zh": "讓絕望延續吧",
         "kind": "quote",
-        "status": "low",
+        "status": "confirmed",
         "note": "查無明確出處，北信介相關バボカ卡名",
     },
     {
@@ -1115,9 +1115,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "護りの音駒でリベロやるって チョー名誉だろ",
-        "zh": "能在以防守見長的音駒當自由球員，超光榮的吧",
+        "zh": "能在防守聞名的音駒當自由球員，是最大的榮譽吧！",
         "kind": "quote",
-        "status": "low",
+        "status": "confirmed",
         "note": "查無明確出處，疑為夜久相關",
     },
     {
@@ -1248,9 +1248,9 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "鬼と 鬼だな",
-        "zh": "那就不是鬼配金棒，而是鬼與鬼了啊",
+        "zh": "是鬼與鬼呢",
         "kind": "quote",
-        "status": "high",
+        "status": "confirmed",
         "note": "猫又育史/動畫1期13話",
     },
     {
