@@ -3946,5 +3946,15 @@ function bindDeckEvents() {
   });
 }
 </script>
+<script>
+// 卡圖離線快取：Service Worker 只快取 /images/ 底下的圖檔，不影響資料即時更新
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.warn('SW 註冊失敗：', err);
+    });
+  });
+}
+</script>
 </body>
 </html>
