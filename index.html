@@ -468,6 +468,15 @@
   .modal-name { font-size: 22px; font-weight: 700; line-height: 1.2; }
   .modal-name-zh { font-size: 14px; font-weight: 600; color: var(--accent); opacity: .9; line-height: 1.3; margin-top: 3px; }
   .modal-name-wrap { margin-bottom: 8px; }
+  .modal-audio-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 6px; padding: 5px 12px;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: rgba(108,99,255,0.1); border: 1px solid var(--accent);
+    border-radius: 999px; cursor: pointer;
+  }
+  .modal-audio-btn:hover { background: rgba(108,99,255,0.18); }
+  .modal-audio-btn.is-playing { background: var(--accent); color: #fff; }
 
   .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
   .tag {
@@ -1552,6 +1561,7 @@
       <div class="modal-name-wrap">
         <div class="modal-name" id="modal-name"></div>
         <div class="modal-name-zh" id="modal-name-zh" style="display:none"></div>
+        <button class="modal-audio-btn" id="modal-audio-btn" style="display:none">🔊 播放語音</button>
       </div>
       <div class="modal-tags" id="modal-tags"></div>
       <div class="modal-stats-grid" id="modal-stats"></div>
@@ -2388,8 +2398,55 @@ function openModal(card) {
   const feedbackBody = `## 卡號\n${card.card_no || ''}\n\n## 卡名\n${card.name || ''}\n\n## 當前技能文字\n${currentSkill}\n\n## 建議翻譯\n<!-- 請填寫您建議的翻譯 -->\n\n\n## 補充說明\n<!-- 選填 -->\n`;
   fbBtn.href = `https://github.com/Weilun2022/haikyuu-cards/issues/new?labels=translation&title=${encodeURIComponent(feedbackTitle)}&body=${encodeURIComponent(feedbackBody)}`;
 
+  // 動畫語音播放按鈕
+  stopCardAudio();
+  const audioBtn = document.getElementById('modal-audio-btn');
+  if (card.audio && card.audio.src) {
+    audioBtn.style.display = 'inline-flex';
+    audioBtn.onclick = () => toggleCardAudio(card.audio.src, audioBtn);
+  } else {
+    audioBtn.style.display = 'none';
+    audioBtn.onclick = null;
+  }
+
   document.getElementById('modal-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+// ── 卡片語音播放（全站同時最多播一則，避免疊播）────────────────────────
+let _cardAudio = null;
+let _cardAudioSrc = null;
+let _cardAudioBtn = null;
+
+function stopCardAudio() {
+  if (_cardAudio) {
+    _cardAudio.pause();
+    _cardAudio.currentTime = 0;
+  }
+  if (_cardAudioBtn) {
+    _cardAudioBtn.textContent = '🔊 播放語音';
+    _cardAudioBtn.classList.remove('is-playing');
+  }
+  _cardAudio = null;
+  _cardAudioSrc = null;
+  _cardAudioBtn = null;
+}
+
+function toggleCardAudio(src, btn) {
+  if (_cardAudio && _cardAudioSrc === src) {
+    stopCardAudio();
+    return;
+  }
+  stopCardAudio();
+  const audio = new Audio(src);
+  _cardAudio = audio;
+  _cardAudioSrc = src;
+  _cardAudioBtn = btn;
+  btn.textContent = '■ 停止';
+  btn.classList.add('is-playing');
+  audio.addEventListener('ended', stopCardAudio);
+  audio.addEventListener('error', stopCardAudio);
+  audio.play().catch(stopCardAudio);
 }
 
 function escapeHtml(str) {
@@ -2399,6 +2456,7 @@ function escapeHtml(str) {
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
   document.body.style.overflow = '';
+  stopCardAudio();
 }
 
 // ── Start ──────────────────────────────────────────────────────────────

@@ -87,6 +87,7 @@ build_data.py - 生成網站用的 cards_data.js
 """
 import json, re, sys, os
 from name_zh_data import NAME_ZH_ENTRIES
+from audio_data import AUDIO_ENTRIES
 sys.stdout.reconfigure(encoding='utf-8')
 
 # ── 翻譯函式（改良版，從 convert_cards.py 移植並強化） ─────────────
@@ -1489,6 +1490,15 @@ def normalize_name_key(s):
     return s.strip()
 
 
+AUDIO_BY_CARD_NO = {}
+for _a in AUDIO_ENTRIES:
+    if _a.get('status') != 'ready':
+        continue
+    if _a['card_no'] in AUDIO_BY_CARD_NO:
+        print(f"[WARN] audio_data.py 重複 card_no：{_a['card_no']}")
+    AUDIO_BY_CARD_NO[_a['card_no']] = {'src': _a['src'], 'mime': _a.get('mime', 'audio/mp4')}
+
+
 NAME_ZH_LOOKUP = {}
 for _entry in NAME_ZH_ENTRIES:
     _key = normalize_name_key(_entry['jp'])
@@ -1551,6 +1561,7 @@ def main():
             'name':          c.get('name', ''),
             'name_ruby':     c.get('name_ruby', ''),
             'name_zh':       NAME_ZH_LOOKUP.get(normalize_name_key(c.get('name', '')), {}).get('zh', ''),
+            'audio':         AUDIO_BY_CARD_NO.get(card_no),
             'category':      c.get('category', ''),
             'category_zh':   CATEGORY_ZH.get(c.get('category',''), c.get('category','')),
             'affiliation':   c.get('affiliation', ''),
