@@ -1364,11 +1364,11 @@
   <!-- 版本顯示（同卡號多版本折疊，新手用） -->
   <div class="filter-group" title="同一卡號有多個版本（如本體/閃卡）時，只顯示一張代表卡">
     <label>版本</label>
-    <div class="toggle-group" id="variant-mode-group">
-      <button type="button" class="toggle-btn active" data-variant-mode="off">關</button>
-      <button type="button" class="toggle-btn" data-variant-mode="low">低</button>
-      <button type="button" class="toggle-btn" data-variant-mode="high">高</button>
-    </div>
+    <select id="filter-variant-mode">
+      <option value="off" selected>關</option>
+      <option value="low">低</option>
+      <option value="high">高</option>
+    </select>
   </div>
 
   <!-- 排序 -->
@@ -1970,11 +1970,8 @@ function bindEvents() {
 
   document.getElementById('filter-sort').addEventListener('change', () => applyFilters());
 
-  document.getElementById('variant-mode-group').addEventListener('click', e => {
-    const btn = e.target.closest('.toggle-btn');
-    if (!btn) return;
-    activeVariantMode = btn.dataset.variantMode;
-    document.querySelectorAll('#variant-mode-group .toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+  document.getElementById('filter-variant-mode').addEventListener('change', e => {
+    activeVariantMode = e.target.value;
     applyFilters();
   });
 
@@ -1992,7 +1989,7 @@ function bindEvents() {
     document.getElementById('filter-position').value = '';
     searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = ''; activePosition = '';
     activeVariantMode = 'off';
-    document.querySelectorAll('#variant-mode-group .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.variantMode === 'off'));
+    document.getElementById('filter-variant-mode').value = 'off';
     applyFilters();
   });
 
