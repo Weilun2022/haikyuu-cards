@@ -1361,6 +1361,16 @@
     </select>
   </div>
 
+  <!-- 版本顯示（同卡號多版本折疊，新手用） -->
+  <div class="filter-group" title="同一卡號有多個版本（如本體/閃卡）時，只顯示一張代表卡">
+    <label>版本</label>
+    <div class="toggle-group" id="variant-mode-group">
+      <button type="button" class="toggle-btn active" data-variant-mode="off">關</button>
+      <button type="button" class="toggle-btn" data-variant-mode="low">低</button>
+      <button type="button" class="toggle-btn" data-variant-mode="high">高</button>
+    </div>
+  </div>
+
   <!-- 排序 -->
   <div class="filter-group">
     <label>排序</label>
@@ -1769,6 +1779,7 @@ let activeSchool = '';
 let activeRarity = '';
 let activePosition = '';
 let searchText = '';
+let activeVariantMode = 'off'; // off | low | high — 同 card_no 多版本折疊（新手用）
 
 // ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
 const DECK_LS_KEY  = 'hv_decks';
@@ -1959,6 +1970,14 @@ function bindEvents() {
 
   document.getElementById('filter-sort').addEventListener('change', () => applyFilters());
 
+  document.getElementById('variant-mode-group').addEventListener('click', e => {
+    const btn = e.target.closest('.toggle-btn');
+    if (!btn) return;
+    activeVariantMode = btn.dataset.variantMode;
+    document.querySelectorAll('#variant-mode-group .toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+    applyFilters();
+  });
+
   document.getElementById('filter-category').addEventListener('change', e => {
     activeCategory = e.target.value;
     applyFilters();
@@ -1972,6 +1991,8 @@ function bindEvents() {
     document.getElementById('filter-category').value = '';
     document.getElementById('filter-position').value = '';
     searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = ''; activePosition = '';
+    activeVariantMode = 'off';
+    document.querySelectorAll('#variant-mode-group .toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.variantMode === 'off'));
     applyFilters();
   });
 
@@ -2028,6 +2049,58 @@ function bindEvents() {
   })();
 }
 
+// ── 稀有度雙層排序（主稀有度階級 + 同階級版本加工）────────────────────────
+// 主稀有度階級由高到低；同階級內版本加工 本體 < P閃卡 < A特殊版
+const RARITY_TIER_SCORE = { 'K':7, '秘':6, '頂':5, 'S':4, 'R':3, 'N':2, 'D':1, 'P':0 };
+const RARITY_TIER_ALIAS = { 'K':'K', '秘':'秘', 'I':'頂', '頂':'頂', 'S':'S', 'R':'R', 'N':'N', 'D':'D', 'P':'P' };
+const RARITY_FINISH_SCORE = { 'BASE':0, 'P':1, 'A':2, 'UNKNOWN':0.5 };
+
+function normalizeVariant(card) {
+  const raw = String(card.image_end || card.rarity_code || card.rarity || '').trim().toUpperCase();
+  if (raw === 'P') {
+    return { tier: 'P', tierKnown: true, tierScore: RARITY_TIER_SCORE['P'], finishScore: RARITY_FINISH_SCORE.BASE };
+  }
+  let base = raw, finish = 'BASE';
+  if (raw.length > 1 && (raw.endsWith('P') || raw.endsWith('A'))) {
+    base = raw.slice(0, -1);
+    finish = raw.slice(-1);
+  }
+  const tier = RARITY_TIER_ALIAS[base];
+  if (tier) {
+    return { tier, tierKnown: true, tierScore: RARITY_TIER_SCORE[tier], finishScore: RARITY_FINISH_SCORE[finish] ?? RARITY_FINISH_SCORE.UNKNOWN };
+  }
+  return { tier: null, tierKnown: false, tierScore: -1, finishScore: RARITY_FINISH_SCORE.UNKNOWN };
+}
+
+// 回傳 <0：a 稀有度較低　>0：a 稀有度較高　0：相同
+function compareVariantRank(a, b) {
+  const na = normalizeVariant(a), nb = normalizeVariant(b);
+  if (na.tierKnown !== nb.tierKnown) return na.tierKnown ? 1 : -1; // 未知值一律墊底，避免誤判成最高/最低
+  if (na.tierScore !== nb.tierScore) return na.tierScore - nb.tierScore;
+  return na.finishScore - nb.finishScore;
+}
+
+// 依 card_no 分組，low/high 各組只留代表卡；off 原樣回傳
+function collapseCardVariants(list, mode) {
+  if (mode !== 'low' && mode !== 'high') return list;
+  const groups = new Map();
+  list.forEach(card => {
+    const key = card.card_no || card;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(card);
+  });
+  const result = [];
+  groups.forEach(group => {
+    let best = group[0];
+    for (let i = 1; i < group.length; i++) {
+      const diff = compareVariantRank(group[i], best);
+      if (mode === 'high' ? diff > 0 : diff < 0) best = group[i];
+    }
+    result.push(best);
+  });
+  return result;
+}
+
 // ── Filter Logic ───────────────────────────────────────────────────────
 function applyFilters() {
   filtered = cards.filter(c => {
@@ -2052,14 +2125,16 @@ function applyFilters() {
     return true;
   });
 
+  // 同 card_no 多版本折疊（低/高），在既有篩選之後、排序之前套用
+  filtered = collapseCardVariants(filtered, activeVariantMode);
+
   // Sort
   const sortMode = document.getElementById('filter-sort')?.value || 'card_no';
-  const RARITY_ORDER = { '秘':0, '頂P':1, '頂':2, 'S':3, 'R':4, 'N':5, 'D':6, 'P':7 };
   filtered.sort((a, b) => {
     if (sortMode === 'card_no') return (a.card_no||'').localeCompare(b.card_no||'');
     if (sortMode === 'name')    return (a.name||'').localeCompare(b.name||'');
     if (sortMode === 'rarity') {
-      const diff = (RARITY_ORDER[a.rarity] ?? 99) - (RARITY_ORDER[b.rarity] ?? 99);
+      const diff = -compareVariantRank(a, b); // 稀有度高的排前面
       return diff !== 0 ? diff : (a.card_no||'').localeCompare(b.card_no||'');
     }
     // stat sort descending
