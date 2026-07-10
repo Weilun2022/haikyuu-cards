@@ -3260,16 +3260,33 @@ function renderDeckPanel() {
   list.innerHTML = '';
 
   // 單卡呈現，不堆疊：每張複本各自一格；點擊顯示卡片資訊（非上色）
+  // 數量徽章比照上色模式：只在同一張卡的最後一格顯示，可直接按±調整張數
   deck.cards.forEach(entry => {
     const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
     for (let i = 0; i < entry.count; i++) {
       const thumb = document.createElement('div');
       thumb.className = 'deck-thumb-item' + (entry.image_file === deckPreviewSelectedImg ? ' selected' : '');
-      thumb.innerHTML = `
-        <img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">
-        ${entry.count > 1 ? `<div class="deck-thumb-badge">×${entry.count}</div>` : ''}`;
+      thumb.innerHTML = `<img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">`;
       thumb.addEventListener('click', () => showDeckPreview(entry.image_file));
+
+      if (i === entry.count - 1) {
+        const badge = document.createElement('div');
+        badge.className = 'color-qty-badge';
+        badge.innerHTML = `
+          <button class="color-qty-btn" data-dir="-1" data-img="${entry.image_file}" ${entry.count <= 1 ? 'disabled' : ''}>－</button>
+          <span class="color-qty-num">${entry.count}</span>
+          <button class="color-qty-btn" data-dir="1"  data-img="${entry.image_file}">＋</button>
+        `;
+        badge.querySelectorAll('.color-qty-btn').forEach(btn => {
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            _colorModeAdjustCount(btn.dataset.img, parseInt(btn.dataset.dir));
+          });
+        });
+        thumb.appendChild(badge);
+      }
+
       list.appendChild(thumb);
     }
   });
@@ -4007,12 +4024,16 @@ function _colorModeAdjustCount(imageFile, dir) {
   trimCardColorMap(deck.id, imageFile, newCount);
   entry.count = newCount;
   saveDecks();
-  // Rebuild slots (preserve color assignments that still fit)
-  colorModeSlots = buildColorModeSlots();
-  // Clear selected indices that may now be out of range
-  colorModeSelectedIndices.clear();
-  document.getElementById('color-pick-count').textContent = '已選 0 張';
-  renderColorModeGrid();
+  if (colorModeActive) {
+    // Rebuild slots (preserve color assignments that still fit)
+    colorModeSlots = buildColorModeSlots();
+    // Clear selected indices that may now be out of range
+    colorModeSelectedIndices.clear();
+    document.getElementById('color-pick-count').textContent = '已選 0 張';
+    renderColorModeGrid();
+  } else {
+    renderDeckPanel();
+  }
   updateDeckInfoText();
   renderColorStatsRow(deck);
   updateTray();
