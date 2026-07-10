@@ -6,6 +6,7 @@
 <title>排球少年!! バボカ!!BREAK 卡牌資料庫</title>
 <script src="lib/lz-string.min.js"></script>
 <script src="lib/qrcode.min.js"></script>
+<script type="module" src="js/cloud-sync.js"></script>
 <style>
   :root {
     --bg: #0f0f13;
@@ -998,7 +999,14 @@
     transition: max-height 0.25s ease, padding 0.25s ease;
   }
   .deck-panel-footer.open {
-    max-height: 200px; padding: 10px 16px;
+    max-height: 320px; padding: 10px 16px;
+  }
+  .cloud-sync-block {
+    display: flex; flex-direction: column; gap: 8px; width: 100%;
+    padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 2px;
+  }
+  .cloud-sync-status {
+    font-size: 11px; color: var(--text-dim); line-height: 1.4;
   }
 
   /* ── Analysis Overlay ── */
@@ -1273,6 +1281,8 @@
   .import-confirm-box h3 { font-size: 15px; margin-bottom: 8px; }
   .import-confirm-box p { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.6; }
   .import-confirm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  #cloud-confirm-btns { flex-direction: column; align-items: stretch; }
+  #cloud-confirm-btns button { width: 100%; }
 
   /* Toast */
   #hv-toast {
@@ -1476,6 +1486,20 @@
       <span class="toggle-arrow">▲</span><span>工具</span>
     </div>
     <div class="deck-panel-footer" id="deck-panel-footer">
+      <div class="cloud-sync-block" id="cloud-sync-block">
+        <div id="cloud-signed-out-row" style="width:100%">
+          <button class="tray-btn primary" id="cloud-login-btn" style="width:100%">☁️ Google 登入 / 雲端同步</button>
+        </div>
+        <div id="cloud-signed-in-row" style="display:none;flex-direction:column;gap:8px;width:100%">
+          <div class="cloud-sync-status" id="cloud-sync-status-text"></div>
+          <div style="display:flex;gap:8px;width:100%">
+            <button class="tray-btn" id="cloud-upload-btn" style="flex:1">⬆ 上傳</button>
+            <button class="tray-btn" id="cloud-download-btn" style="flex:1">⬇ 下載</button>
+            <button class="tray-btn" id="cloud-merge-btn" style="flex:1">🔀 合併</button>
+          </div>
+          <button class="tray-btn danger" id="cloud-logout-btn" style="width:100%">登出</button>
+        </div>
+      </div>
       <button class="tray-btn" id="deck-share-btn" style="width:100%">📲 QR Code 快速分享</button>
       <div style="display:flex;gap:8px;width:100%">
         <button class="tray-btn" id="deck-export-img-btn" style="flex:1">🖼️ 牌組轉圖片</button>
@@ -1516,6 +1540,15 @@
       <button class="tray-btn" id="import-merge-btn">合併</button>
       <button class="tray-btn primary" id="import-overwrite-btn">覆蓋</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Cloud Sync 確認 / 首次登入 Migration Modal ── -->
+<div class="import-confirm-overlay" id="cloud-confirm-overlay">
+  <div class="import-confirm-box">
+    <h3 id="cloud-confirm-title"></h3>
+    <p id="cloud-confirm-msg"></p>
+    <div class="import-confirm-btns" id="cloud-confirm-btns"></div>
   </div>
 </div>
 
@@ -2590,14 +2623,212 @@ function loadDecks() {
   // 預設切到快速查詢
   currentDeckId = QUICK_DECK_ID;
 }
-function saveDecks() { localStorage.setItem(DECK_LS_KEY, JSON.stringify(decks)); }
+function saveDecks() { localStorage.setItem(DECK_LS_KEY, JSON.stringify(decks)); hvDetectAndMarkDirty(); }
 
 // ── Color State Persistence ─────────────────────────────────────────────
 function loadColorState() {
   try { const r = localStorage.getItem(COLOR_LS_KEY); deckColorState = r ? JSON.parse(r) : {}; }
   catch { deckColorState = {}; }
 }
-function saveColorState() { localStorage.setItem(COLOR_LS_KEY, JSON.stringify(deckColorState)); }
+function saveColorState() { localStorage.setItem(COLOR_LS_KEY, JSON.stringify(deckColorState)); hvDetectAndMarkDirty(); }
+
+// ══════════════════════════════════════════════════════
+// CLOUD SYNC（Google 登入 + Firestore 備份/還原，見 js/cloud-sync.js）
+// ══════════════════════════════════════════════════════
+
+let _hvDeckSnapshot = {};
+function hvDeckSig(d) { return JSON.stringify(d) + '|' + JSON.stringify(deckColorState[d.id] || null); }
+function hvSnapshotDeckState() {
+  _hvDeckSnapshot = {};
+  decks.forEach(d => { _hvDeckSnapshot[d.id] = hvDeckSig(d); });
+}
+function hvDetectAndMarkDirty() {
+  if (!window.hvCloudSync) return;
+  decks.forEach(d => {
+    if (_hvDeckSnapshot[d.id] !== hvDeckSig(d)) window.hvCloudSync.markDirty(d.id);
+  });
+  hvSnapshotDeckState();
+}
+
+function hvRenderCloudUI(status) {
+  const signedOutRow = document.getElementById('cloud-signed-out-row');
+  const signedInRow  = document.getElementById('cloud-signed-in-row');
+  const statusText   = document.getElementById('cloud-sync-status-text');
+  if (!signedOutRow || !signedInRow) return;
+  if (status.user) {
+    signedOutRow.style.display = 'none';
+    signedInRow.style.display  = 'flex';
+    const name = status.user.displayName || status.user.email || '已登入';
+    statusText.textContent = `${name}｜${status.hasLocalChanges ? '本機有未上傳變更' : '已同步'}`;
+  } else {
+    signedOutRow.style.display = 'block';
+    signedInRow.style.display  = 'none';
+  }
+}
+
+function hvShowCloudConfirm(title, msg, buttons) {
+  document.getElementById('cloud-confirm-title').textContent = title;
+  document.getElementById('cloud-confirm-msg').textContent = msg;
+  const btnWrap = document.getElementById('cloud-confirm-btns');
+  btnWrap.innerHTML = '';
+  buttons.forEach(b => {
+    const el = document.createElement('button');
+    el.className = 'tray-btn' + (b.primary ? ' primary' : '') + (b.danger ? ' danger' : '');
+    el.textContent = b.label;
+    el.addEventListener('click', () => {
+      document.getElementById('cloud-confirm-overlay').classList.remove('open');
+      if (b.action) b.action();
+    });
+    btnWrap.appendChild(el);
+  });
+  document.getElementById('cloud-confirm-overlay').classList.add('open');
+}
+
+let _hvMigrationChecked = false;
+async function hvCheckMigration(user) {
+  if (_hvMigrationChecked) return;
+  _hvMigrationChecked = true;
+  try {
+    const cloudDecks = await window.hvCloudSync.fetchCloudDecks(user.uid);
+    const realLocalDecks = decks.filter(d => d.id !== QUICK_DECK_ID);
+    const quickHasCards  = (decks.find(d => d.id === QUICK_DECK_ID)?.cards.length || 0) > 0;
+    const localHasDecks  = realLocalDecks.length > 0 || quickHasCards;
+    const cloudHasDecks  = cloudDecks.length > 0;
+
+    if (!localHasDecks && !cloudHasDecks) return;
+
+    if (localHasDecks && !cloudHasDecks) {
+      hvShowCloudConfirm(
+        '備份牌組到雲端？',
+        `你目前本機有 ${decks.length} 副牌組，雲端還沒有資料。是否要把本機牌組備份到雲端？`,
+        [ { label: '暫時不要' }, { label: '上傳本機到雲端', primary: true, action: hvDoUpload } ]
+      );
+    } else if (!localHasDecks && cloudHasDecks) {
+      hvShowCloudConfirm(
+        '從雲端還原牌組？',
+        `雲端有 ${cloudDecks.length} 副牌組，本機目前沒有資料。是否要下載雲端牌組到這台裝置？`,
+        [ { label: '暫時不要' }, { label: '從雲端下載', primary: true, action: hvDoDownload } ]
+      );
+    } else {
+      hvShowCloudConfirm(
+        '同步本機與雲端',
+        '本機與雲端都有牌組資料。建議選擇「安全合併」，會保留兩邊資料，內容衝突的牌組會另存副本，不會直接覆蓋。',
+        [
+          { label: '取消' },
+          { label: '用雲端覆蓋本機', danger: true, action: hvDoDownload },
+          { label: '用本機覆蓋雲端', danger: true, action: hvDoUpload },
+          { label: '安全合併', primary: true, action: hvDoMerge }
+        ]
+      );
+    }
+  } catch (e) {
+    console.error('[cloud-sync] migration check failed', e);
+  }
+}
+
+async function hvDoUpload() {
+  const user = window.hvCloudSync.currentUser;
+  if (!user) return;
+  try {
+    await window.hvCloudSync.uploadLocalToCloud(user.uid, decks, deckColorState);
+    showToast('已上傳到雲端！');
+  } catch (e) {
+    console.error(e);
+    showToast('上傳失敗，請稍後再試');
+  }
+}
+
+function hvEnsureQuickDeck() {
+  if (!decks.find(d => d.id === QUICK_DECK_ID)) {
+    decks.unshift({ id: QUICK_DECK_ID, name: '快速查詢', cards: [], owned: {} });
+  }
+}
+
+async function hvDoDownload() {
+  const user = window.hvCloudSync.currentUser;
+  if (!user) return;
+  try {
+    const ts = Date.now();
+    localStorage.setItem(`hv_decks_backup_${ts}`, JSON.stringify(decks));
+    localStorage.setItem(`hv_deck_colors_backup_${ts}`, JSON.stringify(deckColorState));
+    const { decks: cloudDecks, colors: cloudColors } = await window.hvCloudSync.downloadCloudToLocal(user.uid);
+    decks = cloudDecks;
+    deckColorState = cloudColors;
+    hvEnsureQuickDeck();
+    currentDeckId = decks[0]?.id || null;
+    hvSnapshotDeckState(); // 先對齊基準，避免 saveDecks() 內部把剛下載的資料又標記成「未上傳變更」
+    saveDecks(); saveColorState();
+    renderDeckPanel(); updateTray();
+    showToast('已從雲端下載！');
+  } catch (e) {
+    console.error(e);
+    showToast('下載失敗，請稍後再試');
+  }
+}
+
+async function hvDoMerge() {
+  const user = window.hvCloudSync.currentUser;
+  if (!user) return;
+  try {
+    const ts = Date.now();
+    localStorage.setItem(`hv_decks_backup_${ts}`, JSON.stringify(decks));
+    localStorage.setItem(`hv_deck_colors_backup_${ts}`, JSON.stringify(deckColorState));
+    const { decks: mergedDecks, colors: mergedColors } = await window.hvCloudSync.mergeLocalAndCloud(user.uid, decks, deckColorState);
+    decks = mergedDecks;
+    deckColorState = mergedColors;
+    hvEnsureQuickDeck();
+    currentDeckId = decks[0]?.id || null;
+    hvSnapshotDeckState();
+    saveDecks(); saveColorState();
+    renderDeckPanel(); updateTray();
+    showToast('已合併本機與雲端！');
+  } catch (e) {
+    console.error(e);
+    showToast('合併失敗，請稍後再試');
+  }
+}
+
+function hvInitCloudSync() {
+  hvSnapshotDeckState();
+
+  document.getElementById('cloud-login-btn').addEventListener('click', async () => {
+    try { await window.hvCloudSync.signInWithGoogle(); }
+    catch (e) { console.error(e); showToast('登入失敗，請重試'); }
+  });
+  document.getElementById('cloud-logout-btn').addEventListener('click', async () => {
+    await window.hvCloudSync.signOutUser();
+    _hvMigrationChecked = false;
+    showToast('已登出');
+  });
+  document.getElementById('cloud-upload-btn').addEventListener('click', () => {
+    hvShowCloudConfirm('上傳本機到雲端？', '這會用本機目前的牌組覆蓋雲端備份，確定嗎？', [
+      { label: '取消' }, { label: '確定上傳', primary: true, action: hvDoUpload }
+    ]);
+  });
+  document.getElementById('cloud-download-btn').addEventListener('click', () => {
+    hvShowCloudConfirm('從雲端下載到本機？', '這會用雲端目前的牌組覆蓋本機（下載前會自動備份本機資料到 localStorage），確定嗎？', [
+      { label: '取消' }, { label: '確定下載', primary: true, action: hvDoDownload }
+    ]);
+  });
+  document.getElementById('cloud-merge-btn').addEventListener('click', () => {
+    hvShowCloudConfirm('合併本機與雲端？', '會盡量保留兩邊資料，內容衝突的牌組會另存副本，不會直接覆蓋。', [
+      { label: '取消' }, { label: '確定合併', primary: true, action: hvDoMerge }
+    ]);
+  });
+
+  window.hvCloudSync.onStatusChange(hvRenderCloudUI);
+  window.hvCloudSync.onAuthChange(user => {
+    if (user) hvCheckMigration(user);
+    else _hvMigrationChecked = false;
+  });
+  hvRenderCloudUI(window.hvCloudSync.getStatus());
+}
+
+if (window.hvCloudSync) {
+  hvInitCloudSync();
+} else {
+  window.addEventListener('hv-cloud-sync-ready', hvInitCloudSync, { once: true });
+}
 
 // ── Color State Helpers ─────────────────────────────────────────────────
 function getCardColorMap(deckId, imageFile) {
