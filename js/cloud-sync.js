@@ -76,15 +76,17 @@ async function contentHashOf(deck, color) {
 // ── 狀態通知（登入狀態 / 同步中 / 有無待處理變更）─────────────────────────
 let _syncing = false;
 let _hasPending = false;
+let _hasPendingDeletes = false; // 有牌組已在本機刪除，但還沒手動同步推上雲端 tombstone
 const _statusListeners = [];
-function getStatus() { return { user: auth.currentUser, syncing: _syncing, hasPending: _hasPending }; }
+function getStatus() { return { user: auth.currentUser, syncing: _syncing, hasPending: _hasPending, hasPendingDeletes: _hasPendingDeletes }; }
 function onStatusChange(cb) { _statusListeners.push(cb); }
 function _notifyStatus() { _statusListeners.forEach(cb => cb(getStatus())); }
 
 function _recomputePending(uid) {
-  if (!uid) { _hasPending = false; return; }
+  if (!uid) { _hasPending = false; _hasPendingDeletes = false; return; }
   const s = loadSyncState(uid);
-  _hasPending = Object.keys(s.dirty).length > 0 || Object.keys(s.pendingDeletes).length > 0;
+  _hasPendingDeletes = Object.keys(s.pendingDeletes).length > 0;
+  _hasPending = Object.keys(s.dirty).length > 0 || _hasPendingDeletes;
 }
 
 // 本機牌組新增/修改時呼叫：只記錄「這副牌組髒了」，實際上傳交給 autoReconcile
@@ -106,6 +108,7 @@ function queuePendingDelete(uid, deckId) {
   delete s.baseline[deckId];
   saveSyncState(uid, s);
   _hasPending = true;
+  _hasPendingDeletes = true;
   _notifyStatus();
 }
 
@@ -180,7 +183,10 @@ function deckDocPayload(uid, deck, color, hash, existing) {
 //   restoredFromLoss: boolean,              // 是否偵測到本機資料異常遺失並自動救回
 //   conflictCount: number                   // 有幾副牌組發生雙邊衝突（已自動建副本，不阻斷）
 // }
-async function autoReconcile(uid, localDecks, localColors) {
+// pushDeletes=false（預設）：自動觸發的同步（登入、切回分頁、編輯 debounce）一律不會把待刪除
+// 的牌組真的從雲端移除，只是先擱置——雲端那份原封不動，「用雲端覆蓋本機」隨時都能找回來。
+// 只有使用者手動按「立即同步」（pushDeletes=true）才會真的把待刪除的牌組推上雲端 tombstone。
+async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false } = {}) {
   if (_syncing) return null;
   _syncing = true;
   _notifyStatus();
@@ -215,10 +221,15 @@ async function autoReconcile(uid, localDecks, localColors) {
       const cloudHash = cloudDeleted ? null : cloud.active[id];
       const pendingDelete = !!state.pendingDeletes[id];
 
-      // 1. 使用者明確刪除過（本機已經沒有這副牌），推上雲端 tombstone
+      // 1. 使用者明確刪除過（本機已經沒有這副牌）
       if (pendingDelete) {
-        if (!cloudDeleted) toSoftDelete.push(id);
-        else delete state.pendingDeletes[id];
+        if (cloudDeleted) { delete state.pendingDeletes[id]; continue; }
+        if (pushDeletes) {
+          // 使用者手動按了「立即同步」，這時候才真的推上雲端 tombstone
+          toSoftDelete.push(id);
+        }
+        // pushDeletes=false：先擱置，雲端這份完全不動，也不要被其他規則誤判成
+        // 「本機遺失」而自動救回本機（那樣等於默默撤銷使用者剛做的刪除）
         continue;
       }
 
@@ -319,7 +330,11 @@ async function autoReconcile(uid, localDecks, localColors) {
 
     saveSyncState(uid, state);
     _recomputePending(uid);
-    return { applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount };
+    return {
+      applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount,
+      deletesPushed: toSoftDelete.length,
+      pendingDeleteCount: Object.keys(state.pendingDeletes).length
+    };
   } finally {
     _syncing = false;
     _notifyStatus();
