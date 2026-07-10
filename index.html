@@ -3251,19 +3251,19 @@ function renderDeckPanel() {
   list.style.display = '';
   list.innerHTML = '';
 
+  // 單卡呈現，不堆疊：每張複本各自一格；點擊顯示卡片資訊（非上色）
   deck.cards.forEach(entry => {
     const card = cards.find(c => c.image_file === entry.image_file);
     if (!card) return;
-    const isEvent = card.category === 'EVENT';
-    const colorMap = isEvent ? null : getCardColorMap(deck.id, entry.image_file);
-
-    const thumb = document.createElement('div');
-    thumb.className = 'deck-thumb-item' + (entry.image_file === deckPreviewSelectedImg ? ' selected' : '');
-    thumb.innerHTML = `
-      <img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">
-      <div class="deck-thumb-badge">×${entry.count}</div>`;
-    thumb.addEventListener('click', () => showDeckPreview(entry.image_file));
-    list.appendChild(thumb);
+    for (let i = 0; i < entry.count; i++) {
+      const thumb = document.createElement('div');
+      thumb.className = 'deck-thumb-item' + (entry.image_file === deckPreviewSelectedImg ? ' selected' : '');
+      thumb.innerHTML = `
+        <img src="images/${entry.image_file}" alt="" onerror="this.style.background='var(--surface2)'">
+        ${entry.count > 1 ? `<div class="deck-thumb-badge">×${entry.count}</div>` : ''}`;
+      thumb.addEventListener('click', () => showDeckPreview(entry.image_file));
+      list.appendChild(thumb);
+    }
   });
 
   // 若 preview 選中的卡已不在牌組，隱藏 preview
