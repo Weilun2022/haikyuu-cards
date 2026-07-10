@@ -29,6 +29,7 @@ import {
   getFirestore,
   collection,
   doc,
+  getDoc,
   getDocs,
   setDoc,
   writeBatch,
@@ -50,9 +51,10 @@ function loadSyncState(uid) {
     if (!s.baseline) s.baseline = {};
     if (!s.pendingDeletes) s.pendingDeletes = {};
     if (!s.dirty) s.dirty = {};
+    if (!s.favoritesBaseline) s.favoritesBaseline = null; // null = 從沒同步過
     return s;
   } catch {
-    return { baseline: {}, pendingDeletes: {}, dirty: {} };
+    return { baseline: {}, pendingDeletes: {}, dirty: {}, favoritesBaseline: null };
   }
 }
 function saveSyncState(uid, state) { localStorage.setItem(syncStateKey(uid), JSON.stringify(state)); }
@@ -336,6 +338,78 @@ function commitLocalBaseline(uid, decks, colors) {
 }
 
 // ══════════════════════════════════════════════════════
+// 我的最愛（單卡收藏，跟牌組系統完全獨立）
+// Firestore 路徑：/users/{uid}/favorites/main（跟 /decks 分開，schema 不共用，
+// 避免收藏清單被硬塞進牌組驗證規則）。用三方合併（baseline/本機/雲端）同步：
+// 任一邊新增就保留、baseline 有但任一邊移除了才視為刪除。
+// ══════════════════════════════════════════════════════
+
+function favoritesDocRef(uid) {
+  return doc(db, 'users', uid, 'favorites', 'main');
+}
+async function favoritesHashOf(items) {
+  return sha256Hex('favorites:v1\n' + items.join('\n'));
+}
+function mergeFavoriteSets(baseItems, localItems, remoteItems) {
+  const base = new Set(baseItems || []);
+  const local = new Set(localItems || []);
+  const remote = new Set(remoteItems || []);
+  const all = new Set([...base, ...local, ...remote]);
+  const out = new Set();
+  for (const id of all) {
+    const inBase = base.has(id), inLocal = local.has(id), inRemote = remote.has(id);
+    if (!inBase) { if (inLocal || inRemote) out.add(id); }
+    else { if (inLocal && inRemote) out.add(id); }
+  }
+  return Array.from(out).sort();
+}
+
+// 回傳 { items, changed }。items 是合併後應套用到本機的最終清單；
+// changed=true 代表跟傳入的 localItems 不同，呼叫端要把它寫回本機。
+async function reconcileFavorites(uid, localItems) {
+  const state = loadSyncState(uid);
+  const local = Array.from(new Set(localItems || [])).sort();
+  const ref = favoritesDocRef(uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    if (local.length === 0) return { items: local, changed: false };
+    const hash = await favoritesHashOf(local);
+    await setDoc(ref, {
+      ownerUid: uid, schemaVersion: SCHEMA_VERSION,
+      items: local, itemCount: local.length, contentHash: hash,
+      clientUpdatedAt: Date.now(), createdAt: serverTimestamp(), updatedAt: serverTimestamp()
+    });
+    state.favoritesBaseline = local;
+    saveSyncState(uid, state);
+    return { items: local, changed: false };
+  }
+
+  const remoteData = snap.data();
+  const remote = Array.from(new Set(remoteData.items || [])).sort();
+
+  // 沒有 baseline（例如換新裝置）：用聯集，不要讓任一邊默默蓋掉另一邊
+  const merged = state.favoritesBaseline === null
+    ? Array.from(new Set([...local, ...remote])).sort()
+    : mergeFavoriteSets(state.favoritesBaseline, local, remote);
+
+  const mergedHash = await favoritesHashOf(merged);
+  if (mergedHash !== remoteData.contentHash) {
+    await setDoc(ref, {
+      ownerUid: uid, schemaVersion: SCHEMA_VERSION,
+      items: merged, itemCount: merged.length, contentHash: mergedHash,
+      clientUpdatedAt: Date.now(), createdAt: remoteData.createdAt, updatedAt: serverTimestamp()
+    });
+  }
+
+  state.favoritesBaseline = merged;
+  saveSyncState(uid, state);
+
+  const changed = JSON.stringify(merged) !== JSON.stringify(local);
+  return { items: merged, changed };
+}
+
+// ══════════════════════════════════════════════════════
 // 手動破壞性操作（保留給進階使用者，永遠不會被自動同步呼叫）
 // ══════════════════════════════════════════════════════
 
@@ -402,6 +476,7 @@ window.hvCloudSync = {
   queuePendingDelete,
   autoReconcile,
   commitLocalBaseline,
+  reconcileFavorites,
   replaceCloudWithLocalDestructive,
   downloadCloudToLocalDestructive,
   get currentUser() { return auth.currentUser; }

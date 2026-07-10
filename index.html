@@ -1371,6 +1371,15 @@
     </select>
   </div>
 
+  <!-- 我的最愛 -->
+  <div class="filter-group">
+    <label>我的最愛</label>
+    <select id="filter-favorite-only">
+      <option value="">全部</option>
+      <option value="1">★ 只顯示最愛</option>
+    </select>
+  </div>
+
   <!-- 版本顯示（同卡號多版本折疊，新手用） -->
   <div class="filter-group" title="同一卡號有多個版本（如本體/閃卡）時，只顯示一張代表卡">
     <label>版本</label>
@@ -1813,6 +1822,52 @@ let activeRarity = '';
 let activePosition = '';
 let searchText = '';
 let activeVariantMode = 'off'; // off | low | high — 同 card_no 多版本折疊（新手用）
+let favoriteOnlyFilter = false;
+let _hvApplyingRemote = false; // 雲端同步套用遠端資料時暫停 dirty 偵測；宣告提前避免 init() 早期呼叫時的 TDZ 錯誤
+
+// ── 我的最愛（單卡收藏，跟牌組系統無關）──────────────────────────────
+const FAVORITES_LS_KEY = 'hv_favorites_v1';
+let favoriteImageFiles = new Set();
+
+function normalizeFavoriteItems(items) {
+  return Array.from(new Set((items || []).filter(x => typeof x === 'string' && x))).sort();
+}
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_LS_KEY);
+    if (!raw) { favoriteImageFiles = new Set(); return; }
+    const data = JSON.parse(raw);
+    favoriteImageFiles = new Set(normalizeFavoriteItems(data?.items));
+  } catch { favoriteImageFiles = new Set(); }
+}
+function saveFavorites() {
+  const items = normalizeFavoriteItems(Array.from(favoriteImageFiles));
+  localStorage.setItem(FAVORITES_LS_KEY, JSON.stringify({ schemaVersion: 1, items, updatedAt: Date.now() }));
+  hvOnFavoritesChange();
+}
+function isFavorite(image_file) { return favoriteImageFiles.has(image_file); }
+function toggleFavorite(image_file) {
+  if (favoriteImageFiles.has(image_file)) favoriteImageFiles.delete(image_file);
+  else favoriteImageFiles.add(image_file);
+  saveFavorites();
+}
+// 既有使用者第一次上線：把原本星號（快速查詢牌組）的卡片轉成我的最愛，只做一次
+function migrateFavoritesFromQuickDeckIfNeeded() {
+  if (localStorage.getItem(FAVORITES_LS_KEY)) return false;
+  const qd = decks.find(d => d.id === QUICK_DECK_ID);
+  if (!qd || !qd.cards || !qd.cards.length) return false;
+  favoriteImageFiles = new Set(qd.cards.map(c => c.image_file).filter(Boolean));
+  saveFavorites();
+  return true;
+}
+window.HVFavorites = {
+  getSnapshot() { return { schemaVersion: 1, items: normalizeFavoriteItems(Array.from(favoriteImageFiles)) }; },
+  applySnapshot(items) {
+    favoriteImageFiles = new Set(normalizeFavoriteItems(items));
+    localStorage.setItem(FAVORITES_LS_KEY, JSON.stringify({ schemaVersion: 1, items: Array.from(favoriteImageFiles), updatedAt: Date.now() }));
+    applyFilters();
+  }
+};
 
 // ── Deck State (宣告在 init 之前，避免 TDZ 錯誤) ──────────────────────
 const DECK_LS_KEY  = 'hv_decks';
@@ -1920,6 +1975,8 @@ function init() {
 
   loadDecks();
   loadColorState();
+  loadFavorites();
+  migrateFavoritesFromQuickDeckIfNeeded();
   buildFilters();
   applyFilters();
   bindEvents();
@@ -2013,6 +2070,11 @@ function bindEvents() {
     applyFilters();
   });
 
+  document.getElementById('filter-favorite-only').addEventListener('change', e => {
+    favoriteOnlyFilter = e.target.value === '1';
+    applyFilters();
+  });
+
   document.getElementById('btn-reset').addEventListener('click', () => {
     document.getElementById('search').value = '';
     document.getElementById('filter-series').value = '';
@@ -2020,7 +2082,9 @@ function bindEvents() {
     document.getElementById('filter-rarity').value = '';
     document.getElementById('filter-category').value = '';
     document.getElementById('filter-position').value = '';
+    document.getElementById('filter-favorite-only').value = '';
     searchText = ''; activeSeries = ''; activeSchool = ''; activeCategory = ''; activeRarity = ''; activePosition = '';
+    favoriteOnlyFilter = false;
     activeVariantMode = 'off';
     document.getElementById('filter-variant-mode').value = 'off';
     applyFilters();
@@ -2139,6 +2203,7 @@ function applyFilters() {
     if (activeCategory && c.category !== activeCategory) return false;
     if (activeRarity && c.rarity !== activeRarity && c.rarity !== activeRarity + 'P') return false;
     if (activePosition && c.position !== activePosition) return false;
+    if (favoriteOnlyFilter && !isFavorite(c.image_file)) return false;
     if (searchText) {
       const stats = [
         c.atk && `攻擊${c.atk}`, c.rcv && `接球${c.rcv}`,
@@ -2225,7 +2290,7 @@ function updatePromoBanner() {
 }
 
 function updateFilterBadge() {
-  const count = [activeSeries, activeSchool, activeCategory, activeRarity, activePosition, searchText]
+  const count = [activeSeries, activeSchool, activeCategory, activeRarity, activePosition, searchText, favoriteOnlyFilter ? '1' : '']
     .filter(Boolean).length;
   const badge = document.getElementById('filter-badge');
   const badgeC = document.getElementById('filter-badge-compact');
@@ -2296,10 +2361,10 @@ function buildCardEl(card) {
         data-img="${card.image_file}"
         value="${deckCount > 0 ? deckCount : ''}"
         min="0" placeholder="0">
-      <button class="card-star-btn ${isCardInQuickDeck(card.image_file) ? 'starred' : ''}"
+      <button class="card-star-btn ${isFavorite(card.image_file) ? 'starred' : ''}"
         data-img="${card.image_file}"
-        title="${isCardInQuickDeck(card.image_file) ? '從快速查詢移除' : '加入快速查詢'}">
-        ${isCardInQuickDeck(card.image_file) ? '★' : '☆'}
+        title="${isFavorite(card.image_file) ? '從我的最愛移除' : '加入我的最愛'}">
+        ${isFavorite(card.image_file) ? '★' : '☆'}
       </button>
     </div>
     <div class="card-info">
@@ -2313,7 +2378,11 @@ function buildCardEl(card) {
   const starBtn = div.querySelector('.card-star-btn');
   starBtn.addEventListener('click', e => {
     e.stopPropagation();
-    toggleQuickDeck(starBtn.dataset.img);
+    toggleFavorite(starBtn.dataset.img);
+    starBtn.classList.toggle('starred', isFavorite(starBtn.dataset.img));
+    starBtn.textContent = isFavorite(starBtn.dataset.img) ? '★' : '☆';
+    starBtn.title = isFavorite(starBtn.dataset.img) ? '從我的最愛移除' : '加入我的最愛';
+    if (favoriteOnlyFilter) applyFilters();
   });
 
   const inp = div.querySelector('.card-count-input');
@@ -2639,7 +2708,6 @@ function saveColorState() { localStorage.setItem(COLOR_LS_KEY, JSON.stringify(de
 // ══════════════════════════════════════════════════════
 
 let _hvDeckSnapshot = {};
-let _hvApplyingRemote = false; // 套用雲端資料寫回 localStorage 時，暫停 dirty 偵測避免自我循環
 
 function hvDeckSig(d) { return JSON.stringify(d) + '|' + JSON.stringify(deckColorState[d.id] || null); }
 function hvSnapshotDeckState() {
@@ -2660,6 +2728,12 @@ function hvOnLocalChange() {
   });
   hvSnapshotDeckState();
   if (changed) hvScheduleAutoSync('local-change', 1500);
+}
+
+function hvOnFavoritesChange() {
+  if (_hvApplyingRemote) return;
+  if (!window.hvCloudSync?.currentUser) return;
+  hvScheduleAutoSync('favorites-change', 1500);
 }
 
 let _hvSyncTimer = null;
@@ -2713,6 +2787,11 @@ async function hvRunAutoSync(reason) {
 
     if (restoredFromLoss) showToast('偵測到本機牌組資料遺失，已自動從雲端還原');
     else if (conflictCount > 0) showToast(`發現 ${conflictCount} 副牌組雙邊都有修改，已保留雙方版本`);
+
+    const favResult = await window.hvCloudSync.reconcileFavorites(user.uid, window.HVFavorites.getSnapshot().items);
+    if (favResult?.changed) {
+      window.HVFavorites.applySnapshot(favResult.items);
+    }
 
     hvRenderCloudUI(window.hvCloudSync.getStatus());
   } catch (e) {
@@ -3036,34 +3115,6 @@ function getCardCountInDeck(image_file) {
   return e ? e.count : 0;
 }
 
-// ── Quick Deck Helpers ─────────────────────────────────
-function isCardInQuickDeck(image_file) {
-  const qd = decks.find(d => d.id === QUICK_DECK_ID);
-  return qd ? qd.cards.some(c => c.image_file === image_file) : false;
-}
-function toggleQuickDeck(image_file) {
-  const qd = decks.find(d => d.id === QUICK_DECK_ID);
-  if (!qd) return;
-  const idx = qd.cards.findIndex(c => c.image_file === image_file);
-  if (idx !== -1) {
-    qd.cards.splice(idx, 1);
-  } else {
-    const cardObj = cards.find(c => c.image_file === image_file);
-    qd.cards.push({ image_file, card_no: cardObj?.card_no || '', count: 1 });
-  }
-  saveDecks();
-  refreshStarButton(image_file);
-  if (currentDeckId === QUICK_DECK_ID) { updateTray(); renderDeckPanel(); }
-}
-function refreshStarButton(image_file) {
-  document.querySelectorAll(`.card-star-btn[data-img="${image_file}"]`).forEach(btn => {
-    const inQ = isCardInQuickDeck(image_file);
-    btn.textContent = inQ ? '★' : '☆';
-    btn.classList.toggle('starred', inQ);
-    btn.title = inQ ? '從快速查詢移除' : '加入快速查詢';
-  });
-}
-
 // ── Add / Remove ───────────────────────────────────────
 function addCardToDeck(image_file, quantity = 1) {
   if (!image_file) { showToast('錯誤：image_file 無效'); return; }
@@ -3098,7 +3149,6 @@ function removeCardFromDeck(image_file) {
   }
   saveDecks();
   refreshCardBadge(image_file);
-  refreshStarButton(image_file);
   updateTray();
 }
 
