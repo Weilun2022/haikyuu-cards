@@ -32,11 +32,16 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  deleteDoc,
   writeBatch,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
 const SCHEMA_VERSION = 1;
+// 軟刪除的 tombstone 存在超過這個天數，代表早就同步擴散到所有裝置了，下次同步時真的清掉
+// （tombstone 存在的唯一目的是讓其他裝置知道「這是使用者自己刪的」，不是給使用者反悔用——
+// UI 上本來就沒有復原功能，超過這個天數留著也沒意義，只會讓 Firestore 文件數一直往上累積）
+const TOMBSTONE_GC_DAYS = 30;
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -222,8 +227,14 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
     const applyDownload = [];
     const applyRemoveLocal = [];
     const toSoftDelete = [];
+    const toHardDelete = [];
     let restoredFromLoss = false;
     let conflictCount = 0;
+
+    const isTombstoneOld = cloudDoc => {
+      const deletedAtMs = cloudDoc?.deletedAt?.toMillis?.();
+      return !!deletedAtMs && (Date.now() - deletedAtMs) > TOMBSTONE_GC_DAYS * 24 * 60 * 60 * 1000;
+    };
 
     for (const id of allIds) {
       const hasLocal = localMap.has(id);
@@ -251,13 +262,20 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
 
       // 2. 雲端是 tombstone（可能是別台裝置刪的）
       if (cloudDeleted) {
-        if (!hasLocal) { delete state.baseline[id]; continue; }
+        if (!hasLocal) {
+          delete state.baseline[id];
+          // tombstone 存在夠久了（早就同步擴散開了），順便真的清掉這份文件，不要一直累積
+          if (isTombstoneOld(cloudDoc)) toHardDelete.push(id);
+          continue;
+        }
         if (localHash === baseHash) {
           // 本機沒改過這副牌，套用雲端的刪除
           applyRemoveLocal.push(id);
+          if (isTombstoneOld(cloudDoc)) toHardDelete.push(id);
         } else {
           // 本機改過、雲端卻刪了 → 不要默默丟掉本機的修改，保留本機，
           // 清掉 baseline 讓它在下一輪被當成「新牌組」自動重新上傳（等於復活這副牌）
+          // 注意：這種情況不能順便 GC，因為等等會把它當新牌組重新寫回去
           delete state.baseline[id];
           toUploadIds.push(id);
         }
@@ -351,12 +369,21 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
       await batch.commit();
     }
 
+    // ── 清掉早就標記刪除超過 TOMBSTONE_GC_DAYS 天的 tombstone，避免文件數一直累積 ──
+    // （這時候擴散給其他裝置的任務早就完成了，留著沒有意義）
+    if (toHardDelete.length > 0) {
+      const batch = writeBatch(db);
+      for (const id of toHardDelete) batch.delete(doc(db, 'users', uid, 'decks', id));
+      await batch.commit();
+    }
+
     saveSyncState(uid, state);
     _recomputePending(uid);
     return {
       applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount,
       deletesPushed: toSoftDelete.length,
-      pendingDeleteCount: Object.keys(state.pendingDeletes).length
+      pendingDeleteCount: Object.keys(state.pendingDeletes).length,
+      tombstonesPurged: toHardDelete.length
     };
   } finally {
     _syncing = false;
