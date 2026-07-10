@@ -1010,6 +1010,65 @@
     font-size: 11px; color: var(--text-dim); line-height: 1.4;
   }
 
+  /* ===== Cloud Sync Compact Layout（登入後精簡成一行）===== */
+  .cloud-sync-compact { --cloud-accent: #6c63ff; --cloud-bg-hover: rgba(108,99,255,0.16);
+    --cloud-border: rgba(108,99,255,0.38); --cloud-text: #f4f4ff; --cloud-muted: rgba(244,244,255,0.62);
+    --cloud-panel: #171923; --cloud-panel-border: rgba(255,255,255,0.10); --cloud-danger: #ff6b6b; width: 100%; }
+  .cloud-sync-compact * { box-sizing: border-box; }
+  .cloud-sync-signed-out, .cloud-login-button { width: 100%; }
+  #cloud-signed-in-row.cloud-sync-signed-in {
+    display: flex; flex-direction: row !important; align-items: stretch; gap: 8px; width: 100%; position: relative;
+  }
+  .cloud-sync-main.tray-btn {
+    flex: 1 1 auto; min-width: 0; width: auto; min-height: 46px; padding: 7px 10px;
+    display: flex; align-items: center; justify-content: flex-start; gap: 9px;
+    text-align: left; border-radius: 12px; color: var(--cloud-text);
+    background: linear-gradient(180deg, rgba(108,99,255,0.16), rgba(108,99,255,0.08));
+    border: 1px solid var(--cloud-border);
+  }
+  .cloud-sync-main.tray-btn:hover { background: var(--cloud-bg-hover); }
+  .cloud-sync-main.tray-btn:active { transform: translateY(1px); }
+  .cloud-sync-avatar {
+    flex: 0 0 28px; width: 28px; height: 28px; display: grid; place-items: center;
+    border-radius: 999px; background: rgba(108,99,255,0.22); font-size: 15px;
+  }
+  .cloud-sync-copy { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; line-height: 1.15; }
+  .cloud-sync-main .cloud-sync-status {
+    display: block; min-width: 0; color: var(--cloud-text); font-size: 13px; font-weight: 650;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cloud-sync-hint { color: var(--cloud-muted); font-size: 11px; font-weight: 500; }
+  .cloud-sync-refresh { flex: 0 0 auto; margin-left: 2px; color: rgba(244,244,255,0.78); font-size: 17px; line-height: 1; }
+  .cloud-sync-menu { flex: 0 0 auto; position: relative; }
+  .cloud-sync-menu > summary.cloud-sync-more {
+    width: 42px; min-height: 46px; padding: 0; display: grid; place-items: center;
+    border-radius: 12px; cursor: pointer; user-select: none; font-size: 22px; line-height: 1; list-style: none;
+  }
+  .cloud-sync-menu > summary::-webkit-details-marker { display: none; }
+  .cloud-sync-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
+    width: min(286px, calc(100vw - 24px)); padding: 8px; border-radius: 14px;
+    background: var(--cloud-panel); border: 1px solid var(--cloud-panel-border);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.38), 0 2px 8px rgba(0,0,0,0.24);
+  }
+  .cloud-menu-title { padding: 5px 8px 6px; color: rgba(255,255,255,0.46); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+  .cloud-menu-item {
+    width: 100%; min-height: 38px; padding: 9px 10px; display: flex; align-items: center; gap: 8px;
+    border: 0; border-radius: 10px; background: transparent; color: rgba(255,255,255,0.86);
+    font-size: 13px; font-weight: 600; text-align: left; cursor: pointer;
+  }
+  .cloud-menu-item:hover { background: rgba(255,255,255,0.07); }
+  .cloud-menu-item.danger { color: var(--cloud-danger); }
+  .cloud-menu-item.danger:hover { background: rgba(255,107,107,0.12); }
+  .cloud-menu-divider { height: 1px; margin: 6px 4px; background: rgba(255,255,255,0.10); }
+  .cloud-sync-main.tray-btn:focus-visible, .cloud-sync-menu > summary.cloud-sync-more:focus-visible,
+  .cloud-menu-item:focus-visible { outline: 2px solid rgba(108,99,255,0.85); outline-offset: 2px; }
+  @media (max-width: 380px) {
+    .cloud-sync-main.tray-btn { min-height: 46px; padding-block: 7px; }
+    .cloud-sync-hint { display: none; }
+    .cloud-sync-main .cloud-sync-status { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  }
+
   /* ── Analysis Overlay ── */
   .analysis-overlay {
     display: none; position: fixed; inset: 0;
@@ -1496,18 +1555,29 @@
       <span class="toggle-arrow">▲</span><span>工具</span>
     </div>
     <div class="deck-panel-footer" id="deck-panel-footer">
-      <div class="cloud-sync-block" id="cloud-sync-block">
-        <div id="cloud-signed-out-row" style="width:100%">
-          <button class="tray-btn primary" id="cloud-login-btn" style="width:100%">☁️ Google 登入 / 雲端同步</button>
+      <div class="cloud-sync-block cloud-sync-compact" id="cloud-sync-block">
+        <div id="cloud-signed-out-row" class="cloud-sync-signed-out">
+          <button class="tray-btn primary cloud-login-button" id="cloud-login-btn" type="button">☁️ Google 登入 / 雲端同步</button>
         </div>
-        <div id="cloud-signed-in-row" style="display:none;flex-direction:column;gap:8px;width:100%">
-          <div class="cloud-sync-status" id="cloud-sync-status-text"></div>
-          <button class="tray-btn" id="cloud-sync-now-btn" style="width:100%">🔄 立即同步</button>
-          <div style="display:flex;gap:8px;width:100%">
-            <button class="tray-btn danger" id="cloud-force-upload-btn" style="flex:1">⬆ 用本機覆蓋雲端</button>
-            <button class="tray-btn danger" id="cloud-force-download-btn" style="flex:1">⬇ 用雲端覆蓋本機</button>
-          </div>
-          <button class="tray-btn danger" id="cloud-logout-btn" style="width:100%">登出</button>
+        <div id="cloud-signed-in-row" class="cloud-sync-signed-in" style="display:none">
+          <button class="tray-btn cloud-sync-main" id="cloud-sync-now-btn" type="button" aria-label="立即同步">
+            <span class="cloud-sync-avatar" aria-hidden="true">☁️</span>
+            <span class="cloud-sync-copy">
+              <span class="cloud-sync-status" id="cloud-sync-status-text"></span>
+              <span class="cloud-sync-hint">點擊立即同步</span>
+            </span>
+            <span class="cloud-sync-refresh" aria-hidden="true">↻</span>
+          </button>
+          <details class="cloud-sync-menu" id="cloud-sync-menu-details">
+            <summary class="tray-btn cloud-sync-more" aria-label="雲端同步更多選項" title="更多">⋮</summary>
+            <div class="cloud-sync-popover">
+              <div class="cloud-menu-title">進階同步</div>
+              <button class="cloud-menu-item danger" id="cloud-force-upload-btn" type="button">⬆ 用本機覆蓋雲端</button>
+              <button class="cloud-menu-item danger" id="cloud-force-download-btn" type="button">⬇ 用雲端覆蓋本機</button>
+              <div class="cloud-menu-divider"></div>
+              <button class="cloud-menu-item" id="cloud-logout-btn" type="button">登出 Google 帳號</button>
+            </div>
+          </details>
         </div>
       </div>
       <button class="tray-btn" id="deck-share-btn" style="width:100%">📲 QR Code 快速分享</button>
@@ -2823,6 +2893,10 @@ function hvShowCloudConfirm(title, msg, buttons) {
   document.getElementById('cloud-confirm-overlay').classList.add('open');
 }
 
+function hvCloseSyncMenu() {
+  document.getElementById('cloud-sync-menu-details')?.removeAttribute('open');
+}
+
 function hvInitCloudSync() {
   hvSnapshotDeckState();
 
@@ -2831,6 +2905,7 @@ function hvInitCloudSync() {
     catch (e) { console.error(e); showToast('登入失敗，請重試'); }
   });
   document.getElementById('cloud-logout-btn').addEventListener('click', async () => {
+    hvCloseSyncMenu();
     await window.hvCloudSync.signOutUser();
     showToast('已登出');
   });
@@ -2839,7 +2914,13 @@ function hvInitCloudSync() {
     const pendingDeletes = window.hvCloudSync.getStatus().hasPendingDeletes;
     showToast(pendingDeletes ? '開始同步…（含確認刪除）' : '開始同步…');
   });
+  // 點外面就收合「更多」選單
+  document.addEventListener('click', e => {
+    const details = document.getElementById('cloud-sync-menu-details');
+    if (details && details.open && !details.contains(e.target)) hvCloseSyncMenu();
+  });
   document.getElementById('cloud-force-upload-btn').addEventListener('click', () => {
+    hvCloseSyncMenu();
     hvShowCloudConfirm(
       '用本機覆蓋雲端？',
       '雲端多出的牌組會被標記為已刪除（不會立刻永久清除），確定要用本機目前的狀態覆蓋雲端嗎？',
@@ -2857,6 +2938,7 @@ function hvInitCloudSync() {
     );
   });
   document.getElementById('cloud-force-download-btn').addEventListener('click', () => {
+    hvCloseSyncMenu();
     hvShowCloudConfirm(
       '用雲端覆蓋本機？',
       '這會用雲端目前的牌組覆蓋本機（下載前會自動備份本機資料到 localStorage），確定嗎？',
@@ -3560,8 +3642,8 @@ async function drawDeckCanvas(deck) {
   const SCALE  = 3;          // 3x 高解析度
   const entries = expandEntriesForCanvasGrouped(deck);
 
-  // 欄數：≤5張用實際張數寬度，>5張固定5欄
-  const COLS   = Math.min(5, entries.length);
+  // 欄數：≤8張用實際張數寬度，>8張固定8欄
+  const COLS   = Math.min(8, entries.length);
 
   const CARD_W = 100;        // 邏輯尺寸（實際 ×SCALE）
   const CARD_H = 140;
