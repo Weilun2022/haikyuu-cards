@@ -3039,7 +3039,7 @@ function expandEntriesForCanvasGrouped(deck) {
       }
     }
   }
-  return [
+  const grouped = [
     ...groups.unassigned,
     ...groups.free,
     ...groups.receive,
@@ -3047,6 +3047,14 @@ function expandEntriesForCanvasGrouped(deck) {
     ...groups.attack,
     ...groups.event,
   ];
+  // 單卡呈現，不堆疊：每張複本各自一格，比照牌組管理面板的版面
+  const expanded = [];
+  for (const entry of grouped) {
+    for (let i = 0; i < entry.count; i++) {
+      expanded.push({ ...entry, count: 1 });
+    }
+  }
+  return expanded;
 }
 
 // 取得當前牌組的持有資料（per-deck）
