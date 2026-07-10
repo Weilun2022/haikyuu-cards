@@ -1375,8 +1375,8 @@
   <div class="filter-group">
     <label>我的最愛</label>
     <select id="filter-favorite-only">
-      <option value="">全部</option>
-      <option value="1">★ 只顯示最愛</option>
+      <option value="">關</option>
+      <option value="1">開</option>
     </select>
   </div>
 
@@ -4240,6 +4240,8 @@ function bindDeckEvents() {
   document.getElementById('deck-delete-btn').addEventListener('click', () => {
     const deck = getCurrentDeck(); if (!deck) return;
     if (deck.id === QUICK_DECK_ID) { showToast('快速查詢牌組不可刪除'); return; }
+    const cloudWarning = window.hvCloudSync?.currentUser ? '，雲端備份中的副本也會一併移除' : '';
+    if (!confirm(`確定要刪除「${deck.name}」嗎？此動作無法復原${cloudWarning}。`)) return;
     if (decks.length <= 1) {
       deck.cards = []; delete deckColorState[deck.id]; saveColorState(); saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
       showToast('牌組已清空'); return;
