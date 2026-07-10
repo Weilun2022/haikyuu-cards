@@ -67,7 +67,7 @@
     }
     .filter-panel { flex: 1; min-width: 0; flex-wrap: nowrap; font-size: clamp(11px, 0.85vw, 13px); }
     .deck-panel { max-height: 60vh; max-width: 540px; width: 100%; align-self: center; }
-    .deck-panel.color-mode-open { max-height: 85vh; }
+    .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
   }
 
@@ -1000,6 +1000,7 @@
   }
   .deck-panel-footer.open {
     max-height: 420px; padding: 10px 16px;
+    overflow-y: auto;
   }
   .cloud-sync-block {
     display: flex; flex-direction: column; gap: 8px; width: 100%;
@@ -1162,7 +1163,7 @@
     outline: 2px solid var(--accent); border-radius: 6px;
     background: rgba(108,99,255,0.12) !important;
   }
-  .deck-panel.color-mode-open { max-height: 85vh; }
+  .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
   .deck-color-picker-bar {
     display: none; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 10px 14px; background: var(--surface2);
@@ -2815,7 +2816,7 @@ function hvRenderCloudUI(status) {
     const name = status.user.displayName || status.user.email || '已登入';
     let stateLabel;
     if (status.syncing) stateLabel = '同步中…';
-    else if (status.hasPendingDeletes) stateLabel = '有刪除尚未同步，按「立即同步」確認';
+    else if (status.hasPendingDeletes) stateLabel = '有刪除/清空尚未同步，按「立即同步」確認';
     else if (status.hasPending) stateLabel = '即將自動同步…';
     else stateLabel = '已同步';
     statusText.textContent = `${name}｜${stateLabel}`;
@@ -4024,6 +4025,11 @@ function _colorModeAdjustCount(imageFile, dir) {
   trimCardColorMap(deck.id, imageFile, newCount);
   entry.count = newCount;
   saveDecks();
+  // 若卡片資訊預覽面板正開著同一張卡，同步更新它顯示的張數（避免跟格子上的±徽章顯示不一致）
+  if (deckPreviewSelectedImg === imageFile) {
+    const previewCountEl = document.getElementById('deck-preview-count');
+    if (previewCountEl) previewCountEl.textContent = newCount;
+  }
   if (colorModeActive) {
     // Rebuild slots (preserve color assignments that still fit)
     colorModeSlots = buildColorModeSlots();
@@ -4185,6 +4191,9 @@ function bindDeckEvents() {
     const footer = document.getElementById('deck-panel-footer');
     const open = toggle.classList.toggle('open');
     footer.classList.toggle('open', open);
+    // 工具列展開後內容變高（含雲端同步按鈕），跟上色模式一樣給整個面板更多高度，
+    // 不然手機上 60vh 塞不下，會卡在看不到、也捲不到最下面幾顆按鈕
+    document.getElementById('deck-panel').classList.toggle('footer-open', open);
   });
 
   document.getElementById('deck-panel-close').addEventListener('click', closeDeckPanel);
@@ -4274,6 +4283,8 @@ function bindDeckEvents() {
       : '';
     if (!confirm(`確定要刪除「${deck.name}」嗎？${cloudWarning}`)) return;
     if (decks.length <= 1) {
+      const userForClear = window.hvCloudSync?.currentUser;
+      if (userForClear) window.hvCloudSync.markRisky(userForClear.uid, deck.id);
       deck.cards = []; delete deckColorState[deck.id]; saveColorState(); saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
       showToast('牌組已清空'); return;
     }
@@ -4295,7 +4306,12 @@ function bindDeckEvents() {
     const deck = getCurrentDeck();
     if (!deck) return;
     if (deck.cards.length === 0) { showToast('牌組已經是空的'); return; }
-    if (!confirm(`確定要清空「${deck.name}」的所有卡片嗎？此動作無法復原。`)) return;
+    const user = window.hvCloudSync?.currentUser;
+    const cloudWarning = user
+      ? '\n\n（雲端備份不會馬上被清空，要等你下次按「立即同步」才會真的覆蓋；在那之前如果反悔，可以用「用雲端覆蓋本機」找回來。）'
+      : '';
+    if (!confirm(`確定要清空「${deck.name}」的所有卡片嗎？${cloudWarning}`)) return;
+    if (user) window.hvCloudSync.markRisky(user.uid, deck.id);
     deck.cards = [];
     deck.owned = {};
     delete deckColorState[deck.id]; saveColorState();

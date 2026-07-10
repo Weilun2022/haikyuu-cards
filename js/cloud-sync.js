@@ -50,11 +50,12 @@ function loadSyncState(uid) {
     const s = JSON.parse(localStorage.getItem(syncStateKey(uid)) || '{}');
     if (!s.baseline) s.baseline = {};
     if (!s.pendingDeletes) s.pendingDeletes = {};
+    if (!s.pendingRisky) s.pendingRisky = {};
     if (!s.dirty) s.dirty = {};
     if (!s.favoritesBaseline) s.favoritesBaseline = null; // null = 從沒同步過
     return s;
   } catch {
-    return { baseline: {}, pendingDeletes: {}, dirty: {}, favoritesBaseline: null };
+    return { baseline: {}, pendingDeletes: {}, pendingRisky: {}, dirty: {}, favoritesBaseline: null };
   }
 }
 function saveSyncState(uid, state) { localStorage.setItem(syncStateKey(uid), JSON.stringify(state)); }
@@ -85,7 +86,7 @@ function _notifyStatus() { _statusListeners.forEach(cb => cb(getStatus())); }
 function _recomputePending(uid) {
   if (!uid) { _hasPending = false; _hasPendingDeletes = false; return; }
   const s = loadSyncState(uid);
-  _hasPendingDeletes = Object.keys(s.pendingDeletes).length > 0;
+  _hasPendingDeletes = Object.keys(s.pendingDeletes).length > 0 || Object.keys(s.pendingRisky).length > 0;
   _hasPending = Object.keys(s.dirty).length > 0 || _hasPendingDeletes;
 }
 
@@ -106,6 +107,18 @@ function queuePendingDelete(uid, deckId) {
   s.pendingDeletes[deckId] = true;
   delete s.dirty[deckId];
   delete s.baseline[deckId];
+  saveSyncState(uid, s);
+  _hasPending = true;
+  _hasPendingDeletes = true;
+  _notifyStatus();
+}
+
+// 使用者做了「清空牌組」這類把內容整個歸零、但牌組本身還在的高風險編輯時呼叫。
+// 效果比照 pendingDelete：自動同步不會把這個變更推上雲端，只有手動同步才會確認。
+function markRisky(uid, deckId) {
+  if (!uid) return;
+  const s = loadSyncState(uid);
+  s.pendingRisky[deckId] = true;
   saveSyncState(uid, s);
   _hasPending = true;
   _hasPendingDeletes = true;
@@ -220,6 +233,9 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
       const cloudDeleted = cloudDoc?.deleted === true;
       const cloudHash = cloudDeleted ? null : cloud.active[id];
       const pendingDelete = !!state.pendingDeletes[id];
+      // 使用者做過「清空牌組」這類把內容整個歸零、但牌組本身還在的高風險編輯：
+      // 跟 pendingDelete 一樣，自動同步不會把這個變更推上雲端，只有手動同步才確認
+      const pendingRisky = !!state.pendingRisky[id];
 
       // 1. 使用者明確刪除過（本機已經沒有這副牌）
       if (pendingDelete) {
@@ -272,7 +288,12 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
       const localChanged = localHash !== baseHash;
       const cloudChanged  = cloudHash !== baseHash;
 
-      if (localChanged && !cloudChanged) { toUploadIds.push(id); continue; }
+      if (localChanged && !cloudChanged) {
+        if (pendingRisky && !pushDeletes) continue; // 清空過還沒手動確認，先擱置，雲端不動
+        if (pendingRisky) delete state.pendingRisky[id]; // pushDeletes=true：這就是使用者的確認動作
+        toUploadIds.push(id);
+        continue;
+      }
       if (!localChanged && cloudChanged) {
         applyDownload.push({ id, deck: cloudDoc.deck, color: cloudDoc.color ?? null });
         continue;
@@ -280,6 +301,8 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
 
       // 兩邊都改了，且內容不同 → 真衝突。不阻斷：本機保留原樣（重新確認上傳），
       // 雲端版本另存成衝突副本，兩邊資料都不丟。
+      if (pendingRisky && !pushDeletes) continue; // 清空過還沒手動確認，先擱置，連衝突副本都先不建立
+      if (pendingRisky) delete state.pendingRisky[id];
       conflictCount++;
       const conflictId = `${id}_cloud_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
       const conflictDeck = JSON.parse(JSON.stringify(cloudDoc.deck));
@@ -489,6 +512,7 @@ window.hvCloudSync = {
   getStatus,
   markDirty,
   queuePendingDelete,
+  markRisky,
   autoReconcile,
   commitLocalBaseline,
   reconcileFavorites,
