@@ -1,8 +1,18 @@
-// 牌組雲端同步：Google 登入 + Firestore 備份/還原
+// 牌組雲端同步 v2：Google 登入 + Firestore 自動同步（安全版）
 // 專案：haikyuu-cards-cloud（與 game.html 的 BYO Firebase 完全分開，見 firebase-config.js 註解）
 //
-// 對外介面掛在 window.hvCloudSync，讓 index.html 的傳統 <script> 可以直接呼叫
-// （index.html 目前沒有改成 type="module"，用 window 橋接是最小改動的做法）。
+// 核心原則（v1 上線後使用者回報「重整頁面一直跳提示」+ 要求刪除保護，v2 重新設計）：
+//   1. 自動同步只做新增/更新（upsert），永遠不會用「本機沒有這副牌組」去推斷要刪雲端。
+//   2. 真正的刪除只有兩種來源：使用者明確按刪除鈕（本機 pendingDeletes 佇列）、
+//      或雲端 tombstone（另一台裝置刪除，且本機沒改過這副牌）。
+//   3. 本機資料無故消失（清快取/bug/被清空）且沒有 pendingDeletes 紀錄時，一律視為「本機遺失」，
+//      自動從雲端救回，不會把雲端也清空。
+//   4. 用 baseline manifest（每副牌組上次成功同步時的 contentHash）判斷「這裡到底變了沒」，
+//      兩邊一致就完全安靜跳過，不再每次重整頁面都跳互動提示。
+//   5. 真的雙邊同時改到同一副牌組且內容不同（少見）→ 不阻斷、不跳窗，直接比照 v1 的作法把
+//      雲端版本另存成「（雲端衝突副本）」，本機原本的版本保留，兩邊都不丟資料，只用 toast 通知。
+//
+// 對外介面掛在 window.hvCloudSync，讓 index.html 的傳統 <script> 可以直接呼叫。
 
 import { firebaseConfig } from './firebase-config.js';
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js';
@@ -19,7 +29,6 @@ import {
   getFirestore,
   collection,
   doc,
-  getDoc,
   getDocs,
   setDoc,
   writeBatch,
@@ -27,20 +36,28 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
 const SCHEMA_VERSION = 1;
-const DECK_META_KEY = 'hv_deck_meta'; // { [deckId]: { updatedAt } } — 只用於本機顯示狀態，不參與安全性判斷
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 await setPersistence(auth, browserLocalPersistence);
 
-// ── 本機 meta（僅供 UI 顯示「本機有未上傳變更」，不影響雲端資料正確性）──
-function loadDeckMeta() {
-  try { return JSON.parse(localStorage.getItem(DECK_META_KEY) || '{}'); } catch { return {}; }
+// ── 本機同步狀態（每個 uid 一份，記 baseline / 待刪除 / 待上傳）──────────
+function syncStateKey(uid) { return `hv_cloud_sync_state:${uid}`; }
+function loadSyncState(uid) {
+  try {
+    const s = JSON.parse(localStorage.getItem(syncStateKey(uid)) || '{}');
+    if (!s.baseline) s.baseline = {};
+    if (!s.pendingDeletes) s.pendingDeletes = {};
+    if (!s.dirty) s.dirty = {};
+    return s;
+  } catch {
+    return { baseline: {}, pendingDeletes: {}, dirty: {} };
+  }
 }
-function saveDeckMeta(meta) { localStorage.setItem(DECK_META_KEY, JSON.stringify(meta)); }
+function saveSyncState(uid, state) { localStorage.setItem(syncStateKey(uid), JSON.stringify(state)); }
 
-// ── 內容雜湊（判斷本機/雲端該副牌組是否真的有變更，避免不必要的寫入）──
+// ── 內容雜湊（判斷某副牌組本機/雲端是否真的不同）─────────────────────────
 function stableStringify(obj) {
   if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
   if (Array.isArray(obj)) return '[' + obj.map(stableStringify).join(',') + ']';
@@ -54,24 +71,46 @@ async function contentHashOf(deck, color) {
   return sha256Hex(stableStringify({ deck, color: color ?? null }));
 }
 
-// ── 狀態通知（登入狀態 / 是否有未上傳變更）──
-let _hasLocalChanges = false;
+// ── 狀態通知（登入狀態 / 同步中 / 有無待處理變更）─────────────────────────
+let _syncing = false;
+let _hasPending = false;
 const _statusListeners = [];
-function getStatus() { return { user: auth.currentUser, hasLocalChanges: _hasLocalChanges }; }
+function getStatus() { return { user: auth.currentUser, syncing: _syncing, hasPending: _hasPending }; }
 function onStatusChange(cb) { _statusListeners.push(cb); }
 function _notifyStatus() { _statusListeners.forEach(cb => cb(getStatus())); }
 
-function markDirty(deckId) {
-  const meta = loadDeckMeta();
-  meta[deckId] = { updatedAt: Date.now() };
-  saveDeckMeta(meta);
-  _hasLocalChanges = true;
+function _recomputePending(uid) {
+  if (!uid) { _hasPending = false; return; }
+  const s = loadSyncState(uid);
+  _hasPending = Object.keys(s.dirty).length > 0 || Object.keys(s.pendingDeletes).length > 0;
+}
+
+// 本機牌組新增/修改時呼叫：只記錄「這副牌組髒了」，實際上傳交給 autoReconcile
+function markDirty(uid, deckId) {
+  if (!uid) return;
+  const s = loadSyncState(uid);
+  s.dirty[deckId] = true;
+  saveSyncState(uid, s);
+  _hasPending = true;
+  _notifyStatus();
+}
+
+// 使用者明確按下刪除牌組時呼叫（要在從本機陣列移除之前呼叫）
+function queuePendingDelete(uid, deckId) {
+  if (!uid) return;
+  const s = loadSyncState(uid);
+  s.pendingDeletes[deckId] = true;
+  delete s.dirty[deckId];
+  delete s.baseline[deckId];
+  saveSyncState(uid, s);
+  _hasPending = true;
   _notifyStatus();
 }
 
 const _authListeners = [];
 function onAuthChange(cb) { _authListeners.push(cb); }
 onAuthStateChanged(auth, user => {
+  _recomputePending(user?.uid);
   _authListeners.forEach(cb => cb(user));
   _notifyStatus();
 });
@@ -90,127 +129,267 @@ function decksCollection(uid) {
   return collection(db, 'users', uid, 'decks');
 }
 
-async function fetchCloudDecks(uid) {
+// 回傳 { active: {id: hash}, docs: {id: 完整文件（含 deleted 版本）} }
+async function fetchCloudState(uid) {
   const snap = await getDocs(decksCollection(uid));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const active = {};
+  const docs = {};
+  snap.docs.forEach(d => {
+    const data = d.data();
+    docs[d.id] = { id: d.id, ...data };
+    if (!data.deleted) active[d.id] = data.contentHash;
+  });
+  return { active, docs };
 }
 
 async function ensureUserDoc(uid) {
   const ref = doc(db, 'users', uid);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      ownerUid: uid,
-      schemaVersion: SCHEMA_VERSION,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
+  await setDoc(ref, {
+    ownerUid: uid,
+    schemaVersion: SCHEMA_VERSION,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+}
+
+function deckDocPayload(uid, deck, color, hash, existing) {
+  return {
+    ownerUid: uid,
+    schemaVersion: SCHEMA_VERSION,
+    deck,
+    color: color ?? null,
+    contentHash: hash,
+    clientUpdatedAt: Date.now(),
+    deleted: false,
+    deletedAt: null,
+    createdAt: existing ? existing.createdAt : serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+}
+
+// ══════════════════════════════════════════════════════
+// 自動同步核心：只做安全的 upsert / 下載 / 明確刪除，永遠不會用
+// 「本機少了這個 id」去推斷要刪雲端。
+// ══════════════════════════════════════════════════════
+//
+// 回傳結果讓呼叫端（index.html）決定怎麼套用到本機 localStorage：
+// {
+//   applyDownload: [{ id, deck, color }],   // 要寫回本機的 deck（新增或覆蓋）
+//   applyRemoveLocal: [id, ...],            // 要從本機移除的 deck id（雲端刪除且本機沒改過）
+//   restoredFromLoss: boolean,              // 是否偵測到本機資料異常遺失並自動救回
+//   conflictCount: number                   // 有幾副牌組發生雙邊衝突（已自動建副本，不阻斷）
+// }
+async function autoReconcile(uid, localDecks, localColors) {
+  if (_syncing) return null;
+  _syncing = true;
+  _notifyStatus();
+
+  try {
+    const state = loadSyncState(uid);
+    const cloud = await fetchCloudState(uid);
+    const localMap = new Map(localDecks.map(d => [d.id, d]));
+
+    const localHashes = {};
+    for (const d of localDecks) localHashes[d.id] = await contentHashOf(d, localColors[d.id] ?? null);
+
+    const allIds = new Set([
+      ...localMap.keys(),
+      ...Object.keys(cloud.active),
+      ...Object.keys(cloud.docs).filter(id => cloud.docs[id].deleted)
+    ]);
+
+    const toUploadIds = [];
+    const applyDownload = [];
+    const applyRemoveLocal = [];
+    const toSoftDelete = [];
+    let restoredFromLoss = false;
+    let conflictCount = 0;
+
+    for (const id of allIds) {
+      const hasLocal = localMap.has(id);
+      const localHash = localHashes[id];
+      const baseHash = state.baseline[id];
+      const cloudDoc = cloud.docs[id];
+      const cloudDeleted = cloudDoc?.deleted === true;
+      const cloudHash = cloudDeleted ? null : cloud.active[id];
+      const pendingDelete = !!state.pendingDeletes[id];
+
+      // 1. 使用者明確刪除過（本機已經沒有這副牌），推上雲端 tombstone
+      if (pendingDelete) {
+        if (!cloudDeleted) toSoftDelete.push(id);
+        else delete state.pendingDeletes[id];
+        continue;
+      }
+
+      // 2. 雲端是 tombstone（可能是別台裝置刪的）
+      if (cloudDeleted) {
+        if (!hasLocal) { delete state.baseline[id]; continue; }
+        if (localHash === baseHash) {
+          // 本機沒改過這副牌，套用雲端的刪除
+          applyRemoveLocal.push(id);
+        } else {
+          // 本機改過、雲端卻刪了 → 不要默默丟掉本機的修改，保留本機，
+          // 清掉 baseline 讓它在下一輪被當成「新牌組」自動重新上傳（等於復活這副牌）
+          delete state.baseline[id];
+          toUploadIds.push(id);
+        }
+        continue;
+      }
+
+      // 3. 本機沒有、雲端有 active 資料、也沒有 pendingDelete
+      //    → 本機遺失保護：一律視為意外遺失（清快取/bug），自動從雲端救回，絕不刪雲端
+      if (!hasLocal && cloudDoc) {
+        applyDownload.push({ id, deck: cloudDoc.deck, color: cloudDoc.color ?? null });
+        restoredFromLoss = true;
+        continue;
+      }
+
+      // 4. 雲端從沒同步過這副牌 → 上傳
+      if (hasLocal && !cloudDoc) {
+        toUploadIds.push(id);
+        continue;
+      }
+
+      // 5. 兩邊都有資料
+      if (localHash === cloudHash) {
+        state.baseline[id] = localHash;
+        delete state.dirty[id];
+        continue;
+      }
+
+      const localChanged = localHash !== baseHash;
+      const cloudChanged  = cloudHash !== baseHash;
+
+      if (localChanged && !cloudChanged) { toUploadIds.push(id); continue; }
+      if (!localChanged && cloudChanged) {
+        applyDownload.push({ id, deck: cloudDoc.deck, color: cloudDoc.color ?? null });
+        continue;
+      }
+
+      // 兩邊都改了，且內容不同 → 真衝突。不阻斷：本機保留原樣（重新確認上傳），
+      // 雲端版本另存成衝突副本，兩邊資料都不丟。
+      conflictCount++;
+      const conflictId = `${id}_cloud_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+      const conflictDeck = JSON.parse(JSON.stringify(cloudDoc.deck));
+      conflictDeck.id = conflictId;
+      conflictDeck.name = `${conflictDeck.name || '未命名牌組'}（雲端衝突副本）`;
+      applyDownload.push({ id: conflictId, deck: conflictDeck, color: cloudDoc.color ?? null });
+      toUploadIds.push(id);
+    }
+
+    // ── 寫入雲端：新增/更新 ──
+    if (toUploadIds.length > 0) {
+      await ensureUserDoc(uid);
+      const batch = writeBatch(db);
+      for (const id of toUploadIds) {
+        const deck = localMap.get(id);
+        if (!deck) continue; // 理論上不會發生（toUploadIds 只會放本機有的 id）
+        const color = localColors[id] ?? null;
+        const hash = localHashes[id];
+        const existing = cloud.docs[id];
+        batch.set(doc(db, 'users', uid, 'decks', id), deckDocPayload(uid, deck, color, hash, existing));
+        state.baseline[id] = hash;
+        delete state.dirty[id];
+      }
+      await batch.commit();
+    }
+
+    // ── 寫入雲端：明確刪除（tombstone）──
+    if (toSoftDelete.length > 0) {
+      const batch = writeBatch(db);
+      for (const id of toSoftDelete) {
+        const existing = cloud.docs[id];
+        batch.set(doc(db, 'users', uid, 'decks', id), {
+          ownerUid: uid,
+          schemaVersion: SCHEMA_VERSION,
+          deck: existing?.deck ?? { id, name: '', cards: [] },
+          color: existing?.color ?? null,
+          contentHash: existing?.contentHash ?? '',
+          clientUpdatedAt: Date.now(),
+          deleted: true,
+          deletedAt: serverTimestamp(),
+          createdAt: existing ? existing.createdAt : serverTimestamp(),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        delete state.pendingDeletes[id];
+      }
+      await batch.commit();
+    }
+
+    saveSyncState(uid, state);
+    _recomputePending(uid);
+    return { applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount };
+  } finally {
+    _syncing = false;
+    _notifyStatus();
   }
 }
 
-// 上傳本機到雲端：雲端變成本機目前狀態（只寫真的變更過的 deck，刪除本機已不存在的）
-async function uploadLocalToCloud(uid, localDecks, localColors) {
+// 同步完下載/移除本機牌組後，呼叫這個讓 baseline 對齊新狀態（避免下一輪又被當成本機變更上傳）
+function commitLocalBaseline(uid, decks, colors) {
+  return (async () => {
+    const state = loadSyncState(uid);
+    for (const d of decks) {
+      state.baseline[d.id] = await contentHashOf(d, colors[d.id] ?? null);
+    }
+    saveSyncState(uid, state);
+  })();
+}
+
+// ══════════════════════════════════════════════════════
+// 手動破壞性操作（保留給進階使用者，永遠不會被自動同步呼叫）
+// ══════════════════════════════════════════════════════
+
+// 用本機覆蓋雲端：雲端多出的 deck 一律標成 tombstone（不 hard delete）
+async function replaceCloudWithLocalDestructive(uid, localDecks, localColors) {
   await ensureUserDoc(uid);
-  const cloudDecks = await fetchCloudDecks(uid);
-  const cloudMap = new Map(cloudDecks.map(d => [d.id, d]));
+  const cloud = await fetchCloudState(uid);
+  const localIds = new Set(localDecks.map(d => d.id));
   const batch = writeBatch(db);
-  let hasOps = false;
+  const state = loadSyncState(uid);
 
   for (const deck of localDecks) {
     const color = localColors[deck.id] ?? null;
     const hash = await contentHashOf(deck, color);
-    const existing = cloudMap.get(deck.id);
-    cloudMap.delete(deck.id);
-    if (existing && existing.contentHash === hash) continue; // 沒變，略過
-
-    const ref = doc(db, 'users', uid, 'decks', deck.id);
-    batch.set(ref, {
-      ownerUid: uid,
-      schemaVersion: SCHEMA_VERSION,
-      deck,
-      color,
-      clientUpdatedAt: Date.now(),
-      contentHash: hash,
-      createdAt: existing ? existing.createdAt : serverTimestamp(),
-      updatedAt: serverTimestamp()
-    });
-    hasOps = true;
+    const existing = cloud.docs[deck.id];
+    batch.set(doc(db, 'users', uid, 'decks', deck.id), deckDocPayload(uid, deck, color, hash, existing));
+    state.baseline[deck.id] = hash;
+    delete state.dirty[deck.id];
   }
-
-  // 雲端有但本機已刪除的 deck，一併刪除
-  for (const leftoverId of cloudMap.keys()) {
-    batch.delete(doc(db, 'users', uid, 'decks', leftoverId));
-    hasOps = true;
+  for (const id of Object.keys(cloud.active)) {
+    if (localIds.has(id)) continue;
+    const existing = cloud.docs[id];
+    batch.set(doc(db, 'users', uid, 'decks', id), {
+      ownerUid: uid, schemaVersion: SCHEMA_VERSION,
+      deck: existing.deck, color: existing.color ?? null, contentHash: existing.contentHash,
+      clientUpdatedAt: Date.now(), deleted: true, deletedAt: serverTimestamp(),
+      createdAt: existing.createdAt, updatedAt: serverTimestamp()
+    }, { merge: true });
+    delete state.baseline[id];
   }
-
-  if (hasOps) await batch.commit();
-
-  _hasLocalChanges = false;
-  saveDeckMeta({});
-  _notifyStatus();
+  await batch.commit();
+  state.pendingDeletes = {};
+  saveSyncState(uid, state);
+  _recomputePending(uid);
 }
 
-// 從雲端下載到本機：回傳 { decks, colors }，由呼叫端負責寫入 localStorage
-async function downloadCloudToLocal(uid) {
-  const cloudDecks = await fetchCloudDecks(uid);
-  const decks = cloudDecks.map(d => d.deck);
+// 用雲端覆蓋本機：回傳 { decks, colors } 給呼叫端寫入 localStorage
+async function downloadCloudToLocalDestructive(uid) {
+  const cloud = await fetchCloudState(uid);
+  const decks = [];
   const colors = {};
-  cloudDecks.forEach(d => { if (d.color != null) colors[d.id] = d.color; });
-  _hasLocalChanges = false;
-  saveDeckMeta({});
-  _notifyStatus();
+  const state = loadSyncState(uid);
+  state.baseline = {};
+  Object.values(cloud.docs).forEach(d => {
+    if (d.deleted) return;
+    decks.push(d.deck);
+    if (d.color != null) colors[d.id] = d.color;
+    state.baseline[d.id] = d.contentHash;
+  });
+  state.dirty = {};
+  state.pendingDeletes = {};
+  saveSyncState(uid, state);
+  _recomputePending(uid);
   return { decks, colors };
-}
-
-// 合併本機與雲端：deck 級別比對，內容不同時本機保留原 id、雲端版本另存衝突副本
-// （不做時間戳「誰比較新」判斷——本機目前沒有可靠的跨裝置時鐘可比，寧可多一份副本也不要默默蓋掉資料）
-// 合併結果會寫回本機（由呼叫端存 localStorage）並同步上傳回雲端
-async function mergeLocalAndCloud(uid, localDecks, localColors) {
-  const cloudDecks = await fetchCloudDecks(uid);
-  const cloudMap = new Map(cloudDecks.map(d => [d.id, d]));
-  const localMap = new Map(localDecks.map(d => [d.id, d]));
-  const allIds = new Set([...localMap.keys(), ...cloudMap.keys()]);
-
-  const resultDecks = [];
-  const resultColors = {};
-
-  for (const id of allIds) {
-    const l = localMap.get(id);
-    const c = cloudMap.get(id);
-
-    if (l && !c) {
-      resultDecks.push(l);
-      if (localColors[id] != null) resultColors[id] = localColors[id];
-      continue;
-    }
-    if (!l && c) {
-      resultDecks.push(c.deck);
-      if (c.color != null) resultColors[id] = c.color;
-      continue;
-    }
-
-    const lColor = localColors[id] ?? null;
-    const lHash = await contentHashOf(l, lColor);
-    if (lHash === c.contentHash) {
-      resultDecks.push(l);
-      if (lColor != null) resultColors[id] = lColor;
-      continue;
-    }
-
-    // 內容衝突：本機保留原 id，雲端版本另存為衝突副本，兩邊都不丟
-    resultDecks.push(l);
-    if (lColor != null) resultColors[id] = lColor;
-
-    const conflictId = `${id}_cloud_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
-    const conflictDeck = JSON.parse(JSON.stringify(c.deck));
-    conflictDeck.id = conflictId;
-    conflictDeck.name = `${conflictDeck.name || '未命名牌組'}（雲端衝突副本）`;
-    resultDecks.push(conflictDeck);
-    if (c.color != null) resultColors[conflictId] = c.color;
-  }
-
-  await uploadLocalToCloud(uid, resultDecks, resultColors);
-  return { decks: resultDecks, colors: resultColors };
 }
 
 window.hvCloudSync = {
@@ -220,10 +399,11 @@ window.hvCloudSync = {
   onStatusChange,
   getStatus,
   markDirty,
-  fetchCloudDecks,
-  uploadLocalToCloud,
-  downloadCloudToLocal,
-  mergeLocalAndCloud,
+  queuePendingDelete,
+  autoReconcile,
+  commitLocalBaseline,
+  replaceCloudWithLocalDestructive,
+  downloadCloudToLocalDestructive,
   get currentUser() { return auth.currentUser; }
 };
 window.dispatchEvent(new CustomEvent('hv-cloud-sync-ready'));
