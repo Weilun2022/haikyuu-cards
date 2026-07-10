@@ -1515,11 +1515,6 @@
         <button class="tray-btn" id="deck-export-img-btn" style="flex:1">🖼️ 牌組轉圖片</button>
         <button class="tray-btn" id="deck-import-img-btn" style="flex:1">📸 圖片轉牌組</button>
       </div>
-      <div style="display:flex;gap:8px;width:100%">
-        <button class="tray-btn" id="deck-export-btn" style="flex:1">📤 匯出所有牌組</button>
-        <button class="tray-btn" id="deck-import-btn" style="flex:1">📥 匯入所有牌組</button>
-      </div>
-      <input type="file" id="deck-import-file" accept=".json" style="display:none">
       <input type="file" id="deck-import-img-file" accept="image/png" style="display:none">
     </div>
   </div>
@@ -1536,21 +1531,6 @@
     </div>
   </div>
   <div class="analysis-body" id="analysis-body"></div>
-</div>
-
-<!-- ── Import Confirm ── -->
-<div class="import-confirm-overlay" id="import-confirm-overlay">
-  <div class="import-confirm-box">
-    <h3>匯入 JSON</h3>
-    <p>請選擇匯入方式：<br>
-    <b>覆蓋</b> — 取代所有現有牌組與收藏資料<br>
-    <b>合併</b> — 保留現有資料，加入新牌組（ID 不重複才加入）</p>
-    <div class="import-confirm-btns">
-      <button class="tray-btn" id="import-cancel-btn">取消</button>
-      <button class="tray-btn" id="import-merge-btn">合併</button>
-      <button class="tray-btn primary" id="import-overwrite-btn">覆蓋</button>
-    </div>
-  </div>
 </div>
 
 <!-- ── Cloud Sync 確認 / 首次登入 Migration Modal ── -->
@@ -1877,7 +1857,6 @@ const MAX_TOTAL    = Infinity;
 const MAX_EVENT    = 8;
 let decks               = [];
 let currentDeckId       = null;
-let pendingImport       = null;
 let shareUrl            = '';
 let qtyPendingImageFile = null;
 
@@ -3358,53 +3337,6 @@ function updateDeckInfoText() {
 }
 
 
-// ── Export / Import ────────────────────────────────────
-function exportDecks() {
-  const date = new Date().toISOString().slice(0,10);
-  const data = { version: 2, exported: new Date().toISOString(), decks, colors: deckColorState };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = Object.assign(document.createElement('a'), { href: url, download: `HVBreak-decks-${date}.json` });
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function doImport(mode) {
-  if (!pendingImport) return;
-  const { decks: iDecks = [], colors: importedColors = {} } = pendingImport;
-  pendingImport = null;
-  // 確保匯入的牌組都有 owned 欄位
-  iDecks.forEach(d => { if (!d.owned) d.owned = {}; });
-  if (mode === 'overwrite') {
-    decks = iDecks;
-    currentDeckId = decks.length ? decks[0].id : null;
-    deckColorState = importedColors;
-  } else {
-    iDecks.forEach(d => {
-      const existing = decks.find(x => x.id === d.id);
-      if (!existing) {
-        decks.push(d);
-      } else if (existing.name !== d.name) {
-        // 同 id 但名稱不同 → 視為新牌組，重新指派 id
-        const copy = { ...d, id: makeDeckId() };
-        decks.push(copy);
-      } else {
-        // 同 id 同名 → 只補 owned 資料（保留本地有而匯入沒有的）
-        Object.assign(existing.owned, d.owned || {});
-      }
-    });
-    if (!currentDeckId && decks.length) currentDeckId = decks[0].id;
-    Object.keys(importedColors).forEach(id => {
-      deckColorState[id] = importedColors[id];
-    });
-  }
-  saveColorState();
-  saveDecks();
-  renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
-  document.getElementById('import-confirm-overlay').classList.remove('open');
-  showToast('匯入成功！');
-}
-
 // ── Analysis (PR #3) ───────────────────────────────────
 function openAnalysis() {
   const deck = getCurrentDeck();
@@ -4343,30 +4275,6 @@ function bindDeckEvents() {
   document.getElementById('deck-color-picker-bar').querySelectorAll('.color-pick-btn').forEach(btn => {
     btn.addEventListener('click', () => applyBatchColor(btn.dataset.colorkey));
   });
-
-  document.getElementById('deck-export-btn').addEventListener('click', exportDecks);
-
-  document.getElementById('deck-import-btn').addEventListener('click', () => {
-    document.getElementById('deck-import-file').click();
-  });
-  document.getElementById('deck-import-file').addEventListener('change', e => {
-    const file = e.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        pendingImport = JSON.parse(ev.target.result);
-        document.getElementById('import-confirm-overlay').classList.add('open');
-      } catch { showToast('JSON 格式錯誤！'); }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  });
-  document.getElementById('import-cancel-btn').addEventListener('click', () => {
-    pendingImport = null;
-    document.getElementById('import-confirm-overlay').classList.remove('open');
-  });
-  document.getElementById('import-merge-btn').addEventListener('click',     () => doImport('merge'));
-  document.getElementById('import-overwrite-btn').addEventListener('click', () => doImport('overwrite'));
 
   document.getElementById('analysis-back-btn').addEventListener('click', closeAnalysis);
 
