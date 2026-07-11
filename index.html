@@ -3440,28 +3440,36 @@ function renderAnalysis() {
   const incomplete = entries.filter(e => e.deficit > 0).sort((a, b) => b.deficit - a.deficit);
   const complete   = entries.filter(e => e.deficit === 0);
 
-  // 點擊後只局部更新，不整頁重排（避免卡片跳來跳去），但兩個分類標題的張數要即時算出來更新文字
+  // 點擊後只局部更新，不整頁重排（避免卡片跳來跳去）。「未完成」標題拿掉了（右上角已有
+  // 準確的「缺N張」總數，不需要重複），只保留「已完成」分類標題，點擊時即時更新其張數
   const updateHeaderCounts = () => {
-    let incompleteN = 0, completeN = 0;
+    let completeN = 0;
     deck.cards.forEach(en => {
       const deficit = Math.max(0, en.count - (deck.owned[en.image_file] || 0));
-      if (deficit > 0) incompleteN++; else completeN++;
+      if (deficit === 0) completeN++;
     });
-    document.querySelectorAll('.analysis-section-header').forEach(h => {
-      if (h.dataset.section === 'incomplete') h.textContent = `未完成（${incompleteN}張）`;
-      if (h.dataset.section === 'complete')   h.textContent = `已完成（${completeN}張）`;
-    });
+    let h = document.querySelector('.analysis-section-header[data-section="complete"]');
+    if (!h && completeN > 0) {
+      // 一開始沒有任何完成的卡（沒建立標題），點擊後第一次湊滿才補上這個標題
+      h = document.createElement('div');
+      h.className = 'analysis-section-header';
+      h.dataset.section = 'complete';
+      body.appendChild(h);
+    }
+    if (h) h.textContent = `已完成（${completeN}張）`;
   };
 
   const renderSection = (list, label, sectionKey) => {
     if (list.length === 0) return;
 
-    // Section header
-    const header = document.createElement('div');
-    header.className = 'analysis-section-header';
-    header.dataset.section = sectionKey;
-    header.textContent = `${label}（${list.length}張）`;
-    body.appendChild(header);
+    // Section header（未完成不顯示標題，已完成才顯示）
+    if (sectionKey === 'complete') {
+      const header = document.createElement('div');
+      header.className = 'analysis-section-header';
+      header.dataset.section = sectionKey;
+      header.textContent = `${label}（${list.length}張）`;
+      body.appendChild(header);
+    }
 
     list.forEach(({ entry, card, need }) => {
       const imgSrc = card.image_file ? `images/${card.image_file}` : '';
