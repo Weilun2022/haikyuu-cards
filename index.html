@@ -1112,8 +1112,10 @@
     display: block; background: var(--surface2);
     transition: opacity 0.15s, filter 0.15s;
   }
-  .an-tile.not-owned .an-tile-img { opacity: .3; filter: grayscale(75%) brightness(.65); }
-  .an-tile.owned { border-color: #4ade80; }
+  /* 卡面永遠保持清楚可辨識（不暗化圖片本身），持有狀態純粹靠外框＋勾選圖示表達
+     （跟 GPT-5.5 討論定案：縮圖太小，暗化會讓使用者看不清楚牌面是哪張卡） */
+  .an-tile.not-owned { border-color: rgba(148, 163, 184, .45); }
+  .an-tile.owned { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(74, 222, 128, .25); }
   .an-tile.owned::after {
     content: '✓'; position: absolute; top: 1px; right: 1px;
     width: 12px; height: 12px; border-radius: 50%; background: #4ade80; color: #04351a;
