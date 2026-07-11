@@ -3441,39 +3441,32 @@ function renderAnalysis() {
   // deficit > 0 排前面（降冪），deficit = 0 排後面
   const incomplete = entries.filter(e => e.deficit > 0).sort((a, b) => b.deficit - a.deficit);
   const complete   = entries.filter(e => e.deficit === 0);
+  const totalEntries = entries.length;
 
-  // 點擊後只局部更新，不整頁重排（避免卡片跳來跳去）。「未完成」標題拿掉了（右上角已有
-  // 準確的「缺N張」總數，不需要重複），只保留「已完成」分類標題，點擊時即時更新其張數
-  const updateHeaderCounts = () => {
-    let completeN = 0;
-    deck.cards.forEach(en => {
-      const deficit = Math.max(0, en.count - (deck.owned[en.image_file] || 0));
-      if (deficit === 0) completeN++;
-    });
+  // 「未完成」標題拿掉了（右上角已有準確的「缺N張」總數，不需要重複）。
+  // 「已完成」標題保留，格式改成「已完成（幾/總數）」，點擊時即時更新。
+  const ensureCompleteHeader = () => {
     let h = document.querySelector('.analysis-section-header[data-section="complete"]');
-    if (!h && completeN > 0) {
-      // 一開始沒有任何完成的卡（沒建立標題），點擊後第一次湊滿才補上這個標題
+    if (!h) {
       h = document.createElement('div');
       h.className = 'analysis-section-header';
       h.dataset.section = 'complete';
       body.appendChild(h);
     }
-    if (h) h.textContent = `已完成（${completeN}張）`;
+    return h;
+  };
+  const updateCompleteHeader = () => {
+    let completeN = 0;
+    deck.cards.forEach(en => {
+      const deficit = Math.max(0, en.count - (deck.owned[en.image_file] || 0));
+      if (deficit === 0) completeN++;
+    });
+    const h = document.querySelector('.analysis-section-header[data-section="complete"]');
+    if (h) h.textContent = `已完成（${completeN}/${totalEntries}）`;
   };
 
-  const renderSection = (list, label, sectionKey) => {
-    if (list.length === 0) return;
-
-    // Section header（未完成不顯示標題，已完成才顯示）
-    if (sectionKey === 'complete') {
-      const header = document.createElement('div');
-      header.className = 'analysis-section-header';
-      header.dataset.section = sectionKey;
-      header.textContent = `${label}（${list.length}張）`;
-      body.appendChild(header);
-    }
-
-    list.forEach(({ entry, card, need }) => {
+  const renderSection = (list) => {
+    list.forEach(({ entry, card, need, deficit }) => {
       const imgSrc = card.image_file ? `images/${card.image_file}` : '';
       const variant = getVariantCode(entry.image_file);
       const displayName = (card.card_no || '') + (variant ? `-${variant}` : '');
@@ -3484,6 +3477,8 @@ function renderAnalysis() {
       // 這種算法，不然點到後面那格時，畫面卻是點亮最前面那格，看起來像點錯卡。
       const have0 = Math.min(need, deck.owned[entry.image_file] || 0);
       const tileOwned = Array.from({ length: need }, (_, i) => i < have0);
+      const tiles = [];
+      let wasComplete = deficit === 0;
 
       for (let i = 0; i < need; i++) {
         const tile = document.createElement('div');
@@ -3493,20 +3488,39 @@ function renderAnalysis() {
         tile.addEventListener('click', () => {
           tileOwned[i] = !tileOwned[i];
           tile.className = `an-tile ${tileOwned[i] ? 'owned' : 'not-owned'}`;
-          deck.owned[entry.image_file] = tileOwned.filter(Boolean).length;
+          const haveNow = tileOwned.filter(Boolean).length;
+          deck.owned[entry.image_file] = haveNow;
           saveDecks();
+
+          // 這張卡剛好在這次點擊湊滿／被取消湊滿 → 整組（該卡所有格子）搬到「已完成」／搬回去，
+          // 只搬動這一張卡自己的格子，不動其他卡的排序，避免整頁跳動
+          const isCompleteNow = haveNow >= need;
+          if (isCompleteNow !== wasComplete) {
+            if (isCompleteNow) {
+              ensureCompleteHeader();
+              tiles.forEach(t => body.appendChild(t));
+            } else {
+              const h = document.querySelector('.analysis-section-header[data-section="complete"]');
+              if (h) tiles.forEach(t => body.insertBefore(t, h));
+            }
+            wasComplete = isCompleteNow;
+          }
+
           let missing2 = 0;
           deck.cards.forEach(en => { missing2 += Math.max(0, en.count - (deck.owned[en.image_file] || 0)); });
           document.getElementById('analysis-missing').textContent = missing2;
-          updateHeaderCounts();
+          updateCompleteHeader();
         });
+        tiles.push(tile);
         body.appendChild(tile);
       }
     });
   };
 
-  renderSection(incomplete, '未完成', 'incomplete');
-  renderSection(complete,   '已完成', 'complete');
+  renderSection(incomplete);
+  if (complete.length > 0) ensureCompleteHeader();
+  renderSection(complete);
+  updateCompleteHeader();
 }
 
 // ── Toast ───────────────────────────────────────────────
