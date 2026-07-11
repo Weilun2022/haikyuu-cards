@@ -4,6 +4,7 @@ __pycache__/
 *.xlsx
 *.json
 !shop_config.json
+!schedule_registry.json
 output/
 cards_zh.json
 all_cards.json

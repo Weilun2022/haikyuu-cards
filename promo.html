@@ -388,6 +388,62 @@
   }
   .card-chip:hover { border-color:var(--accent); }
   .card-chip img { width:22px; height:31px; border-radius:3px; object-fit:cover; display:block; }
+
+  /* ── 賽程表 ── */
+  .sch-toolbar { display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
+  .sch-search {
+    width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text); font-size:13px;
+  }
+  .sch-search::placeholder { color:var(--text-dim); }
+  .sch-date-head {
+    font-size:12px; font-weight:800; color:var(--text-dim); letter-spacing:1px;
+    margin:16px 0 8px; padding-left:2px;
+  }
+  .sch-date-head:first-child { margin-top:4px; }
+  .sch-list { display:flex; flex-direction:column; gap:10px; }
+  .sch-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; border-left:4px solid var(--c, var(--accent));
+  }
+  .sch-card-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .sch-time { font-size:15px; font-weight:800; }
+  .sch-type-badge {
+    font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:6px;
+    background:color-mix(in srgb, var(--c) 20%, transparent); color:var(--c);
+    border:1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  }
+  .sch-region-badge { font-size:10.5px; color:var(--text-dim); margin-left:auto; }
+  .sch-store { font-size:14.5px; font-weight:700; margin-top:6px; }
+  .sch-addr { font-size:12px; color:var(--text-dim); margin-top:3px; line-height:1.5; }
+  .sch-addr a { color:var(--accent); }
+  .sch-meta-row { display:flex; gap:12px; margin-top:6px; font-size:11.5px; color:var(--text-dim); flex-wrap:wrap; }
+  .sch-actions { display:flex; gap:8px; margin-top:10px; align-items:center; flex-wrap:wrap; }
+  .sch-btn-add {
+    display:inline-flex; align-items:center; gap:6px; background:var(--accent); color:#fff;
+    font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:8px; border:none; cursor:pointer;
+  }
+  .sch-btn-add:hover { filter:brightness(1.1); }
+  .sch-added-badge {
+    font-size:11px; color:var(--text-dim); display:inline-flex; align-items:center; gap:4px;
+  }
+  .sch-card.sch-changed { border-left-color:var(--accent2); background:color-mix(in srgb, var(--accent2) 8%, var(--surface)); }
+  .sch-warn {
+    background:color-mix(in srgb, var(--accent2) 14%, transparent);
+    border:1px solid color-mix(in srgb, var(--accent2) 40%, transparent);
+    border-radius:8px; padding:8px 10px; margin-top:8px; font-size:12px; line-height:1.6;
+  }
+  .sch-warn b { color:var(--accent2); }
+  .sch-btn-secondary {
+    background:transparent; border:1px solid var(--border); color:var(--text-dim);
+    font-size:12px; font-weight:600; padding:7px 12px; border-radius:8px; cursor:pointer;
+  }
+  .sch-removed-notice {
+    background:var(--surface2); border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px; margin-bottom:14px; font-size:12.5px; line-height:1.7; color:var(--text-dim);
+  }
+  .sch-removed-notice b { color:var(--text); }
+  .sch-foot-note { text-align:center; color:var(--text-dim); font-size:11px; padding:16px 0 4px; line-height:1.7; }
 </style>
 </head>
 <body>
@@ -401,6 +457,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="vid">🎬 影片</div>
     <div class="tab" data-tab="dc"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;vertical-align:middle;margin-right:5px"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057c.002.022.015.043.033.055a19.87 19.87 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>入部申請</div>
+    <div class="tab" data-tab="schedule">📅 賽程</div>
   </div>
   <div class="chips" id="chips"></div>
   <div class="school-strip">
@@ -499,6 +556,18 @@
     <div id="news-list" style="display:none"></div>
   </section>
 
+  <section id="pane-schedule" class="hidden">
+    <div class="sch-toolbar">
+      <input type="text" id="sch-search" class="sch-search" placeholder="搜尋店家名稱或地址...">
+      <div class="chips" id="sch-region-chips"></div>
+      <div class="chips" id="sch-type-chips"></div>
+    </div>
+    <div id="sch-removed-wrap"></div>
+    <div class="sch-list" id="sch-list"></div>
+    <div class="empty hidden" id="sch-empty">目前沒有符合條件的賽事</div>
+    <div class="sch-foot-note" id="sch-updated"></div>
+  </section>
+
   <!-- 手機固定底部 CTA（DC tab 用） -->
   <div id="dc-sticky" class="dc-sticky-cta">
     <a href="https://discord.gg/VRd9fExc3Z" target="_blank" rel="noopener">
@@ -519,6 +588,7 @@
 <script src="promo_data.js"></script>
 <script src="promo_news.js"></script>
 <script src="promo_tags.js"></script>
+<script src="schedule_data.js"></script>
 <script src="cards_data.js"></script>
 <script>
 const SCHOOLS = ['烏野','音駒','稻荷崎','白鳥澤','青葉城西','梟谷','伊達工業','鷗台','綜合'];
@@ -686,6 +756,196 @@ playerOverlay.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayer(); });
 
+// ── 賽程表 ──────────────────────────────────────────
+const SCH_LS_KEY = 'hv_schedule_added_v1';
+const SCH_REGION_LABEL = { north: '北部', central: '中部', south: '南部', unknown: '未分類' };
+const SCH_REGION_COLOR = { north: '#3b82f6', central: '#10b981', south: '#f97316', unknown: '#8888aa' };
+const SCH_REGIONS = [
+  { key: 'all', label: '全部地區' },
+  { key: 'north', label: '北部' },
+  { key: 'central', label: '中部' },
+  { key: 'south', label: '南部' },
+];
+const SCH_TYPES = [
+  { key: 'all', label: '全部類型' },
+  { key: 'newbie', label: '新手教學' },
+  { key: 'casual', label: '交流賽' },
+];
+let curSchRegion = 'all';
+let curSchType = 'all';
+let curSchQuery = '';
+
+// 跟 fetch_schedule.js 的 normalizeTypeKey() 邏輯一致，前端沿用同一套規則分類篩選
+function schTypeKey(formatRaw) {
+  const s = formatRaw || '';
+  const hasNewbie = s.includes('新手');
+  const hasCasual = s.includes('交流');
+  if (hasNewbie && hasCasual) return 'mixed';
+  if (hasNewbie) return 'newbie';
+  if (hasCasual) return 'casual';
+  return 'other';
+}
+
+function loadSchAdded() {
+  try { return JSON.parse(localStorage.getItem(SCH_LS_KEY) || '{}'); } catch { return {}; }
+}
+function saveSchAdded(rec) { localStorage.setItem(SCH_LS_KEY, JSON.stringify(rec)); }
+
+function schWeekday(dateStr) {
+  const days = ['日', '一', '二', '三', '四', '五', '六'];
+  return days[new Date(dateStr + 'T00:00:00+08:00').getDay()];
+}
+
+// Google Calendar 單場加入連結（一次性快照，不會自動更新——這正是下方版本比對提醒要解決的問題）
+function buildGCalUrl(ev) {
+  const start = new Date(ev.startAt);
+  const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // 官方資料無結束時間，預估開始後2小時
+  const fmtUtc = d => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const title = `バボカ!!BREAK｜${ev.format}（${ev.storeName}）`;
+  const scheduleUrl = location.origin + location.pathname.replace(/[^/]*$/, '') + 'promo.html?tab=schedule';
+  const details = [
+    `報名方式：${ev.registrationMethod || '未提供'}`,
+    `名額：${ev.capacity || '未提供'}`,
+    ev.phone ? `店家電話：${ev.phone}` : '',
+    '',
+    '※ 結束時間為預估（開始後2小時），正確時間請洽店家。',
+    '※ 若店家異動時間，請回本站確認最新資訊：' + scheduleUrl,
+  ].filter(Boolean).join('\n');
+  const params = new URLSearchParams({
+    action: 'TEMPLATE', text: title, dates: `${fmtUtc(start)}/${fmtUtc(end)}`, details, location: ev.address || '',
+  });
+  return 'https://calendar.google.com/calendar/render?' + params.toString();
+}
+
+function schMapUrl(address) { return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address); }
+
+function renderSchChips() {
+  const rWrap = document.getElementById('sch-region-chips');
+  rWrap.innerHTML = '';
+  SCH_REGIONS.forEach(r => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (r.key === curSchRegion ? ' active' : '');
+    c.textContent = r.label;
+    c.onclick = () => { curSchRegion = r.key; renderSchChips(); renderSchedule(); };
+    rWrap.appendChild(c);
+  });
+  const tWrap = document.getElementById('sch-type-chips');
+  tWrap.innerHTML = '';
+  SCH_TYPES.forEach(t => {
+    const c = document.createElement('div');
+    c.className = 'chip' + (t.key === curSchType ? ' active' : '');
+    c.textContent = t.label;
+    c.onclick = () => { curSchType = t.key; renderSchChips(); renderSchedule(); };
+    tWrap.appendChild(c);
+  });
+}
+
+// 提醒使用者「曾加入但已被官方移除」的場次（可能取消/額滿下架/併入其他場次）
+function renderSchRemovedNotice() {
+  const wrap = document.getElementById('sch-removed-wrap');
+  if (typeof SCHEDULE_DATA === 'undefined') { wrap.innerHTML = ''; return; }
+  const added = loadSchAdded();
+  const removedIds = new Set((SCHEDULE_DATA.removedRecent || []).map(e => e.id));
+  const hits = Object.keys(added).filter(id => removedIds.has(id));
+  if (!hits.length) { wrap.innerHTML = ''; return; }
+  const items = hits.map(id => {
+    const rec = added[id];
+    return `<li>${esc(rec.storeName || '')}（你加入時是 ${esc(rec.date || '')} ${esc(rec.time || '')}）</li>`;
+  }).join('');
+  wrap.innerHTML = `<div class="sch-removed-notice"><b>⚠️ 你曾加入的以下賽事已從官方賽程移除</b>（可能已取消、額滿下架或改期後併入其他場次），建議手動確認並視情況刪除行事曆中的舊事件：<ul style="margin:6px 0 0 18px">${items}</ul></div>`;
+}
+
+function renderSchedule() {
+  if (typeof SCHEDULE_DATA === 'undefined') return;
+  const now = new Date();
+  const added = loadSchAdded();
+  let events = (SCHEDULE_DATA.events || []).filter(e => new Date(e.startAt) > now);
+  if (curSchRegion !== 'all') events = events.filter(e => e.region === curSchRegion);
+  if (curSchType !== 'all') events = events.filter(e => schTypeKey(e.format) === curSchType);
+  if (curSchQuery.trim()) {
+    const q = curSchQuery.trim().toLowerCase();
+    events = events.filter(e => (e.storeName || '').toLowerCase().includes(q) || (e.address || '').toLowerCase().includes(q));
+  }
+  events.sort((a, b) => a.startAt.localeCompare(b.startAt));
+
+  let lastDate = '';
+  let html = '';
+  for (const ev of events) {
+    if (ev.date !== lastDate) {
+      lastDate = ev.date;
+      const [, mo, d] = ev.date.split('-');
+      html += `<div class="sch-date-head">${Number(mo)}/${Number(d)}（${schWeekday(ev.date)}）</div>`;
+    }
+    const rec = added[ev.id];
+    const isChanged = !!(rec && rec.revision < ev.revision);
+    const isAdded = !!(rec && rec.revision >= ev.revision);
+    html += `
+      <div class="sch-card${isChanged ? ' sch-changed' : ''}" style="--c:${SCH_REGION_COLOR[ev.region] || SCH_REGION_COLOR.unknown}" data-id="${esc(ev.id)}">
+        <div class="sch-card-top">
+          <span class="sch-time">${esc(ev.time)}</span>
+          <span class="sch-type-badge">${esc(ev.format)}</span>
+          <span class="sch-region-badge">${esc(SCH_REGION_LABEL[ev.region] || '')}</span>
+        </div>
+        <div class="sch-store">${esc(ev.storeName)}</div>
+        <div class="sch-addr">📍 ${esc(ev.address)} ・ <a href="${schMapUrl(ev.address)}" target="_blank" rel="noopener">地圖 ↗</a></div>
+        <div class="sch-meta-row">
+          <span>名額 ${esc(ev.capacity || '未提供')}</span>
+          <span>${esc(ev.registrationMethod || '')}</span>
+          ${ev.phone ? `<span>☎ ${esc(ev.phone)}</span>` : ''}
+        </div>
+        ${isChanged ? `
+          <div class="sch-warn">
+            <b>⚠️ 此場時間已異動</b><br>
+            你之前加入的是：${esc(rec.date)} ${esc(rec.time)}｜${esc(rec.storeName || '')}<br>
+            最新資訊是：${esc(ev.date)} ${esc(ev.time)}<br>
+            Google 行事曆不會自動覆蓋舊事件，請加入新版後手動刪除原本那筆。
+          </div>` : ''}
+        <div class="sch-actions">
+          ${isChanged
+            ? `<a class="sch-btn-add" data-act="add" href="${buildGCalUrl(ev)}" target="_blank" rel="noopener">加入新版 Google 行事曆</a>
+               <button class="sch-btn-secondary" data-act="dismiss">我已手動處理，不再提醒</button>`
+            : `<a class="sch-btn-add" data-act="add" href="${buildGCalUrl(ev)}" target="_blank" rel="noopener">📅 加入 Google 行事曆</a>`
+          }
+          ${isAdded ? `<span class="sch-added-badge">📌 此裝置曾加入</span>` : ''}
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('sch-list').innerHTML = html;
+  document.getElementById('sch-empty').classList.toggle('hidden', events.length > 0);
+  if (SCHEDULE_DATA.updated) {
+    document.getElementById('sch-updated').textContent = '賽程資料更新於 ' + SCHEDULE_DATA.updated.slice(0, 16).replace('T', ' ') + '（每 6 小時自動同步官方 Google 試算表，實際異動請以店家公告為準）';
+  }
+  renderSchRemovedNotice();
+
+  document.querySelectorAll('#sch-list [data-act="add"]').forEach(a => {
+    a.addEventListener('click', () => {
+      const id = a.closest('.sch-card').dataset.id;
+      const ev = events.find(e => e.id === id);
+      if (!ev) return;
+      const rec2 = loadSchAdded();
+      rec2[id] = { revision: ev.revision, date: ev.date, time: ev.time, storeName: ev.storeName };
+      saveSchAdded(rec2);
+      setTimeout(renderSchedule, 300); // 給連結一點時間開新分頁，避免點擊瞬間就重繪打斷
+    });
+  });
+  document.querySelectorAll('#sch-list [data-act="dismiss"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.closest('.sch-card').dataset.id;
+      const ev = events.find(e => e.id === id);
+      if (!ev) return;
+      const rec2 = loadSchAdded();
+      if (rec2[id]) { rec2[id] = { revision: ev.revision, date: ev.date, time: ev.time, storeName: ev.storeName }; saveSchAdded(rec2); }
+      renderSchedule();
+    });
+  });
+}
+
+document.getElementById('sch-search')?.addEventListener('input', e => {
+  curSchQuery = e.target.value;
+  renderSchedule();
+});
+
 // ── 新品渲染（日期倒序；最新一則 hero；7 天內 NEW）──
 function renderNews(){
   const list = document.getElementById('news-list');
@@ -731,18 +991,28 @@ function syncDcSticky() {
 window.addEventListener('scroll', syncDcSticky, { passive:true });
 
 // ── Tab 切換 ──
-document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+function activateTab(tabName) {
   document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-  t.classList.add('active');
-  document.getElementById('pane-vid').classList.toggle('hidden', t.dataset.tab !== 'vid');
-  document.getElementById('pane-dc').classList.toggle('hidden', t.dataset.tab !== 'dc');
-  document.getElementById('chips').style.display = t.dataset.tab === 'vid' ? 'flex' : 'none';
+  document.querySelector(`.tab[data-tab="${tabName}"]`)?.classList.add('active');
+  document.getElementById('pane-vid').classList.toggle('hidden', tabName !== 'vid');
+  document.getElementById('pane-dc').classList.toggle('hidden', tabName !== 'dc');
+  document.getElementById('pane-schedule').classList.toggle('hidden', tabName !== 'schedule');
+  document.getElementById('chips').style.display = tabName === 'vid' ? 'flex' : 'none';
   syncDcSticky();
-});
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => activateTab(t.dataset.tab));
+
+// 深連結：?tab=schedule 或 ?tab=dc 直接切換分頁
+{
+  const _t = new URLSearchParams(location.search).get('tab');
+  if (_t === 'schedule' || _t === 'dc') activateTab(_t);
+}
 
 renderChips();
 renderVideos();
 renderNews();
+renderSchChips();
+renderSchedule();
 </script>
 </body>
 </html>
