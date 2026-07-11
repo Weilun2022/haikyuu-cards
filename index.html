@@ -1093,55 +1093,36 @@
   .analysis-body {
     flex: 1; overflow-y: auto; padding: 20px 24px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 14px; align-content: start;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 6px; align-content: start;
   }
   @media (max-width: 600px) {
-    .analysis-body { padding: 14px 16px; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+    .analysis-body { padding: 12px; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 5px; }
   }
 
-  .an-card {
-    position: relative; border-radius: 10px; overflow: hidden;
+  /* 每張卡的實際持有份數各自一格縮圖，點一下切換亮（已持有）／暗（未持有） */
+  .an-tile {
+    position: relative; border-radius: 7px; overflow: hidden;
     cursor: pointer; border: 2px solid transparent;
-    transition: border-color 0.15s, opacity 0.15s;
   }
-  .an-card.owned   { border-color: #4ade80; }
-  .an-card.partial { border-color: #fb923c; }
-  .an-card.not-owned { border-color: #fb923c; }
-
-  .an-card-img {
+  .an-tile-img {
     width: 100%; aspect-ratio: 5/7; object-fit: cover;
     display: block; background: var(--surface2);
+    transition: opacity 0.15s, filter 0.15s;
   }
-
-  /* 左上角持有數量計數器 */
-  .an-own-counter {
-    position: absolute; top: 5px; left: 5px;
-    display: flex; align-items: center; gap: 2px;
-    z-index: 2;
+  .an-tile.not-owned .an-tile-img { opacity: .3; filter: grayscale(75%) brightness(.65); }
+  .an-tile.owned { border-color: #4ade80; }
+  .an-tile.owned::after {
+    content: '✓'; position: absolute; top: 3px; right: 3px;
+    width: 15px; height: 15px; border-radius: 50%; background: #4ade80; color: #04351a;
+    font-size: 10px; font-weight: 900; line-height: 15px; text-align: center; pointer-events: none;
   }
-  .an-counter-btn {
-    width: 20px; height: 20px;
-    background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.25);
-    border-radius: 4px; color: #fff; font-size: 13px; line-height: 1;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    transition: background 0.12s; flex-shrink: 0;
-  }
-  .an-counter-btn:hover { background: rgba(255,255,255,0.2); }
-  .an-counter-num {
-    min-width: 22px; text-align: center;
-    font-size: 10px; font-weight: 700; color: #fff;
-    background: rgba(0,0,0,0.72); border-radius: 3px;
-    padding: 2px 3px; line-height: 1.3;
-  }
-  .an-card.owned   .an-counter-num { color: #4ade80; }
-  .an-card.partial .an-counter-num { color: #fb923c; }
-
-  .an-card-name {
+  .an-tile-label {
     position: absolute; bottom: 0; left: 0; right: 0;
     background: linear-gradient(transparent, rgba(0,0,0,0.85));
-    padding: 14px 5px 5px; font-size: 10px; color: #fff;
+    padding: 12px 3px 3px; font-size: 8px; color: #fff;
     text-align: center; line-height: 1.2; pointer-events: none;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
 
   /* ── Qty Modal ── */
@@ -1294,27 +1275,6 @@
   .color-qty-num {
     flex: 1; font-size: 10px; font-weight: 700; color: #fff;
     text-align: center; line-height: 20px; pointer-events: none;
-  }
-
-  /* ── Analysis count number input ── */
-  .an-count-input {
-    width: 46px; padding: 2px 4px; text-align: center;
-    background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.25);
-    color: #fff; border-radius: 4px; font-size: 11px;
-    font-weight: 700; outline: none; appearance: textfield;
-  }
-  .an-count-input::-webkit-inner-spin-button,
-  .an-count-input::-webkit-outer-spin-button { -webkit-appearance: none; }
-  .an-count-input:focus { border-color: var(--accent); }
-  .an-card.owned   .an-count-input { color: #4ade80; }
-  .an-card.partial .an-count-input { color: #fb923c; }
-
-  /* 右下角需求張數 */
-  .an-need-badge {
-    position: absolute; bottom: 22px; right: 5px;
-    background: rgba(0,0,0,0.72); border-radius: 4px;
-    padding: 2px 5px; font-size: 11px; font-weight: 700;
-    color: rgba(255,255,255,0.7); pointer-events: none; z-index: 2;
   }
 
   .analysis-section-header {
@@ -3494,59 +3454,27 @@ function renderAnalysis() {
     header.textContent = `${label}（${list.length}張）`;
     body.appendChild(header);
 
-    list.forEach(({ entry, card, have, need, deficit }) => {
-      const state  = have >= need ? 'owned' : have > 0 ? 'partial' : 'not-owned';
+    list.forEach(({ entry, card, need }) => {
+      // 每張卡展開成 need 個實體格，各自可點擊切換亮（已持有）／暗（未持有）
+      const have = Math.min(need, owned[entry.image_file] || 0);
       const imgSrc = card.image_file ? `images/${card.image_file}` : '';
       const variant = getVariantCode(entry.image_file);
       const displayName = (card.card_no || '') + (variant ? `-${variant}` : '');
-      const badgeText = deficit > 0 ? `缺${deficit}` : '✓';
 
-      const div = document.createElement('div');
-      div.className = `an-card ${state}`;
-      div.innerHTML = `
-        <img class="an-card-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--surface2)'">
-        <div class="an-own-counter">
-          <input type="number" class="an-count-input" data-img="${entry.image_file}" data-need="${need}" value="${have}" min="0" title="持有數（需要 ${need} 張）">
-        </div>
-        <div class="an-need-badge">${badgeText}</div>
-        <div class="an-card-name">${displayName}</div>`;
-
-      div.querySelector('.an-count-input').addEventListener('click', e => e.stopPropagation());
-      div.querySelector('.an-count-input').addEventListener('focus', e => { e.stopPropagation(); e.target.value = ''; });
-
-      // 共用的儲存邏輯：change（含 Enter）或 blur（離開欄位）都觸發
-      const saveAnCount = e => {
-        e.stopPropagation();
-        const img = e.target.dataset.img;
-        const valStr = e.target.value.trim();
-        if (valStr === '') {
-          // focus 清空後未輸入就離開，還原原本持有數，不存 0
-          e.target.value = deck.owned[img] || 0;
-          return;
-        }
-        const val = parseInt(valStr, 10);
-        deck.owned[img] = isNaN(val) || val < 0 ? 0 : val;
-        e.target.value = deck.owned[img];   // 修正顯示（如輸入負數）
-        saveDecks();
-        // 更新此卡的 state class（不 re-render 整頁，避免失焦）
-        const have2 = deck.owned[img] || 0;
-        const need2 = parseInt(e.target.dataset.need, 10);
-        div.className = `an-card ${have2 >= need2 ? 'owned' : have2 > 0 ? 'partial' : 'not-owned'}`;
-        // 更新此卡的 badge 顯示
-        const deficit2 = Math.max(0, need2 - have2);
-        div.querySelector('.an-need-badge').textContent = deficit2 > 0 ? `缺${deficit2}` : '✓';
-        // 更新標頭統計
-        let missing2 = 0;
-        deck.cards.forEach(en => { missing2 += Math.max(0, en.count - (deck.owned[en.image_file] || 0)); });
-        document.getElementById('analysis-missing').textContent = missing2;
-      };
-      div.querySelector('.an-count-input').addEventListener('change', saveAnCount);
-      div.querySelector('.an-count-input').addEventListener('blur',   saveAnCount);
-      div.querySelector('.an-count-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); saveAnCount(e); e.target.blur(); }
-      });
-      div.addEventListener('click', () => openModal(card));
-      body.appendChild(div);
+      for (let i = 0; i < need; i++) {
+        const isOwned = i < have;
+        const tile = document.createElement('div');
+        tile.className = `an-tile ${isOwned ? 'owned' : 'not-owned'}`;
+        tile.innerHTML = `<img class="an-tile-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--surface2)'">`
+          + (i === need - 1 ? `<div class="an-tile-label">${displayName}</div>` : '');
+        tile.addEventListener('click', () => {
+          const cur = deck.owned[entry.image_file] || 0;
+          deck.owned[entry.image_file] = isOwned ? Math.max(0, cur - 1) : Math.min(need, cur + 1);
+          saveDecks();
+          renderAnalysis(); // 無輸入框可失焦，直接整頁重繪即可（順便讓完成的卡即時歸類到「已完成」）
+        });
+        body.appendChild(tile);
+      }
     });
   };
 
