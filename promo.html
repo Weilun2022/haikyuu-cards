@@ -390,12 +390,23 @@
   .card-chip img { width:22px; height:31px; border-radius:3px; object-fit:cover; display:block; }
 
   /* ── 賽程表 ── */
-  .sch-toolbar { display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
+  .sch-toolbar { display:flex; flex-direction:column; gap:6px; margin-bottom:2px; }
   .sch-search {
-    width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border);
-    background:var(--surface2); color:var(--text); font-size:13px;
+    width:100%; padding:8px 12px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text); font-size:12.5px;
   }
   .sch-search::placeholder { color:var(--text-dim); }
+  .sch-filter-row {
+    display:flex; gap:6px; overflow-x:auto;
+    scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  .sch-filter-row::-webkit-scrollbar { display:none; }
+  .sch-filter-chip {
+    flex:0 0 auto; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:600;
+    background:var(--surface2); color:var(--text-dim);
+    border:1px solid var(--border); cursor:pointer; white-space:nowrap; line-height:1.6;
+  }
+  .sch-filter-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
   .sch-date-head {
     font-size:12px; font-weight:800; color:var(--text-dim); letter-spacing:1px;
     margin:16px 0 8px; padding-left:2px;
@@ -585,8 +596,8 @@
   <section id="pane-schedule" class="hidden">
     <div class="sch-toolbar">
       <input type="text" id="sch-search" class="sch-search" placeholder="搜尋店家名稱或地址...">
-      <div class="chips" id="sch-region-chips"></div>
-      <div class="chips" id="sch-type-chips"></div>
+      <div class="sch-filter-row" id="sch-region-chips"></div>
+      <div class="sch-filter-row" id="sch-type-chips"></div>
     </div>
     <!-- 搜尋時顯示扁平清單 -->
     <div class="sch-list hidden" id="sch-list"></div>
@@ -870,7 +881,7 @@ function renderSchChips() {
   rWrap.innerHTML = '';
   SCH_REGIONS.forEach(r => {
     const c = document.createElement('div');
-    c.className = 'chip' + (r.key === curSchRegion ? ' active' : '');
+    c.className = 'sch-filter-chip' + (r.key === curSchRegion ? ' active' : '');
     c.textContent = r.label;
     c.onclick = () => { curSchRegion = r.key; renderSchChips(); schUpdateViewMode(); };
     rWrap.appendChild(c);
@@ -879,7 +890,7 @@ function renderSchChips() {
   tWrap.innerHTML = '';
   SCH_TYPES.forEach(t => {
     const c = document.createElement('div');
-    c.className = 'chip' + (t.key === curSchType ? ' active' : '');
+    c.className = 'sch-filter-chip' + (t.key === curSchType ? ' active' : '');
     c.textContent = t.label;
     c.onclick = () => { curSchType = t.key; renderSchChips(); schUpdateViewMode(); };
     tWrap.appendChild(c);
