@@ -2787,7 +2787,8 @@ function hvOnFavoritesChange() {
 }
 
 let _hvSyncTimer = null;
-let _hvSyncRerun = false;
+let _hvSyncRerunReason = null; // 上一輪同步跑到一半又有新請求進來時，記住原本的 reason（尤其是 'manual'，
+                                // 不能被沖淡成自動同步，不然使用者剛確認的刪除就推不上去了）
 function hvScheduleAutoSync(reason, delay) {
   if (!window.hvCloudSync?.currentUser) return;
   clearTimeout(_hvSyncTimer);
@@ -2803,7 +2804,11 @@ function hvEnsureQuickDeck() {
 async function hvRunAutoSync(reason) {
   const user = window.hvCloudSync?.currentUser;
   if (!user) return;
-  if (window.hvCloudSync.getStatus().syncing) { _hvSyncRerun = true; return; }
+  if (window.hvCloudSync.getStatus().syncing) {
+    // 保留優先權最高的 reason：一旦有 manual 請求排隊，重跑時就不能被降級成自動同步
+    if (reason === 'manual' || _hvSyncRerunReason !== 'manual') _hvSyncRerunReason = reason;
+    return;
+  }
   try {
     const pushDeletes = reason === 'manual';
     const result = await window.hvCloudSync.autoReconcile(user.uid, decks, deckColorState, { pushDeletes });
@@ -2849,8 +2854,15 @@ async function hvRunAutoSync(reason) {
     hvRenderCloudUI(window.hvCloudSync.getStatus());
   } catch (e) {
     console.error('[cloud-sync] auto sync failed', e);
+    // 失敗時一定要讓使用者看得出來，不然狀態文字會卡在原地不動、分不清是還在跑還是失敗了
+    showToast('同步失敗，請檢查網路連線，稍後會自動重試');
+    hvRenderCloudUI(window.hvCloudSync.getStatus());
   } finally {
-    if (_hvSyncRerun) { _hvSyncRerun = false; hvScheduleAutoSync('rerun', 0); }
+    if (_hvSyncRerunReason) {
+      const rerunReason = _hvSyncRerunReason;
+      _hvSyncRerunReason = null;
+      hvScheduleAutoSync(rerunReason, 0);
+    }
   }
 }
 
