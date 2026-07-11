@@ -3294,10 +3294,15 @@ function closeDeckPanel() {
 }
 
 function renderDeckSwitcher() {
-  // tray 下拉選單
+  // tray 下拉選單：快速查詢固定置頂，其餘依名稱排序
   const traySel = document.getElementById('tray-deck-select');
   traySel.innerHTML = '';
-  decks.forEach(d => {
+  const sortedDecks = [...decks].sort((a, b) => {
+    if (a.id === QUICK_DECK_ID) return -1;
+    if (b.id === QUICK_DECK_ID) return 1;
+    return a.name.localeCompare(b.name, 'zh-Hant');
+  });
+  sortedDecks.forEach(d => {
     const o = document.createElement('option');
     o.value = d.id; o.textContent = d.name; o.selected = d.id === currentDeckId;
     traySel.appendChild(o);
