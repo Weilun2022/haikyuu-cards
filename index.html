@@ -3440,12 +3440,26 @@ function renderAnalysis() {
   const incomplete = entries.filter(e => e.deficit > 0).sort((a, b) => b.deficit - a.deficit);
   const complete   = entries.filter(e => e.deficit === 0);
 
-  const renderSection = (list, label) => {
+  // 點擊後只局部更新，不整頁重排（避免卡片跳來跳去），但兩個分類標題的張數要即時算出來更新文字
+  const updateHeaderCounts = () => {
+    let incompleteN = 0, completeN = 0;
+    deck.cards.forEach(en => {
+      const deficit = Math.max(0, en.count - (deck.owned[en.image_file] || 0));
+      if (deficit > 0) incompleteN++; else completeN++;
+    });
+    document.querySelectorAll('.analysis-section-header').forEach(h => {
+      if (h.dataset.section === 'incomplete') h.textContent = `未完成（${incompleteN}張）`;
+      if (h.dataset.section === 'complete')   h.textContent = `已完成（${completeN}張）`;
+    });
+  };
+
+  const renderSection = (list, label, sectionKey) => {
     if (list.length === 0) return;
 
     // Section header
     const header = document.createElement('div');
     header.className = 'analysis-section-header';
+    header.dataset.section = sectionKey;
     header.textContent = `${label}（${list.length}張）`;
     body.appendChild(header);
 
@@ -3455,37 +3469,34 @@ function renderAnalysis() {
       const displayName = (card.card_no || '') + (variant ? `-${variant}` : '');
 
       // 不顯示卡號文字（改用 title 滑鼠 hover 提示），也不再把同卡複本包成一組，
-      // 直接攤平成固定 8 欄網格裡各自獨立的格子（跟 GPT-5.5 討論定案，見上方 CSS 註解）
-      const tileEls = [];
-      const repaint = () => {
-        const have = Math.min(need, deck.owned[entry.image_file] || 0);
-        tileEls.forEach((tile, i) => { tile.className = `an-tile ${i < have ? 'owned' : 'not-owned'}`; });
-      };
+      // 直接攤平成固定 8 欄網格裡各自獨立的格子（跟 GPT-5.5 討論定案，見上方 CSS 註解）。
+      // 每一格各自記自己是否持有，點哪一格就切換哪一格 —— 不能用「從左邊算 have 張填滿」
+      // 這種算法，不然點到後面那格時，畫面卻是點亮最前面那格，看起來像點錯卡。
+      const have0 = Math.min(need, deck.owned[entry.image_file] || 0);
+      const tileOwned = Array.from({ length: need }, (_, i) => i < have0);
+
       for (let i = 0; i < need; i++) {
         const tile = document.createElement('div');
         tile.title = displayName;
+        tile.className = `an-tile ${tileOwned[i] ? 'owned' : 'not-owned'}`;
         tile.innerHTML = `<img class="an-tile-img" src="${imgSrc}" alt="" onerror="this.style.background='var(--surface2)'">`;
         tile.addEventListener('click', () => {
-          const have = Math.min(need, deck.owned[entry.image_file] || 0);
-          const isOwned = i < have;
-          const cur = deck.owned[entry.image_file] || 0;
-          deck.owned[entry.image_file] = isOwned ? Math.max(0, cur - 1) : Math.min(need, cur + 1);
+          tileOwned[i] = !tileOwned[i];
+          tile.className = `an-tile ${tileOwned[i] ? 'owned' : 'not-owned'}`;
+          deck.owned[entry.image_file] = tileOwned.filter(Boolean).length;
           saveDecks();
-          repaint(); // 只重繪這張卡自己的格子，不動整頁排序，避免卡片跳來跳去
-          // 只更新頭部總缺牌數，未完成/已完成的分類要等重開分析面板才會重新排序
           let missing2 = 0;
           deck.cards.forEach(en => { missing2 += Math.max(0, en.count - (deck.owned[en.image_file] || 0)); });
           document.getElementById('analysis-missing').textContent = missing2;
+          updateHeaderCounts();
         });
-        tileEls.push(tile);
         body.appendChild(tile);
       }
-      repaint();
     });
   };
 
-  renderSection(incomplete, '未完成');
-  renderSection(complete,   '已完成');
+  renderSection(incomplete, '未完成', 'incomplete');
+  renderSection(complete,   '已完成', 'complete');
 }
 
 // ── Toast ───────────────────────────────────────────────
