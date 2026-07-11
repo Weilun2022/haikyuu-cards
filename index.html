@@ -1078,10 +1078,11 @@
 
   .analysis-header {
     background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 12px 16px; display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-    flex-wrap: wrap;
+    padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
   }
-  .analysis-title { font-size: 15px; font-weight: 700; flex: 1; min-width: 100px; }
+  .analysis-header-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  /* 牌組名稱獨立一整行，不跟返回鈕／統計數字搶空間，名稱長就自然換行 */
+  .analysis-title { font-size: 15px; font-weight: 700; white-space: normal; word-break: break-word; line-height: 1.4; }
   .analysis-stats { display: flex; gap: 6px; flex-shrink: 0; }
   .analysis-stat {
     font-size: 12px; background: var(--surface2);
@@ -1438,7 +1439,7 @@
   </div>
   <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
   <div class="tray-spacer"></div>
-  <button class="tray-btn" id="tray-analysis-btn">庫存分析</button>
+  <button class="tray-btn" id="tray-analysis-btn">持有進度</button>
   <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
 </div>
 
@@ -1550,12 +1551,14 @@
 <!-- ── Analysis Overlay ── -->
 <div class="analysis-overlay" id="analysis-overlay">
   <div class="analysis-header">
-    <button class="tray-btn" id="analysis-back-btn">← 返回</button>
-    <div class="analysis-title" id="analysis-title">庫存分析</div>
-    <div class="analysis-stats">
-      <div class="analysis-stat">全部 <span class="num" id="analysis-total">0</span> 張</div>
-      <div class="analysis-stat">缺 <span class="num miss" id="analysis-missing">0</span> 張</div>
+    <div class="analysis-header-top">
+      <button class="tray-btn" id="analysis-back-btn">← 返回</button>
+      <div class="analysis-stats">
+        <div class="analysis-stat">全部 <span class="num" id="analysis-total">0</span> 張</div>
+        <div class="analysis-stat">缺 <span class="num miss" id="analysis-missing">0</span> 張</div>
+      </div>
     </div>
+    <div class="analysis-title" id="analysis-title">持有進度</div>
   </div>
   <div class="analysis-body" id="analysis-body"></div>
 </div>
@@ -3413,7 +3416,7 @@ function closeAnalysis() { document.getElementById('analysis-overlay').classList
 function renderAnalysis() {
   const deck = getCurrentDeck();
   if (!deck) return;
-  document.getElementById('analysis-title').textContent = `庫存分析 — ${deck.name}`;
+  document.getElementById('analysis-title').textContent = `持有進度 — ${deck.name}`;
 
   // 缺牌數 = Σ max(0, 牌組需要 − 此牌組的持有數)
   const total = getTotalCount(deck);
