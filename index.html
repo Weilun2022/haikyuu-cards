@@ -766,7 +766,6 @@
     padding: 5px 16px;
     flex-wrap: nowrap;
   }
-  .deck-tray.mini .tray-spacer,
   .deck-tray.mini .tray-warn-text,
   .deck-tray.mini .tray-menu { display: none; }
   .deck-tray.mini .tray-deck-select { max-width: none; flex: 1; }
@@ -788,8 +787,8 @@
     padding: 4px 6px;
     font-size: 13px; font-weight: 600;
     cursor: pointer; outline: none;
-    max-width: 260px;
-    flex-shrink: 1;
+    max-width: 420px;
+    flex: 1 1 100px;
     min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     transition: border-color 0.15s;
@@ -801,7 +800,6 @@
   .tray-count-num { font-weight: 700; color: var(--accent); }
   .tray-count-num.warn { color: #fb923c; }
   .tray-warn-text { font-size: 11px; color: #fb923c; white-space: nowrap; }
-  .tray-spacer { flex: 1; min-width: 4px; }
 
   .tray-btn {
     background: var(--surface2);
@@ -1469,6 +1467,7 @@
     <div class="tray-count-label">
       <span class="tray-count-num" id="tray-count-num">0</span> 張
     </div>
+    <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
     <details class="deck-menu tray-menu" id="tray-menu-details">
       <summary class="tray-btn deck-menu-btn" aria-label="牌組功能" title="牌組功能">⋯</summary>
       <div class="deck-menu-popover">
@@ -1476,8 +1475,6 @@
         <button class="deck-menu-item" id="tray-analysis-btn">📝 缺卡清單</button>
       </div>
     </details>
-    <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
-    <div class="tray-spacer"></div>
   </div>
 </div>
 
