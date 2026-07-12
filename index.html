@@ -923,9 +923,6 @@
     font-size: 14px; font-weight: 700;
   }
   .deck-panel-titlelabel { flex-shrink: 0; white-space: nowrap; }
-  .deck-selector-row {
-    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
-  }
   .deck-switch-select {
     background: var(--surface2); border: 1px solid var(--border);
     color: var(--text); border-radius: 6px;
@@ -939,6 +936,27 @@
   }
   .deck-panel-titlerow .tray-btn { flex-shrink: 0; }
   .deck-name-input:focus { border-color: var(--accent); }
+  .deck-menu { position: relative; flex-shrink: 0; }
+  .deck-menu > summary.deck-menu-btn {
+    padding: 3px 9px; font-size: 15px; line-height: 1.2; cursor: pointer;
+    list-style: none; user-select: none;
+  }
+  .deck-menu > summary::-webkit-details-marker { display: none; }
+  .deck-menu-popover {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 50;
+    width: max-content; min-width: 150px; padding: 6px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    box-shadow: 0 14px 32px rgba(0,0,0,0.38), 0 2px 8px rgba(0,0,0,0.24);
+  }
+  .deck-menu-item {
+    width: 100%; min-height: 34px; padding: 8px 10px; display: flex; align-items: center; gap: 6px;
+    border: 0; border-radius: 8px; background: transparent; color: var(--text);
+    font-size: 13px; font-weight: 600; text-align: left; cursor: pointer; white-space: nowrap;
+  }
+  .deck-menu-item:hover { background: var(--surface2); }
+  .deck-menu-item.danger { color: var(--accent2); }
+  .deck-menu-item.danger:hover { background: rgba(255,107,107,0.12); }
+  .deck-menu-divider { height: 1px; margin: 5px 4px; background: var(--border); }
   .deck-panel-info { font-size: 11px; color: var(--text-dim); }
   .deck-panel-info .warn-orange { color: #fb923c; font-weight: 600; }
 
@@ -1476,14 +1494,18 @@
       <div class="deck-panel-titlerow">
         <span class="deck-panel-titlelabel">🃏 牌組管理</span>
         <input type="text" class="deck-name-input" id="deck-name-input" placeholder="牌組名稱...">
-        <button class="tray-btn" id="deck-rename-btn">改名</button>
+        <details class="deck-menu" id="deck-menu-details">
+          <summary class="tray-btn deck-menu-btn" aria-label="牌組操作" title="更多操作">⋯</summary>
+          <div class="deck-menu-popover">
+            <button class="deck-menu-item" id="deck-rename-btn">✏️ 改名</button>
+            <button class="deck-menu-item" id="deck-new-btn">＋ 新增牌組</button>
+            <button class="deck-menu-item" id="deck-duplicate-btn" title="複製目前牌組為新牌組">⧉ 複製牌組</button>
+            <div class="deck-menu-divider"></div>
+            <button class="deck-menu-item danger" id="deck-delete-btn">🗑 刪除牌組</button>
+            <button class="deck-menu-item danger" id="deck-clear-btn">♻ 清空牌組</button>
+          </div>
+        </details>
         <button class="tray-btn" style="margin-left:auto;padding:3px 9px;font-size:11px;flex-shrink:0" id="deck-panel-close">✕</button>
-      </div>
-      <div class="deck-selector-row">
-        <button class="tray-btn" id="deck-new-btn">＋新增</button>
-        <button class="tray-btn" id="deck-duplicate-btn" title="複製目前牌組為新牌組">複製</button>
-        <button class="tray-btn danger" id="deck-delete-btn">刪除</button>
-        <button class="tray-btn danger" id="deck-clear-btn" style="margin-left:8px;border-left:1px solid var(--border);padding-left:8px">清空</button>
       </div>
       <div class="deck-panel-info" id="deck-panel-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span id="deck-panel-info-text"></span>
@@ -4366,6 +4388,15 @@ function bindDeckEvents() {
     saveDecks();
     renderDeckPanel(); updateTray(); renderGrid();
     showToast('已清空牌組');
+  });
+
+  // 牌組操作選單（改名/新增/複製/刪除/清空）：點任一項目或點外面都要收合
+  const deckMenuDetails = document.getElementById('deck-menu-details');
+  deckMenuDetails.addEventListener('click', e => {
+    if (e.target.closest('.deck-menu-item')) deckMenuDetails.removeAttribute('open');
+  });
+  document.addEventListener('click', e => {
+    if (deckMenuDetails.open && !deckMenuDetails.contains(e.target)) deckMenuDetails.removeAttribute('open');
   });
 
   document.getElementById('deck-share-btn').addEventListener('click', openShareModal);
