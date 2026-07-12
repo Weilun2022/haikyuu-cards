@@ -2820,6 +2820,14 @@ async function hvRunAutoSync(reason) {
       // 牌組真的被這次同步動到時才重畫，避免背景同步到「別的」牌組時打斷使用者正在瀏覽的畫面
       if (currentDeckRemoved || currentDeckDownloaded || switchedAway) {
         renderDeckPanel(); updateTray(); renderGrid();
+        // 缺少清單是獨立 overlay，不跟著 renderDeckPanel 一起重畫，要另外處理：
+        // 牌組還在但內容被雲端更新（例如別的裝置勾了持有）就即時刷新；牌組整個被刪除就直接關閉，
+        // 不然使用者會繼續看著一份已經不存在的牌組資料
+        const analysisOpen = document.getElementById('analysis-overlay').classList.contains('open');
+        if (analysisOpen) {
+          if (switchedAway) closeAnalysis();
+          else renderAnalysis();
+        }
         if (switchedAway) {
           const newDeck = getCurrentDeck();
           showToast(`目前牌組已在其他裝置刪除，已切換到「${newDeck ? newDeck.name : '其他牌組'}」`);
