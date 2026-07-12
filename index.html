@@ -757,6 +757,9 @@
   .deck-tray.visible.tray-scroll-hidden { transform: translateY(100%); transition: transform 0.25s ease; }
   body.deck-active .grid-container { padding-bottom: 72px; }
 
+  .tray-main-row { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
+  .tray-actions-row { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
   /* 收合狀態：只剩一條細帶 */
   .deck-tray.mini {
     padding: 5px 16px;
@@ -764,10 +767,27 @@
   }
   .deck-tray.mini .tray-spacer,
   .deck-tray.mini .tray-warn-text,
-  .deck-tray.mini #tray-analysis-btn,
-  .deck-tray.mini #tray-open-btn { display: none; }
+  .deck-tray.mini .tray-actions-row { display: none; }
   .deck-tray.mini .tray-deck-select { max-width: none; flex: 1; }
   body.deck-active.tray-mini .grid-container { padding-bottom: 36px; }
+
+  /* 手機版牌組名稱可能很長（使用者自訂），單列塞不下選單+數量+兩顆按鈕會把按鈕擠出畫面，
+     改成上下兩列：第一列資訊（選單/張數），第二列操作按鈕，兩顆按鈕仍然並排可見 */
+  @media (max-width: 600px) {
+    .deck-tray:not(.mini) {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+    }
+    .deck-tray:not(.mini) .tray-main-row { width: 100%; }
+    .deck-tray:not(.mini) .tray-actions-row {
+      width: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .deck-tray:not(.mini) .tray-actions-row .tray-btn { width: 100%; }
+    body.deck-active:not(.tray-mini) .grid-container { padding-bottom: 108px; }
+  }
 
   /* 收合/展開切換按鈕 */
   .tray-toggle-btn {
@@ -787,6 +807,8 @@
     cursor: pointer; outline: none;
     max-width: 260px;
     flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     transition: border-color 0.15s;
   }
   .tray-deck-select:hover,
@@ -1458,15 +1480,19 @@
 
 <!-- ── Deck Tray ── -->
 <div class="deck-tray" id="deck-tray">
-  <button class="tray-toggle-btn" id="tray-toggle-btn" title="收合／展開">▼</button>
-  <select class="tray-deck-select" id="tray-deck-select"></select>
-  <div class="tray-count-label">
-    <span class="tray-count-num" id="tray-count-num">0</span> 張
+  <div class="tray-main-row">
+    <button class="tray-toggle-btn" id="tray-toggle-btn" title="收合／展開">▼</button>
+    <select class="tray-deck-select" id="tray-deck-select"></select>
+    <div class="tray-count-label">
+      <span class="tray-count-num" id="tray-count-num">0</span> 張
+    </div>
+    <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
+    <div class="tray-spacer"></div>
   </div>
-  <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
-  <div class="tray-spacer"></div>
-  <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
-  <button class="tray-btn" id="tray-analysis-btn">缺卡清單</button>
+  <div class="tray-actions-row">
+    <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
+    <button class="tray-btn" id="tray-analysis-btn">缺卡清單</button>
+  </div>
 </div>
 
 <!-- ── Deck Panel ── -->
