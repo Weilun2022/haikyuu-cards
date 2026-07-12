@@ -2781,6 +2781,12 @@ async function hvRunAutoSync(reason) {
     const { applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount, deletesPushed, pendingDeleteCount } = result;
     let localTouched = false;
 
+    // 先記住這次同步有沒有動到「使用者目前正在看的那副牌組」，
+    // 決定等等要不要重畫牌組面板/牌牆（別的牌組背景同步完不應該打斷使用者正在瀏覽的畫面）
+    const prevCurrentDeckId = currentDeckId;
+    const currentDeckRemoved = applyRemoveLocal.includes(prevCurrentDeckId);
+    const currentDeckDownloaded = applyDownload.some(d => d.id === prevCurrentDeckId);
+
     if (applyRemoveLocal.length) {
       decks = decks.filter(d => !applyRemoveLocal.includes(d.id));
       applyRemoveLocal.forEach(id => delete deckColorState[id]);
@@ -2797,13 +2803,28 @@ async function hvRunAutoSync(reason) {
 
     if (localTouched) {
       hvEnsureQuickDeck();
-      if (!decks.find(d => d.id === currentDeckId)) currentDeckId = decks[0]?.id || null;
+      let switchedAway = false;
+      if (!decks.find(d => d.id === currentDeckId)) {
+        currentDeckId = decks.find(d => d.id === QUICK_DECK_ID)?.id || decks[0]?.id || null;
+        switchedAway = true;
+      }
       _hvApplyingRemote = true;
       saveDecks(); saveColorState();
       _hvApplyingRemote = false;
       hvSnapshotDeckState();
       await window.hvCloudSync.commitLocalBaseline(user.uid, decks, deckColorState);
-      renderDeckPanel(); updateTray(); renderGrid();
+
+      // 左下角牌組清單永遠同步更新（這是這次要修的 bug：之前漏呼叫，要重整頁面才會更新）
+      renderDeckSwitcher();
+      // 牌組面板/牌牆比較重（renderGrid 會整個重建卡牌牆），只有在使用者目前正在看的
+      // 牌組真的被這次同步動到時才重畫，避免背景同步到「別的」牌組時打斷使用者正在瀏覽的畫面
+      if (currentDeckRemoved || currentDeckDownloaded || switchedAway) {
+        renderDeckPanel(); updateTray(); renderGrid();
+        if (switchedAway) {
+          const newDeck = getCurrentDeck();
+          showToast(`目前牌組已在其他裝置刪除，已切換到「${newDeck ? newDeck.name : '其他牌組'}」`);
+        }
+      }
     }
 
     if (restoredFromLoss) showToast('偵測到本機牌組資料遺失，已自動從雲端還原');
@@ -3272,9 +3293,10 @@ function renderDeckSwitcher() {
     o.value = d.id; o.textContent = d.name; o.selected = d.id === currentDeckId;
     traySel.appendChild(o);
   });
-  // 管理面板的改名欄位
+  // 管理面板的改名欄位：使用者正在打字改名時（例如背景同步剛好觸發重繪），不要蓋掉輸入中的內容
   const deck = getCurrentDeck();
-  if (deck) document.getElementById('deck-name-input').value = deck.name;
+  const nameInput = document.getElementById('deck-name-input');
+  if (deck && document.activeElement !== nameInput) nameInput.value = deck.name;
 }
 
 function renderDeckPanel() {
