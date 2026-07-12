@@ -757,23 +757,35 @@
   .deck-tray.visible.tray-scroll-hidden { transform: translateY(100%); transition: transform 0.25s ease; }
   body.deck-active .grid-container { padding-bottom: 72px; }
 
+  .tray-deck-select-wrap {
+    position: relative;
+    display: flex; align-items: center;
+    flex: 1 1 100px; max-width: 420px; min-width: 0;
+  }
   .tray-deck-select {
+    width: 100%;
     background: transparent;
     border: 1px solid var(--border);
-    color: var(--text);
+    /* 文字改由 .tray-deck-select-label 顯示（見下方），這裡藏起來只留互動功能：
+       Safari 的原生 <select> 不支援 text-overflow:ellipsis，長牌組名稱會被裁掉不顯示省略號，
+       甚至溢出跑到隔壁按鈕上（已知瀏覽器限制），所以改用蓋在上面的唯讀 label 保證截斷效果一致 */
+    color: transparent;
     border-radius: 6px;
     padding: 4px 6px;
     font-size: 13px; font-weight: 600;
     cursor: pointer; outline: none;
-    max-width: 420px;
-    flex: 1 1 100px;
-    min-width: 0;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     transition: border-color 0.15s;
   }
   .tray-deck-select:hover,
   .tray-deck-select:focus { border-color: var(--accent); }
   .tray-deck-select option { background: #fff; color: #111; }
+  .tray-deck-select-label {
+    position: absolute; left: 7px; right: 22px; top: 50%; transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .tray-count-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
   .tray-count-num { font-weight: 700; color: var(--accent); }
   .tray-count-num.warn { color: #fb923c; }
@@ -1439,7 +1451,10 @@
 
 <!-- ── Deck Tray ── -->
 <div class="deck-tray" id="deck-tray">
-  <select class="tray-deck-select" id="tray-deck-select"></select>
+  <div class="tray-deck-select-wrap">
+    <select class="tray-deck-select" id="tray-deck-select"></select>
+    <span class="tray-deck-select-label" id="tray-deck-select-label" aria-hidden="true"></span>
+  </div>
   <div class="tray-count-label">
     <span class="tray-count-num" id="tray-count-num">0</span> 張
   </div>
@@ -3263,6 +3278,7 @@ function updateTray() {
   document.body.classList.add('deck-active');
 
   document.getElementById('tray-deck-select').value = currentDeckId;
+  document.getElementById('tray-deck-select-label').textContent = deck.name;
   const total = getTotalCount(deck);
   const numEl = document.getElementById('tray-count-num');
   numEl.textContent = total > 40 ? `⚠ ${total}` : total;
@@ -3319,6 +3335,7 @@ function renderDeckSwitcher() {
   const editingSameDeck = document.activeElement === nameInput && nameInput.dataset.deckId === (deck && deck.id);
   if (deck && !editingSameDeck) nameInput.value = deck.name;
   if (deck) nameInput.dataset.deckId = deck.id;
+  document.getElementById('tray-deck-select-label').textContent = deck ? deck.name : '';
 }
 
 function renderDeckPanel() {
