@@ -69,6 +69,11 @@
     .deck-panel { max-height: 60vh; max-width: 540px; width: 100%; align-self: center; }
     .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
+    /* 持有進度是獨立全螢幕 overlay，沒有跟著牌組面板的寬度限制，桌面版要另外限制寬度置中，
+       不然8欄網格會被拉伸到滿版寬度，縮圖變得又大又擠 */
+    .analysis-header-top, .analysis-title, .analysis-body {
+      max-width: 540px; width: 100%; align-self: center;
+    }
   }
 
   /* ── Search Row ── */
