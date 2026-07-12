@@ -3501,9 +3501,16 @@ function renderAnalysis() {
     return { entry, card, have, need, deficit };
   }).filter(Boolean);
 
-  // deficit > 0 排前面（降冪），deficit = 0 排後面
-  const incomplete = entries.filter(e => e.deficit > 0).sort((a, b) => b.deficit - a.deficit);
-  const complete   = entries.filter(e => e.deficit === 0);
+  // 排序方式跟牌組管理一致：角色卡優先、事件卡排最後，同類再依卡號排序
+  // （未完成/已完成的分組仍保留，只是各自內部改用這個排序，不再用缺牌數排）
+  const byCategoryThenCardNo = (a, b) => {
+    const aEvent = a.card.category === 'EVENT';
+    const bEvent = b.card.category === 'EVENT';
+    if (aEvent !== bEvent) return aEvent ? 1 : -1;
+    return (a.card.card_no || '').localeCompare(b.card.card_no || '');
+  };
+  const incomplete = entries.filter(e => e.deficit > 0).sort(byCategoryThenCardNo);
+  const complete   = entries.filter(e => e.deficit === 0).sort(byCategoryThenCardNo);
   const totalEntries = entries.length;
 
   // 「未完成」標題拿掉了（右上角已有準確的「缺N張」總數，不需要重複）。
