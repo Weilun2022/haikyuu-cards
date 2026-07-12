@@ -4367,7 +4367,11 @@ function bindDeckEvents() {
     currentDeckId = decks[Math.max(0, idx - 1)].id;
     saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
     showToast('已刪除牌組');
-    if (user) hvScheduleAutoSync('delete', 0);
+    // 用跟 local-change 一樣的 debounce delay（不是 0），這樣使用者刪完牌組後很快按「立即同步」時，
+    // 這裡排的背景同步還沒開始跑，會被 hvScheduleAutoSync 的 clearTimeout 直接取消掉，
+    // 避免「背景先跑一次 pushDeletes:false 的完整同步、使用者的手動同步又要排隊等它跑完再跑一次」
+    // 兩趟完整 Firestore 讀取疊在一起，讓使用者覺得「按下去反應很慢」
+    if (user) hvScheduleAutoSync('delete', 1500);
   });
 
   const shareOverlay = document.getElementById('share-modal-overlay');
