@@ -758,7 +758,8 @@
   body.deck-active .grid-container { padding-bottom: 72px; }
 
   .tray-main-row { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; }
-  .tray-actions-row { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  /* 工具列貼在螢幕最底部，選單往下開一定會被裁掉，固定往上開 */
+  .tray-menu .deck-menu-popover { top: auto; bottom: calc(100% + 6px); }
 
   /* 收合狀態：只剩一條細帶 */
   .deck-tray.mini {
@@ -767,27 +768,9 @@
   }
   .deck-tray.mini .tray-spacer,
   .deck-tray.mini .tray-warn-text,
-  .deck-tray.mini .tray-actions-row { display: none; }
+  .deck-tray.mini .tray-menu { display: none; }
   .deck-tray.mini .tray-deck-select { max-width: none; flex: 1; }
   body.deck-active.tray-mini .grid-container { padding-bottom: 36px; }
-
-  /* 手機版牌組名稱可能很長（使用者自訂），單列塞不下選單+數量+兩顆按鈕會把按鈕擠出畫面，
-     改成上下兩列：第一列資訊（選單/張數），第二列操作按鈕，兩顆按鈕仍然並排可見 */
-  @media (max-width: 600px) {
-    .deck-tray:not(.mini) {
-      flex-direction: column;
-      align-items: stretch;
-      gap: 6px;
-    }
-    .deck-tray:not(.mini) .tray-main-row { width: 100%; }
-    .deck-tray:not(.mini) .tray-actions-row {
-      width: 100%;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    }
-    .deck-tray:not(.mini) .tray-actions-row .tray-btn { width: 100%; }
-    body.deck-active:not(.tray-mini) .grid-container { padding-bottom: 108px; }
-  }
 
   /* 收合/展開切換按鈕 */
   .tray-toggle-btn {
@@ -1486,12 +1469,15 @@
     <div class="tray-count-label">
       <span class="tray-count-num" id="tray-count-num">0</span> 張
     </div>
+    <details class="deck-menu tray-menu" id="tray-menu-details">
+      <summary class="tray-btn deck-menu-btn" aria-label="牌組功能" title="牌組功能">⋯</summary>
+      <div class="deck-menu-popover">
+        <button class="deck-menu-item" id="tray-open-btn">📋 管理牌組</button>
+        <button class="deck-menu-item" id="tray-analysis-btn">📝 缺卡清單</button>
+      </div>
+    </details>
     <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
     <div class="tray-spacer"></div>
-  </div>
-  <div class="tray-actions-row">
-    <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
-    <button class="tray-btn" id="tray-analysis-btn">缺卡清單</button>
   </div>
 </div>
 
@@ -4289,6 +4275,15 @@ function reorganizeDeck(mode) {
 function bindDeckEvents() {
   document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
   document.getElementById('tray-analysis-btn').addEventListener('click', openAnalysis);
+
+  // 底部工具列「⋯」功能選單：點項目或點外面都要收合
+  const trayMenuDetails = document.getElementById('tray-menu-details');
+  trayMenuDetails.addEventListener('click', e => {
+    if (e.target.closest('.deck-menu-item')) trayMenuDetails.removeAttribute('open');
+  });
+  document.addEventListener('click', e => {
+    if (trayMenuDetails.open && !trayMenuDetails.contains(e.target)) trayMenuDetails.removeAttribute('open');
+  });
 
   document.getElementById('deck-footer-toggle').addEventListener('click', () => {
     const toggle = document.getElementById('deck-footer-toggle');
