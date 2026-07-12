@@ -757,25 +757,6 @@
   .deck-tray.visible.tray-scroll-hidden { transform: translateY(100%); transition: transform 0.25s ease; }
   body.deck-active .grid-container { padding-bottom: 72px; }
 
-  /* 收合狀態：只剩一條細帶 */
-  .deck-tray.mini {
-    padding: 5px 16px;
-    flex-wrap: nowrap;
-  }
-  .deck-tray.mini .tray-warn-text,
-  .deck-tray.mini #tray-analysis-btn,
-  .deck-tray.mini #tray-open-btn { display: none; }
-  .deck-tray.mini .tray-deck-select { max-width: none; flex: 1; }
-  body.deck-active.tray-mini .grid-container { padding-bottom: 36px; }
-
-  /* 收合/展開切換按鈕 */
-  .tray-toggle-btn {
-    background: none; border: none; color: var(--text-dim);
-    font-size: 14px; cursor: pointer; padding: 2px 4px;
-    flex-shrink: 0; line-height: 1; transition: color 0.15s;
-  }
-  .tray-toggle-btn:hover { color: var(--accent); }
-
   .tray-deck-select {
     background: transparent;
     border: 1px solid var(--border);
@@ -1458,7 +1439,6 @@
 
 <!-- ── Deck Tray ── -->
 <div class="deck-tray" id="deck-tray">
-  <button class="tray-toggle-btn" id="tray-toggle-btn" title="收合／展開">▼</button>
   <select class="tray-deck-select" id="tray-deck-select"></select>
   <div class="tray-count-label">
     <span class="tray-count-num" id="tray-count-num">0</span> 張
@@ -4483,14 +4463,6 @@ function bindDeckEvents() {
     const v = parseInt(inp.value, 10) || 1;
     const max = parseInt(inp.max, 10) || 40;
     if (v < max) inp.value = v + 1;
-  });
-
-  // ── Tray 收合 / 展開 ──
-  document.getElementById('tray-toggle-btn').addEventListener('click', () => {
-    const tray = document.getElementById('deck-tray');
-    const isMini = tray.classList.toggle('mini');
-    document.getElementById('tray-toggle-btn').textContent = isMini ? '▲' : '▼';
-    document.body.classList.toggle('tray-mini', isMini);
   });
 }
 </script>
