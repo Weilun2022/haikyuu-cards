@@ -948,6 +948,7 @@
     background: var(--surface); border: 1px solid var(--border);
     box-shadow: 0 14px 32px rgba(0,0,0,0.38), 0 2px 8px rgba(0,0,0,0.24);
   }
+  .deck-menu-popover.open-up { top: auto; bottom: calc(100% + 6px); }
   .deck-menu-item {
     width: 100%; min-height: 34px; padding: 8px 10px; display: flex; align-items: center; gap: 6px;
     border: 0; border-radius: 8px; background: transparent; color: var(--text);
@@ -4392,11 +4393,20 @@ function bindDeckEvents() {
 
   // 牌組操作選單（改名/新增/複製/刪除/清空）：點任一項目或點外面都要收合
   const deckMenuDetails = document.getElementById('deck-menu-details');
+  const deckMenuPopover = deckMenuDetails.querySelector('.deck-menu-popover');
   deckMenuDetails.addEventListener('click', e => {
     if (e.target.closest('.deck-menu-item')) deckMenuDetails.removeAttribute('open');
   });
   document.addEventListener('click', e => {
     if (deckMenuDetails.open && !deckMenuDetails.contains(e.target)) deckMenuDetails.removeAttribute('open');
+  });
+  // 牌組面板是貼底的 bottom sheet，卡片少的時候面板本身會縮到只剩內容高度，
+  // 標題列下方可能沒有空間放彈出選單，這時要往上開，不然選單會被螢幕邊緣切掉
+  deckMenuDetails.addEventListener('toggle', () => {
+    if (!deckMenuDetails.open) return;
+    const summaryRect = deckMenuDetails.querySelector('summary').getBoundingClientRect();
+    const spaceBelow = window.innerHeight - summaryRect.bottom;
+    deckMenuPopover.classList.toggle('open-up', spaceBelow < deckMenuPopover.offsetHeight + 12);
   });
 
   document.getElementById('deck-share-btn').addEventListener('click', openShareModal);
