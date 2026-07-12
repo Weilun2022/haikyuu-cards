@@ -777,7 +777,7 @@
   .tray-count-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
   .tray-count-num { font-weight: 700; color: var(--accent); }
   .tray-count-num.warn { color: #fb923c; }
-  .tray-warn-text { font-size: 11px; color: #fb923c; white-space: nowrap; }
+  .tray-warn-text { font-size: 11px; color: #fb923c; white-space: nowrap; flex-shrink: 0; }
 
   .tray-btn {
     background: var(--surface2);
@@ -2812,6 +2812,9 @@ async function hvRunAutoSync(reason) {
         currentDeckId = decks.find(d => d.id === QUICK_DECK_ID)?.id || decks[0]?.id || null;
         switchedAway = true;
       }
+      // 等等 await 期間使用者仍可能手動切牌組，記住這次同步「預期」使用者看到的牌組是哪一副，
+      // await 回來後如果 currentDeckId 已經不是這副，代表使用者自己切走了，不要再打斷他
+      const targetDeckId = currentDeckId;
       _hvApplyingRemote = true;
       saveDecks(); saveColorState();
       _hvApplyingRemote = false;
@@ -2822,7 +2825,7 @@ async function hvRunAutoSync(reason) {
       renderDeckSwitcher();
       // 牌組面板/牌牆比較重（renderGrid 會整個重建卡牌牆），只有在使用者目前正在看的
       // 牌組真的被這次同步動到時才重畫，避免背景同步到「別的」牌組時打斷使用者正在瀏覽的畫面
-      if (currentDeckRemoved || currentDeckDownloaded || switchedAway) {
+      if ((currentDeckRemoved || currentDeckDownloaded || switchedAway) && currentDeckId === targetDeckId) {
         renderDeckPanel(); updateTray(); renderGrid();
         // 缺卡清單是獨立 overlay，不跟著 renderDeckPanel 一起重畫，要另外處理：
         // 牌組還在但內容被雲端更新（例如別的裝置勾了持有）就即時刷新；牌組整個被刪除就直接關閉，
@@ -2832,6 +2835,9 @@ async function hvRunAutoSync(reason) {
           if (switchedAway) closeAnalysis();
           else renderAnalysis();
         }
+        // 牌組操作選單（改名/新增/複製/刪除/清空）如果還開著，這次同步換掉了目前牌組，
+        // 選單裡的操作對象已經不是使用者原本以為的那副，直接收合避免誤按
+        if (switchedAway) document.getElementById('deck-menu-details')?.removeAttribute('open');
         if (switchedAway) {
           const newDeck = getCurrentDeck();
           showToast(`目前牌組已在其他裝置刪除，已切換到「${newDeck ? newDeck.name : '其他牌組'}」`);
@@ -3306,9 +3312,13 @@ function renderDeckSwitcher() {
     traySel.appendChild(o);
   });
   // 管理面板的改名欄位：使用者正在打字改名時（例如背景同步剛好觸發重繪），不要蓋掉輸入中的內容
+  // ——但如果背景同步把「正在改名的那副牌組」本身換掉了（例如被雲端刪除、切去別副），
+  // 輸入框對應的牌組已經不是同一副，這時就不算「使用者還在改名」，要強制更新，不然畫面跟資料對不起來
   const deck = getCurrentDeck();
   const nameInput = document.getElementById('deck-name-input');
-  if (deck && document.activeElement !== nameInput) nameInput.value = deck.name;
+  const editingSameDeck = document.activeElement === nameInput && nameInput.dataset.deckId === (deck && deck.id);
+  if (deck && !editingSameDeck) nameInput.value = deck.name;
+  if (deck) nameInput.dataset.deckId = deck.id;
 }
 
 function renderDeckPanel() {
