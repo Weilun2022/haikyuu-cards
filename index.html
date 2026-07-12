@@ -69,7 +69,7 @@
     .deck-panel { max-height: 60vh; max-width: 540px; width: 100%; align-self: center; }
     .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
-    /* 持有進度是獨立全螢幕 overlay，沒有跟著牌組面板的寬度限制，桌面版要另外限制寬度置中，
+    /* 缺少清單是獨立全螢幕 overlay，沒有跟著牌組面板的寬度限制，桌面版要另外限制寬度置中，
        不然8欄網格會被拉伸到滿版寬度，縮圖變得又大又擠 */
     .analysis-header-top, .analysis-title, .analysis-body {
       max-width: 540px; width: 100%; align-self: center;
@@ -1444,7 +1444,7 @@
   </div>
   <span class="tray-warn-text" id="tray-warn-text" style="display:none"></span>
   <div class="tray-spacer"></div>
-  <button class="tray-btn" id="tray-analysis-btn">持有進度</button>
+  <button class="tray-btn" id="tray-analysis-btn">缺少清單</button>
   <button class="tray-btn primary" id="tray-open-btn">管理牌組 ▲</button>
 </div>
 
@@ -1563,7 +1563,7 @@
         <div class="analysis-stat">缺 <span class="num miss" id="analysis-missing">0</span> 張</div>
       </div>
     </div>
-    <div class="analysis-title" id="analysis-title">持有進度</div>
+    <div class="analysis-title" id="analysis-title">缺少清單</div>
   </div>
   <div class="analysis-body" id="analysis-body"></div>
 </div>
@@ -3421,7 +3421,7 @@ function closeAnalysis() { document.getElementById('analysis-overlay').classList
 function renderAnalysis() {
   const deck = getCurrentDeck();
   if (!deck) return;
-  document.getElementById('analysis-title').textContent = `持有進度 — ${deck.name}`;
+  document.getElementById('analysis-title').textContent = `缺少清單 — ${deck.name}`;
 
   // 缺牌數 = Σ max(0, 牌組需要 − 此牌組的持有數)
   const total = getTotalCount(deck);
