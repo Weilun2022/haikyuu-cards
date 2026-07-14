@@ -1013,6 +1013,7 @@ function schShiftMonth(delta) {
 function schUpdateViewMode() {
   const searching = curSchQuery.trim().length > 0;
   document.getElementById('sch-list').classList.toggle('hidden', !searching);
+  document.getElementById('sch-empty').classList.toggle('hidden', !searching);
   document.getElementById('sch-cal-wrap').classList.toggle('hidden', searching);
   if (searching) renderSchedule(); else renderSchCalendar();
 }
