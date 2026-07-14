@@ -4505,47 +4505,71 @@ if ('serviceWorker' in navigator) {
 </script>
 <script>
 // 頁面新舊版本偵測：iOS Safari 在同源分頁間跳轉（例如 promo.html ↔ index.html 互相連結）
-// 常會用 bfcache（返回上一頁快取）直接還原記憶體裡的舊 DOM 快照，完全不發網路請求，
-// 導致明明伺服器早就是最新版，畫面卻卡在舊介面。GitHub Pages 不支援自訂 response header，
-// 沒辦法直接靠 Cache-Control 解決，改成用 GitHub Pages 自動維護的 ETag 當「版本標記」：
-// 每次頁面顯示（含 bfcache 還原、分頁切回前景）都拿目前記錄的標記跟伺服器最新的比對，
-// 標記不一樣才代表真的有新版，這時才重新載入；沒有變化就完全不動作，不會每次都閃一下。
+// 常會用 bfcache（返回上一頁快取）直接還原記憶體裡的舊 DOM 快照；GitHub Pages 對 HTML
+// 又是 Cache-Control: max-age=600，關掉整個瀏覽器 App 再重開、用「繼續瀏覽」還原分頁時，
+// 也常是直接吃磁碟 HTTP 快取的舊頁面，完全不發網路請求，導致明明伺服器早就是最新版，
+// 畫面卻卡在舊介面。GitHub Pages 不支援自訂 response header，沒辦法直接靠 Cache-Control 解決。
+//
+// 這裡不拿「上次查到的伺服器版本」存進 sessionStorage 當比對基準（那樣的話，只要曾經有一次
+// 誤判把新版標記寫進去，之後同一 session 就永遠比對「成功」、卡死在舊畫面，且 sessionStorage
+// 能否撐過整個瀏覽器 App 關閉重開也沒有保證）。改用 document.lastModified：這個值就是「這份
+// 正在畫面上執行的 HTML」實際被瀏覽器認定的版本時間，即使是磁碟快取吐出來的舊頁面也一樣準，
+// 不依賴任何跨 session 儲存，每次都直接拿它跟伺服器目前的 Last-Modified 比較。
 (function () {
-  var STORAGE_KEY = 'hv_page_version:' + location.pathname;
+  // 這個分頁 session 最多自動 reload 一次：不管命中哪個伺服器版本都只嘗試一次，
+  // 避免 document.lastModified 誤判、cache-bust 沒真的繞過某層快取…等任何邊界情況
+  // 演變成無限 reload 迴圈。最壞後果只是「這個 session 停止自動偵測」，不是卡死畫面。
+  var RELOADED_ONCE_KEY = 'hv_reloaded_once:' + location.pathname;
+  var STALE_TOLERANCE_MS = 2000; // 秒級精度的容錯，避免時間戳邊界誤判
+  var FETCH_TIMEOUT_MS = 6000; // 避免請求卡住讓 checking 永遠鎖住，之後所有觸發都失效
   var checking = false;
 
-  function getServerTag() {
-    return fetch(location.pathname, { method: 'HEAD', cache: 'no-store' })
-      .then(function (res) { return res.headers.get('etag') || res.headers.get('last-modified') || null; })
-      .catch(function () { return null; });
+  function parseTag(str) {
+    var t = str ? Date.parse(str) : NaN;
+    return isNaN(t) ? null : t;
   }
 
-  function checkVersion(forceReloadIfStale) {
-    if (checking) return;
+  function alreadyReloadedOnce() {
+    try { return sessionStorage.getItem(RELOADED_ONCE_KEY) === '1'; } catch (e) { return false; }
+  }
+  function markReloadedOnce() {
+    try { sessionStorage.setItem(RELOADED_ONCE_KEY, '1'); } catch (e) {}
+  }
+
+  var selfModified = parseTag(document.lastModified);
+
+  function checkVersion() {
+    if (checking || selfModified === null || alreadyReloadedOnce()) return;
     checking = true;
-    getServerTag().then(function (tag) {
-      checking = false;
-      if (!tag) return; // 網路異常等情況：保留目前頁面，不要動它
-      var stored;
-      try { stored = sessionStorage.getItem(STORAGE_KEY); } catch (e) { stored = null; }
-      if (forceReloadIfStale && stored && stored !== tag) {
-        try { sessionStorage.setItem(STORAGE_KEY, tag); } catch (e) {}
+    var controller = ('AbortController' in window) ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS) : null;
+    fetch(location.pathname, { method: 'HEAD', cache: 'no-store', signal: controller ? controller.signal : undefined })
+      .then(function (res) {
+        checking = false;
+        if (timer) clearTimeout(timer);
+        if (!res.ok) return;
+        var serverModified = parseTag(res.headers.get('last-modified'));
+        if (serverModified === null) return; // 網路異常等情況：保留目前頁面，不要動它
+        if (serverModified <= selfModified + STALE_TOLERANCE_MS) return; // 目前就是最新版
+
+        markReloadedOnce();
         var url = new URL(location.href);
         url.searchParams.set('_hv_cb', Date.now()); // 帶新的 query 讓瀏覽器/CDN 都當成全新網址處理
         location.replace(url.toString());
-        return;
-      }
-      try { sessionStorage.setItem(STORAGE_KEY, tag); } catch (e) {}
-    });
+      })
+      .catch(function () { checking = false; if (timer) clearTimeout(timer); });
   }
 
-  checkVersion(false); // 一般載入：只記錄目前版本標記，不用比對
+  checkVersion(); // 一般載入也要檢查：磁碟快取 / App 重開後的分頁還原都可能吐出舊頁面
   window.addEventListener('pageshow', function (e) {
-    if (e.persisted) checkVersion(true); // 從 bfcache 還原：真正需要比對版本的情境
+    if (e.persisted) checkVersion(); // 從 bfcache 還原
   });
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') checkVersion(true); // 分頁切回前景，順便檢查
+    if (document.visibilityState === 'visible') checkVersion(); // 分頁切回前景
   });
+  setInterval(function () {
+    if (document.visibilityState === 'visible') checkVersion();
+  }, 5 * 60 * 1000); // 長時間停留前景、沒觸發上面任何事件時的補強
 })();
 </script>
 </body>

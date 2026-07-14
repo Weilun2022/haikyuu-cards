@@ -1093,41 +1093,58 @@ schUpdateViewMode();
 // 頁面新舊版本偵測：跟 index.html 同一套機制，見該檔案尾端註解說明。
 // 這裡同樣要裝，因為使用者是在 promo.html ↔ index.html 之間互相跳轉時踩到 bfcache 舊介面問題。
 (function () {
-  var STORAGE_KEY = 'hv_page_version:' + location.pathname;
+  // 這個分頁 session 最多自動 reload 一次，避免任何邊界情況演變成無限 reload 迴圈。
+  var RELOADED_ONCE_KEY = 'hv_reloaded_once:' + location.pathname;
+  var STALE_TOLERANCE_MS = 2000;
+  var FETCH_TIMEOUT_MS = 6000;
   var checking = false;
 
-  function getServerTag() {
-    return fetch(location.pathname, { method: 'HEAD', cache: 'no-store' })
-      .then(function (res) { return res.headers.get('etag') || res.headers.get('last-modified') || null; })
-      .catch(function () { return null; });
+  function parseTag(str) {
+    var t = str ? Date.parse(str) : NaN;
+    return isNaN(t) ? null : t;
   }
 
-  function checkVersion(forceReloadIfStale) {
-    if (checking) return;
+  function alreadyReloadedOnce() {
+    try { return sessionStorage.getItem(RELOADED_ONCE_KEY) === '1'; } catch (e) { return false; }
+  }
+  function markReloadedOnce() {
+    try { sessionStorage.setItem(RELOADED_ONCE_KEY, '1'); } catch (e) {}
+  }
+
+  var selfModified = parseTag(document.lastModified);
+
+  function checkVersion() {
+    if (checking || selfModified === null || alreadyReloadedOnce()) return;
     checking = true;
-    getServerTag().then(function (tag) {
-      checking = false;
-      if (!tag) return;
-      var stored;
-      try { stored = sessionStorage.getItem(STORAGE_KEY); } catch (e) { stored = null; }
-      if (forceReloadIfStale && stored && stored !== tag) {
-        try { sessionStorage.setItem(STORAGE_KEY, tag); } catch (e) {}
+    var controller = ('AbortController' in window) ? new AbortController() : null;
+    var timer = controller ? setTimeout(function () { controller.abort(); }, FETCH_TIMEOUT_MS) : null;
+    fetch(location.pathname, { method: 'HEAD', cache: 'no-store', signal: controller ? controller.signal : undefined })
+      .then(function (res) {
+        checking = false;
+        if (timer) clearTimeout(timer);
+        if (!res.ok) return;
+        var serverModified = parseTag(res.headers.get('last-modified'));
+        if (serverModified === null) return;
+        if (serverModified <= selfModified + STALE_TOLERANCE_MS) return;
+
+        markReloadedOnce();
         var url = new URL(location.href);
         url.searchParams.set('_hv_cb', Date.now());
         location.replace(url.toString());
-        return;
-      }
-      try { sessionStorage.setItem(STORAGE_KEY, tag); } catch (e) {}
-    });
+      })
+      .catch(function () { checking = false; if (timer) clearTimeout(timer); });
   }
 
-  checkVersion(false);
+  checkVersion();
   window.addEventListener('pageshow', function (e) {
-    if (e.persisted) checkVersion(true);
+    if (e.persisted) checkVersion();
   });
   document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible') checkVersion(true);
+    if (document.visibilityState === 'visible') checkVersion();
   });
+  setInterval(function () {
+    if (document.visibilityState === 'visible') checkVersion();
+  }, 5 * 60 * 1000);
 })();
 </script>
 </body>
