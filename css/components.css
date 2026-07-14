@@ -1,0 +1,47 @@
+/* ── 全站共用元件樣式 ──────────────────────────────────
+   Phase 1（2026-07）：從 promo.html 抽出，之後其他頁面遷移時
+   直接引用這份檔案。頁面自己的版面/專屬元件仍留在頁面的 <style> 裡，
+   這裡只放跨頁面通用的視覺樣式。 */
+
+/* 篩選用圓角標籤（例如影片分類、賽程地區/類型篩選）*/
+.chip {
+  flex: 0 0 auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.6;
+}
+.chip.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.chip[data-s] { border-left: 4px solid var(--c); }
+.chip[data-s].active { background: var(--c); border-color: var(--c); color: var(--on-accent); }
+/* 較小尺寸（例如賽程篩選列）*/
+.chip.sm { padding: 4px 11px; font-size: 11.5px; }
+
+/* 空狀態訊息 */
+.empty { text-align: center; color: var(--text-dim); font-size: 14px; padding: 50px 0; }
+
+/* 文字輸入框（搜尋欄等）*/
+input[type="text"], input[type="search"] {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 12.5px;
+}
+input[type="text"]::placeholder, input[type="search"]::placeholder { color: var(--text-dim); }
+
+/* 全螢幕彈窗背景（內容框仍由各頁自訂）*/
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  display: none;
+  background: rgba(0, 0, 0, .78);
+}
+.overlay-backdrop.open { display: flex; }

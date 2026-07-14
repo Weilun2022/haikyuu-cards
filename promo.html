@@ -4,34 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>情報站 — 排球少年!! バボカ!!BREAK</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/components.css">
 <style>
   :root {
-    --bg: #0f0f13;
-    --surface: #1a1a24;
-    --surface2: #22222f;
-    --surface-hi: #2a2a34;
-    --border: #2e2e40;
-    --text: #e8e8f0;
-    --text-dim: #8888aa;
-    --accent: #6c63ff;
-    --accent2: #ff6584;
-    --s-烏野: #f97316;
-    --s-音駒: #ef4444;
-    --s-稻荷崎: #a855f7;
-    --s-白鳥澤: #3b82f6;
-    --s-青葉城西: #14b8a6;
-    --s-梟谷: #eab308;
-    --s-伊達工業: #10b981;
-    --s-鷗台: #8b5cf6;
-    --s-綜合: #8888aa;
+    /* 這頁專屬、非全站共用色票（--bg/--surface/--accent 等已移到 css/theme.css）*/
+    --surface-hi: #F0E6D2;
+    /* 學校色票：綁定 promo_tags.js 的學校名稱鍵，跟 index.html/cards_zh.json 那套鍵名與顏色
+       是各自獨立的（見開發日誌），這裡只微調明度以配合新的暖白背景，不改色相、不跨頁合併 */
+    --s-烏野: #c2410c;
+    --s-音駒: #dc2626;
+    --s-稻荷崎: #9333ea;
+    --s-白鳥澤: #2563eb;
+    --s-青葉城西: #0f766e;
+    --s-梟谷: #a16207;
+    --s-伊達工業: #15803d;
+    --s-鷗台: #7c3aed;
+    --s-綜合: #596771;
   }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:"Noto Sans TC",system-ui,sans-serif; }
-  a { color:inherit; text-decoration:none; }
 
   header {
     position:sticky; top:0; z-index:100;
-    background:rgba(15,15,19,.92); backdrop-filter:blur(8px);
+    background:rgba(255,253,248,.92); backdrop-filter:blur(8px);
     border-bottom:1px solid var(--border);
   }
   .hd-row { display:flex; align-items:center; gap:10px; padding:10px 14px; }
@@ -53,14 +47,7 @@
     scrollbar-width:none; -webkit-overflow-scrolling:touch;
   }
   .chips::-webkit-scrollbar { display:none; }
-  .chip {
-    flex:0 0 auto; padding:7px 14px; border-radius:999px; font-size:13px; font-weight:600;
-    background:var(--surface2); color:var(--text-dim);
-    border:1px solid var(--border); cursor:pointer; white-space:nowrap;
-  }
-  .chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .chip[data-s] { border-left:4px solid var(--c); }
-  .chip[data-s].active { background:var(--c); border-color:var(--c); color:#fff; }
+  /* .chip 基底樣式已移到 css/components.css */
 
   main { max-width:980px; margin:0 auto; padding:14px; }
 
@@ -108,11 +95,12 @@
     border:1px solid color-mix(in srgb, var(--accent) 50%, var(--border));
     border-radius:14px; overflow:hidden; position:relative;
   }
-  .news-hero .hero-img { aspect-ratio:2/1; background:linear-gradient(135deg,#3b2f73,#1a1a24);
+  .news-hero .hero-img { aspect-ratio:2/1;
+    background:linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, var(--surface2)), color-mix(in srgb, var(--accent2) 25%, var(--surface2)));
     display:flex; align-items:center; justify-content:center; font-size:44px; overflow:hidden; }
   .news-hero .hero-img img { width:100%; height:100%; object-fit:cover; }
   .badge-new {
-    position:absolute; top:10px; left:10px; background:var(--accent2); color:#fff;
+    position:absolute; top:10px; left:10px; background:var(--accent2); color:var(--on-accent);
     font-size:11px; font-weight:800; padding:4px 10px; border-radius:6px; letter-spacing:1px;
   }
   .news-body { padding:14px; }
@@ -121,7 +109,7 @@
   .news-foot { display:flex; align-items:center; justify-content:space-between; margin-top:12px; }
   .news-date { font-size:12px; color:var(--text-dim); }
   .btn-out {
-    display:inline-block; background:var(--accent); color:#fff; font-size:13px; font-weight:700;
+    display:inline-block; background:var(--accent); color:var(--on-accent); font-size:13px; font-weight:700;
     padding:9px 18px; border-radius:9px;
   }
   .news-card {
@@ -130,7 +118,7 @@
   }
   .news-card .thumb {
     flex:0 0 72px; width:72px; height:72px; border-radius:9px; overflow:hidden;
-    background:linear-gradient(135deg,#2e2e40,#1a1a24);
+    background:linear-gradient(135deg, color-mix(in srgb, var(--accent2) 28%, var(--surface2)), color-mix(in srgb, var(--accent) 22%, var(--surface2)));
     display:flex; align-items:center; justify-content:center; font-size:26px;
   }
   .news-card .thumb img { width:100%; height:100%; object-fit:cover; }
@@ -140,10 +128,10 @@
   .nc-meta { font-size:11.5px; color:var(--text-dim); margin-top:4px; }
   .nc-link { flex:0 0 auto; color:var(--accent); font-size:18px; }
 
-  /* ── Discord 招募頁 ── */
+  /* ── Discord 招募頁（這區保留深色，做成「球館燈光下的隊照」意象，方便疊字閱讀）── */
   .dc-hero {
     position:relative; width:100%; aspect-ratio:16/7; overflow:hidden;
-    background:linear-gradient(135deg,#1a0f3c 0%,#0f0f13 55%,#1a1a24 100%);
+    background:linear-gradient(135deg,#5c2a0f 0%,#3a1a0a 55%,#241008 100%);
     display:flex; align-items:flex-end;
   }
   .dc-hero-img {
@@ -152,15 +140,15 @@
   }
   .dc-hero-img img {
     width:100%; height:100%; object-fit:contain; object-position:center;
-    opacity:.92; filter:drop-shadow(0 4px 28px rgba(108,99,255,.45));
+    opacity:.92; filter:drop-shadow(0 4px 28px rgba(217,87,11,.45));
   }
   .dc-hero-overlay {
-    position:relative; z-index:2; width:100%;
-    background:linear-gradient(to top,rgba(15,15,19,.96) 0%,rgba(15,15,19,.15) 100%);
+    position:relative; z-index:2; width:100%; color:var(--on-accent);
+    background:linear-gradient(to top,rgba(36,16,8,.96) 0%,rgba(36,16,8,.15) 100%);
     padding:28px 20px 22px;
   }
   .dc-badge {
-    display:inline-block; background:var(--accent); color:#fff;
+    display:inline-block; background:var(--accent); color:var(--on-accent);
     font-size:10.5px; font-weight:800; padding:3px 10px; border-radius:6px;
     letter-spacing:1px; margin-bottom:9px;
   }
@@ -169,7 +157,7 @@
     text-shadow:0 2px 8px rgba(0,0,0,.85);
   }
   .dc-subtitle {
-    font-size:13px; color:var(--text-dim); margin-top:6px;
+    font-size:13px; color:rgba(255,255,255,.78); margin-top:6px;
     text-shadow:0 1px 4px rgba(0,0,0,.9);
   }
   .dc-wrap { max-width:680px; margin:0 auto; padding:22px 16px 36px; }
@@ -218,7 +206,7 @@
   .dc-join-btn::before {
     content:''; position:absolute; top:6px; right:16px;
     width:8px; height:8px; border-radius:50%;
-    background:#f97316; box-shadow:0 0 8px rgba(249,115,22,.9);
+    background:var(--accent); box-shadow:0 0 8px rgba(217,87,11,.9);
     animation:dc-dot-pulse 1.5s ease-in-out infinite;
   }
   .dc-schools-title {
@@ -251,10 +239,10 @@
 
   /* ── DC tab 未選中時閃爍吸引（橙色掃光版）── */
   @keyframes dc-tab-pulse {
-    0%,100% { border-bottom-color:rgba(249,115,22,.15); color:var(--text-dim); }
-    50% { border-bottom-color:#f97316; color:#ffd0a0;
-          text-shadow:0 0 12px rgba(249,115,22,.75);
-          box-shadow:inset 0 -6px 10px -8px rgba(249,115,22,.55); }
+    0%,100% { border-bottom-color:rgba(217,87,11,.15); color:var(--text-dim); }
+    50% { border-bottom-color:var(--accent); color:var(--accent);
+          text-shadow:0 0 10px rgba(217,87,11,.35);
+          box-shadow:inset 0 -6px 10px -8px rgba(217,87,11,.4); }
   }
   @keyframes dc-dot-pulse {
     0%,100% { opacity:1; transform:scale(1); }
@@ -278,12 +266,12 @@
   .tab[data-tab="dc"]:not(.active)::before {
     content:''; position:absolute; top:9px; right:9px;
     width:7px; height:7px; border-radius:50%;
-    background:#f97316; box-shadow:0 0 7px rgba(249,115,22,.9);
+    background:var(--accent); box-shadow:0 0 7px rgba(217,87,11,.9);
     animation:dc-dot-pulse 1.5s ease-in-out infinite;
   }
   .tab[data-tab="dc"]:not(.active)::after {
     content:''; position:absolute; inset:0; left:-65%; width:42%;
-    background:linear-gradient(90deg,transparent,rgba(249,115,22,.22),transparent);
+    background:linear-gradient(90deg,transparent,rgba(217,87,11,.22),transparent);
     animation:dc-tab-shine 3s ease-in-out infinite;
   }
 
@@ -320,16 +308,14 @@
   @media (max-width:600px) { .dc-sticky-cta { display:block; } }
 
   .sec-note { text-align:center; color:var(--text-dim); font-size:11.5px; padding:22px 0 10px; }
-  .empty { text-align:center; color:var(--text-dim); font-size:14px; padding:50px 0; }
+  /* .empty 基底樣式已移到 css/components.css */
   .hidden { display:none; }
 
-  /* ── 浮動播放器 ── */
+  /* ── 浮動播放器（.overlay-backdrop 基底見 css/components.css）── */
   #player-overlay {
-    position:fixed; inset:0; z-index:500; display:none;
-    align-items:center; justify-content:center;
+    z-index:500; align-items:center; justify-content:center;
     background:rgba(0,0,0,.82); padding:16px;
   }
-  #player-overlay.open { display:flex; }
   #player-box {
     width:min(92vw, 900px); aspect-ratio:16/9; position:relative;
     background:#000; border-radius:12px; overflow:hidden;
@@ -371,7 +357,7 @@
   }
   .badge-hot {
     position:absolute; top:8px; right:8px; font-size:10.5px; font-weight:800;
-    background:#f97316; color:#fff; padding:3px 8px; border-radius:6px;
+    background:var(--accent); color:var(--on-accent); padding:3px 8px; border-radius:6px;
     animation:hotpulse 1.6s ease-in-out infinite;
   }
   @keyframes hotpulse { 50% { opacity:.55; } }
@@ -391,22 +377,14 @@
 
   /* ── 賽程表 ── */
   .sch-toolbar { display:flex; flex-direction:column; gap:6px; margin-bottom:2px; }
-  .sch-search {
-    width:100%; padding:8px 12px; border-radius:10px; border:1px solid var(--border);
-    background:var(--surface2); color:var(--text); font-size:12.5px;
-  }
-  .sch-search::placeholder { color:var(--text-dim); }
+  /* 文字輸入框基底樣式已移到 css/components.css，這裡只留版面寬度 */
+  .sch-search { width:100%; }
   .sch-filter-row {
     display:flex; gap:6px; overflow-x:auto;
     scrollbar-width:none; -webkit-overflow-scrolling:touch;
   }
   .sch-filter-row::-webkit-scrollbar { display:none; }
-  .sch-filter-chip {
-    flex:0 0 auto; padding:4px 11px; border-radius:999px; font-size:11.5px; font-weight:600;
-    background:var(--surface2); color:var(--text-dim);
-    border:1px solid var(--border); cursor:pointer; white-space:nowrap; line-height:1.6;
-  }
-  .sch-filter-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  /* 賽程篩選 chip 已改用共用 .chip.sm（見 css/components.css）*/
   .sch-card-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .sch-time { font-size:15px; font-weight:800; }
   .sch-type-badge {
@@ -449,12 +427,11 @@
   }
   .sch-cal-more { font-size:9px; color:var(--text-dim); padding:0 4px; }
 
-  /* ── 當日賽事彈窗（點格子看細項）── */
+  /* ── 當日賽事彈窗（點格子看細項；.overlay-backdrop 基底見 css/components.css）── */
   .sch-day-overlay {
-    position:fixed; inset:0; z-index:550; display:none; align-items:flex-end; justify-content:center;
+    z-index:550; align-items:flex-end; justify-content:center;
     background:rgba(0,0,0,.72); padding:0;
   }
-  .sch-day-overlay.open { display:flex; }
   .sch-day-box {
     width:100%; max-width:520px; max-height:80vh; overflow-y:auto;
     background:var(--surface); border-radius:16px 16px 0 0; border:1px solid var(--border);
@@ -619,7 +596,7 @@
 </main>
 
 <!-- 浮動播放器：點背景任意處關閉 -->
-<div id="player-overlay">
+<div id="player-overlay" class="overlay-backdrop">
   <div>
     <div id="player-box"><iframe id="player-frame" src="" title="影片播放" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>
     <div id="player-hint">點影片外任意處關閉 ・ <a id="player-yt" href="#" target="_blank" rel="noopener">在 YouTube 開啟 ↗</a></div>
@@ -627,7 +604,7 @@
 </div>
 
 <!-- 賽程：當日事件彈窗 -->
-<div id="sch-day-overlay" class="sch-day-overlay">
+<div id="sch-day-overlay" class="overlay-backdrop sch-day-overlay">
   <div class="sch-day-box">
     <div class="sch-day-head">
       <span id="sch-day-title"></span>
@@ -813,7 +790,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayer(
 // 浮動列還會殘留在其他分頁上。改回單純瀏覽：月曆格比照 Google 行事曆風格，格內直接
 // 列出當天每場的「時間+店家」小條讓使用者一眼綜觀，點格子彈出當天完整細項清單。
 const SCH_REGION_LABEL = { north: '北部', central: '中部', south: '南部', unknown: '未分類' };
-const SCH_REGION_COLOR = { north: '#3b82f6', central: '#10b981', south: '#f97316', unknown: '#8888aa' };
+const SCH_REGION_COLOR = { north: '#2563eb', central: '#15803d', south: '#c2410c', unknown: '#596771' };
 const SCH_REGIONS = [
   { key: 'all', label: '全部地區' },
   { key: 'north', label: '北部' },
@@ -873,7 +850,7 @@ function renderSchChips() {
   rWrap.innerHTML = '';
   SCH_REGIONS.forEach(r => {
     const c = document.createElement('div');
-    c.className = 'sch-filter-chip' + (r.key === curSchRegion ? ' active' : '');
+    c.className = 'chip sm' + (r.key === curSchRegion ? ' active' : '');
     c.textContent = r.label;
     c.onclick = () => { curSchRegion = r.key; renderSchChips(); renderSchCalendar(); };
     rWrap.appendChild(c);
@@ -882,7 +859,7 @@ function renderSchChips() {
   tWrap.innerHTML = '';
   SCH_TYPES.forEach(t => {
     const c = document.createElement('div');
-    c.className = 'sch-filter-chip' + (t.key === curSchType ? ' active' : '');
+    c.className = 'chip sm' + (t.key === curSchType ? ' active' : '');
     c.textContent = t.label;
     c.onclick = () => { curSchType = t.key; renderSchChips(); renderSchCalendar(); };
     tWrap.appendChild(c);

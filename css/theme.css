@@ -1,0 +1,26 @@
+/* ── 全站共用色票（暖白球館主題） ──────────────────────
+   Phase 1（2026-07）：promo.html 首波導入。之後其他頁面遷移時
+   請直接引用這份檔案，不要在頁面自己的 <style> 裡重複定義這些 token。
+   學校色票（--s-*）刻意不放這裡：index.html／promo.html 各自綁定
+   不同資料源（cards_zh.json vs promo_tags.js）的學校名稱鍵，兩邊
+   目前用字與顏色都不一致，合併需要另外處理資料層問題，這裡不碰。 */
+:root {
+  --bg: #F4EEE3;
+  --surface: #FFFDF8;
+  --surface2: #E9DFCF;
+  --border: #D2C3B0;
+  --text: #1B2C38;
+  --text-dim: #596771;
+  --accent: #D9570B;
+  --accent2: #0F7180;
+  --focus: #F0A35B;
+  --on-accent: #FFFFFF;
+  --success: #237A52;
+  --warning: #B86B00;
+  --danger: #C63D3D;
+  --info: #2D6FA3;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: "Noto Sans TC", system-ui, sans-serif; }
+a { color: inherit; text-decoration: none; }
