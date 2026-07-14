@@ -3905,27 +3905,43 @@ function syncUI(data, prev) {
   }
 }
 
-function handleRoundReset(data) {
+// ★ Race-condition fix: 本地收牌邏輯（手牌/組合區/場上牌 → pile）抽成共用函式，
+//   用 _roundResetBusy 當進行中鎖，避免 declareLost() 重入或與 handleRoundReset()
+//   同時觸發時，同一批牌被收兩次導致牌庫超過應有張數。
+let _roundResetBusy = false;
+async function performLocalRoundCollect() {
+  if (_roundResetBusy) return false; // 已有一份收牌流程在跑，跳過避免重複收牌
+  _roundResetBusy = true;
+  try {
+    // Exit any active move mode / pinned hover
+    exitMoveMode();
+    updateDefZones(null);
+
+    // Collect all own cards back into pile and shuffle
+    const myZones = myZonesCopy();
+    L.pile.push(...L.hand, ...(L.setPool || []), ...collectCardsFromZones(myZones));
+    L.hand    = [];
+    L.setPool = [];
+    shuffle(L.pile);
+    await pushZones(emptyZones());
+    document.getElementById('self-deck').textContent = L.pile.length;
+    document.getElementById('self-set').textContent  = 0;
+    db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(0);
+    syncPileCount();
+    renderHand();
+    return true;
+  } finally {
+    _roundResetBusy = false;
+  }
+}
+
+async function handleRoundReset(data) {
   const rv = data?.roundReset;
   if (!rv || rv === _processedRoundReset) return;
   _processedRoundReset = rv;
 
-  // Exit any active move mode / pinned hover
-  exitMoveMode();
-  updateDefZones(null);
-
-  // Collect all own cards back into pile and shuffle
-  const myZones = myZonesCopy();
-  L.pile.push(...L.hand, ...(L.setPool || []), ...collectCardsFromZones(myZones));
-  L.hand    = [];
-  L.setPool = [];
-  shuffle(L.pile);
-  pushZones(emptyZones());
-  document.getElementById('self-deck').textContent = L.pile.length;
-  document.getElementById('self-set').textContent  = 0;
-  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(0);
-  syncPileCount();
-  renderHand();
+  const collected = await performLocalRoundCollect();
+  if (!collected) return; // 本地已有收牌流程在跑（例如自己剛按過重置），避免重複收牌
   toast(`本局結束，牌庫已重置（${L.pile.length} 張），請手動抽牌`);
 }
 
@@ -5820,48 +5836,42 @@ function adjustSet() {
   addLog(L.name, `組合區牌數 → ${v}`);
 }
 
+let _declareLostBusy = false; // 防止快速連點「重置本局」時整個流程（含 confirm/收牌/Firebase 清理）重入
 async function declareLost() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
-  const ok = await showConfirm({
-    icon: '🔄',
-    title: '重置本局？',
-    body: '雙方所有牌（手牌、場上、組數）全數洗回各自牌庫，場面清空。重置後需手動抽牌重新開始。',
-    okText: '確認重置',
-    okDanger: true,
-  });
-  if (!ok) return;
+  if (_declareLostBusy) return;
+  _declareLostBusy = true;
+  try {
+    const ok = await showConfirm({
+      icon: '🔄',
+      title: '重置本局？',
+      body: '雙方所有牌（手牌、場上、組數）全數洗回各自牌庫，場面清空。重置後需手動抽牌重新開始。',
+      okText: '確認重置',
+      okDanger: true,
+    });
+    if (!ok) return;
 
-  // Exit any active move mode / pinned hover immediately
-  exitMoveMode();
+    const collected = await performLocalRoundCollect();
+    if (!collected) return; // 已有收牌流程在跑（例如 handleRoundReset 同時觸發），避免重複收牌
 
-  // Collect all own cards back into pile and shuffle
-  const myZones = myZonesCopy();
-  L.pile.push(...L.hand, ...(L.setPool || []), ...collectCardsFromZones(myZones));
-  L.hand    = [];
-  L.setPool = [];
-  shuffle(L.pile);
-  await pushZones(emptyZones());
-  document.getElementById('self-deck').textContent = L.pile.length;
-  document.getElementById('self-set').textContent  = 0;
-  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(0);
-  syncPileCount();
-  renderHand();
+    // Clear round-scoped Firebase state so opponent's screen doesn't get stuck
+    await db.ref(`games/${roomId}/atkAlert`).remove();
+    await db.ref(`games/${roomId}/currentAction`).remove();
+    await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
 
-  // Clear round-scoped Firebase state so opponent's screen doesn't get stuck
-  await db.ref(`games/${roomId}/atkAlert`).remove();
-  await db.ref(`games/${roomId}/currentAction`).remove();
-  await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
-  await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
+    // Signal opponent to do the same
+    const resetVal = Date.now();
+    _processedRoundReset = resetVal;
+    await db.ref(`games/${roomId}/roundReset`).set(resetVal);
 
-  // Signal opponent to do the same
-  const resetVal = Date.now();
-  _processedRoundReset = resetVal;
-  await db.ref(`games/${roomId}/roundReset`).set(resetVal);
+    updateDefZones(null);
 
-  updateDefZones(null);
-
-  addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`);
-  toast(`本局重置，牌庫 ${L.pile.length} 張，請手動抽牌`);
+    addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`);
+    toast(`本局重置，牌庫 ${L.pile.length} 張，請手動抽牌`);
+  } finally {
+    _declareLostBusy = false;
+  }
 }
 
 async function adjustSets(role, delta) {
