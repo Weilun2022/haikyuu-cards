@@ -12,12 +12,12 @@
     --surface-hi: #FDEDE0;
     /* 學校色票：綁定 promo_tags.js 的學校名稱鍵，跟 index.html/cards_zh.json 那套鍵名與顏色
        是各自獨立的（見開發日誌），這裡只微調明度以配合新的暖白背景，不改色相、不跨頁合併 */
-    --s-烏野: #c2410c;
+    --s-烏野: #D6350C;
     --s-音駒: #dc2626;
     --s-稻荷崎: #9333ea;
     --s-白鳥澤: #2563eb;
     --s-青葉城西: #0f766e;
-    --s-梟谷: #a16207;
+    --s-梟谷: #8B4513;
     --s-伊達工業: #15803d;
     --s-鷗台: #7c3aed;
     --s-綜合: #596771;
@@ -34,13 +34,14 @@
   .hd-back { color:var(--text-dim); font-size:13px; }
   .hd-upd { font-size:10.5px; color:var(--text-dim); }
 
-  .tabs { display:flex; height:48px; }
+  /* 分頁標籤比照官方導覽列配色：黑底＋白字，選中項用橘色圓角底標示（見官方 nav 截圖）*/
+  .tabs { display:flex; height:48px; background:var(--text); gap:4px; padding:0 6px; }
   .tab {
     flex:1; display:flex; align-items:center; justify-content:center; gap:6px;
-    font-size:15px; font-weight:700; color:var(--text-dim);
-    border-bottom:3px solid transparent; cursor:pointer; user-select:none;
+    font-size:14px; font-weight:700; color:var(--on-accent);
+    border-radius:8px; margin:6px 0; cursor:pointer; user-select:none;
   }
-  .tab.active { color:var(--text); border-bottom-color:var(--accent); }
+  .tab.active { background:var(--accent); color:var(--on-accent); }
 
   .chips {
     display:flex; gap:8px; overflow-x:auto; padding:10px 14px;
@@ -210,7 +211,7 @@
   .dc-join-btn::before {
     content:''; position:absolute; top:6px; right:16px;
     width:8px; height:8px; border-radius:50%;
-    background:var(--accent); box-shadow:0 0 8px rgba(217,87,11,.9);
+    background:var(--accent); box-shadow:0 0 8px rgba(190,82,11,.9);
     animation:dc-dot-pulse 1.5s ease-in-out infinite;
   }
   .dc-schools-title {
@@ -241,12 +242,10 @@
     .dc-features { grid-template-columns:1fr; }
   }
 
-  /* ── DC tab 未選中時閃爍吸引（橙色掃光版）── */
+  /* ── DC tab 未選中時閃爍吸引（黑底導覽列版：白字→橘字閃爍＋角落光點）── */
   @keyframes dc-tab-pulse {
-    0%,100% { border-bottom-color:rgba(217,87,11,.15); color:var(--text-dim); }
-    50% { border-bottom-color:var(--accent); color:var(--accent);
-          text-shadow:0 0 10px rgba(217,87,11,.35);
-          box-shadow:inset 0 -6px 10px -8px rgba(217,87,11,.4); }
+    0%,100% { color:var(--on-accent); }
+    50% { color:var(--accent); text-shadow:0 0 10px rgba(190,82,11,.6); }
   }
   @keyframes dc-dot-pulse {
     0%,100% { opacity:1; transform:scale(1); }
@@ -270,12 +269,12 @@
   .tab[data-tab="dc"]:not(.active)::before {
     content:''; position:absolute; top:9px; right:9px;
     width:7px; height:7px; border-radius:50%;
-    background:var(--accent); box-shadow:0 0 7px rgba(217,87,11,.9);
+    background:var(--accent); box-shadow:0 0 7px rgba(190,82,11,.9);
     animation:dc-dot-pulse 1.5s ease-in-out infinite;
   }
   .tab[data-tab="dc"]:not(.active)::after {
     content:''; position:absolute; inset:0; left:-65%; width:42%;
-    background:linear-gradient(90deg,transparent,rgba(217,87,11,.22),transparent);
+    background:linear-gradient(90deg,transparent,rgba(190,82,11,.35),transparent);
     animation:dc-tab-shine 3s ease-in-out infinite;
   }
 
@@ -794,7 +793,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closePlayer(
 // 浮動列還會殘留在其他分頁上。改回單純瀏覽：月曆格比照 Google 行事曆風格，格內直接
 // 列出當天每場的「時間+店家」小條讓使用者一眼綜觀，點格子彈出當天完整細項清單。
 const SCH_REGION_LABEL = { north: '北部', central: '中部', south: '南部', unknown: '未分類' };
-const SCH_REGION_COLOR = { north: '#2563eb', central: '#15803d', south: '#c2410c', unknown: '#596771' };
+const SCH_REGION_COLOR = { north: '#2563eb', central: '#15803d', south: '#D6350C', unknown: '#6B6B6B' };
 const SCH_REGIONS = [
   { key: 'all', label: '全部地區' },
   { key: 'north', label: '北部' },
