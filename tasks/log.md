@@ -12,8 +12,21 @@
 - 修法：統一改成「有色角色卡 → 無色角色卡 → 事件牌」，事件牌固定排最後
 - 用瀏覽器內注入假牌組資料測試三個排序函式，確認排序符合預期後清除測試牌組
 
----
+### index.html / promo.html：修正 App 關閉重開後卡在舊頁面（`2a1628c`）
 
+**問題**：使用者關閉整個 Chrome App 再重開，之前開過的分頁還是顯示前一版舊介面
+
+**根因**（與 GPT-5.6-Luna 兩輪根因複審確認）
+- GitHub Pages 對 HTML 回應 `Cache-Control: max-age=600`，無法自訂 header
+- 早上加的版本偵測機制（`1a57c43`）只在 `pageshow(persisted)`（bfcache 還原）或 `visibilitychange→visible`（分頁切回前景）時才比對＋強制 reload
+- 「關閉整個 App 再重開、用『繼續瀏覽』還原分頁」是全新 top-level navigation（非 bfcache），且分頁一開始就是前景不會觸發 `visibilitychange`，所以只會跑到「一般載入」分支——該分支原本拿到伺服器最新 tag 後**無條件覆寫 sessionStorage、不比對**，等於把「畫面其實是舊版」的 session 誤標成「已是最新」，之後同 session 內所有比對都會誤判通過，永久卡住
+- GPT 提醒：sessionStorage 能否撐過整個瀏覽器 App 關閉重開本來就沒有保證，用「上次查到的伺服器版本」當比對基準這個設計本身就不可靠
+
+**修法**：改用 `document.lastModified`（目前畫面上這份 HTML 實際的版本時間，即使是磁碟快取吐出來的舊頁面也一樣準）取代 sessionStorage 當比對基準，每次載入都直接跟伺服器當下 `Last-Modified` 比對，不依賴任何跨 session 儲存；一般載入也會檢查（不再只靠 bfcache/visibilitychange 觸發），並加上 5 分鐘定時輪詢補強前景長駐情境
+- GPT 複審第二輪抓到：無 reload 上限可能演變成無限迴圈、fetch 沒有 timeout 會讓 `checking` 鎖死、沒檢查 `res.ok` — 三點都已補上（每 session 最多自動 reload 一次、6 秒 fetch timeout、檢查 res.ok）
+- 兩檔案已在瀏覽器內驗證 `document.lastModified` 與伺服器 `Last-Modified` 正確對應、比對邏輯無誤、無 console 錯誤
+
+---
 
 
 ### game.html：大廳桌面版佈局調整（`a0788e5`、`d663b4a`）
