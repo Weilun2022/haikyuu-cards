@@ -1089,5 +1089,46 @@ renderNews();
 renderSchChips();
 schUpdateViewMode();
 </script>
+<script>
+// 頁面新舊版本偵測：跟 index.html 同一套機制，見該檔案尾端註解說明。
+// 這裡同樣要裝，因為使用者是在 promo.html ↔ index.html 之間互相跳轉時踩到 bfcache 舊介面問題。
+(function () {
+  var STORAGE_KEY = 'hv_page_version:' + location.pathname;
+  var checking = false;
+
+  function getServerTag() {
+    return fetch(location.pathname, { method: 'HEAD', cache: 'no-store' })
+      .then(function (res) { return res.headers.get('etag') || res.headers.get('last-modified') || null; })
+      .catch(function () { return null; });
+  }
+
+  function checkVersion(forceReloadIfStale) {
+    if (checking) return;
+    checking = true;
+    getServerTag().then(function (tag) {
+      checking = false;
+      if (!tag) return;
+      var stored;
+      try { stored = sessionStorage.getItem(STORAGE_KEY); } catch (e) { stored = null; }
+      if (forceReloadIfStale && stored && stored !== tag) {
+        try { sessionStorage.setItem(STORAGE_KEY, tag); } catch (e) {}
+        var url = new URL(location.href);
+        url.searchParams.set('_hv_cb', Date.now());
+        location.replace(url.toString());
+        return;
+      }
+      try { sessionStorage.setItem(STORAGE_KEY, tag); } catch (e) {}
+    });
+  }
+
+  checkVersion(false);
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) checkVersion(true);
+  });
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') checkVersion(true);
+  });
+})();
+</script>
 </body>
 </html>
