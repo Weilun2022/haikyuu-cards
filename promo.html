@@ -417,8 +417,11 @@
     cursor:pointer; position:relative; overflow:hidden;
   }
   .sch-cal-day.sch-cal-pad { visibility:hidden; cursor:default; }
-  .sch-cal-day.sch-cal-empty-day { cursor:default; opacity:.4; }
-  .sch-cal-day.sch-cal-past { opacity:.4; }
+  /* 用不透明的淡色取代舊版的 opacity 淡化——opacity 會讓底下的格線背景透出來，字看不清楚 */
+  .sch-cal-day.sch-cal-empty-day { cursor:default; background:var(--surface2); }
+  .sch-cal-day.sch-cal-empty-day .sch-cal-daynum { color:var(--text-dim); }
+  .sch-cal-day.sch-cal-past { background:var(--surface2); }
+  .sch-cal-day.sch-cal-past .sch-cal-daynum { color:var(--text-dim); }
   .sch-cal-daynum { font-size:11px; font-weight:700; padding:0 2px; flex:0 0 auto; }
   .sch-cal-today { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
   .sch-cal-today .sch-cal-daynum { color:var(--accent); }
