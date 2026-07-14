@@ -407,12 +407,6 @@
     border:1px solid var(--border); cursor:pointer; white-space:nowrap; line-height:1.6;
   }
   .sch-filter-chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
-  .sch-date-head {
-    font-size:12px; font-weight:800; color:var(--text-dim); letter-spacing:1px;
-    margin:16px 0 8px; padding-left:2px;
-  }
-  .sch-date-head:first-child { margin-top:4px; }
-  .sch-list:not(.hidden) { display:flex; flex-direction:column; gap:10px; }
   .sch-card-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .sch-time { font-size:15px; font-weight:800; }
   .sch-type-badge {
@@ -599,11 +593,7 @@
       <div class="sch-filter-row" id="sch-region-chips"></div>
       <div class="sch-filter-row" id="sch-type-chips"></div>
     </div>
-    <!-- 搜尋時顯示扁平清單 -->
-    <div class="sch-list hidden" id="sch-list"></div>
-    <div class="empty hidden" id="sch-empty">目前沒有符合條件的賽事</div>
-
-    <!-- 預設顯示月曆格 -->
+    <!-- 月曆格（搜尋/篩選都直接套用在格內，不切換畫面） -->
     <div id="sch-cal-wrap">
       <div class="sch-cal-toolbar">
         <button class="sch-cal-nav" id="sch-cal-prev" aria-label="上個月">‹</button>
@@ -873,6 +863,8 @@ function schEventsFiltered() {
   let events = SCHEDULE_DATA.events || [];
   if (curSchRegion !== 'all') events = events.filter(e => e.region === curSchRegion);
   if (curSchType !== 'all') events = events.filter(e => schTypeKey(e.format) === curSchType);
+  const q = curSchQuery.trim().toLowerCase();
+  if (q) events = events.filter(e => (e.storeName || '').toLowerCase().includes(q) || (e.address || '').toLowerCase().includes(q));
   return events;
 }
 
@@ -883,7 +875,7 @@ function renderSchChips() {
     const c = document.createElement('div');
     c.className = 'sch-filter-chip' + (r.key === curSchRegion ? ' active' : '');
     c.textContent = r.label;
-    c.onclick = () => { curSchRegion = r.key; renderSchChips(); schUpdateViewMode(); };
+    c.onclick = () => { curSchRegion = r.key; renderSchChips(); renderSchCalendar(); };
     rWrap.appendChild(c);
   });
   const tWrap = document.getElementById('sch-type-chips');
@@ -892,7 +884,7 @@ function renderSchChips() {
     const c = document.createElement('div');
     c.className = 'sch-filter-chip' + (t.key === curSchType ? ' active' : '');
     c.textContent = t.label;
-    c.onclick = () => { curSchType = t.key; renderSchChips(); schUpdateViewMode(); };
+    c.onclick = () => { curSchType = t.key; renderSchChips(); renderSchCalendar(); };
     tWrap.appendChild(c);
   });
 }
@@ -916,31 +908,7 @@ function schEventItemHtml(ev) {
     </div>`;
 }
 
-// ── 搜尋模式：扁平清單 ──
-function renderSchedule() {
-  if (typeof SCHEDULE_DATA === 'undefined') return;
-  const now = new Date();
-  let events = schEventsFiltered().filter(e => new Date(e.startAt) > now);
-  const q = curSchQuery.trim().toLowerCase();
-  if (q) events = events.filter(e => (e.storeName || '').toLowerCase().includes(q) || (e.address || '').toLowerCase().includes(q));
-  events.sort((a, b) => a.startAt.localeCompare(b.startAt));
-
-  let lastDate = '';
-  let html = '';
-  for (const ev of events) {
-    if (ev.date !== lastDate) {
-      lastDate = ev.date;
-      const [, mo, d] = ev.date.split('-');
-      html += `<div class="sch-date-head">${Number(mo)}/${Number(d)}（${schWeekday(ev.date)}）</div>`;
-    }
-    html += schEventItemHtml(ev);
-  }
-
-  document.getElementById('sch-list').innerHTML = html;
-  document.getElementById('sch-empty').classList.toggle('hidden', events.length > 0);
-}
-
-// ── 預設模式：月曆格（Google 風格，格內直接列時間+店家）──
+// ── 月曆格（Google 風格，格內直接列時間+店家；地區/類型/搜尋皆在此套用）──
 function renderSchCalendar() {
   if (typeof SCHEDULE_DATA === 'undefined') return;
   document.getElementById('sch-cal-title').textContent = `${curSchYear}年${curSchMonth}月`;
@@ -1009,17 +977,10 @@ function schShiftMonth(delta) {
   renderSchCalendar();
 }
 
-// ── 搜尋 / 月曆 兩種檢視模式切換 ──
-function schUpdateViewMode() {
-  const searching = curSchQuery.trim().length > 0;
-  document.getElementById('sch-list').classList.toggle('hidden', !searching);
-  document.getElementById('sch-empty').classList.toggle('hidden', !searching);
-  document.getElementById('sch-cal-wrap').classList.toggle('hidden', searching);
-  if (searching) renderSchedule(); else renderSchCalendar();
-}
+// ── 搜尋：套用在月曆格上，不切換畫面 ──
 document.getElementById('sch-search')?.addEventListener('input', e => {
   curSchQuery = e.target.value;
-  schUpdateViewMode();
+  renderSchCalendar();
 });
 
 // ── 新品渲染（日期倒序；最新一則 hero；7 天內 NEW）──
@@ -1088,7 +1049,7 @@ renderChips();
 renderVideos();
 renderNews();
 renderSchChips();
-schUpdateViewMode();
+renderSchCalendar();
 </script>
 <script>
 // 頁面新舊版本偵測：跟 index.html 同一套機制，見該檔案尾端註解說明。
