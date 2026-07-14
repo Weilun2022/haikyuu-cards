@@ -1973,6 +1973,37 @@ function openShareModal() {
   document.getElementById('share-modal-overlay').style.display = 'flex';
 }
 
+// 編輯完牌組（例如剛關掉數量輸入框的鍵盤）後馬上點複製連結，Chrome 有時會回報
+// document 尚未取得焦點（NotAllowedError），導致 Clipboard API 直接被拒絕、畫面上沒有任何提示；
+// F5 重整後焦點狀態重置就正常了。這裡失敗時改用 execCommand('copy') 兜底，並確保一定有 toast 提示。
+function copyShareUrlToClipboard() {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => showToast('連結已複製'))
+      .catch(() => showToast(fallbackCopyText(shareUrl) ? '連結已複製' : '複製失敗，請手動複製'));
+  } else {
+    showToast(fallbackCopyText(shareUrl) ? '連結已複製' : '複製失敗，請手動複製');
+  }
+}
+
+function fallbackCopyText(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 function checkSharedDeck() {
   const params = new URLSearchParams(location.search);
   const encoded = params.get('deck');
@@ -4431,9 +4462,7 @@ function bindDeckEvents() {
   shareOverlay.addEventListener('click', e => { if (e.target === shareOverlay) closeShare(); });
   document.getElementById('share-copy-btn').addEventListener('click', e => {
     e.stopPropagation();
-    navigator.clipboard.writeText(shareUrl)
-      .then(() => showToast('連結已複製'))
-      .catch(() => showToast('複製失敗，請手動複製'));
+    copyShareUrlToClipboard();
   });
 
   document.getElementById('deck-reorganize-select').addEventListener('change', e => {
