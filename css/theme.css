@@ -29,5 +29,14 @@
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: var(--bg); color: var(--text); font-family: "Noto Sans TC", system-ui, sans-serif; }
+body {
+  background-color: var(--bg);
+  /* 官方卡表頁背景格線重現（純 CSS，不是複製圖檔）：實測官方 40x40px 淡格線 tile，
+     1px 線、線色 rgb(233,232,231)，這裡直接用 --border 當線色，不需要另存圖片 */
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  color: var(--text); font-family: "Noto Sans TC", system-ui, sans-serif;
+}
 a { color: inherit; text-decoration: none; }
