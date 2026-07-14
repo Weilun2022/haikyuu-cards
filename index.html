@@ -4010,12 +4010,12 @@ function buildColorModeSlots() {
     for (let i = 0; i < entry.count; i++)
       slots.push({ imageFile: entry.image_file, slotIndex: i, color: slotColors[i], isEvent });
   }
-  // 主鍵：顏色分組；次鍵：依 colorModeSortKey
-  const SLOT_COLOR_ORD = { free: 0, receive: 1, set: 2, attack: 3, event: 4 };
+  // 主鍵：顏色分組（無色排在一般顏色後、事件牌前；事件牌永遠排最後）；次鍵：依 colorModeSortKey
+  const SLOT_COLOR_ORD = { free: 0, receive: 1, set: 2, attack: 3, event: 5 };
   const RARITY_ORD = { NP:0, N:1, R:2, RP:3, S:4, SP:5, 極:6, '極P':7, 頂:8, '頂P':9, 秘:10 };
   slots.sort((a, b) => {
-    const aO = a.color !== null ? (SLOT_COLOR_ORD[a.color] ?? 5) : 5;
-    const bO = b.color !== null ? (SLOT_COLOR_ORD[b.color] ?? 5) : 5;
+    const aO = a.color !== null ? (SLOT_COLOR_ORD[a.color] ?? 4) : 4;
+    const bO = b.color !== null ? (SLOT_COLOR_ORD[b.color] ?? 4) : 4;
     if (aO !== bO) return aO - bO;
     const ca = cards.find(x => x.image_file === a.imageFile);
     const cb = cards.find(x => x.image_file === b.imageFile);
@@ -4179,14 +4179,14 @@ function applyBatchColor(colorKey) {
   }
   saveDecks();
 
-  // 套色後依顏色 + 卡號排序（多數決：數量最多的色決定排序位置）
+  // 套色後依顏色 + 卡號排序（多數決：數量最多的色決定排序位置；事件牌永遠排最後）
   function getColorOrder(entry) {
     const c = cards.find(x => x.image_file === entry.image_file);
     if (!c) return 99;
-    if (c.category === 'EVENT') return COLOR_TAGS.length;
+    if (c.category === 'EVENT') return COLOR_TAGS.length + 1;
     const cm = getCardColorMap(deck.id, entry.image_file);
-    if (!cm) return COLOR_TAGS.length + 1;
-    let maxCnt = 0, maxIdx = COLOR_TAGS.length + 1;
+    if (!cm) return COLOR_TAGS.length;
+    let maxCnt = 0, maxIdx = COLOR_TAGS.length;
     for (let i = 0; i < COLOR_TAGS.length; i++) {
       const cnt = cm[COLOR_TAGS[i].key] || 0;
       if (cnt > maxCnt) { maxCnt = cnt; maxIdx = i; }
@@ -4222,10 +4222,10 @@ function reorganizeDeck(mode) {
   function getColorOrder(entry) {
     const card = getCard(entry);
     if (!card) return 99;
-    if (card.category === 'EVENT') return COLOR_TAGS.length;
+    if (card.category === 'EVENT') return COLOR_TAGS.length + 1;
     const colorMap = getCardColorMap(deck.id, entry.image_file);
-    if (!colorMap) return COLOR_TAGS.length + 1;
-    let maxCnt = 0, maxIdx = COLOR_TAGS.length + 1;
+    if (!colorMap) return COLOR_TAGS.length;
+    let maxCnt = 0, maxIdx = COLOR_TAGS.length;
     for (let i = 0; i < COLOR_TAGS.length; i++) {
       const cnt = colorMap[COLOR_TAGS[i].key] || 0;
       if (cnt > maxCnt) { maxCnt = cnt; maxIdx = i; }
