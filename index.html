@@ -39,8 +39,8 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
+    /* 背景（含格線）已由 css/theme.css 的 body 規則設定，這裡不要再用 background 簡寫
+       蓋掉，簡寫會把 background-image 重設成 none，格線就不見了 */
     font-family: 'Segoe UI', 'Noto Sans TC', sans-serif;
     min-height: 100vh;
     touch-action: manipulation;
@@ -85,9 +85,9 @@
   #search-row .search-box { flex: 1; margin: 0; }
   #filter-toggle-compact { display: none; }
 
-  /* ── Header ── */
+  /* ── Header（比照官方導覽列：黑底＋白字＋橘色強調，跟 promo.html 的 .tabs 同一套語言）── */
   header {
-    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    background: var(--text);
     border-bottom: 1px solid var(--border);
     padding: 16px 24px;
     display: flex;
@@ -95,9 +95,9 @@
     gap: 16px;
   }
   header h1 { font-size: clamp(15px, 1.4vw, 22px); font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
-  header .subtitle { font-size: 12px; color: var(--text-dim); }
-  header .count { margin-left: auto; font-size: 13px; color: var(--text-dim); }
-  header .count span { color: var(--text); font-weight: 600; }
+  header .subtitle { font-size: 12px; color: rgba(255,255,255,.6); }
+  header .count { margin-left: auto; font-size: 13px; color: rgba(255,255,255,.6); }
+  header .count span { color: var(--on-accent); font-weight: 600; }
   .promo-link {
     flex: 0 0 auto; font-size: 12px; font-weight: 700; color: var(--accent);
     text-decoration: none; white-space: nowrap; padding: 5px 11px; border-radius: 999px;
@@ -110,7 +110,7 @@
   .promo-link::after {
     content:''; position:absolute; top:3px; right:3px;
     width:7px; height:7px; border-radius:50%;
-    background:#ff4444; border:1.5px solid var(--bg);
+    background:#ff4444; border:1.5px solid var(--text);
     animation:notif-pulse 1.8s ease-in-out infinite;
   }
   @keyframes notif-pulse {
