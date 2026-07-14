@@ -9,7 +9,7 @@
 <style>
   :root {
     /* 這頁專屬、非全站共用色票（--bg/--surface/--accent 等已移到 css/theme.css）*/
-    --surface-hi: #F0E6D2;
+    --surface-hi: #FDEDE0;
     /* 學校色票：綁定 promo_tags.js 的學校名稱鍵，跟 index.html/cards_zh.json 那套鍵名與顏色
        是各自獨立的（見開發日誌），這裡只微調明度以配合新的暖白背景，不改色相、不跨頁合併 */
     --s-烏野: #c2410c;
@@ -25,7 +25,7 @@
 
   header {
     position:sticky; top:0; z-index:100;
-    background:rgba(255,253,248,.92); backdrop-filter:blur(8px);
+    background:rgba(255,255,255,.92); backdrop-filter:blur(8px);
     border-bottom:1px solid var(--border);
   }
   .hd-row { display:flex; align-items:center; gap:10px; padding:10px 14px; }
@@ -128,11 +128,15 @@
   .nc-meta { font-size:11.5px; color:var(--text-dim); margin-top:4px; }
   .nc-link { flex:0 0 auto; color:var(--accent); font-size:18px; }
 
-  /* ── Discord 招募頁（這區保留深色，做成「球館燈光下的隊照」意象，方便疊字閱讀）── */
+  /* ── Discord 招募頁（背景圖直接取用官方 mv6 主視覺，深色漸層當圖片載入失敗時的備援底色）── */
   .dc-hero {
     position:relative; width:100%; aspect-ratio:16/7; overflow:hidden;
-    background:linear-gradient(135deg,#5c2a0f 0%,#3a1a0a 55%,#241008 100%);
+    background:url('css/img/mv6_bg.webp') center/cover no-repeat,
+                linear-gradient(135deg,#5c1f00 0%,#3d1400 55%,#2b0d00 100%);
     display:flex; align-items:flex-end;
+  }
+  @media (max-width:480px) {
+    .dc-hero { background-image:url('css/img/mv6_bg_sp.webp'), linear-gradient(135deg,#5c1f00 0%,#3d1400 55%,#2b0d00 100%); }
   }
   .dc-hero-img {
     position:absolute; inset:0;
@@ -140,11 +144,11 @@
   }
   .dc-hero-img img {
     width:100%; height:100%; object-fit:contain; object-position:center;
-    opacity:.92; filter:drop-shadow(0 4px 28px rgba(217,87,11,.45));
+    opacity:.92; filter:drop-shadow(0 4px 28px rgba(238,108,0,.45));
   }
   .dc-hero-overlay {
     position:relative; z-index:2; width:100%; color:var(--on-accent);
-    background:linear-gradient(to top,rgba(36,16,8,.96) 0%,rgba(36,16,8,.15) 100%);
+    background:linear-gradient(to top,rgba(43,13,0,.96) 0%,rgba(43,13,0,.15) 100%);
     padding:28px 20px 22px;
   }
   .dc-badge {

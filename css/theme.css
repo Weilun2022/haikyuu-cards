@@ -1,19 +1,26 @@
-/* ── 全站共用色票（暖白球館主題） ──────────────────────
+/* ── 全站共用色票（v2：官方視覺參考版） ──────────────────────
    Phase 1（2026-07）：promo.html 首波導入。之後其他頁面遷移時
    請直接引用這份檔案，不要在頁面自己的 <style> 裡重複定義這些 token。
    學校色票（--s-*）刻意不放這裡：index.html／promo.html 各自綁定
    不同資料源（cards_zh.json vs promo_tags.js）的學校名稱鍵，兩邊
-   目前用字與顏色都不一致，合併需要另外處理資料層問題，這裡不碰。 */
+   目前用字與顏色都不一致，合併需要另外處理資料層問題，這裡不碰。
+
+   v2 改版依據：實際採樣 takaratomy.co.jp 官方商品頁 key visual 的像素顏色
+   （mv1~mv6 主視覺圖 + 標題圖），官方頁面本身用的是 Takara Tomy 企業 CMS
+   共用藍（不是這款遊戲的識別色，不能拿來用），但美術素材本身一致呈現
+   「近白背景＋鮮豔橘色主色＋黑色描邊＋紅色點綴」的少年漫海報風格，這
+   組也剛好對應烏野（主角隊伍）的隊服配色（黑＋橘）。v1 的暖米色/青綠是
+   自己發想的，這版改成貼近官方素材實測的顏色。 */
 :root {
-  --bg: #F4EEE3;
-  --surface: #FFFDF8;
-  --surface2: #E9DFCF;
-  --border: #D2C3B0;
-  --text: #1B2C38;
-  --text-dim: #596771;
-  --accent: #D9570B;
-  --accent2: #0F7180;
-  --focus: #F0A35B;
+  --bg: #FAFAFA;
+  --surface: #FFFFFF;
+  --surface2: #F3EFEA;
+  --border: #E2DCD3;
+  --text: #1A1A1A;
+  --text-dim: #6B6B6B;
+  --accent: #C24E00;
+  --accent2: #C22B24;
+  --focus: #FFB066;
   --on-accent: #FFFFFF;
   --success: #237A52;
   --warning: #B86B00;
