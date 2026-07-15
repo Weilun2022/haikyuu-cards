@@ -65,7 +65,11 @@
       border-bottom: 3px solid var(--text);
       padding: 0 16px;
     }
-    .filter-panel { flex: 1; min-width: 0; flex-wrap: nowrap; font-size: clamp(11px, 0.85vw, 13px); }
+    .filter-panel {
+      flex: 1; min-width: 0; flex-wrap: nowrap; font-size: clamp(11px, 0.85vw, 13px);
+      border-top: 3px solid var(--text);
+      border-bottom: 3px solid var(--text);
+    }
     .deck-panel { max-height: 60vh; max-width: 540px; width: 100%; align-self: center; }
     .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
@@ -205,11 +209,13 @@
   }
 
   /* ── Filter Panel（比照官方黑白配色：粗黑框當「畫框」，裡面欄位是黑邊膠囊，
-     不逐一加陰影避免 8 組欄位互相搶戲——參考 GPT-5.6-Luna 分層建議）── */
+     不逐一加陰影避免 8 組欄位互相搶戲——參考 GPT-5.6-Luna 分層建議）
+     邊框不能放在這個不分裝置的基礎規則裡：手機版收合時是靠 max-height:0
+     +overflow:hidden 讓內容不可見，但 border 不會跟著 max-height 消失，
+     會變成一條固定顯示的粗黑線。邊框改成只在「桌面版」跟「手機版展開時」
+     才加，見下面 media query 和 .filter-panel.open */
   .filter-panel {
     background: var(--surface);
-    border-top: 3px solid var(--text);
-    border-bottom: 3px solid var(--text);
     padding: 14px 24px;
     display: flex;
     flex-wrap: wrap;
@@ -749,6 +755,8 @@
     .filter-panel.open {
       padding: 12px 16px;
       max-height: 600px;
+      border-top: 3px solid var(--text);
+      border-bottom: 3px solid var(--text);
     }
   }
 
