@@ -3377,6 +3377,15 @@ function updateTray() {
   warnEl.style.display = 'none';
 }
 
+// 這幾個狀態變數提前宣告到這裡（原本宣告在下面 showDeckPreview/上色模式相關函式那邊，
+// 但 closeDeckPanel() 在那之前就會用到它們——let 在宣告那行真正執行以前是 TDZ，
+// 曾經造成「分享牌組」呼叫 closeDeckPanel() 時丟出 ReferenceError、整個分享功能中斷）
+let deckPreviewSelectedImg = null;
+let colorModeActive = false;
+let colorModeSlots = []; // { imageFile, slotIndex, color: key|null, isEvent }
+let colorModeSelectedIndices = new Set();
+let colorModeSortKey = 'card_no';
+
 // ── Deck Panel ─────────────────────────────────────────
 function openDeckPanel() {
   if (decks.length === 0) createDeck('我的牌組1');
@@ -3496,13 +3505,7 @@ function renderDeckPanel() {
   }
 }
 
-let colorModeActive = false;
-let colorModeSlots = []; // { imageFile, slotIndex, color: key|null, isEvent }
-let colorModeSelectedIndices = new Set();
-let colorModeSortKey = 'card_no';
-
 // ── Deck Preview ───────────────────────────────────────
-let deckPreviewSelectedImg = null;
 
 function showDeckPreview(imageFile) {
   deckPreviewSelectedImg = imageFile;
