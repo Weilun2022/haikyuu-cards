@@ -1914,6 +1914,12 @@ let searchText = '';
 let activeVariantMode = 'off'; // off | low | high — 同 card_no 多版本折疊（新手用）
 let favoriteOnlyFilter = false;
 let _hvApplyingRemote = false; // 雲端同步套用遠端資料時暫停 dirty 偵測；宣告提前避免 init() 早期呼叫時的 TDZ 錯誤
+// 同理提前宣告：init() → loadDecks() 在「快速查詢」牌組不存在時（例如首次造訪、
+// localStorage 是空的）會同步呼叫 saveDecks() → hvOnLocalChange() → hvSnapshotDeckState()，
+// 這幾個呼叫都發生在 init() 執行到一半，比原本宣告位置（雲端同步區塊）早得多，
+// 沒提前宣告的話首次造訪就會在 init() 中途丟出 TDZ ReferenceError，後面的
+// buildFilters/bindEvents/renderGrid 全部不會執行——實測過，真的會整頁掛掉
+let _hvDeckSnapshot = {};
 
 // ── 我的最愛（單卡收藏，跟牌組系統無關）──────────────────────────────
 const FAVORITES_LS_KEY = 'hv_favorites_v1';
@@ -2798,6 +2804,9 @@ function loadDecks() {
       }
     });
     d.owned = newOwned;
+    // 修正舊資料的排序（角色優先、事件最後，同類依卡號），之前只有新增卡片時才會排，
+    // 已經存在的牌組會維持加入當下的順序不會自動修正，這裡在載入時補一次
+    sortDeckCardsDefault(d);
   });
   // 確保快速查詢牌組永遠存在，且固定在第一位
   let qd = decks.find(d => d.id === QUICK_DECK_ID);
@@ -2826,8 +2835,6 @@ function saveColorState() { localStorage.setItem(COLOR_LS_KEY, JSON.stringify(de
 // 設計原則：自動同步只做安全的新增/更新/下載，絕不會用「本機少了某副牌組」去推斷
 // 要刪雲端；只有明確按刪除鈕才會同步刪除。詳見 cloud-sync.js 檔頭註解。
 // ══════════════════════════════════════════════════════
-
-let _hvDeckSnapshot = {};
 
 function hvDeckSig(d) { return JSON.stringify(d) + '|' + JSON.stringify(deckColorState[d.id] || null); }
 function hvSnapshotDeckState() {
@@ -3310,6 +3317,19 @@ function getCardCountInDeck(image_file) {
   return e ? e.count : 0;
 }
 
+// 牌組管理預設排序：角色卡優先、事件卡排最後，同類再依卡號排序
+// （跟缺卡清單的 byCategoryThenCardNo 是同一套規則，見該處註解）
+function sortDeckCardsDefault(deck) {
+  deck.cards.sort((a, b) => {
+    const ca = cards.find(c => c.image_file === a.image_file);
+    const cb = cards.find(c => c.image_file === b.image_file);
+    const aEvent = ca?.category === 'EVENT';
+    const bEvent = cb?.category === 'EVENT';
+    if (aEvent !== bEvent) return aEvent ? 1 : -1;
+    return (a.card_no || '').localeCompare(b.card_no || '');
+  });
+}
+
 // ── Add / Remove ───────────────────────────────────────
 function addCardToDeck(image_file, quantity = 1) {
   if (!image_file) { showToast('錯誤：image_file 無效'); return; }
@@ -3321,7 +3341,10 @@ function addCardToDeck(image_file, quantity = 1) {
   const cardObj = cards.find(c => c.image_file === image_file);
   const entry = deck.cards.find(c => c.image_file === image_file);
   if (entry) entry.count += qty;
-  else deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: qty });
+  else {
+    deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: qty });
+    sortDeckCardsDefault(deck);
+  }
   saveDecks();
   refreshCardBadge(image_file);
   updateTray();
