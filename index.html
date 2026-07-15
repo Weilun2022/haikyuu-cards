@@ -59,7 +59,10 @@
     #sticky-wrapper > header { width: 100%; }
     #search-row {
       flex: 0 1 380px;
-      border-bottom: 1px solid var(--border);
+      /* 跟旁邊 .filter-panel 共用同一圈粗黑框，兩塊拼起來才是一個完整畫框，
+         不是各自一條細線斷開 */
+      border-top: 3px solid var(--text);
+      border-bottom: 3px solid var(--text);
       padding: 0 16px;
     }
     .filter-panel { flex: 1; min-width: 0; flex-wrap: nowrap; font-size: clamp(11px, 0.85vw, 13px); }
@@ -73,14 +76,21 @@
     }
   }
 
-  /* ── Search Row ── */
+  /* ── Search Row ──
+     手機版才用細邊線；桌面版邊框由上面 @media(min-width:601px) 的粗黑框接管
+     （這條規則原本沒分手機/桌面，源碼順序排在 media query 後面、特異性又一樣，
+     結果桌面版的粗黑框每次都被這裡蓋掉，兩塊拼不成一個畫框——教訓：同一個
+     selector 的 media query 覆寫規則，要嘛特異性更高，要嘛確保源碼順序在後面，
+     不能兩邊都用一樣的裸 ID selector 各寫一次） */
   #search-row {
     display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 24px;
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
+  }
+  @media (max-width: 600px) {
+    #search-row { border-bottom: 1px solid var(--border); }
   }
   #search-row .search-box { flex: 1; margin: 0; }
   #filter-toggle-compact { display: none; }
