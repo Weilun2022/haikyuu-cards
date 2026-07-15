@@ -94,7 +94,33 @@
     align-items: center;
     gap: 16px;
   }
-  header h1 { font-size: clamp(15px, 1.4vw, 22px); font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
+  /* 標題做成兩層字級的「隊徽感」組合（小標籤+主字+橘色斜切色塊），
+     取代單純一行同色文字，避免整塊黑底看起來太扁平。
+     跟 GPT-5.6-Luna 審過一輪：中日文字不整體斜體（瀏覽器 faux italic 對漢字/假名
+     筆畫會變形），改成只讓英文 BREAK 用 skewX 斜切；楔形色塊改置中對齊主字、
+     橘色略提亮避免偏暗 */
+  header h1 { display: flex; flex-direction: column; gap: 2px; line-height: 1.15; }
+  .hd-kicker {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 700; color: rgba(255,255,255,.68);
+    letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap;
+  }
+  .hd-kicker::after { content: ''; display: block; width: 24px; height: 1px; background: currentColor; opacity: .5; }
+  .hd-word {
+    position: relative; padding-left: 13px;
+    font-size: clamp(16px, 1.5vw, 23px); font-weight: 700; font-style: normal;
+    color: #D05D14; letter-spacing: 0.5px; white-space: nowrap;
+  }
+  .hd-word::before {
+    content: ''; position: absolute; left: 0; top: 50%; width: 7px; height: 1.05em;
+    background: var(--accent); transform: translateY(-50%);
+    clip-path: polygon(18% 0, 100% 0, 72% 100%, 0 100%);
+  }
+  .hd-word b {
+    display: inline-block; margin-left: .14em;
+    color: var(--on-accent); font-weight: 900; font-style: normal;
+    transform: skewX(-8deg); transform-origin: left bottom;
+  }
   header .subtitle { font-size: 12px; color: rgba(255,255,255,.6); }
   header .count { margin-left: auto; font-size: 13px; color: rgba(255,255,255,.6); }
   header .count span { color: var(--on-accent); font-weight: 600; }
@@ -1349,7 +1375,7 @@
 <div id="sticky-wrapper">
 <header>
   <div>
-    <h1>排球少年!! バボカ!!BREAK</h1>
+    <h1><span class="hd-kicker">排球少年!!</span><span class="hd-word">バボカ!!<b>BREAK</b></span></h1>
     <div class="subtitle">卡牌資料庫 / Card Database</div>
   </div>
   <a class="promo-link" href="promo.html" aria-label="情報站"><span class="pl-icon">🏐</span><span class="pl-txt"> 情報站</span></a>
