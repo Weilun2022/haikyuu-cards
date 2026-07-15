@@ -129,15 +129,12 @@
   .nc-meta { font-size:11.5px; color:var(--text-dim); margin-top:4px; }
   .nc-link { flex:0 0 auto; color:var(--accent); font-size:18px; }
 
-  /* ── Discord 招募頁（背景圖直接取用官方 mv6 主視覺，深色漸層當圖片載入失敗時的備援底色）── */
+  /* ── Discord 招募頁（社群自己的黑鴉徽章跟官方主視覺人物圖疊在一起風格不搭，
+     移除官方背景圖只留漸層+徽章，見開發日誌）── */
   .dc-hero {
     position:relative; width:100%; aspect-ratio:16/7; overflow:hidden;
-    background:url('css/img/mv6_bg.webp') center/cover no-repeat,
-                linear-gradient(135deg,#5c1f00 0%,#3d1400 55%,#2b0d00 100%);
+    background:linear-gradient(135deg,#5c1f00 0%,#3d1400 55%,#2b0d00 100%);
     display:flex; align-items:flex-end;
-  }
-  @media (max-width:480px) {
-    .dc-hero { background-image:url('css/img/mv6_bg_sp.webp'), linear-gradient(135deg,#5c1f00 0%,#3d1400 55%,#2b0d00 100%); }
   }
   .dc-hero-img {
     position:absolute; inset:0;
