@@ -2083,6 +2083,7 @@ function checkSharedDeck() {
       cards: imported.cards,
       owned: {}
     };
+    normalizeDeck(d);
     decks.push(d);
     currentDeckId = d.id;
     saveDecks();
@@ -2804,9 +2805,7 @@ function loadDecks() {
       }
     });
     d.owned = newOwned;
-    // 修正舊資料的排序（角色優先、事件最後，同類依卡號），之前只有新增卡片時才會排，
-    // 已經存在的牌組會維持加入當下的順序不會自動修正，這裡在載入時補一次
-    sortDeckCardsDefault(d);
+    normalizeDeck(d);
   });
   // 確保快速查詢牌組永遠存在，且固定在第一位
   let qd = decks.find(d => d.id === QUICK_DECK_ID);
@@ -2906,6 +2905,7 @@ async function hvRunAutoSync(reason) {
     }
     if (applyDownload.length) {
       applyDownload.forEach(({ id, deck, color }) => {
+        normalizeDeck(deck);
         const idx = decks.findIndex(d => d.id === id);
         if (idx >= 0) decks[idx] = deck; else decks.push(deck);
         if (color != null) deckColorState[id] = color; else delete deckColorState[id];
@@ -3075,6 +3075,7 @@ function hvInitCloudSync() {
             localStorage.setItem(`hv_decks_backup_${ts}`, JSON.stringify(decks));
             localStorage.setItem(`hv_deck_colors_backup_${ts}`, JSON.stringify(deckColorState));
             const { decks: cloudDecks, colors: cloudColors } = await window.hvCloudSync.downloadCloudToLocalDestructive(user.uid);
+            cloudDecks.forEach(normalizeDeck);
             decks = cloudDecks;
             deckColorState = cloudColors;
             hvEnsureQuickDeck();
@@ -3317,9 +3318,12 @@ function getCardCountInDeck(image_file) {
   return e ? e.count : 0;
 }
 
-// 牌組管理預設排序：角色卡優先、事件卡排最後，同類再依卡號排序
-// （跟缺卡清單的 byCategoryThenCardNo 是同一套規則，見該處註解）
-function sortDeckCardsDefault(deck) {
+// 統一收斂點：任何會把一整份牌組寫進 decks 陣列的地方（新增卡片／頁面載入／
+// 分享連結匯入／雲端同步下載／雲端覆蓋本機）都要呼叫這個函式，確保排序規則
+// （角色卡優先、事件卡排最後，同類再依卡號排序，跟缺卡清單的 byCategoryThenCardNo
+// 同一套規則）套用到所有資料入口，不要在個別入口各自補一次容易漏
+function normalizeDeck(deck) {
+  if (!deck || !Array.isArray(deck.cards)) return;
   deck.cards.sort((a, b) => {
     const ca = cards.find(c => c.image_file === a.image_file);
     const cb = cards.find(c => c.image_file === b.image_file);
@@ -3343,7 +3347,7 @@ function addCardToDeck(image_file, quantity = 1) {
   if (entry) entry.count += qty;
   else {
     deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: qty });
-    sortDeckCardsDefault(deck);
+    normalizeDeck(deck);
   }
   saveDecks();
   refreshCardBadge(image_file);

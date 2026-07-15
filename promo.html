@@ -52,6 +52,15 @@
 
   main { max-width:980px; margin:0 auto; padding:14px; }
 
+  /* 資料檔（promo_data.js/promo_news.js，排程自動更新）載入失敗時的明確提示，
+     跟一般「查無資料」的空狀態區分開來，避免使用者分不出是真的沒內容還是網站壞了 */
+  #data-load-error {
+    background:color-mix(in srgb, var(--danger) 12%, var(--surface));
+    border:1px solid var(--danger); color:var(--danger);
+    border-radius:10px; padding:10px 14px; font-size:13px; font-weight:700;
+    text-align:center; margin-bottom:12px;
+  }
+
   .vid-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
   @media (min-width:720px){ .vid-grid { grid-template-columns:repeat(3,1fr); } }
   .vid-card {
@@ -480,6 +489,7 @@
 </header>
 
 <main>
+  <div id="data-load-error" class="hidden" role="alert">⚠️ 部分資料載入失敗，請稍後重試或重新整理頁面</div>
   <section id="pane-vid">
     <div class="gacha-bar">
       <button class="gacha-ball" id="gacha-ball" aria-label="抽一部影片">🏐</button>
@@ -633,6 +643,15 @@ let curSchool = '全部';
 
 function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
+// PROMO_DATA/PROMO_NEWS 是排程每 4 小時自動產生的資料檔，正常不會缺，但部署競態/
+// CDN 問題等情況下有機會載入失敗。之前這兩個資料沒有防呆的地方會直接丟出
+// ReferenceError 讓整個 <script> 從那行中斷（PROMO_DATA 失敗甚至會讓分頁按鈕
+// 事件綁不上去），現在都已經補防呆改成空陣列；這裡另外顯示明確提示，
+// 讓使用者能分辨「這個分類真的沒內容」還是「資料載入失敗」
+if (typeof PROMO_DATA === 'undefined' || typeof PROMO_NEWS === 'undefined') {
+  document.getElementById('data-load-error').classList.remove('hidden');
+}
+
 // ── 更新時間顯示 ──
 if (typeof PROMO_DATA !== 'undefined' && PROMO_DATA.updated) {
   document.getElementById('hd-upd').textContent = '更新 ' + PROMO_DATA.updated.slice(5, 16).replace('T', ' ');
@@ -681,7 +700,7 @@ function enrich(v){
     cards: (tag?.cards || []).map(no => CARD_BY_NO[no]).filter(Boolean),
   };
 }
-const VIDEOS = (PROMO_DATA.videos||[]).map(enrich);
+const VIDEOS = (typeof PROMO_DATA !== 'undefined' && Array.isArray(PROMO_DATA.videos) ? PROMO_DATA.videos : []).map(enrich);
 const isHot = d => (Date.now() - new Date(d)) < 72*36e5;   // 72 小時內 = 環境速報
 
 // 發布時間 → 使用者當地時間顯示（24h 內顯示「N 小時前」）
@@ -842,7 +861,15 @@ function schEventsFiltered() {
   if (typeof SCHEDULE_DATA === 'undefined') return [];
   let events = SCHEDULE_DATA.events || [];
   if (curSchRegion !== 'all') events = events.filter(e => e.region === curSchRegion);
-  if (curSchType !== 'all') events = events.filter(e => schTypeKey(e.format) === curSchType);
+  if (curSchType !== 'all') {
+    events = events.filter(e => {
+      const key = schTypeKey(e.format);
+      if (key === curSchType) return true;
+      // mixed（同時符合新手+交流字樣）在「新手教學」跟「交流賽」篩選下都要顯示，
+      // 不然這類賽事會兩邊都篩不到、只有「全部類型」看得到
+      return key === 'mixed' && (curSchType === 'newbie' || curSchType === 'casual');
+    });
+  }
   const q = curSchQuery.trim().toLowerCase();
   if (q) events = events.filter(e => (e.storeName || '').toLowerCase().includes(q) || (e.address || '').toLowerCase().includes(q));
   return events;
@@ -966,7 +993,7 @@ document.getElementById('sch-search')?.addEventListener('input', e => {
 // ── 新品渲染（日期倒序；最新一則 hero；7 天內 NEW）──
 function renderNews(){
   const list = document.getElementById('news-list');
-  const items = (PROMO_NEWS.items||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const items = (typeof PROMO_NEWS !== 'undefined' && Array.isArray(PROMO_NEWS.items) ? PROMO_NEWS.items : []).slice().sort((a,b)=>b.date.localeCompare(a.date));
   if (items.length===0){ list.innerHTML = '<div class="empty">目前沒有新品消息</div>'; return; }
   const isNew = d => (Date.now() - new Date(d)) < 7*864e5;
   const [hero, ...rest] = items;
