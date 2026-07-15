@@ -134,26 +134,29 @@
     .promo-link .pl-icon { font-size:19px; }
   }
 
-  /* Filter toggle button (mobile only) */
+  /* Filter toggle button (mobile only)：官方風格黑邊+硬邊小陰影，收合狀態的入口用強一點的裝飾 */
   .filter-toggle-btn {
     display: none;
     position: relative;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: 8px;
-    padding: 6px 10px;
+    background: var(--surface);
+    border: 2px solid var(--text);
+    color: var(--text);
+    border-radius: 999px;
+    box-shadow: 3px 3px 0 0 var(--text);
+    padding: 6px 12px;
     font-size: 12px;
+    font-weight: 700;
     cursor: pointer;
     align-items: center;
     gap: 5px;
     white-space: nowrap;
     flex-shrink: 0;
-    transition: border-color 0.2s, color 0.2s;
+    transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
   }
   .filter-toggle-btn.has-active {
     border-color: var(--accent);
     color: var(--accent);
+    box-shadow: 3px 3px 0 0 var(--accent);
   }
   .filter-badge {
     background: var(--accent);
@@ -165,10 +168,12 @@
     line-height: 1.4;
   }
 
-  /* ── Filter Panel ── */
+  /* ── Filter Panel（比照官方黑白配色：粗黑框當「畫框」，裡面欄位是黑邊膠囊，
+     不逐一加陰影避免 8 組欄位互相搶戲——參考 GPT-5.6-Luna 分層建議）── */
   .filter-panel {
     background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    border-top: 3px solid var(--text);
+    border-bottom: 3px solid var(--text);
     padding: 14px 24px;
     display: flex;
     flex-wrap: wrap;
@@ -180,19 +185,29 @@
   .filter-group label { font-size: 12px; color: var(--text-dim); white-space: nowrap; }
 
   select, input[type="text"] {
-    background: var(--surface2);
-    border: 1px solid var(--border);
+    background: var(--surface);
+    border: 1.5px solid var(--text);
     color: var(--text);
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: 999px;
+    padding: 6px 14px;
     font-size: 13px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
-  select:focus, input:focus { border-color: var(--accent); }
+  select:focus, input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
   select { cursor: pointer; }
 
-  .search-box { flex: 1; min-width: 180px; max-width: 320px; }
+  /* 搜尋框是主要互動元件，比照官方搜尋輸入框給稍強的裝飾（粗邊+硬邊小陰影）
+     用 input.search-box 提高特異性，蓋過上面 input[type="text"] 的 1.5px 邊框 */
+  input.search-box {
+    flex: 1; min-width: 180px; max-width: 320px;
+    border-width: 2px;
+    padding: 8px 16px;
+    box-shadow: 3px 3px 0 0 var(--text);
+  }
 
   /* Category toggle buttons */
   .toggle-group { display: flex; gap: 4px; flex-wrap: wrap; }
