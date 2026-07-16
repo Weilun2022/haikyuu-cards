@@ -3990,10 +3990,12 @@ async function drawDeckCanvas(deck) {
   });
   ctx.textAlign = 'left';
 
-  // 品牌名：跟徽章列共用同一條水平帶，垂直置中對齊，靠左
+  // 品牌名：跟徽章的「標籤」文字共用同一條基線，兩者都是這排的小字，
+  // 靠上對齊比垂直置中在整個標籤+膠囊高度裡更自然（膠囊本身往下延伸即可，
+  // 不需要把品牌名往下拉去遷就膠囊底部）
   ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#BE520B';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, (LABEL_Y + PILL_BOTTOM) / 2 + 5);
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, LABEL_Y);
 
   // 牌組名：獨立一列在徽章列下方，不再需要跟徽章搶寬度、不需要裁切省略號
   const ROW2_Y = PILL_BOTTOM + 24;
