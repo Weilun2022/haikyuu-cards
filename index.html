@@ -3867,7 +3867,7 @@ async function drawDeckCanvas(deck) {
   const CARD_H = 140;
   const GAP    = 10;
   const PAD    = 20;
-  const HEAD_H = 88;         // 兩列：品牌名/統計徽章合併列（徽章對齊右上角）+ 牌組名獨立列
+  const HEAD_H = 118;        // 品牌+牌組名一組（左上）／統計徽章獨立一條容器列在下方
   const FOOT_H = 34;
 
   const rows = Math.ceil(entries.length / COLS);
@@ -3890,12 +3890,37 @@ async function drawDeckCanvas(deck) {
   // 標題列
   ctx.fillStyle = '#F3EFEA';
   ctx.fillRect(0, 0, W, HEAD_H);
-  ctx.fillStyle = '#BE520B';
-  ctx.fillRect(0, HEAD_H - 2, W, 2);
 
-  // 統計徽章：比照官方牌組構築頁排版邏輯——徽章列對齊右上角、彼此間距
-  // 寬鬆不強制撐滿寬度（依內容量寬，不是均分整列）。品牌名跟徽章共用
-  // 第一列（各自左右對齊），牌組名獨立一列在下方，不用再跟徽章搶寬度
+  // 跟 GPT-5.6-Luna 討論定案的重新設計（原本「品牌名+徽章共用一列」被診斷為
+  // 資訊層級錯誤：品牌識別跟牌組統計是兩件不同的事，硬塞同一排即使基線對齊
+  // 還是會像「品牌名+一排小按鈕」拼接感。改成三塊各自獨立：
+  // ① 左側橘色識別線，把「品牌名(kicker小字)+牌組名(大字主標題)」框成一組
+  // ② 統計徽章獨立一條淺色容器列在下方，六欄等寬、拿掉漸層/陰影/玻璃光澤，
+  //    顏色只留給小圓點做分類提示，膠囊本身用扁平純色，降低視覺噪音
+  // ③ 底部只留一小段橘色 accent（不是整條橘線），避免線本身搶過內容
+
+  // 左側識別線，framing 品牌名+牌組名
+  ctx.fillStyle = '#BE520B';
+  ctx.fillRect(PAD, 15, 3, 50);
+
+  // 品牌名：小型 kicker
+  ctx.font = 'bold 12px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#BE520B';
+  ctx.textAlign = 'left';
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD + 12, 25);
+
+  // 牌組名：header 主標題
+  ctx.font = 'bold 24px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#0D0506';
+  const nameMaxW = W - PAD * 2 - 44;
+  let nameToDraw = deck.name;
+  while (ctx.measureText(nameToDraw).width > nameMaxW && nameToDraw.length > 1) {
+    nameToDraw = nameToDraw.slice(0, -1);
+  }
+  if (nameToDraw !== deck.name) nameToDraw = nameToDraw.slice(0, -1) + '…';
+  ctx.fillText(nameToDraw, PAD + 12, 59);
+
+  // 統計徽章：獨立容器列，六欄等寬，扁平色塊（不用漸層/陰影/玻璃光澤）
   const colorStats = getColorStats(deck);
   const total = getTotalCount(deck);
   const over = total > 40;
@@ -3904,104 +3929,71 @@ async function drawDeckCanvas(deck) {
     { key: 'event', label: '事件', val: String(colorStats.event) },
     { key: 'total', label: '牌組', val: `${total}/40` },
   ];
-  const BADGE_GRADIENT = {
-    free:    ['#7A7A7A', '#525252', '#fff'],
-    receive: ['#3B82F6', '#1848B0', '#fff'],
-    set:     ['#1EA34F', '#0E5C2A', '#fff'],
-    attack:  ['#EF4444', '#B01818', '#fff'],
-    event:   ['#F5C518', '#C68600', '#3A2900'],
-    total:   over ? ['#DA4A4A', '#8F2323', '#fff'] : ['#2E2E2E', '#0A0A0A', '#fff'],
+  const BADGE_COLOR = {
+    free:    ['#6B6B6B', '#fff'],
+    receive: ['#2563EB', '#fff'],
+    set:     ['#15803D', '#fff'],
+    attack:  ['#DC2626', '#fff'],
+    event:   ['#EAB308', '#0D0506'],
+    total:   over ? ['#C63D3D', '#fff'] : ['#1A1A1A', '#fff'],
   };
-  const BADGE_DOT = { free: '#6B6B6B', receive: '#2563EB', set: '#15803D', attack: '#DC2626', event: '#EAB308' };
 
-  const LABEL_Y     = 28;
-  const PILL_TOP    = 32;
-  const PILL_H      = 22;
-  const PILL_BOTTOM = PILL_TOP + PILL_H;
-  const ITEM_GAP    = 26; // 比照官方版徽章間彼此留白，不擠成一整條
+  const railX = PAD, railY = 74, railW = W - PAD * 2, railH = 36;
+  ctx.fillStyle = '#ECE7E1';
+  canvasRoundRect(ctx, railX, railY, railW, railH, 10);
+  ctx.fill();
+  ctx.strokeStyle = '#DED7CF';
+  ctx.lineWidth = 1;
+  canvasRoundRect(ctx, railX, railY, railW, railH, 10);
+  ctx.stroke();
 
-  // 先各自量出膠囊寬度算總寬，整排靠右對齊貼齊 PAD 邊界（右上角）
-  ctx.font = 'bold 13px "Segoe UI",sans-serif';
-  const pillWidths = badgeItems.map(({ val }) => Math.max(38, ctx.measureText(val).width + 18));
-  const totalBadgeW = pillWidths.reduce((s, w) => s + w, 0) + ITEM_GAP * (badgeItems.length - 1);
-  let itemX = W - PAD - totalBadgeW;
+  const slotW    = railW / badgeItems.length;
+  const LABEL_Y  = railY + 12;
+  const PILL_TOP = railY + 15;
+  const PILL_H   = 20;
 
-  ctx.textAlign = 'center';
   badgeItems.forEach(({ key, label, val }, i) => {
-    const pillW = pillWidths[i];
-    const cx = itemX + pillW / 2;
+    const cx = railX + slotW * i + slotW / 2;
+    const [bg, fg] = BADGE_COLOR[key];
 
-    // 標籤（左側加分類小圓點，「牌組」是總計不需要圓點，比照 HTML 版）
-    ctx.font = '11px "Segoe UI","Noto Sans TC",sans-serif';
+    // 標籤：左側小圓點（用該分類色）+ 統一灰字，顏色只當分類提示不搶焦點
+    ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.textAlign = 'left';
     if (key !== 'total') {
       const labelW = ctx.measureText(label).width;
-      const dotR = 3;
+      const dotR = 2.5;
+      const groupStartX = cx - (dotR * 2 + 5 + labelW) / 2;
       ctx.beginPath();
-      ctx.arc(cx - labelW / 2 - dotR - 3, LABEL_Y - 3.5, dotR, 0, Math.PI * 2);
-      ctx.fillStyle = BADGE_DOT[key];
+      ctx.arc(groupStartX + dotR, LABEL_Y - 3.5, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = bg;
       ctx.fill();
+      ctx.fillStyle = '#6B6B6B';
+      ctx.fillText(label, groupStartX + dotR * 2 + 5, LABEL_Y);
+    } else {
+      ctx.fillStyle = '#6B6B6B';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, cx, LABEL_Y);
     }
-    ctx.fillStyle = '#6B6B6B';
-    ctx.fillText(label, cx, LABEL_Y);
 
-    // 膠囊（圓角矩形，上下漸層比照 CSS linear-gradient(180deg,...)，加陰影＋
-    // 上緣玻璃光澤讓膠囊看起來有立體厚度，不是純平色塊）
-    ctx.font = 'bold 13px "Segoe UI",sans-serif';
-    const px = itemX;
-    const r = PILL_H / 2;
-    const pillPath = () => {
-      ctx.beginPath();
-      ctx.moveTo(px + r, PILL_TOP);
-      ctx.arcTo(px + pillW, PILL_TOP, px + pillW, PILL_BOTTOM, r);
-      ctx.arcTo(px + pillW, PILL_BOTTOM, px, PILL_BOTTOM, r);
-      ctx.arcTo(px, PILL_BOTTOM, px, PILL_TOP, r);
-      ctx.arcTo(px, PILL_TOP, px + pillW, PILL_TOP, r);
-      ctx.closePath();
-    };
-
-    const [top, bottom, textColor] = BADGE_GRADIENT[key];
-    ctx.save();
-    ctx.shadowColor = 'rgba(26,26,26,0.28)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
-    pillPath();
-    const grad = ctx.createLinearGradient(0, PILL_TOP, 0, PILL_BOTTOM);
-    grad.addColorStop(0, top);
-    grad.addColorStop(1, bottom);
-    ctx.fillStyle = grad;
+    // 數字膠囊：統一高度/圓角，純色不加漸層陰影
+    ctx.font = 'bold 12px "Segoe UI",sans-serif';
+    const textW = ctx.measureText(val).width;
+    const pillW = Math.min(slotW - 10, Math.max(36, textW + 16));
+    const px = cx - pillW / 2;
+    ctx.fillStyle = bg;
+    canvasRoundRect(ctx, px, PILL_TOP, pillW, PILL_H, PILL_H / 2);
     ctx.fill();
-    ctx.restore();
-
-    // 上緣玻璃光澤：裁切成膠囊形狀後只在上半部疊一層白色漸層
-    ctx.save();
-    pillPath();
-    ctx.clip();
-    const gloss = ctx.createLinearGradient(0, PILL_TOP, 0, PILL_TOP + PILL_H * 0.55);
-    gloss.addColorStop(0, 'rgba(255,255,255,0.45)');
-    gloss.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = gloss;
-    ctx.fillRect(px, PILL_TOP, pillW, PILL_H * 0.55);
-    ctx.restore();
-
-    ctx.fillStyle = textColor;
-    ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4.5);
-
-    itemX += pillW + ITEM_GAP;
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4);
   });
   ctx.textAlign = 'left';
 
-  // 品牌名：跟徽章的「標籤」文字共用同一條基線，兩者都是這排的小字，
-  // 靠上對齊比垂直置中在整個標籤+膠囊高度裡更自然（膠囊本身往下延伸即可，
-  // 不需要把品牌名往下拉去遷就膠囊底部）
-  ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
+  // 底部只留一小段橘色 accent（不是整條橘線），避免線本身搶過內容
+  ctx.fillStyle = '#DCD5CE';
+  ctx.fillRect(0, HEAD_H - 1, W, 1);
   ctx.fillStyle = '#BE520B';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, LABEL_Y);
-
-  // 牌組名：獨立一列在徽章列下方，不再需要跟徽章搶寬度、不需要裁切省略號
-  const ROW2_Y = PILL_BOTTOM + 24;
-  ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
-  ctx.fillStyle = '#0D0506';
-  ctx.fillText(deck.name, PAD, ROW2_Y);
+  ctx.fillRect(PAD, HEAD_H - 2, 76, 2);
 
   // 載入圖片（快取避免重複請求）
   const imgCache = {};
