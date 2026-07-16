@@ -1277,8 +1277,8 @@
      不影響 COLOR_TAGS 在色塊選色鈕/縮圖邊框等大面積場合原本的鮮豔色。 */
   .deck-stats-row {
     position: relative;
-    display: flex; gap: 6px; overflow-x: auto;
-    padding: 10px 14px 11px;
+    display: flex; gap: 5px; overflow-x: auto;
+    padding: 6px 12px 7px;
     border-bottom: 1px solid var(--border); background: var(--surface);
   }
   .deck-stats-row::before {
@@ -1286,12 +1286,12 @@
     background: var(--accent); border-radius: 0 0 3px 3px;
   }
   .deck-stat {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    flex: 1 0 auto; min-width: 46px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    flex: 0 0 auto;
   }
   .deck-stat-label {
     display: flex; align-items: center; gap: 3px; justify-content: center;
-    font-size: 10px; font-weight: 700; color: var(--text-dim); white-space: nowrap;
+    font-size: 9px; font-weight: 700; color: var(--text-dim); white-space: nowrap; line-height: 1;
   }
   .deck-stat-label::before {
     content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
@@ -1300,17 +1300,17 @@
   .deck-stat-total .deck-stat-label::before { display: none; }
   .deck-stat-badge {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 42px; height: 28px; padding: 0 8px;
-    border-radius: 999px; font-size: 15px; font-weight: 800; color: #fff;
+    min-width: 36px; height: 21px; padding: 0 7px;
+    border-radius: 999px; font-size: 12px; font-weight: 800; color: #fff;
     font-variant-numeric: tabular-nums; white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 2px 0 rgba(26,26,26,.12), 0 3px 7px rgba(26,26,26,.08);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 0 rgba(26,26,26,.12), 0 2px 5px rgba(26,26,26,.08);
   }
   .deck-stat-free    { --dot: #6B6B6B; } .deck-stat-free    .deck-stat-badge { background: linear-gradient(180deg,#6B6B6B,#5D5D5D); }
   .deck-stat-receive { --dot: #2563EB; } .deck-stat-receive .deck-stat-badge { background: linear-gradient(180deg,#2563EB,#1D55D0); }
   .deck-stat-set     { --dot: #15803D; } .deck-stat-set     .deck-stat-badge { background: linear-gradient(180deg,#15803D,#116B35); }
   .deck-stat-attack  { --dot: #DC2626; } .deck-stat-attack  .deck-stat-badge { background: linear-gradient(180deg,#DC2626,#C91F20); }
   .deck-stat-event   { --dot: #EAB308; } .deck-stat-event   .deck-stat-badge { background: linear-gradient(180deg,#EAB308,#D89D00); color: var(--text); }
-  .deck-stat-total   .deck-stat-badge { background: linear-gradient(180deg,#1A1A1A,#111111); min-width: 56px; }
+  .deck-stat-total   .deck-stat-badge { background: linear-gradient(180deg,#1A1A1A,#111111); min-width: 46px; }
   .deck-stat-total.over .deck-stat-badge { background: linear-gradient(180deg,var(--danger),#AF3333); }
 
   /* ── Color Mode (批次上色) ── */
