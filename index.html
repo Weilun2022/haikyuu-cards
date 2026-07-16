@@ -70,7 +70,7 @@
       border-top: 3px solid var(--text);
       border-bottom: 3px solid var(--text);
     }
-    .deck-panel { max-height: 60vh; max-height: 60dvh; max-width: 540px; width: 100%; align-self: center; }
+    .deck-panel { max-height: 75vh; max-height: 75dvh; max-width: 540px; width: 100%; align-self: center; }
     .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; max-height: 85dvh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
     /* 缺卡清單是獨立全螢幕 overlay，沒有跟著牌組面板的寬度限制，桌面版要另外限制寬度置中，
@@ -947,8 +947,8 @@
     background: var(--surface);
     border-top: 1px solid var(--border);
     border-radius: 16px 16px 0 0;
-    max-height: 60vh;
-    max-height: 60dvh; /* dvh 會隨手機鍵盤彈出/收起動態調整，避免 vh 用鍵盤彈出前的高度算出過大面板、被鍵盤蓋住看起來像消失；不支援 dvh 的舊瀏覽器會忽略這行，維持上面 60vh */
+    max-height: 75vh;
+    max-height: 75dvh; /* dvh 會隨手機鍵盤彈出/收起動態調整，避免 vh 用鍵盤彈出前的高度算出過大面板、被鍵盤蓋住看起來像消失；不支援 dvh 的舊瀏覽器會忽略這行，維持上面 75vh。60→75 是使用者要求增加高度讓卡格能顯示滿5列 */
     display: flex;
     flex-direction: column;
     animation: slideUp 0.25s ease;
@@ -1611,7 +1611,7 @@
       </div>
       <div class="deck-panel-info" id="deck-panel-info">
         <select class="tray-btn" id="deck-reorganize-select" style="font-size:10px;padding:2px 4px;cursor:pointer;flex-shrink:0;max-width:56px">
-          <option value="color">🔀 顏色</option>
+          <option value="color">顏色</option>
           <option value="srv">發球↓</option>
           <option value="blk">攔網↓</option>
           <option value="rcv">接球↓</option>
