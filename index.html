@@ -3867,7 +3867,7 @@ async function drawDeckCanvas(deck) {
   const CARD_H = 140;
   const GAP    = 10;
   const PAD    = 20;
-  const HEAD_H = 78;         // 兩列：品牌名 + 牌組名/統計徽章合併列（不佔額外一整列）
+  const HEAD_H = 88;         // 兩列：品牌名/統計徽章合併列（徽章對齊右上角）+ 牌組名獨立列
   const FOOT_H = 34;
 
   const rows = Math.ceil(entries.length / COLS);
@@ -3893,13 +3893,9 @@ async function drawDeckCanvas(deck) {
   ctx.fillStyle = '#BE520B';
   ctx.fillRect(0, HEAD_H - 2, W, 2);
 
-  // 第一列：品牌名（左）
-  ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
-  ctx.fillStyle = '#BE520B';
-  ctx.textAlign = 'left';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 22);
-
-  // 第二列：牌組名（左）+ 統計徽章（右），共用同一列高度，不額外多佔一整列
+  // 統計徽章：比照官方牌組構築頁排版邏輯——徽章列對齊右上角、彼此間距
+  // 寬鬆不強制撐滿寬度（依內容量寬，不是均分整列）。品牌名跟徽章共用
+  // 第一列（各自左右對齊），牌組名獨立一列在下方，不用再跟徽章搶寬度
   const colorStats = getColorStats(deck);
   const total = getTotalCount(deck);
   const over = total > 40;
@@ -3918,28 +3914,22 @@ async function drawDeckCanvas(deck) {
   };
   const BADGE_DOT = { free: '#6B6B6B', receive: '#2563EB', set: '#15803D', attack: '#DC2626', event: '#EAB308' };
 
-  const LABEL_Y     = 40;
-  const PILL_TOP    = 44;
+  const LABEL_Y     = 28;
+  const PILL_TOP    = 32;
   const PILL_H      = 22;
   const PILL_BOTTOM = PILL_TOP + PILL_H;
-  const badgeAreaX  = PAD + 140; // 牌組名之後才開始排徽章，避免長牌組名撞到
-  const slotW = (W - PAD - badgeAreaX) / badgeItems.length;
+  const ITEM_GAP    = 26; // 比照官方版徽章間彼此留白，不擠成一整條
 
-  // 牌組名：跟徽章欄同一條水平帶，垂直置中對齊徽章欄高度
-  ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
-  ctx.fillStyle = '#0D0506';
-  ctx.textAlign = 'left';
-  const nameMaxW = badgeAreaX - PAD - 12;
-  let nameToDraw = deck.name;
-  while (ctx.measureText(nameToDraw).width > nameMaxW && nameToDraw.length > 1) {
-    nameToDraw = nameToDraw.slice(0, -1);
-  }
-  if (nameToDraw !== deck.name) nameToDraw = nameToDraw.slice(0, -1) + '…';
-  ctx.fillText(nameToDraw, PAD, (LABEL_Y + PILL_BOTTOM) / 2 + 6);
+  // 先各自量出膠囊寬度算總寬，整排靠右對齊貼齊 PAD 邊界（右上角）
+  ctx.font = 'bold 13px "Segoe UI",sans-serif';
+  const pillWidths = badgeItems.map(({ val }) => Math.max(38, ctx.measureText(val).width + 18));
+  const totalBadgeW = pillWidths.reduce((s, w) => s + w, 0) + ITEM_GAP * (badgeItems.length - 1);
+  let itemX = W - PAD - totalBadgeW;
 
   ctx.textAlign = 'center';
   badgeItems.forEach(({ key, label, val }, i) => {
-    const cx = badgeAreaX + slotW * (i + 0.5);
+    const pillW = pillWidths[i];
+    const cx = itemX + pillW / 2;
 
     // 標籤（左側加分類小圓點，「牌組」是總計不需要圓點，比照 HTML 版）
     ctx.font = '11px "Segoe UI","Noto Sans TC",sans-serif';
@@ -3957,9 +3947,7 @@ async function drawDeckCanvas(deck) {
     // 膠囊（圓角矩形，上下漸層比照 CSS linear-gradient(180deg,...)，加陰影＋
     // 上緣玻璃光澤讓膠囊看起來有立體厚度，不是純平色塊）
     ctx.font = 'bold 13px "Segoe UI",sans-serif';
-    const textW = ctx.measureText(val).width;
-    const pillW = Math.max(38, textW + 18);
-    const px = cx - pillW / 2;
+    const px = itemX;
     const r = PILL_H / 2;
     const pillPath = () => {
       ctx.beginPath();
@@ -3997,8 +3985,21 @@ async function drawDeckCanvas(deck) {
 
     ctx.fillStyle = textColor;
     ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4.5);
+
+    itemX += pillW + ITEM_GAP;
   });
   ctx.textAlign = 'left';
+
+  // 品牌名：跟徽章列共用同一條水平帶，垂直置中對齊，靠左
+  ctx.font = 'bold 15px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#BE520B';
+  ctx.fillText('排球少年!! バボカ!!BREAK', PAD, (LABEL_Y + PILL_BOTTOM) / 2 + 5);
+
+  // 牌組名：獨立一列在徽章列下方，不再需要跟徽章搶寬度、不需要裁切省略號
+  const ROW2_Y = PILL_BOTTOM + 24;
+  ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#0D0506';
+  ctx.fillText(deck.name, PAD, ROW2_Y);
 
   // 載入圖片（快取避免重複請求）
   const imgCache = {};
