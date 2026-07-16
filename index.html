@@ -3867,7 +3867,7 @@ async function drawDeckCanvas(deck) {
   const CARD_H = 140;
   const GAP    = 10;
   const PAD    = 20;
-  const HEAD_H = 96;         // 三列：品牌名 + 牌組名 + 統計徽章列
+  const HEAD_H = 78;         // 兩列：品牌名 + 牌組名/統計徽章合併列（不佔額外一整列）
   const FOOT_H = 34;
 
   const rows = Math.ceil(entries.length / COLS);
@@ -3899,16 +3899,7 @@ async function drawDeckCanvas(deck) {
   ctx.textAlign = 'left';
   ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 22);
 
-  // 第二列：牌組名
-  const ROW2_Y = 38;
-  ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
-  ctx.fillStyle = '#0D0506';
-  ctx.textAlign = 'left';
-  ctx.fillText(deck.name, PAD, ROW2_Y);
-
-  // 第三列：統計徽章，比照牌組管理面板的兩層徽章（標籤+分類小圓點在上、
-  // 圓角膠囊數字在下），六個徽章（自由/接球/舉球/攻擊/事件/牌組總數）平均
-  // 分佈在整列寬度，取代原本「圓點+文字」單行寫法＋右側單獨的「共N張」
+  // 第二列：牌組名（左）+ 統計徽章（右），共用同一列高度，不額外多佔一整列
   const colorStats = getColorStats(deck);
   const total = getTotalCount(deck);
   const over = total > 40;
@@ -3918,24 +3909,37 @@ async function drawDeckCanvas(deck) {
     { key: 'total', label: '牌組', val: `${total}/40` },
   ];
   const BADGE_GRADIENT = {
-    free:    ['#6B6B6B', '#5D5D5D', '#fff'],
-    receive: ['#2563EB', '#1D55D0', '#fff'],
-    set:     ['#15803D', '#116B35', '#fff'],
-    attack:  ['#DC2626', '#C91F20', '#fff'],
-    event:   ['#EAB308', '#D89D00', '#0D0506'],
-    total:   over ? ['#C63D3D', '#AF3333', '#fff'] : ['#1A1A1A', '#111111', '#fff'],
+    free:    ['#7A7A7A', '#525252', '#fff'],
+    receive: ['#3B82F6', '#1848B0', '#fff'],
+    set:     ['#1EA34F', '#0E5C2A', '#fff'],
+    attack:  ['#EF4444', '#B01818', '#fff'],
+    event:   ['#F5C518', '#C68600', '#3A2900'],
+    total:   over ? ['#DA4A4A', '#8F2323', '#fff'] : ['#2E2E2E', '#0A0A0A', '#fff'],
   };
   const BADGE_DOT = { free: '#6B6B6B', receive: '#2563EB', set: '#15803D', attack: '#DC2626', event: '#EAB308' };
 
-  const LABEL_Y     = 56;
-  const PILL_TOP    = 60;
-  const PILL_H      = 24;
+  const LABEL_Y     = 40;
+  const PILL_TOP    = 44;
+  const PILL_H      = 22;
   const PILL_BOTTOM = PILL_TOP + PILL_H;
-  const slotW = (W - PAD * 2) / badgeItems.length;
+  const badgeAreaX  = PAD + 140; // 牌組名之後才開始排徽章，避免長牌組名撞到
+  const slotW = (W - PAD - badgeAreaX) / badgeItems.length;
+
+  // 牌組名：跟徽章欄同一條水平帶，垂直置中對齊徽章欄高度
+  ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#0D0506';
+  ctx.textAlign = 'left';
+  const nameMaxW = badgeAreaX - PAD - 12;
+  let nameToDraw = deck.name;
+  while (ctx.measureText(nameToDraw).width > nameMaxW && nameToDraw.length > 1) {
+    nameToDraw = nameToDraw.slice(0, -1);
+  }
+  if (nameToDraw !== deck.name) nameToDraw = nameToDraw.slice(0, -1) + '…';
+  ctx.fillText(nameToDraw, PAD, (LABEL_Y + PILL_BOTTOM) / 2 + 6);
 
   ctx.textAlign = 'center';
   badgeItems.forEach(({ key, label, val }, i) => {
-    const cx = PAD + slotW * (i + 0.5);
+    const cx = badgeAreaX + slotW * (i + 0.5);
 
     // 標籤（左側加分類小圓點，「牌組」是總計不需要圓點，比照 HTML 版）
     ctx.font = '11px "Segoe UI","Noto Sans TC",sans-serif';
@@ -3950,28 +3954,49 @@ async function drawDeckCanvas(deck) {
     ctx.fillStyle = '#6B6B6B';
     ctx.fillText(label, cx, LABEL_Y);
 
-    // 膠囊（圓角矩形，上下漸層比照 CSS linear-gradient(180deg,...)）
-    ctx.font = 'bold 14px "Segoe UI",sans-serif';
+    // 膠囊（圓角矩形，上下漸層比照 CSS linear-gradient(180deg,...)，加陰影＋
+    // 上緣玻璃光澤讓膠囊看起來有立體厚度，不是純平色塊）
+    ctx.font = 'bold 13px "Segoe UI",sans-serif';
     const textW = ctx.measureText(val).width;
-    const pillW = Math.max(40, textW + 20);
+    const pillW = Math.max(38, textW + 18);
     const px = cx - pillW / 2;
-    const grad = ctx.createLinearGradient(0, PILL_TOP, 0, PILL_BOTTOM);
+    const r = PILL_H / 2;
+    const pillPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(px + r, PILL_TOP);
+      ctx.arcTo(px + pillW, PILL_TOP, px + pillW, PILL_BOTTOM, r);
+      ctx.arcTo(px + pillW, PILL_BOTTOM, px, PILL_BOTTOM, r);
+      ctx.arcTo(px, PILL_BOTTOM, px, PILL_TOP, r);
+      ctx.arcTo(px, PILL_TOP, px + pillW, PILL_TOP, r);
+      ctx.closePath();
+    };
+
     const [top, bottom, textColor] = BADGE_GRADIENT[key];
+    ctx.save();
+    ctx.shadowColor = 'rgba(26,26,26,0.28)';
+    ctx.shadowBlur = 4;
+    ctx.shadowOffsetY = 2;
+    pillPath();
+    const grad = ctx.createLinearGradient(0, PILL_TOP, 0, PILL_BOTTOM);
     grad.addColorStop(0, top);
     grad.addColorStop(1, bottom);
-    const r = PILL_H / 2;
-    ctx.beginPath();
-    ctx.moveTo(px + r, PILL_TOP);
-    ctx.arcTo(px + pillW, PILL_TOP, px + pillW, PILL_BOTTOM, r);
-    ctx.arcTo(px + pillW, PILL_BOTTOM, px, PILL_BOTTOM, r);
-    ctx.arcTo(px, PILL_BOTTOM, px, PILL_TOP, r);
-    ctx.arcTo(px, PILL_TOP, px + pillW, PILL_TOP, r);
-    ctx.closePath();
     ctx.fillStyle = grad;
     ctx.fill();
+    ctx.restore();
+
+    // 上緣玻璃光澤：裁切成膠囊形狀後只在上半部疊一層白色漸層
+    ctx.save();
+    pillPath();
+    ctx.clip();
+    const gloss = ctx.createLinearGradient(0, PILL_TOP, 0, PILL_TOP + PILL_H * 0.55);
+    gloss.addColorStop(0, 'rgba(255,255,255,0.45)');
+    gloss.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gloss;
+    ctx.fillRect(px, PILL_TOP, pillW, PILL_H * 0.55);
+    ctx.restore();
 
     ctx.fillStyle = textColor;
-    ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 5);
+    ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4.5);
   });
   ctx.textAlign = 'left';
 
