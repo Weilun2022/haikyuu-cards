@@ -1007,28 +1007,25 @@
   .deck-menu-item.danger:hover { background: rgba(255,107,107,0.12); }
   .deck-menu-divider { height: 1px; margin: 5px 4px; background: var(--border); }
   .deck-panel-info { font-size: 11px; color: var(--text-dim); }
+  .deck-panel-info .warn-orange { color: #fb923c; font-weight: 600; }
 
   .deck-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px 12px; }
   .deck-card-list {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
-    gap: 6px;
+    gap: 5px;
   }
   .deck-empty { grid-column: 1 / -1; text-align: center; padding: 30px 20px; color: var(--text-dim); font-size: 13px; }
   .deck-thumb-item {
     position: relative; cursor: pointer;
-    border-radius: 7px; overflow: hidden;
+    border-radius: 5px; overflow: hidden;
     border: 2px solid transparent;
-    box-shadow: 0 1px 2px rgba(26,26,26,.06);
-    transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+    transition: border-color 0.15s, transform 0.1s;
     aspect-ratio: 63/88;
     background: var(--surface2);
   }
-  .deck-thumb-item:hover { transform: scale(1.05); box-shadow: 0 3px 8px rgba(26,26,26,.12); }
-  .deck-thumb-item.selected {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px var(--accent), 0 3px 9px rgba(194,78,0,.18);
-  }
+  .deck-thumb-item:hover { transform: scale(1.05); }
+  .deck-thumb-item.selected { border-color: var(--accent) !important; }
   .deck-thumb-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .deck-thumb-badge {
     position: absolute; bottom: 2px; right: 2px;
@@ -1269,49 +1266,28 @@
   .deck-count-input:focus { border-color: var(--accent); }
 
   /* ── Color Tag Feature ── */
-  /* 統計徽章比照缺卡清單頁的兩層結構（標籤在上、圓角色塊數字在下），這裡合併
-     「總數/事件」文字統計＋「自由/接球/舉球/攻擊」分類統計成同一排六個徽章，
-     跟 GPT-5.6-Luna 討論定案：色彩差異只放在數字膠囊，外框/標籤/尺寸全部統一，
-     避免六個徽章看起來像六個各自獨立的按鈕。四色底色比 COLOR_TAGS 原色更深
-     （原色配白字實測僅 2.3–3.8:1，未達 WCAG AA），只用在這裡的徽章底色，
-     不影響 COLOR_TAGS 在色塊選色鈕/縮圖邊框等大面積場合原本的鮮豔色。 */
-  .deck-stats-row {
-    position: relative;
-    display: flex; gap: 5px; overflow-x: auto;
-    padding: 6px 12px 7px;
+  .deck-color-stats {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 6px 16px 4px; font-size: 11px; color: var(--text-dim);
     border-bottom: 1px solid var(--border); background: var(--surface);
   }
-  .deck-stats-row::before {
-    content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 2px;
-    background: var(--accent); border-radius: 0 0 3px 3px;
+  .deck-color-stat-item {
+    display: flex; align-items: center; gap: 4px;
   }
-  .deck-stat {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    flex: 0 0 auto;
+  .deck-color-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
-  .deck-stat-label {
-    display: flex; align-items: center; gap: 3px; justify-content: center;
-    font-size: 9px; font-weight: 700; color: var(--text-dim); white-space: nowrap; line-height: 1;
+  .deck-color-subrow {
+    display: flex; align-items: center; gap: 8px;
+    border: 2px solid transparent;
+    border-radius: 6px; margin: 0 6px;
+    padding: 4px 10px;
   }
-  .deck-stat-label::before {
-    content: ''; width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0;
-    background: var(--dot, var(--text-dim));
+  .deck-color-subrow-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
   }
-  .deck-stat-total .deck-stat-label::before { display: none; }
-  .deck-stat-badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 36px; height: 21px; padding: 0 7px;
-    border-radius: 999px; font-size: 12px; font-weight: 800; color: #fff;
-    font-variant-numeric: tabular-nums; white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 1px 0 rgba(26,26,26,.12), 0 2px 5px rgba(26,26,26,.08);
-  }
-  .deck-stat-free    { --dot: #6B6B6B; } .deck-stat-free    .deck-stat-badge { background: linear-gradient(180deg,#6B6B6B,#5D5D5D); }
-  .deck-stat-receive { --dot: #2563EB; } .deck-stat-receive .deck-stat-badge { background: linear-gradient(180deg,#2563EB,#1D55D0); }
-  .deck-stat-set     { --dot: #15803D; } .deck-stat-set     .deck-stat-badge { background: linear-gradient(180deg,#15803D,#116B35); }
-  .deck-stat-attack  { --dot: #DC2626; } .deck-stat-attack  .deck-stat-badge { background: linear-gradient(180deg,#DC2626,#C91F20); }
-  .deck-stat-event   { --dot: #EAB308; } .deck-stat-event   .deck-stat-badge { background: linear-gradient(180deg,#EAB308,#D89D00); color: var(--text); }
-  .deck-stat-total   .deck-stat-badge { background: linear-gradient(180deg,#1A1A1A,#111111); min-width: 46px; }
-  .deck-stat-total.over .deck-stat-badge { background: linear-gradient(180deg,var(--danger),#AF3333); }
+  .deck-color-subrow-name { font-size: 11px; color: var(--text-dim); flex: 1; }
+  .deck-color-subrow-count { font-size: 12px; font-weight: 700; color: var(--text-dim); }
 
   /* ── Color Mode (批次上色) ── */
   .deck-card-item.color-selected {
@@ -1600,18 +1576,21 @@
         </details>
         <button class="tray-btn" style="margin-left:auto;padding:3px 9px;font-size:11px;flex-shrink:0" id="deck-panel-close">✕</button>
       </div>
-      <div class="deck-panel-info" id="deck-panel-info" style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
-        <select class="tray-btn" id="deck-reorganize-select" style="font-size:11px;padding:2px 6px;cursor:pointer">
-          <option value="color">🔀 顏色</option>
-          <option value="srv">發球↓</option>
-          <option value="blk">攔網↓</option>
-          <option value="rcv">接球↓</option>
-          <option value="tos">舉球↓</option>
-          <option value="atk">攻擊↓</option>
-          <option value="card_no">卡號</option>
-          <option value="rarity">稀有度</option>
-        </select>
-        <button class="tray-btn" id="deck-color-mode-btn" style="font-size:11px;padding:2px 8px">🎨 上色</button>
+      <div class="deck-panel-info" id="deck-panel-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <span id="deck-panel-info-text"></span>
+        <div style="display:flex;gap:4px;flex-shrink:0">
+          <select class="tray-btn" id="deck-reorganize-select" style="font-size:11px;padding:2px 6px;cursor:pointer">
+            <option value="color">🔀 顏色</option>
+            <option value="srv">發球↓</option>
+            <option value="blk">攔網↓</option>
+            <option value="rcv">接球↓</option>
+            <option value="tos">舉球↓</option>
+            <option value="atk">攻擊↓</option>
+            <option value="card_no">卡號</option>
+            <option value="rarity">稀有度</option>
+          </select>
+          <button class="tray-btn" id="deck-color-mode-btn" style="font-size:11px;padding:2px 8px">🎨 上色</button>
+        </div>
       </div>
     </div>
     <div class="deck-panel-body">
@@ -3212,32 +3191,26 @@ function getColorStats(deck) {
   return stats;
 }
 
-// Render/update the merged 自由/接球/舉球/攻擊/事件/牌組總數 stats row (two-tier badges).
-function renderDeckStatsRow(deck) {
+// Render/update the 自由/接球/舉球/攻擊/事件 stats row; creates the element if missing.
+function renderColorStatsRow(deck) {
   const stats = getColorStats(deck);
-  const total = getTotalCount(deck);
-  const over = total > 40;
-  const row = COLOR_TAGS.map(({ key, label }) => ({ key, label, count: stats[key] }));
-  row.push({ key: 'event', label: '事件', count: stats.event });
-
-  let statsEl = document.getElementById('deck-stats-row');
+  const statsRow = [
+    ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, count: stats[key] })),
+    { label: '事件', hex: EVENT_COLOR_HEX, count: stats.event }
+  ];
+  let statsEl = document.getElementById('deck-color-stats');
   if (!statsEl) {
     statsEl = document.createElement('div');
-    statsEl.id = 'deck-stats-row';
-    statsEl.className = 'deck-stats-row';
+    statsEl.id = 'deck-color-stats';
+    statsEl.className = 'deck-color-stats';
     const body = document.querySelector('.deck-panel-body');
     body.parentNode.insertBefore(statsEl, body);
   }
-  statsEl.innerHTML = row.map(({ key, label, count }) =>
-    `<div class="deck-stat deck-stat-${key}">
-       <span class="deck-stat-label">${label}</span>
-       <span class="deck-stat-badge">${count}</span>
-     </div>`
-  ).join('') + `
-    <div class="deck-stat deck-stat-total${over ? ' over' : ''}">
-      <span class="deck-stat-label">牌組</span>
-      <span class="deck-stat-badge">${total}/40</span>
-    </div>`;
+  statsEl.innerHTML = statsRow.map(({ label, hex, count }) =>
+    `<span class="deck-color-stat-item">
+       <span class="deck-color-dot" style="background:${hex}"></span>${label} ${count}
+     </span>`
+  ).join('');
 }
 
 // Expand deck.cards into canvas entries (each color group → separate slot)
@@ -3513,12 +3486,21 @@ function renderDeckPanel() {
 
   if (!deck || deck.cards.length === 0) {
     list.innerHTML = '<div class="deck-empty">牌組是空的，到卡片列表按「＋」加入卡片</div>';
-    renderDeckStatsRow(deck || { cards: [] });
+    document.getElementById('deck-panel-info-text').textContent = '';
+    // Remove stats row if present
+    const oldStats = document.getElementById('deck-color-stats');
+    if (oldStats) oldStats.remove();
     return;
   }
 
-  // ── 統計徽章列 ─────────────────────────────────────────────────────
-  renderDeckStatsRow(deck);
+  const total = getTotalCount(deck);
+  const evCntInfo = getEventCount(deck);
+  const infoHtml = (total > 40 ? `<span class="warn-orange">⚠ ${total} / 40</span>` : `${total} / 40`)
+    + `　事件 ${evCntInfo} / 8`;
+  document.getElementById('deck-panel-info-text').innerHTML = infoHtml;
+
+  // ── Color stats row ─────────────────────────────────────────────────
+  renderColorStatsRow(deck);
 
   // ── 上色模式：交由 renderColorModeGrid 接管 body ──────────────────
   if (colorModeActive) {
@@ -3613,6 +3595,15 @@ function hideDeckPreview() {
   renderDeckPanel();
 }
 
+function updateDeckInfoText() {
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  const total = getTotalCount(deck);
+  const evCnt = getEventCount(deck);
+  const infoHtml = (total > 40 ? `<span class="warn-orange">⚠ ${total} / 40</span>` : `${total} / 40`)
+    + `　事件 ${evCnt} / 8`;
+  document.getElementById('deck-panel-info-text').innerHTML = infoHtml;
+}
 
 
 // ── Analysis (PR #3) ───────────────────────────────────
@@ -4271,7 +4262,8 @@ function _colorModeAdjustCount(imageFile, dir) {
   } else {
     renderDeckPanel();
   }
-  renderDeckStatsRow(deck);
+  updateDeckInfoText();
+  renderColorStatsRow(deck);
   updateTray();
 }
 
@@ -4350,7 +4342,7 @@ function applyBatchColor(colorKey) {
   colorModeSlots = buildColorModeSlots();
 
   // 更新統計列
-  renderDeckStatsRow(deck);
+  renderColorStatsRow(deck);
 
   document.getElementById('color-pick-count').textContent = '已選 0 張';
   renderColorModeGrid();
@@ -4441,7 +4433,7 @@ function bindDeckEvents() {
   document.getElementById('deck-preview-inc').addEventListener('click', () => {
     if (!deckPreviewSelectedImg) return;
     addCardToDeck(deckPreviewSelectedImg, 1);
-    updateTray(); renderDeckPanel();
+    updateDeckInfoText(); updateTray(); renderDeckPanel();
     document.getElementById('deck-preview-count').textContent =
       getCurrentDeck()?.cards.find(c => c.image_file === deckPreviewSelectedImg)?.count ?? '';
   });
@@ -4452,7 +4444,7 @@ function bindDeckEvents() {
     if (!entry) return;
     if (entry.count > 1) {
       removeCardFromDeck(deckPreviewSelectedImg);
-      updateTray(); renderDeckPanel();
+      updateDeckInfoText(); updateTray(); renderDeckPanel();
       document.getElementById('deck-preview-count').textContent =
         getCurrentDeck()?.cards.find(c => c.image_file === deckPreviewSelectedImg)?.count ?? '';
     }
