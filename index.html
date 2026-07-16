@@ -3867,11 +3867,12 @@ async function drawDeckCanvas(deck) {
   const CARD_H = 140;
   const GAP    = 10;
   const PAD    = 20;
-  const HEAD_H = 56;         // 兩列：品牌名 + 牌組名/統計合併列
+  const HEAD_H = 96;         // 三列：品牌名 + 牌組名 + 統計徽章列
   const FOOT_H = 34;
 
   const rows = Math.ceil(entries.length / COLS);
-  const W    = PAD*2 + COLS*(CARD_W+GAP) - GAP;
+  // 統計徽章列需要一定寬度才擺得下六個膠囊，卡少的牌組（COLS小）要保底最小寬度
+  const W    = Math.max(PAD*2 + COLS*(CARD_W+GAP) - GAP, 560);
   const H    = HEAD_H + PAD + rows*(CARD_H+GAP) - GAP + PAD + FOOT_H;
 
   const canvas  = document.createElement('canvas');
@@ -3898,57 +3899,80 @@ async function drawDeckCanvas(deck) {
   ctx.textAlign = 'left';
   ctx.fillText('排球少年!! バボカ!!BREAK', PAD, 22);
 
-  // 第二列：牌組名（左）+ 統計＋共N張（右）
-  const ROW2_Y = 44;
+  // 第二列：牌組名
+  const ROW2_Y = 38;
   ctx.font = 'bold 17px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#0D0506';
   ctx.textAlign = 'left';
   ctx.fillText(deck.name, PAD, ROW2_Y);
 
-  // 右側：先量「共 N 張」寬度，再左推統計列
-  const totalTxt = `共 ${getTotalCount(deck)} 張`;
-  ctx.font = '11px "Segoe UI",sans-serif';
-  const totalTxtW = ctx.measureText(totalTxt).width;
-
+  // 第三列：統計徽章，比照牌組管理面板的兩層徽章（標籤+分類小圓點在上、
+  // 圓角膠囊數字在下），六個徽章（自由/接球/舉球/攻擊/事件/牌組總數）平均
+  // 分佈在整列寬度，取代原本「圓點+文字」單行寫法＋右側單獨的「共N張」
   const colorStats = getColorStats(deck);
-  const evCnt = getEventCount(deck);
-  const statsItems = [
-    ...COLOR_TAGS.map(({ key, label, hex }) => ({ label, hex, val: String(colorStats[key]) })),
-    { label: '事件', hex: EVENT_COLOR_HEX, val: `${evCnt}/8` },
+  const total = getTotalCount(deck);
+  const over = total > 40;
+  const badgeItems = [
+    ...COLOR_TAGS.map(({ key, label }) => ({ key, label, val: String(colorStats[key]) })),
+    { key: 'event', label: '事件', val: String(colorStats.event) },
+    { key: 'total', label: '牌組', val: `${total}/40` },
   ];
-  const DOT_R    = 3.5;
-  const ITEM_GAP = 10;
-  const STATS_TOTAL_GAP = 8; // 統計列與「共 N 張」之間距
+  const BADGE_GRADIENT = {
+    free:    ['#6B6B6B', '#5D5D5D', '#fff'],
+    receive: ['#2563EB', '#1D55D0', '#fff'],
+    set:     ['#15803D', '#116B35', '#fff'],
+    attack:  ['#DC2626', '#C91F20', '#fff'],
+    event:   ['#EAB308', '#D89D00', '#0D0506'],
+    total:   over ? ['#C63D3D', '#AF3333', '#fff'] : ['#1A1A1A', '#111111', '#fff'],
+  };
+  const BADGE_DOT = { free: '#6B6B6B', receive: '#2563EB', set: '#15803D', attack: '#DC2626', event: '#EAB308' };
 
-  ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
-  // 量出所有 stats 總寬
-  const statsWidths = statsItems.map(({ label, val }) => {
-    const txt = `${label} ${val}`;
-    return DOT_R * 2 + 4 + ctx.measureText(txt).width;
-  });
-  const totalStatsW = statsWidths.reduce((s, w) => s + w, 0) + ITEM_GAP * (statsItems.length - 1);
+  const LABEL_Y     = 56;
+  const PILL_TOP    = 60;
+  const PILL_H      = 24;
+  const PILL_BOTTOM = PILL_TOP + PILL_H;
+  const slotW = (W - PAD * 2) / badgeItems.length;
 
-  // 統計列起始 X（由右往左算：PAD + totalTxtW + gap + totalStatsW）
-  let sx = W - PAD - totalTxtW - STATS_TOTAL_GAP - totalStatsW;
-  for (let i = 0; i < statsItems.length; i++) {
-    const { label, hex, val } = statsItems[i];
-    ctx.beginPath();
-    ctx.arc(sx + DOT_R, ROW2_Y - DOT_R - 1, DOT_R, 0, Math.PI * 2);
-    ctx.fillStyle = hex;
-    ctx.fill();
-    sx += DOT_R * 2 + 4;
-    const txt = `${label} ${val}`;
+  ctx.textAlign = 'center';
+  badgeItems.forEach(({ key, label, val }, i) => {
+    const cx = PAD + slotW * (i + 0.5);
+
+    // 標籤（左側加分類小圓點，「牌組」是總計不需要圓點，比照 HTML 版）
+    ctx.font = '11px "Segoe UI","Noto Sans TC",sans-serif';
+    if (key !== 'total') {
+      const labelW = ctx.measureText(label).width;
+      const dotR = 3;
+      ctx.beginPath();
+      ctx.arc(cx - labelW / 2 - dotR - 3, LABEL_Y - 3.5, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = BADGE_DOT[key];
+      ctx.fill();
+    }
     ctx.fillStyle = '#6B6B6B';
-    ctx.textAlign = 'left';
-    ctx.fillText(txt, sx, ROW2_Y);
-    sx += statsWidths[i] - (DOT_R * 2 + 4) + ITEM_GAP;
-  }
+    ctx.fillText(label, cx, LABEL_Y);
 
-  // 「共 N 張」最右
-  ctx.font = '11px "Segoe UI",sans-serif';
-  ctx.fillStyle = '#6B6B6B';
-  ctx.textAlign = 'right';
-  ctx.fillText(totalTxt, W - PAD, ROW2_Y);
+    // 膠囊（圓角矩形，上下漸層比照 CSS linear-gradient(180deg,...)）
+    ctx.font = 'bold 14px "Segoe UI",sans-serif';
+    const textW = ctx.measureText(val).width;
+    const pillW = Math.max(40, textW + 20);
+    const px = cx - pillW / 2;
+    const grad = ctx.createLinearGradient(0, PILL_TOP, 0, PILL_BOTTOM);
+    const [top, bottom, textColor] = BADGE_GRADIENT[key];
+    grad.addColorStop(0, top);
+    grad.addColorStop(1, bottom);
+    const r = PILL_H / 2;
+    ctx.beginPath();
+    ctx.moveTo(px + r, PILL_TOP);
+    ctx.arcTo(px + pillW, PILL_TOP, px + pillW, PILL_BOTTOM, r);
+    ctx.arcTo(px + pillW, PILL_BOTTOM, px, PILL_BOTTOM, r);
+    ctx.arcTo(px, PILL_BOTTOM, px, PILL_TOP, r);
+    ctx.arcTo(px, PILL_TOP, px + pillW, PILL_TOP, r);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.fillStyle = textColor;
+    ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 5);
+  });
   ctx.textAlign = 'left';
 
   // 載入圖片（快取避免重複請求）
