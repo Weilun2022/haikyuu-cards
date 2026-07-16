@@ -70,8 +70,8 @@
       border-top: 3px solid var(--text);
       border-bottom: 3px solid var(--text);
     }
-    .deck-panel { max-height: 60vh; max-width: 540px; width: 100%; align-self: center; }
-    .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
+    .deck-panel { max-height: 60vh; max-height: 60dvh; max-width: 540px; width: 100%; align-self: center; }
+    .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; max-height: 85dvh; }
     .deck-preview-float { max-width: 540px; width: 100%; align-self: center; }
     /* 缺卡清單是獨立全螢幕 overlay，沒有跟著牌組面板的寬度限制，桌面版要另外限制寬度置中，
        不然8欄網格會被拉伸到滿版寬度，縮圖變得又大又擠 */
@@ -948,6 +948,7 @@
     border-top: 1px solid var(--border);
     border-radius: 16px 16px 0 0;
     max-height: 60vh;
+    max-height: 60dvh; /* dvh 會隨手機鍵盤彈出/收起動態調整，避免 vh 用鍵盤彈出前的高度算出過大面板、被鍵盤蓋住看起來像消失；不支援 dvh 的舊瀏覽器會忽略這行，維持上面 60vh */
     display: flex;
     flex-direction: column;
     animation: slideUp 0.25s ease;
@@ -1294,7 +1295,7 @@
     outline: 2px solid var(--accent); border-radius: 6px;
     background: color-mix(in srgb, var(--accent) 12%, transparent) !important;
   }
-  .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; }
+  .deck-panel.color-mode-open, .deck-panel.footer-open { max-height: 85vh; max-height: 85dvh; }
   .deck-color-picker-bar {
     display: none; align-items: center; gap: 8px; flex-wrap: wrap;
     padding: 10px 14px; background: var(--surface2);
