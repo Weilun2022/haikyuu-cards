@@ -2903,13 +2903,13 @@ function hvOnLocalChange() {
     }
   });
   hvSnapshotDeckState();
-  if (changed) hvScheduleAutoSync('local-change', 1500);
+  if (changed) hvScheduleAutoSync('local-change', 3000);
 }
 
 function hvOnFavoritesChange() {
   if (_hvApplyingRemote) return;
   if (!window.hvCloudSync?.currentUser) return;
-  hvScheduleAutoSync('favorites-change', 1500);
+  hvScheduleAutoSync('favorites-change', 3000);
 }
 
 let _hvSyncTimer = null;
@@ -4583,7 +4583,7 @@ function bindDeckEvents() {
     // 這裡排的背景同步還沒開始跑，會被 hvScheduleAutoSync 的 clearTimeout 直接取消掉，
     // 避免「背景先跑一次 pushDeletes:false 的完整同步、使用者的手動同步又要排隊等它跑完再跑一次」
     // 兩趟完整 Firestore 讀取疊在一起，讓使用者覺得「按下去反應很慢」
-    if (user) hvScheduleAutoSync('delete', 1500);
+    if (user) hvScheduleAutoSync('delete', 3000);
   });
 
   const shareOverlay = document.getElementById('share-modal-overlay');

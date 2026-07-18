@@ -322,7 +322,10 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
       if (pendingRisky && !pushDeletes) continue; // 清空過還沒手動確認，先擱置，連衝突副本都先不建立
       if (pendingRisky) delete state.pendingRisky[id];
       conflictCount++;
-      const conflictId = `${id}_cloud_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+      // conflict id 由這次衝突的內容（base/local/cloud hash）決定，而非隨機亂數：
+      // 同一組沒解決的衝突就算跨多次同步重試，也只會對應到同一份副本，不會每次都再多生一份
+      const conflictKey = (await sha256Hex(`${id}|${baseHash || ''}|${localHash}|${cloudHash}`)).slice(0, 16);
+      const conflictId = `${id}_cloud_${conflictKey}`;
       const conflictDeck = JSON.parse(JSON.stringify(cloudDoc.deck));
       conflictDeck.id = conflictId;
       conflictDeck.name = `${conflictDeck.name || '未命名牌組'}（雲端衝突副本）`;
