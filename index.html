@@ -2939,7 +2939,7 @@ async function hvRunAutoSync(reason) {
     const pushDeletes = reason === 'manual';
     const result = await window.hvCloudSync.autoReconcile(user.uid, decks, deckColorState, { pushDeletes });
     if (!result) return;
-    const { applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount, deletesPushed, pendingDeleteCount } = result;
+    const { applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount, autoMergedCount, deletesPushed, pendingDeleteCount } = result;
     let localTouched = false;
 
     // 先記住這次同步有沒有動到「使用者目前正在看的那副牌組」，
@@ -3006,6 +3006,7 @@ async function hvRunAutoSync(reason) {
     if (restoredFromLoss) showToast('偵測到本機牌組資料遺失，已自動從雲端還原');
     else if (conflictCount > 0) showToast(`發現 ${conflictCount} 副牌組雙邊都有修改，已保留雙方版本`);
     else if (deletesPushed > 0) showToast(`已從雲端移除 ${deletesPushed} 副刪除的牌組`);
+    else if (autoMergedCount > 0) showToast(`已自動合併 ${autoMergedCount} 副牌組的雙邊修改`);
     // 持續提醒交給狀態列文字（hvRenderCloudUI），避免每次自動同步都跳 toast
 
     const favResult = await window.hvCloudSync.reconcileFavorites(user.uid, window.HVFavorites.getSnapshot().items);

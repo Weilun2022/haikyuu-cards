@@ -34,6 +34,7 @@ import {
   setDoc,
   deleteDoc,
   writeBatch,
+  runTransaction,
   serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 
@@ -77,6 +78,53 @@ async function sha256Hex(str) {
 }
 async function contentHashOf(deck, color) {
   return sha256Hex(stableStringify({ deck, color: color ?? null }));
+}
+
+// ── 欄位級 baseline 快照 + 3-way merge（減少「整副牌組互斥二選一」造成的假衝突）──
+// baseline 除了整包 hash（快速判斷是否完全一致），也保留 name/cards/owned/color
+// 各自獨立的快照，讓「本機改名稱、雲端加卡片」這種互不相關的變更可以直接合併，
+// 不用複製成一整份「（雲端衝突副本）」。只有同一張卡/同一欄位兩邊都改成不同值時，
+// 才會真的判定為衝突（沿用既有「不阻斷、雙方都保留」的處理方式）。
+function cardsToCountMap(cards) {
+  const m = {};
+  (cards || []).forEach(c => { m[c.image_file] = c.count; });
+  return m;
+}
+function buildBaselineEntry(deck, color, hash) {
+  return {
+    hash,
+    snap: {
+      name: deck.name || '',
+      cards: cardsToCountMap(deck.cards),
+      owned: deck.owned || {},
+      color: color || {}
+    }
+  };
+}
+// 純量欄位（如牌組名稱）3-way 比較：兩邊改成一樣就用該值；只有一邊改了就採用改的那邊；
+// 兩邊各自改成不同值才算衝突（此時暫時保留 local 值，實際會不會用到由呼叫端決定）
+function mergeScalar(base, local, cloud) {
+  if (local === cloud) return { value: local, conflict: false };
+  if (base === local) return { value: cloud, conflict: false };
+  if (base === cloud) return { value: local, conflict: false };
+  return { value: local, conflict: true };
+}
+// 逐 key 3-way 比較的 map 版本（用於 cards 張數 / owned 持有數 / color 顏色標記，
+// key 是 image_file）。同一個 key 只有兩邊都改成不同值（含一邊刪除、另一邊改值）才算衝突。
+function mergeMap(baseMap, localMap, cloudMap) {
+  baseMap = baseMap || {}; localMap = localMap || {}; cloudMap = cloudMap || {};
+  const keys = new Set([...Object.keys(baseMap), ...Object.keys(localMap), ...Object.keys(cloudMap)]);
+  const merged = {};
+  const conflicts = [];
+  for (const key of keys) {
+    const b = baseMap[key], l = localMap[key], c = cloudMap[key];
+    if (l === c) { if (l !== undefined) merged[key] = l; continue; }
+    if (b === l) { if (c !== undefined) merged[key] = c; continue; }
+    if (b === c) { if (l !== undefined) merged[key] = l; continue; }
+    conflicts.push(key);
+    if (l !== undefined) merged[key] = l;
+  }
+  return { merged, conflicts };
 }
 
 // ── 狀態通知（登入狀態 / 同步中 / 有無待處理變更）─────────────────────────
@@ -174,13 +222,14 @@ async function ensureUserDoc(uid) {
   }, { merge: true });
 }
 
-function deckDocPayload(uid, deck, color, hash, existing) {
+function deckDocPayload(uid, deck, color, hash, existing, rev) {
   return {
     ownerUid: uid,
     schemaVersion: SCHEMA_VERSION,
     deck,
     color: color ?? null,
     contentHash: hash,
+    rev: rev ?? ((existing?.rev || 0) + 1),
     clientUpdatedAt: Date.now(),
     deleted: false,
     deletedAt: null,
@@ -228,8 +277,10 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
     const applyRemoveLocal = [];
     const toSoftDelete = [];
     const toHardDelete = [];
+    const mergedOverrides = {}; // id -> { deck, color }，欄位級 3-way merge 算出的合併結果，上傳時取代原本的本機資料
     let restoredFromLoss = false;
     let conflictCount = 0;
+    let autoMergedCount = 0;
 
     const isTombstoneOld = cloudDoc => {
       const deletedAtMs = cloudDoc?.deletedAt?.toMillis?.();
@@ -239,7 +290,12 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
     for (const id of allIds) {
       const hasLocal = localMap.has(id);
       const localHash = localHashes[id];
-      const baseHash = state.baseline[id];
+      // 舊格式 baseline 只存 hash（字串）；新格式存 { hash, snap }。相容讀取兩種格式，
+      // 舊格式沒有 snap 就退回整包比對，下次同步成功後會自動升級成新格式
+      const baseEntryRaw = state.baseline[id];
+      const baseEntry = (baseEntryRaw && typeof baseEntryRaw === 'object') ? baseEntryRaw : (baseEntryRaw ? { hash: baseEntryRaw, snap: null } : null);
+      const baseHash = baseEntry?.hash;
+      const baseSnap = baseEntry?.snap || null;
       const cloudDoc = cloud.docs[id];
       const cloudDeleted = cloudDoc?.deleted === true;
       const cloudHash = cloudDeleted ? null : cloud.active[id];
@@ -298,7 +354,7 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
 
       // 5. 兩邊都有資料
       if (localHash === cloudHash) {
-        state.baseline[id] = localHash;
+        state.baseline[id] = buildBaselineEntry(localMap.get(id), localColors[id] ?? null, localHash);
         delete state.dirty[id];
         continue;
       }
@@ -317,10 +373,62 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
         continue;
       }
 
-      // 兩邊都改了，且內容不同 → 真衝突。不阻斷：本機保留原樣（重新確認上傳），
-      // 雲端版本另存成衝突副本，兩邊資料都不丟。
-      if (pendingRisky && !pushDeletes) continue; // 清空過還沒手動確認，先擱置，連衝突副本都先不建立
+      // 兩邊都改了，且內容不同。
+      if (pendingRisky && !pushDeletes) continue; // 清空過還沒手動確認，先擱置，連合併/衝突副本都先不建立
       if (pendingRisky) delete state.pendingRisky[id];
+
+      // 有欄位級 baseline 快照時，先試著把 name/cards/owned/color 各自獨立做 3-way merge——
+      // 「本機改名稱、雲端加卡片」這類互不相關的變更可以直接合併，不用整副複製成衝突副本。
+      // 只有同一張卡/同一欄位兩邊都改成不同值，才真的無法安全合併。
+      let merged = null;
+      if (baseSnap) {
+        const localDeck = localMap.get(id);
+        const localCardsMap = cardsToCountMap(localDeck.cards);
+        const cloudCardsMap = cardsToCountMap(cloudDoc.deck.cards);
+        const localOwnedMap = localDeck.owned || {};
+        const cloudOwnedMap = cloudDoc.deck.owned || {};
+        const localColorMap = localColors[id] || {};
+        const cloudColorMap = cloudDoc.color || {};
+
+        const nameResult  = mergeScalar(baseSnap.name, localDeck.name, cloudDoc.deck.name);
+        const cardsResult = mergeMap(baseSnap.cards, localCardsMap, cloudCardsMap);
+        const ownedResult = mergeMap(baseSnap.owned, localOwnedMap, cloudOwnedMap);
+        const colorResult = mergeMap(baseSnap.color, localColorMap, cloudColorMap);
+
+        const hasFieldConflict = nameResult.conflict || cardsResult.conflicts.length > 0 ||
+                                  ownedResult.conflicts.length > 0 || colorResult.conflicts.length > 0;
+
+        if (!hasFieldConflict) {
+          const cardNoLookup = {};
+          (cloudDoc.deck.cards || []).forEach(c => { if (c.card_no) cardNoLookup[c.image_file] = c.card_no; });
+          (localDeck.cards || []).forEach(c => { if (c.card_no) cardNoLookup[c.image_file] = c.card_no; });
+          merged = {
+            deck: {
+              id,
+              name: nameResult.value,
+              cards: Object.keys(cardsResult.merged).sort().map(img => ({
+                image_file: img, count: cardsResult.merged[img], card_no: cardNoLookup[img] || ''
+              })),
+              owned: ownedResult.merged
+            },
+            color: colorResult.merged
+          };
+        }
+      }
+
+      if (merged) {
+        // 分屬不同欄位/不同卡片的獨立變更，自動合併雙方結果，不建立整副衝突副本。
+        // 合併結果要「回填」進 applyDownload，讓呼叫端把合併後內容寫回本機——
+        // 不然本機還停在只改了名稱的舊版本，雲端卻是合併後版本，兩邊會對不起來
+        mergedOverrides[id] = merged;
+        applyDownload.push({ id, deck: merged.deck, color: merged.color });
+        autoMergedCount++;
+        toUploadIds.push(id);
+        continue;
+      }
+
+      // 無法安全合併（真的同一欄位/同一張卡兩邊改成不同值，或還沒有欄位級 baseline 快照可比對）
+      // → 沿用既有「不阻斷、雙方都保留」做法：雲端版本另存成衝突副本，本機原樣重新上傳
       conflictCount++;
       // conflict id 由這次衝突的內容（base/local/cloud hash）決定，而非隨機亂數：
       // 同一組沒解決的衝突就算跨多次同步重試，也只會對應到同一份副本，不會每次都再多生一份
@@ -334,20 +442,35 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
     }
 
     // ── 寫入雲端：新增/更新 ──
+    // 每副牌組各自用 transaction 寫入（而非單一 writeBatch）：寫入前重新比對 Firestore 上的
+    // rev 是否還等於這次同步讀取當下看到的版本。如果讀取之後、寫入之前又被別的裝置改過，
+    // 直接放棄這筆寫入（保持 dirty），下一輪自動同步會重新抓最新雲端內容再合併一次，
+    // 不會拿讀取當下的舊資料覆蓋掉別裝置剛寫入的內容（避免靜默遺失更新）。
     if (toUploadIds.length > 0) {
       await ensureUserDoc(uid);
-      const batch = writeBatch(db);
       for (const id of toUploadIds) {
-        const deck = localMap.get(id);
-        if (!deck) continue; // 理論上不會發生（toUploadIds 只會放本機有的 id）
-        const color = localColors[id] ?? null;
-        const hash = localHashes[id];
-        const existing = cloud.docs[id];
-        batch.set(doc(db, 'users', uid, 'decks', id), deckDocPayload(uid, deck, color, hash, existing));
-        state.baseline[id] = hash;
-        delete state.dirty[id];
+        const override = mergedOverrides[id];
+        const deck = override ? override.deck : localMap.get(id);
+        if (!deck) continue; // 理論上不會發生（toUploadIds 只會放本機有或合併出來的 id）
+        const color = override ? override.color : (localColors[id] ?? null);
+        const hash = override ? await contentHashOf(deck, color) : localHashes[id];
+        const expectedRev = cloud.docs[id]?.rev ?? 0;
+        const ref = doc(db, 'users', uid, 'decks', id);
+        try {
+          await runTransaction(db, async tx => {
+            const snap = await tx.get(ref);
+            const cur = snap.exists() ? snap.data() : null;
+            const curRev = cur?.rev || 0;
+            if (curRev !== expectedRev) throw new Error('HV_REV_MISMATCH');
+            tx.set(ref, deckDocPayload(uid, deck, color, hash, cur, curRev + 1));
+          });
+          state.baseline[id] = buildBaselineEntry(deck, color, hash);
+          delete state.dirty[id];
+        } catch (e) {
+          if (e.message !== 'HV_REV_MISMATCH') throw e;
+          // 保持 dirty，不更新 baseline，交給下一輪同步重新讀最新雲端內容再處理
+        }
       }
-      await batch.commit();
     }
 
     // ── 寫入雲端：明確刪除（tombstone）──
@@ -361,6 +484,7 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
           deck: existing?.deck ?? { id, name: '', cards: [] },
           color: existing?.color ?? null,
           contentHash: existing?.contentHash ?? '',
+          rev: (existing?.rev || 0) + 1,
           clientUpdatedAt: Date.now(),
           deleted: true,
           deletedAt: serverTimestamp(),
@@ -383,7 +507,7 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
     saveSyncState(uid, state);
     _recomputePending(uid);
     return {
-      applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount,
+      applyDownload, applyRemoveLocal, restoredFromLoss, conflictCount, autoMergedCount,
       deletesPushed: toSoftDelete.length,
       pendingDeleteCount: Object.keys(state.pendingDeletes).length,
       tombstonesPurged: toHardDelete.length
@@ -399,7 +523,9 @@ function commitLocalBaseline(uid, decks, colors) {
   return (async () => {
     const state = loadSyncState(uid);
     for (const d of decks) {
-      state.baseline[d.id] = await contentHashOf(d, colors[d.id] ?? null);
+      const color = colors[d.id] ?? null;
+      const hash = await contentHashOf(d, color);
+      state.baseline[d.id] = buildBaselineEntry(d, color, hash);
     }
     saveSyncState(uid, state);
   })();
@@ -494,7 +620,7 @@ async function replaceCloudWithLocalDestructive(uid, localDecks, localColors) {
     const hash = await contentHashOf(deck, color);
     const existing = cloud.docs[deck.id];
     batch.set(doc(db, 'users', uid, 'decks', deck.id), deckDocPayload(uid, deck, color, hash, existing));
-    state.baseline[deck.id] = hash;
+    state.baseline[deck.id] = buildBaselineEntry(deck, color, hash);
     delete state.dirty[deck.id];
   }
   for (const id of Object.keys(cloud.active)) {
@@ -503,6 +629,7 @@ async function replaceCloudWithLocalDestructive(uid, localDecks, localColors) {
     batch.set(doc(db, 'users', uid, 'decks', id), {
       ownerUid: uid, schemaVersion: SCHEMA_VERSION,
       deck: existing.deck, color: existing.color ?? null, contentHash: existing.contentHash,
+      rev: (existing.rev || 0) + 1,
       clientUpdatedAt: Date.now(), deleted: true, deletedAt: serverTimestamp(),
       createdAt: existing.createdAt, updatedAt: serverTimestamp()
     }, { merge: true });
@@ -525,7 +652,7 @@ async function downloadCloudToLocalDestructive(uid) {
     if (d.deleted) return;
     decks.push(d.deck);
     if (d.color != null) colors[d.id] = d.color;
-    state.baseline[d.id] = d.contentHash;
+    state.baseline[d.id] = buildBaselineEntry(d.deck, d.color ?? null, d.contentHash);
   });
   state.dirty = {};
   state.pendingDeletes = {};
