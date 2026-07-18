@@ -5518,21 +5518,23 @@ async function _peekPlace(idx, where) {
   const name = allCards[img]?.name || img;
   _peekUsed.add(idx);
 
+  const shownName = _peekMode === 'private' ? '一張牌' : name;
+
   if (where === 'top') {
     L.pile.push(img);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    addLog(L.name, `🔍 ${name} → 牌頂`);
+    addLog(L.name, `🔍 ${shownName} → 牌頂`);
   } else if (where === 'bottom') {
     L.pile.unshift(img);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    addLog(L.name, `🔍 ${name} → 牌底`);
+    addLog(L.name, `🔍 ${shownName} → 牌底`);
   } else if (where === 'hand') {
     L.hand.push(img);
     db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
     renderHand();
-    addLog(L.name, `🔍 ${name} → 手牌（手牌 ${L.hand.length} 張）`);
+    addLog(L.name, `🔍 ${shownName} → 手牌（手牌 ${L.hand.length} 張）`);
   } else if (where === 'drop') {
     const zones = myZonesCopy();
     if (!zones.drop) zones.drop = [];
