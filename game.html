@@ -3858,6 +3858,10 @@ function listenGame() {
 
 let _processedRoundReset = 0;
 let _atkBaseline = null; // { rcv, blk } — zone values at the moment atkAlert appeared
+// 這回合目前為止，最後一次放置卡片的目標 zone 類型（'block'/'toss'/'attack'/...）。
+// 結束回合時如果最後一步是放攔網（防守），代表這輪根本沒有發動新攻擊，攻擊值要強制算 0，
+// 不能沿用 scores[myRole] 裡可能是很多輪以前殘留的舊攻擊分數（見 endTurn() 的用法）。
+let _turnLastZoneType = null;
 let _presenceKickTimer = null;
 let _connectedRef = null;
 
@@ -4230,8 +4234,13 @@ async function endTurn() {
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const action = gameState?.currentAction || null;
   const actionLabel = action ? (PHASE_META[action]?.label || action) : '（無動作）';
-  // Use || so a stored score of 0 also falls back to computing from zones
-  const atkTotal = gameState?.scores?.[myRole] || calcBaseScore(myRole, gameState);
+  // 這回合最後一步如果是放攔網（純防守，沒有發動新攻擊），攻擊值強制算 0——
+  // 不能沿用 scores[myRole]，那可能是很多輪以前殘留的舊攻擊分數（見 _turnLastZoneType 註解）
+  const atkTotal = (_turnLastZoneType === 'block')
+    ? 0
+    // Use || so a stored score of 0 also falls back to computing from zones
+    : (gameState?.scores?.[myRole] || calcBaseScore(myRole, gameState));
+  _turnLastZoneType = null; // 回合結束，清空供下一輪重新追蹤
   // Optimistic local update: flip button immediately without waiting for Firebase round-trip
   updatePhaseUI(gameState?.phase || 'serve', oppRole);
   try {
@@ -4427,7 +4436,16 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   const _si = ZONE_STAT_INFO[zoneName];
   const _role = isOpp ? (myRole === 'host' ? 'guest' : 'host') : myRole;
   const _dv = _si ? (gameState?.counterDelta?.[_role]?.[_si.stat] || 0) : 0;
-  const _key = `${cardData?.img||''}|${JSON.stringify(cardData?.guts||[])}|${_dv}|${isOpp}`;
+  // 攔網總值是三格共同加總出來的：任何一格改變，其他兩格顯示的總值也要跟著變，
+  // 所以攔網區三格的快取 key 要看「整組三格的組成」，不能只看這一格自己的卡
+  let _key;
+  if (zoneName.startsWith('block')) {
+    const _allBlocks = normaliseBlock(gameState?.players?.[_role]?.zones?.block);
+    const _groupSig = _allBlocks.map(b => `${b?.img || ''}:${JSON.stringify(b?.guts || [])}`).join('|');
+    _key = `block-group|${_groupSig}|${_dv}|${isOpp}`;
+  } else {
+    _key = `${cardData?.img||''}|${JSON.stringify(cardData?.guts||[])}|${_dv}|${isOpp}`;
+  }
   if (slot.dataset.fillKey === _key) return;
   slot.dataset.fillKey = _key;
 
@@ -5076,6 +5094,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   }
 
   L.hand.splice(handIdx, 1);
+  _turnLastZoneType = baseZone;
   // Optimistic UI: update hand and zone display immediately, before Firebase awaits
   renderHand();
   renderZones('self', zones, false);
@@ -5154,6 +5173,7 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   }
 
   const card = allCards[cardData.img];
+  _turnLastZoneType = baseZone;
   await pushZones(zones);
   const _rel = ['serve','toss','attack'];
   if (_rel.includes(fromBase) || _rel.includes(baseZone)) {
@@ -6348,6 +6368,7 @@ async function _dropPlaceToZone(img, zoneName) {
 }
 
 async function _finishDropZone(zones, img, name, zoneName) {
+  _turnLastZoneType = zoneName.split(':')[0];
   await pushZones(zones);
   document.getElementById('self-drop').textContent = countDrop(zones);
   await syncScoreToBase(zones, zoneName.split(':')[0]);
