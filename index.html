@@ -3374,18 +3374,30 @@ function getCardCountInDeck(image_file) {
   return e ? e.count : 0;
 }
 
-// 統一收斂點：任何會把一整份牌組寫進 decks 陣列的地方（新增卡片／頁面載入／
-// 分享連結匯入／雲端同步下載／雲端覆蓋本機）都要呼叫這個函式，確保排序規則
-// （角色卡優先、事件卡排最後，同類再依卡號排序，跟缺卡清單的 byCategoryThenCardNo
-// 同一套規則）套用到所有資料入口，不要在個別入口各自補一次容易漏
+// 統一收斂點：任何會把一整份牌組寫進 decks 陣列的地方（新增卡片／移除卡片／
+// 開啟牌組管理面板／頁面載入／分享連結匯入／雲端同步下載／雲端覆蓋本機）都要
+// 呼叫這個函式，確保排序規則套用到所有資料入口，不要在個別入口各自補一次容易漏。
+// 排序規則：角色卡優先、事件卡排最後（同 [[school_tags]] 缺卡清單的分組規則），
+// 同類再依「篩選列目前選的排序方式」（#filter-sort：卡號/稀有度/數值/名稱）排序，
+// 讓牌組管理面板的卡片順序跟主卡牌牆的排序選擇保持一致。
 function normalizeDeck(deck) {
   if (!deck || !Array.isArray(deck.cards)) return;
+  const sortMode = document.getElementById('filter-sort')?.value || 'card_no';
   deck.cards.sort((a, b) => {
     const ca = cards.find(c => c.image_file === a.image_file);
     const cb = cards.find(c => c.image_file === b.image_file);
     const aEvent = ca?.category === 'EVENT';
     const bEvent = cb?.category === 'EVENT';
     if (aEvent !== bEvent) return aEvent ? 1 : -1;
+    if (sortMode === 'name')   return (ca?.name || '').localeCompare(cb?.name || '') || (a.card_no||'').localeCompare(b.card_no||'');
+    if (sortMode === 'rarity') {
+      const diff = ca && cb ? -compareVariantRank(ca, cb) : 0;
+      return diff !== 0 ? diff : (a.card_no || '').localeCompare(b.card_no || '');
+    }
+    if (sortMode !== 'card_no') {
+      const av = ca?.[sortMode] ?? -1, bv = cb?.[sortMode] ?? -1;
+      if (av !== bv) return bv - av;
+    }
     return (a.card_no || '').localeCompare(b.card_no || '');
   });
 }
@@ -3401,10 +3413,8 @@ function addCardToDeck(image_file, quantity = 1) {
   const cardObj = cards.find(c => c.image_file === image_file);
   const entry = deck.cards.find(c => c.image_file === image_file);
   if (entry) entry.count += qty;
-  else {
-    deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: qty });
-    normalizeDeck(deck);
-  }
+  else deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: qty });
+  normalizeDeck(deck);
   saveDecks();
   refreshCardBadge(image_file);
   updateTray();
@@ -3425,6 +3435,7 @@ function removeCardFromDeck(image_file) {
     trimCardColorMap(deck.id, image_file, newCount);
     deck.cards[idx].count = newCount;
   }
+  normalizeDeck(deck);
   saveDecks();
   refreshCardBadge(image_file);
   updateTray();
@@ -3519,6 +3530,7 @@ function renderDeckSwitcher() {
 function renderDeckPanel() {
   const deck = getCurrentDeck();
   const list = document.getElementById('deck-card-list');
+  normalizeDeck(deck); // 每次開啟/重繪面板都依目前排序規則重新排一次
 
   if (!deck || deck.cards.length === 0) {
     list.innerHTML = '<div class="deck-empty">牌組是空的，到卡片列表按「＋」加入卡片</div>';
