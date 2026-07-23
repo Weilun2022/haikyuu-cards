@@ -324,6 +324,16 @@ async function autoReconcile(uid, localDecks, localColors, { pushDeletes = false
       const localChanged = localHash !== baseHash;
       const cloudChanged  = cloudHash !== baseHash;
 
+      // baseHash undefined 代表這台裝置從沒跟這副牌組同步成功過（最常見：換新裝置/瀏覽器，
+      // 但本機早就用固定 id 自動建立過「快速查詢」空牌組）。這種情況下不能把「沒有 baseline」
+      // 誤判成「本機剛剛才改過」，不然下面 LWW 比較時間會因為 state.dirty 也是空的而預設成
+      // 「現在」，永遠贏過雲端的實際修改時間，導致新裝置的空白/舊本機內容覆蓋掉雲端資料
+      // （含顏色標籤）。沒有 dirty 紀錄可證明本機真的改過時，一律信任雲端版本。
+      if (baseHash === undefined && typeof state.dirty[id] !== 'number') {
+        applyDownload.push({ id, deck: cloudDoc.deck, color: cloudDoc.color ?? null });
+        continue;
+      }
+
       if (localChanged && !cloudChanged) {
         if (pendingRisky && !pushDeletes) continue; // 清空過還沒手動確認，先擱置，雲端不動
         if (pendingRisky) delete state.pendingRisky[id]; // pushDeletes=true：這就是使用者的確認動作
