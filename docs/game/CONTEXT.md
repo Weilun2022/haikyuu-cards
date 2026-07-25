@@ -32,3 +32,7 @@ _已知關聯_：`phase` 欄位（`serve`/`block`/`receive`）原本看起來像
 
 - [0001](docs/adr/0001-mobile-pinch-zoom-three-layer-lock.md) — 手機 pinch zoom 鎖定用三層防護，touch-action:manipulation 是陷阱不是解法
 - [0002](docs/adr/0002-mobile-reconnect-persistent-presence-watcher.md) — 手機斷線重連改用持久 presence watcher
+- [0003](docs/adr/0003-module-scope-state-not-window.md) — 遊戲狀態變數用 module-scope，不掛在 window 上
+- [0004](docs/adr/0004-fab-drawer-clone-node.md) — 手機版側邊欄用 cloneNode 複製，不是重寫一份
+- [0005](docs/adr/0005-two-stage-move-mode.md) — 手機版移動卡片用兩段式 tap
+- [0006](docs/adr/0006-processed-round-reset-first-sync-guard.md) — _processedRoundReset 用 _firstSync 旗標對齊，避免進場誤清手牌
