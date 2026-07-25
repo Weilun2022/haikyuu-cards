@@ -39,6 +39,62 @@
 
 ---
 
+## 2026-07-25（Session 34）
+
+### 導入 Matt Pocock 開發流程 skill chain（開源 MIT，github.com/mattpocock/skills）
+
+使用者要求導入這套流程（`setup-matt-pocock-skills` → `grill-with-docs` → `to-spec` → `to-tickets` → `implement` → `code-review`，`improve-codebase-architecture` 為定期維護）。安裝前先查證 repo 真的存在、MIT 授權屬實、逐一讀過每個 skill 的 SKILL.md 跟附屬範本檔內容確認沒有可疑指令，才下載安裝到 `~/.claude/skills/`（10 個 skill 資料夾，含 `setup-matt-pocock-skills` 的 issue-tracker/domain/triage-labels 範本、`domain-modeling` 的 ADR/CONTEXT 格式、`tdd` 的 mocking/tests 規則、`improve-codebase-architecture` 的 HTML report 格式）。
+
+**`/setup-matt-pocock-skills` 執行結果**：
+- **Issue tracker**：改用 GitHub Issues（`Weilun2022/haikyuu-cards`）。本機沒裝 `gh` CLI，用 winget 裝好後還要 OAuth 授權——用 device code flow（`gh auth login --web`），代碼交給使用者自己在瀏覽器確認（OAuth 授權屬於「使用者必須親自同意」的動作，不能代為點擊），完成後登入為 `Weilun2022`。設定寫在 `docs/agents/issue-tracker.md`。
+- **Triage labels**：略過——`triage` skill 使用者原始清單沒列，沒裝。
+- **Domain docs**：single-context（`CONTEXT.md` + `docs/adr/`，之後 `/domain-modeling` 實際需要時才建立），設定寫在 `docs/agents/domain.md`。
+- 這個 repo 原本沒有 `CLAUDE.md`，新建，寫入上述兩個小節 + 使用者要求的「Matt Pocock 開發流程」硬性規則（流程順序、skill 全部 user-invoked 不能 agent 自己判斷觸發、tickets 發布完不代表能動手寫 code、`/implement` 不能再轉包給其他 subagent）。
+
+### tasks/ 目錄改結構，配合新流程
+
+使用者要求「完整轉換」到新流程、確保專案正常運作。關鍵決定是舊的 `tasks/` 目錄（原本中樞→子 Chat 跨 session 平行發包用的系統，見 `tasks/README.md`）怎麼處理。檢查發現 `task_01~10.md`/`output_01~10.md`/`collect_01.md`/`collect_result.md` 全部是 2026-04-15~04-20 建立、之後 3 個多月沒再碰過的**已結案批次**——不是還在追蹤的待辦。`tasks/README.md` 自己的慣例本來就寫「所有 task/output 檔完成後可歸檔（移至 `tasks/archive/`）」（第 31 行），所以直接照這個既有慣例歸檔，不是新發明規則。
+
+**最終結構**：
+- `tasks/archive/` — 舊批次全部檔案（歷史保留，不刪除）
+- `tasks/log.md`、`tasks/night_optimization_log.md` — 繼續當開發日誌用，跟「追蹤待辦」性質不同，不受這次轉換影響
+- `tasks/README.md`、`task_template.md`、`collect_template.md`、`subchat_prompt_template.md` — 平行發包機制本身保留（跟 GitHub Issues 不衝突，是兩件事：Issues 管「這張票要不要做」，這套機制管「怎麼把大票拆給多個子 Chat 平行執行」），`README.md` 補一段說明新舊分工
+- 之後新功能一律先進 GitHub Issues，不再新增 `task_NN.md` 當追蹤用
+
+---
+
+## 2026-07-24（Session 33）
+
+### js/cloud-sync.js：修正換裝置首次同步時空白本機覆蓋雲端顏色資料（`316aaf1`）
+
+使用者回報「雲端上傳沒有上傳牌組顏色的設定」。逐層讀 `autoReconcile()` 後發現顏色欄位本身在 payload/hash/baseline 每個環節都有正確包進去，不是欄位漏傳的問題——真正根因在換新裝置第一次同步的 LWW（last-write-wins）判斷：`QUICK_DECK_ID`（快速查詢）是每個瀏覽器一啟動就會自動建立的固定 id 空牌組，新裝置對它從沒有 `baseline`，這時候「兩邊都有資料但 hash 不同」會落入「雙邊都改過，比時間戳」分支，而新裝置的 `state.dirty` 也是空的，原本的 fallback 邏輯把「沒有 dirty 紀錄」預設成「剛剛才改」（`Date.now()`），永遠贏過雲端的真實修改時間，導致新裝置的空白內容反過來覆蓋掉雲端已經上色的資料。修法：`baseHash` 是 `undefined`（這台裝置從沒同步過這副牌）又沒有 `dirty` 紀錄時，改成直接信任雲端、下載覆蓋本機，不再假設本機比較新。
+
+**教訓**：`QUICK_DECK_ID` 這種「每個裝置都會自動生成、id 卻固定相同」的牌組，是這類同步 bug 的高風險點——一般牌組 id 是隨機產生，兩台裝置本來就不會撞到同一個 id 去踩中「沒有 baseline」的邊界情況，只有這種固定 id 的特例才會讓「新裝置」變成「常見情境」而不是原本註解講的「極端情況」。
+
+### 牌組照片辨識功能：從 OpenCV.js/ORB 走到 Gemini Vision API 的完整過程（進行中，未部署完成）
+
+使用者想要「上傳別人做的牌組總覽圖／實拍照，自動辨識卡片+張數組成牌組」。先走 `anthropic-skills:brainstorming` 流程定案技術路線：**方案 A** 純前端 OpenCV.js（ORB 特徵比對 522 張卡圖）+ Tesseract.js（張數 OCR），使用者選這個是因為想完全避開後端/成本。
+
+**Python 原型階段**：離線用 `cv2.ORB_create` 幫 521 張卡圖建特徵庫（`build_card_feature_index.py`，未進 git，`*.py` 本來就 gitignore），寫 `scan_deck_photo.py` 做 knnMatch+RANSAC+NMS。合成測試（把卡圖直接貼到背景圖，加旋轉縮放）5/5 全對，驗證演算法本身沒問題。
+
+**真實照片測試才是转折點**：使用者提供 6 張實拍牌組照片（社群帳號 MR_BOARD 的實拍分享圖、店家優勝牌組展示照），跑下去**幾乎全滅**（6 張只抓到個位數張正確卡，好幾張 0 偵測）。逐步排查：不是解析度問題（2048px 高解析度的照片一樣失敗）、不是反光單一因素（試過 CLAHE 對比增強、只用左側名字欄避開反光區都沒用，後者甚至更差——文字欄本身鑑別度不夠，卡跟卡長得太像）。**根因是官方數位卡圖跟任何一張實體卡實拍照之間的視覺落差，比 ORB/BRIEF 這類局部特徵比對能補的範圍還大**（印刷色偏、鏡頭角度、卡套反光、JPEG 壓縮），不是調參數能解決的系統性問題。
+
+**改用 Gemini Vision API 徹底翻盤**：使用者主動問「Google AI 辨識度夠不夠、OpenRouter 有沒有免費額度」。查證後直接用 Gemini 官方 API（`gemini-3.5-flash`，2026-07 現行免費模型，`gemini-2.5-flash` 這時已經對新用戶下架）取代整套 CV pipeline，設計兩段呼叫：Pass 1 讀照片列出每組卡片的日文名/卡號猜測/張數/信心度；Pass 2 從資料庫撈同名候選版本圖片，讓 Gemini 對照片再次比對選出正確版本。同一份最難的照片（IMG_7843，先前 0 偵測）Pass 1 幾乎完美讀出所有卡（14 組，總張數 40 剛好對上合法牌組上限），Pass 2 候選池從 6 張放寬到 12 張後（因為及川徹單角色就有 10 種版本，原本 cap=6 直接排除掉正確答案）11/14 組自動解析出精確 card_no，剩下 3 組是事件卡長標題 OCR 沒完全對上資料庫文字，留給人工確認畫面處理。
+
+**架構**：`functions/`（Firebase Cloud Functions v2，`scanDeckPhoto` callable，要求已登入）代理呼叫 Gemini（key 用 `functions/.env`，不進 git，也沒用 Secret Manager——見下方教訓）；`js/deck-scan.js` + `index.html` 的 `#deck-scan-overlay` 做確認/修正 UI（縮圖、張數輸入、候選版本切換、手動搜尋補漏抓的卡），接在既有「圖片轉牌組」按鈕上：先試讀自家 PNG 內嵌 metadata，讀不到才走這套 AI 辨識流程。前端部分已完成、在瀏覽器實測過 markup/CSS 正常渲染。
+
+**卡在 Firebase 部署的 Blaze 方案門檻，暫停等使用者決定**：
+1. 第一次以為 Spark（免費）方案就夠，因為查過「Spark 只限制呼叫非 Google 服務，呼叫 Gemini 這種 Google 自家 API 不受限」——**這個判斷只對了一半**：`firebase functions:secrets:set` 背後是 Secret Manager，需要 Blaze 才能啟用，所以改用 `functions/.env` 存 key 繞過 Secret Manager。
+2. 但 `firebase deploy --only functions` 本身（2nd gen functions 用 Cloud Build + Artifact Registry 建置容器映像）**不管函式執行內容是什麼，部署這個動作本身就強制要求 Blaze**，這個才是真正躲不掉的門檻，跟呼叫哪個 API 完全無關。第一次跟使用者說「不需要升級 Blaze」是誤判，已經當面更正。
+3. 使用者遠端操作不方便跑 `firebase login` 互動式 OAuth，改用 GCP 服務帳戶 JSON 金鑰做非互動部署（`GOOGLE_APPLICATION_CREDENTIALS` 環境變數）——用 Claude in Chrome 直接操作使用者真實瀏覽器（已登入）在 Cloud Console 建金鑰、事後補授權（原本沿用的 `firebase-adminsdk-fbsvc` 服務帳戶預設權限只夠 Firebase Admin SDK，不夠部署+改 IAM，補加「編輯者」角色）。IAM 表單輸入被 auto mode classifier 擋下（判定為敏感操作），改請使用者自己點完最後幾步。
+4. 卡在 Blaze 門檻後，使用者選擇「暫停開發、寫日誌，之後再討論」——實際月費預期 $0（Cloud Functions/Build/Artifact Registry 免費額度都遠超這種個人專案用量），但綁卡是要使用者自己決定+操作的事，不能代為進行。
+
+**教訓**：
+- CV/影像特徵比對（ORB 之類）在「官方數位素材 vs 使用者實拍照」這種跨域場景下，準確度上限遠低於直接丟給有視覺理解能力的 LLM（Gemini/Claude 這類）讀圖——這類任務不該預設「輕量純前端演算法」就夠用，尤其輸入是不受控的真實世界照片時。之後遇到類似「辨識照片內容」需求，應該先用視覺 LLM 驗證可行性，而不是預設要自己刻 CV pipeline。
+- Firebase/GCP 的 Blaze 付費方案門檻不是單一規則，**「執行期網路呼叫限制」跟「部署管線需求」是兩條獨立的門檻，只查一條會誤判**。以後遇到「能不能留在 Spark 免費方案」的判斷，要同時查函式*執行內容*跟*部署機制*（Cloud Build/Artifact Registry/Secret Manager 這些底層服務）各自的方案需求，不能只驗證其中一項就下結論。
+
+---
+
 ## 2026-07-17（Session 32）
 
 ### index.html：牌組管理「統計徽章」改版——多輪迭代＋復原＋重新設計，最後收在牌組轉圖片 header
