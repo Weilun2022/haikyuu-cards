@@ -1,0 +1,57 @@
+<!-- 審查需求：evo_arena.html 加「學校鎖定」選項
+
+場景：用戶提供 QR Code 或選內建牌組後按 START，
+後端現在支援 school_lock 參數（"auto" = 從種子自動偵測, null = 自由進化）。
+前端需要：
+1. 在「種子牌組」設定區加一個 checkbox（預設勾選 = 鎖定）
+2. arenaStart() 把 school_lock 值帶入 payload
+3. 收到第一個 SSE generation 事件後，顯示偵測到的學校名稱
+
+## 修改 1：HTML — 在 arena-qr-status 之後加入（約 line 724）
+
+  <div id="arena-school-lock-row">
+    <label class="arena-school-lock-label">
+      <input type="checkbox" id="arena-school-lock" checked>
+      學校鎖定 <span id="arena-school-lock-name"></span>
+    </label>
+  </div>
+
+## 修改 2：CSS（加在既有 .arena-qr-status 附近）
+
+  .arena-school-lock-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.82em;
+    color: #aaa;
+    margin-top: 4px;
+  }
+  #arena-school-lock-name {
+    color: #7dd3fc;  /* light-blue for school name */
+    font-weight: 600;
+  }
+
+## 修改 3：arenaStart() — payload 加 school_lock（約 line 1429）
+
+  const schoolLock = document.getElementById('arena-school-lock').checked ? 'auto' : null;
+  const payload = _qrDeck
+    ? { seed_deck: _qrDeck.cards, meta_decks: [metaSel], config: cfg, school_lock: schoolLock }
+    : { seed_deck_name: seedSel, meta_decks: [metaSel], config: cfg, school_lock: schoolLock };
+
+## 修改 4：arenaHandleUpdate() — 顯示偵測到的學校（約 line 1250，在 arenaRenderBestDeck 之後）
+
+  if (data.school_lock) {
+    const nameEl = document.getElementById('arena-school-lock-name');
+    if (nameEl && !nameEl.dataset.set) {
+      nameEl.textContent = '(' + data.school_lock + ')';
+      nameEl.dataset.set = '1';
+    }
+  }
+
+審查重點：
+- checkbox 預設勾選是否合理？
+- school_lock name 顯示時機（只在 data.school_lock 第一次出現時更新）OK？
+- null vs "auto" 的 falsy 判斷有沒有問題（null 傳後端正確嗎？）
+- CSS 顏色和字體大小協調性
+-->
