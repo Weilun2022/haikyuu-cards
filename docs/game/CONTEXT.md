@@ -22,7 +22,7 @@ _Avoid_: 不要跟「卡片目錄／牌組管理」context 的顏色標籤「舉
 
 **Rally（官方排球規則概念，目前程式碼未明確建模）**：
 發球到得分為止的一次連續攻防。**目前程式碼沒有把這個概念實作成獨立追蹤狀態**，只有「Turn」（誰的回合）跟「Action」（該回合宣告的單一動作），沒有任何邏輯偵測/標記「這一輪攻防到這裡算結束、算誰贏」。
-_已知關聯_：`phase` 欄位（`serve`/`block`/`receive`）原本看起來像是要追蹤攻防階段循環，但查證後發現它只在遊戲開局被設成 `'serve'` 兩次，之後全程式碼再也沒有改過它，是個死欄位。**注意**：這個死欄位跟「rally 無限久」那個已知 bug **無關**——那個 bug 實際發生在 `game_engine/`（獨立的 Python AI 對戰模擬器，見下方「跟 game_engine/ 的關係」），不是這個瀏覽器對戰引擎；兩者只是剛好都用到「rally」這個字，曾經被誤連結過一次，特此註記避免以後又搞混。`phase` 死欄位本身是否要處理、要不要真的把 Rally 做成一個獨立狀態，目前擱置，沒有已知 bug 跟它掛鉤。
+_已知關聯_：`phase` 欄位（`serve`/`block`/`receive`）原本看起來像是要追蹤攻防階段循環，但查證後發現它只在遊戲開局被設成 `'serve'` 兩次，之後全程式碼再也沒有改過它，是個死欄位。**注意**：這個死欄位跟「rally 無限久」那個已知 bug **無關**——那個 bug 實際發生在 `game_engine/`（獨立的 Python AI 對戰模擬器，見下方「跟 game_engine/ 的關係」），不是這個瀏覽器對戰引擎；兩者只是剛好都用到「rally」這個字，曾經被誤連結過一次，特此註記避免以後又搞混。這個現況記錄在 [issue #54](https://github.com/Weilun2022/haikyuu-cards/issues/54)（要不要把 Rally 做成正式追蹤狀態尚未決定）。
 
 ## 跟 game_engine/ 的關係
 
@@ -30,4 +30,5 @@ _已知關聯_：`phase` 欄位（`serve`/`block`/`receive`）原本看起來像
 
 ## docs/adr/
 
-尚無 ADR。
+- [0001](docs/adr/0001-mobile-pinch-zoom-three-layer-lock.md) — 手機 pinch zoom 鎖定用三層防護，touch-action:manipulation 是陷阱不是解法
+- [0002](docs/adr/0002-mobile-reconnect-persistent-presence-watcher.md) — 手機斷線重連改用持久 presence watcher
