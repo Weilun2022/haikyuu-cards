@@ -1,0 +1,18 @@
+{
+  "name": "haikyuu-cards-functions",
+  "description": "Cloud Functions：牌組照片辨識（代理呼叫 Gemini Vision API，key 不落地前端）",
+  "type": "module",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "scripts": {
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.1.0"
+  },
+  "private": true
+}

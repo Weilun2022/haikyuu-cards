@@ -586,6 +586,8 @@ async function downloadCloudToLocalDestructive(uid) {
   return { decks, colors };
 }
 
+export { app };
+
 window.hvCloudSync = {
   signInWithGoogle,
   signOutUser,
