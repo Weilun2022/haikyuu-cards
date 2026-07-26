@@ -3026,17 +3026,17 @@ async function hvRunAutoSync(reason) {
       // await 回來後如果 currentDeckId 已經不是這副，代表使用者自己切走了，不要再打斷他
       const targetDeckId = currentDeckId;
       _hvApplyingRemote = true;
-      saveDecks(); saveColorState();
+      persistDeckChange({ colorsChanged: true });
       _hvApplyingRemote = false;
       hvSnapshotDeckState();
       await window.hvCloudSync.commitLocalBaseline(user.uid, decks, deckColorState);
 
-      // 左下角牌組清單永遠同步更新（這是這次要修的 bug：之前漏呼叫，要重整頁面才會更新）
-      renderDeckSwitcher();
       // 牌組面板/牌牆比較重（renderGrid 會整個重建卡牌牆），只有在使用者目前正在看的
-      // 牌組真的被這次同步動到時才重畫，避免背景同步到「別的」牌組時打斷使用者正在瀏覽的畫面
-      if ((currentDeckRemoved || currentDeckDownloaded || switchedAway) && currentDeckId === targetDeckId) {
-        renderDeckPanel(); updateTray(); renderGrid();
+      // 牌組真的被這次同步動到時才重畫，避免背景同步到「別的」牌組時打斷使用者正在瀏覽的畫面；
+      // 左下角牌組清單（deckListChanged）則永遠同步更新（這是曾經修過的 bug：之前漏呼叫，要重整頁面才會更新）
+      const needsHeavyRender = (currentDeckRemoved || currentDeckDownloaded || switchedAway) && currentDeckId === targetDeckId;
+      renderDeckChange({ deckListChanged: true, deckContentChanged: needsHeavyRender });
+      if (needsHeavyRender) {
         // 缺卡清單是獨立 overlay，不跟著 renderDeckPanel 一起重畫，要另外處理：
         // 牌組還在但內容被雲端更新（例如別的裝置勾了持有）就即時刷新；牌組整個被刪除就直接關閉，
         // 不然使用者會繼續看著一份已經不存在的牌組資料
@@ -3424,8 +3424,7 @@ function duplicateDeck() {
   });
   decks.push(d);
   currentDeckId = d.id;
-  saveDecks();
-  renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+  commitDeckChange({ deckListChanged: true, deckContentChanged: true });
   showToast(`已複製為「${newName}」`);
 }
 
@@ -4583,6 +4582,38 @@ function reorganizeDeck(mode) {
   showToast(TOAST[mode] || '已整理');
 }
 
+// ── 牌組變更統一提交入口 ──────────────────────────────────
+// 本地的牌組操作（改名/新增/複製/刪除/清空）跟 hvRunAutoSync 套用遠端
+// 同步下來的變更，全部都要決定「存哪裡」「重繪哪些畫面」，但過去每個
+// handler 各自手動列一份 {saveDecks, saveColorState, renderDeckSwitcher,
+// renderDeckPanel, updateTray, renderGrid} 的子集合，漏列一項就會有
+// 畫面沒更新的 bug。拆成 persist/render 兩個各自獨立的函式，是因為
+// hvRunAutoSync 的儲存跟重繪中間隔著一次 await（要等雲端回應），無法
+// 當成一步完成；本地操作則用 commitDeckChange() 這個薄包裝一次做完。
+//
+// effects（都可省略，預設 false）：
+//   deckListChanged    — decks 陣列成員有變（新增/刪除一副牌組），要重建牌組切換選單
+//   deckNameChanged    — 目前牌組的名稱變了，要更新切換選單跟牌組工具列顯示的名字
+//   deckContentChanged — 目前牌組的 cards/owned 有變，要重畫牌組面板縮圖牆、
+//                        牌組工具列數量、主卡片牆的數量徽章
+//   colorsChanged      — deckColorState 有變，要記得存檔
+function persistDeckChange({ colorsChanged } = {}) {
+  saveDecks();
+  if (colorsChanged) saveColorState();
+}
+function renderDeckChange({ deckListChanged, deckNameChanged, deckContentChanged } = {}) {
+  if (deckListChanged || deckNameChanged) renderDeckSwitcher();
+  if (deckContentChanged) {
+    renderDeckPanel(); updateTray(); renderGrid();
+  } else if (deckNameChanged) {
+    updateTray(); // 改名沒動到 cards，不用重建面板縮圖牆/主卡片牆，但工具列顯示的名字要更新
+  }
+}
+function commitDeckChange(effects = {}) {
+  persistDeckChange(effects);
+  renderDeckChange(effects);
+}
+
 // ── Bind Deck Events ────────────────────────────────────
 function bindDeckEvents() {
   document.getElementById('tray-open-btn').addEventListener('click', openDeckPanel);
@@ -4655,13 +4686,15 @@ function bindDeckEvents() {
       const newDeck = createDeck(name);
       newDeck.cards = deck.cards.map(c => ({ ...c }));
       deck.cards = [];
-      saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+      commitDeckChange({ deckContentChanged: true });
       showToast(`已另存為「${name}」並清空快速查詢`);
       return;
     }
     const name = document.getElementById('deck-name-input').value.trim();
     if (!name) return;
-    deck.name = name; saveDecks(); updateTray(); renderDeckSwitcher(); showToast('已重新命名！');
+    deck.name = name;
+    commitDeckChange({ deckNameChanged: true });
+    showToast('已重新命名！');
   });
   document.getElementById('deck-name-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') document.getElementById('deck-rename-btn').click();
@@ -4669,7 +4702,7 @@ function bindDeckEvents() {
 
   document.getElementById('deck-new-btn').addEventListener('click', () => {
     createDeck(`我的牌組${decks.length + 1}`);
-    renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+    commitDeckChange({ deckContentChanged: true });
   });
 
   document.getElementById('deck-duplicate-btn').addEventListener('click', duplicateDeck);
@@ -4684,16 +4717,17 @@ function bindDeckEvents() {
     if (decks.length <= 1) {
       const userForClear = window.hvCloudSync?.currentUser;
       if (userForClear) window.hvCloudSync.markRisky(userForClear.uid, deck.id);
-      deck.cards = []; delete deckColorState[deck.id]; saveColorState(); saveDecks(); renderDeckPanel(); updateTray(); renderGrid();
+      deck.cards = []; delete deckColorState[deck.id];
+      commitDeckChange({ deckContentChanged: true, colorsChanged: true });
       showToast('牌組已清空'); return;
     }
     const idx = decks.findIndex(d => d.id === currentDeckId);
     const user = window.hvCloudSync?.currentUser;
     if (user) window.hvCloudSync.queuePendingDelete(user.uid, deck.id); // 明確刪除事件，跟「本機沒資料」的意外遺失分開處理
-    delete deckColorState[deck.id]; saveColorState();
+    delete deckColorState[deck.id];
     decks.splice(idx, 1);
     currentDeckId = decks[Math.max(0, idx - 1)].id;
-    saveDecks(); renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
+    commitDeckChange({ deckListChanged: true, deckContentChanged: true, colorsChanged: true });
     showToast('已刪除牌組');
     // 用跟 local-change 一樣的 debounce delay（不是 0），這樣使用者刪完牌組後很快按「立即同步」時，
     // 這裡排的背景同步還沒開始跑，會被 hvScheduleAutoSync 的 clearTimeout 直接取消掉，
@@ -4717,9 +4751,8 @@ function bindDeckEvents() {
     if (user) window.hvCloudSync.markRisky(user.uid, deck.id);
     deck.cards = [];
     deck.owned = {};
-    delete deckColorState[deck.id]; saveColorState();
-    saveDecks();
-    renderDeckPanel(); updateTray(); renderGrid();
+    delete deckColorState[deck.id];
+    commitDeckChange({ deckContentChanged: true, colorsChanged: true });
     showToast('已清空牌組');
   });
 
