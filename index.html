@@ -2080,7 +2080,7 @@ window.HVFavorites = {
   applySnapshot(items) {
     favoriteImageFiles = new Set(normalizeFavoriteItems(items));
     localStorage.setItem(FAVORITES_LS_KEY, JSON.stringify({ schemaVersion: 1, items: Array.from(favoriteImageFiles), updatedAt: Date.now() }));
-    applyFilters();
+    applyFilters(filterState);
   }
 };
 
@@ -2226,7 +2226,7 @@ function init() {
   loadFavorites();
   migrateFavoritesFromQuickDeckIfNeeded();
   buildFilters();
-  applyFilters();
+  applyFilters(filterState);
   bindEvents();
   bindDeckEvents();
   renderDeckSwitcher();
@@ -2283,44 +2283,44 @@ function buildFilters() {
 function bindEvents() {
   document.getElementById('search').addEventListener('input', e => {
     filterState.search = e.target.value.trim().toLowerCase();
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('filter-series').addEventListener('change', e => {
     filterState.series = e.target.value;
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('filter-school').addEventListener('change', e => {
     filterState.school = e.target.value;
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('filter-rarity').addEventListener('change', e => {
     filterState.rarity = e.target.value;
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('filter-position').addEventListener('change', e => {
     filterState.position = e.target.value;
-    applyFilters();
+    applyFilters(filterState);
   });
 
-  document.getElementById('filter-sort').addEventListener('change', () => applyFilters());
+  document.getElementById('filter-sort').addEventListener('change', () => applyFilters(filterState));
 
   document.getElementById('filter-variant-mode').addEventListener('change', e => {
     activeVariantMode = e.target.value;
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('filter-category').addEventListener('change', e => {
     filterState.category = e.target.value;
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('filter-favorite-only').addEventListener('change', e => {
     filterState.favoriteOnly = e.target.value === '1';
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('btn-reset').addEventListener('click', () => {
@@ -2334,7 +2334,7 @@ function bindEvents() {
     resetFilterState();
     activeVariantMode = 'off';
     document.getElementById('filter-variant-mode').value = 'off';
-    applyFilters();
+    applyFilters(filterState);
   });
 
   document.getElementById('modal-overlay').addEventListener('click', e => {
@@ -2485,7 +2485,7 @@ function applyFilters(state = filterState) {
   });
 
   document.getElementById('count-display').textContent = filtered.length;
-  updateFilterBadge();
+  updateFilterBadge(state);
   renderGrid();
   updatePromoBanner();
 }
@@ -2629,7 +2629,7 @@ function buildCardEl(card) {
     starBtn.classList.toggle('starred', isFavorite(starBtn.dataset.img));
     starBtn.textContent = isFavorite(starBtn.dataset.img) ? '★' : '☆';
     starBtn.title = isFavorite(starBtn.dataset.img) ? '從我的最愛移除' : '加入我的最愛';
-    if (filterState.favoriteOnly) applyFilters();
+    if (filterState.favoriteOnly) applyFilters(filterState);
   });
 
   const inp = div.querySelector('.card-count-input');
