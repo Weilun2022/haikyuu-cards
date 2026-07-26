@@ -4597,6 +4597,19 @@ function reorganizeDeck(mode) {
 //   deckContentChanged — 目前牌組的 cards/owned 有變，要重畫牌組面板縮圖牆、
 //                        牌組工具列數量、主卡片牆的數量徽章
 //   colorsChanged      — deckColorState 有變，要記得存檔
+//
+// 刻意不折進來的兩個地方（issue #61/#62 新增的呼叫點），記錄一下判斷：
+// - setCardCountInDeck()（#61）是單張卡片數量變更，只需要更新那一張卡的輸入框
+//   徽章（refreshCardBadge）+ updateTray，用不到這裡「重建整片卡片牆」的 renderGrid，
+//   硬折進來會讓每次調整一張卡的數量都重建全部 521 張卡，效能上是倒退。
+// - createDeckObject()（#62）只負責「牌組物件本身帶哪些欄位」跟 colors 的落地存檔，
+//   不負責把新牌組塞進 decks 陣列或決定重繪哪些畫面——那件事仍然由呼叫端
+//   （createDeck/duplicateDeck/checkSharedDeck 等）自己 push 完 decks 之後呼叫
+//   commitDeckChange 負責，兩者職責本來就不重疊，沒有能折的東西。
+// createDeck() 內部仍會自己呼叫一次 saveDecks()——搭配 commitDeckChange 使用時
+// saveDecks() 因此會被呼叫兩次；確認過 saveDecks()/hvOnLocalChange 對沒有實際
+// 變化的重複呼叫是安全的空操作，這裡選擇接受這個小小的重複，不去動 createDeck()
+// 本身的行為（它還有其他呼叫點，牽動範圍比這張票的範圍大）。
 function persistDeckChange({ colorsChanged } = {}) {
   saveDecks();
   if (colorsChanged) saveColorState();
