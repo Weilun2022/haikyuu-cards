@@ -1490,7 +1490,9 @@ def clean_qa_text(text: str) -> str:
 
 
 def translate_annotation(text, event_names):
-    """翻譯特殊技能解釋（注釈）。未知文字回退到 translate_skill 啟發式翻譯。"""
+    """翻譯特殊技能解釋（注釈）。未知文字回退到 translate_skill 啟發式翻譯。
+    對照表 ANNOTATION_ZH 放在 MANUAL_OVERRIDES 旁邊（跟這裡不相鄰），方便跟
+    另一套單卡覆蓋機制放在一起查找，不是遺漏。"""
     if not isinstance(text, str):
         return ''
     raw = text.strip()
