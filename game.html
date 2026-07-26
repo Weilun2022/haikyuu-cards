@@ -5620,20 +5620,24 @@ function handleOppPeek(data, prev) {
   }
 }
 
+// 單一計分公式來源：serve 模式看 serve 牌的 srv，攻擊模式看 toss.tos + attack.atk。
+// delta 是各自 counterDelta 的疊加值，不傳（或傳 {}）就是純看場上牌面、不含手動調整。
+function calcServeScore(zones, delta = {}) {
+  const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
+  return auto_srv + (delta.srv || 0);
+}
+function calcNetAttackScore(zones, delta = {}) {
+  const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
+  const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
+  return auto_tos + (delta.tos || 0) + auto_atk + (delta.atk || 0);
+}
 function calcBaseScoreFromZones(zones) {
-  const tossImg   = zones?.toss?.img;
-  const attackImg = zones?.attack?.img;
-  const tos = tossImg   ? (+(allCards[tossImg]?.tos)   || 0) : 0;
-  const atk = attackImg ? (+(allCards[attackImg]?.atk) || 0) : 0;
-  return tos + atk;
+  return calcNetAttackScore(zones);
 }
 function calcBaseScore(role, data) {
   const mode  = data?.scoreModes?.[role] || 'attack';
   const zones = data?.players?.[role]?.zones;
-  if (mode === 'serve') {
-    const serveImg = zones?.serve?.img;
-    return serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
-  }
+  if (mode === 'serve') return calcServeScore(zones);
   return calcBaseScoreFromZones(zones);
 }
 // changedZone: 'serve'|'toss'|'attack' → sets mode; null → keep stored mode (removal)
@@ -5642,23 +5646,15 @@ async function syncScoreToBase(zones, changedZone) {
   let mode, base;
   if (changedZone === 'serve') {
     mode = 'serve';
-    const serveImg = zones?.serve?.img;
-    base = serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
+    // 剛落地的新 serve 牌：故意不疊加 delta，舊牌留下的手動調整馬上會被
+    // 接在後面呼叫的 resetCounterDelta() 歸零，這裡先算「乾淨」的分數。
+    base = calcServeScore(zones);
   } else if (changedZone === 'toss' || changedZone === 'attack' || changedZone === 'receive') {
     mode = 'attack';
-    const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
-    const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
-    base = auto_tos + (delta.tos || 0) + auto_atk + (delta.atk || 0);
+    base = calcNetAttackScore(zones, delta);
   } else {
     mode = gameState?.scoreModes?.[myRole] || 'attack';
-    if (mode === 'serve') {
-      const serveImg = zones?.serve?.img;
-      base = serveImg ? (+(allCards[serveImg]?.srv) || 0) : 0;
-    } else {
-      const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
-      const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
-      base = auto_tos + (delta.tos || 0) + auto_atk + (delta.atk || 0);
-    }
+    base = mode === 'serve' ? calcServeScore(zones) : calcNetAttackScore(zones, delta);
   }
   const updates = {};
   updates[`games/${roomId}/scores/${myRole}`] = base;
@@ -5696,17 +5692,12 @@ async function resetCounterDelta(zoneName) {
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: 0 };
   if (zoneName === 'serve') {
     // Recalc serve score with new card's srv value (delta reset to 0)
-    const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, auto_srv));
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcServeScore(zones, deltas)));
   } else if (zoneName === 'block:0' || zoneName === 'block:1' || zoneName === 'block:2') {
     // Block delta only affects display, no score recalc needed
   } else {
     // Recalc NET score with reset delta
-    const auto_tos = +(allCards[zones?.toss?.img]?.tos)   || 0;
-    const auto_atk = +(allCards[zones?.attack?.img]?.atk) || 0;
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(
-      Math.max(0, auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0))
-    );
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcNetAttackScore(zones, deltas)));
   }
 }
 
@@ -5769,15 +5760,11 @@ async function adjustCounter(stat, delta) {
   } else if (stat === 'srv') {
     // Recalc serve score if currently in serve mode
     if ((gameState?.scoreModes?.[myRole] || 'attack') === 'serve') {
-      const auto_srv = +(allCards[zones?.serve?.img]?.srv) || 0;
-      await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, auto_srv + (deltas.srv || 0)));
+      await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcServeScore(zones, deltas)));
     }
   } else {
     // Recalc NET score = tos_total + atk_total
-    const auto_tos = +(allCards[zones?.toss?.img]?.tos)    || 0;
-    const auto_atk = +(allCards[zones?.attack?.img]?.atk)  || 0;
-    const total = auto_tos + (deltas.tos || 0) + auto_atk + (deltas.atk || 0);
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, total));
+    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcNetAttackScore(zones, deltas)));
   }
   // Check if rcv/blk delta change now defeats atkAlert
   if (stat === 'rcv' || stat === 'blk') await _checkAndClearAtkAlert(zones);
