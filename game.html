@@ -5064,11 +5064,8 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
 
   const baseZone = zoneName.split(':')[0];
   if (baseZone === 'block') {
-    if (!zoneName.includes(':')) {
-      const i = normaliseBlock(zones.block).findIndex(x => !x);
-      if (i === -1) { toast('攔網區已滿（3人上限）'); return; }
-      zoneName = `block:${i}`;
-    }
+    zoneName = resolveBlockSlot(zones, zoneName, '攔網區已滿（3人上限）');
+    if (!zoneName) return;
     placeOntoResolvedZone(zones, zoneName, img, asGuts);
   } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
@@ -5126,11 +5123,8 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   // ── Place only the top card at destination ──
   const baseZone = toZone.split(':')[0];
   if (baseZone === 'block') {
-    if (!toZone.includes(':')) {
-      const i = normaliseBlock(zones.block).findIndex(x => !x);
-      if (i === -1) { toast('攔網區已滿'); return; }
-      toZone = `block:${i}`;
-    }
+    toZone = resolveBlockSlot(zones, toZone, '攔網區已滿');
+    if (!toZone) return;
     placeOntoResolvedZone(zones, toZone, cardData.img, asGuts);
   } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
@@ -7031,6 +7025,15 @@ function setZoneCard(zones, zoneName, val) {
   } else {
     zones[zoneName] = val;
   }
+}
+
+// bare 'block'（未指定 slot）時自動找第一個空位，回傳具體 'block:i'；
+// 已經是 'block:i' 就原樣回傳。滿了回傳 null 並照呼叫端給的訊息 toast。
+function resolveBlockSlot(zones, zoneName, fullMsg) {
+  if (zoneName.includes(':')) return zoneName;
+  const i = normaliseBlock(zones.block).findIndex(x => !x);
+  if (i === -1) { toast(fullMsg); return null; }
+  return `block:${i}`;
 }
 
 // 把一張牌放到一個已解析出具體格子（block 已含 :index）的 zone 上：
