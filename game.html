@@ -5214,6 +5214,7 @@ async function discardTopFromZone(zoneName, cardData) {
     }
   }
 
+  _turnLastZoneType = baseZone;
   if (!zones.drop) zones.drop = [];
   zones.drop.push(cardData.img);
   const card = allCards[cardData.img];
@@ -5229,6 +5230,7 @@ async function discardFromZone(zoneName, cardData) {
   saveUndo();
   const zones = myZonesCopy();
   removeFromZone(zones, zoneName, cardData.img);
+  _turnLastZoneType = zoneName.split(':')[0];
   if (!zones.drop) zones.drop = [];
   zones.drop.push(cardData.img);
   if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
