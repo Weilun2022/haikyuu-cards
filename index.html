@@ -2097,6 +2097,8 @@ function encodeDeck(deck) {
     n: deck.name,
     c: deck.cards.map(c => [c.image_file, c.count])
   };
+  const colors = deckColorState[deck.id];
+  if (colors && Object.keys(colors).length) payload.k = colors;
   return LZString.compressToEncodedURIComponent(JSON.stringify(payload));
 }
 
@@ -2120,7 +2122,8 @@ function decodeDeck(str) {
           card_no: cardObj?.card_no || identifier,
           count
         };
-      })
+      }),
+      colors: payload.k || null
     };
   } catch { return null; }
 }
@@ -2188,12 +2191,11 @@ function checkSharedDeck() {
 
   const total = imported.cards.reduce((s, c) => s + c.count, 0);
   if (confirm(`收到分享牌組「${imported.name}」（${total} 張），是否匯入？`)) {
-    const d = {
-      id: makeDeckId(),
+    const d = createDeckObject({
       name: imported.name,
       cards: imported.cards,
-      owned: {}
-    };
+      colors: imported.colors || undefined,
+    });
     normalizeDeck(d);
     decks.push(d);
     currentDeckId = d.id;
@@ -3375,8 +3377,27 @@ function getDeckOwned() {
 function getCurrentDeck() { return decks.find(d => d.id === currentDeckId) || null; }
 function makeDeckId()     { return 'dk_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
 
+// 唯一的牌組建構點：所有「建立/取得一副新牌組」的地方都要呼叫這個函式，
+// 確保牌組物件帶哪些欄位只需要決定一次。colors（若有）會直接寫進獨立的
+// deckColorState 頂層結構並持久化，呼叫端不用自己記得管這個額外的儲存區——
+// 過去就是因為只有部分呼叫點記得處理 colors，才會有「用 QR 分享牌組會遺失
+// 顏色標籤」這類資料悄悄遺失的問題。
+function createDeckObject({ name, cards: cardEntries, owned, colors } = {}) {
+  const d = {
+    id: makeDeckId(),
+    name: name || '新牌組',
+    cards: cardEntries || [],
+    owned: owned || {},
+  };
+  if (colors && Object.keys(colors).length) {
+    deckColorState[d.id] = colors;
+    saveColorState();
+  }
+  return d;
+}
+
 function createDeck(name) {
-  const d = { id: makeDeckId(), name: name || '新牌組', cards: [], owned: {} };
+  const d = createDeckObject({ name });
   decks.push(d);
   currentDeckId = d.id;
   saveDecks();
@@ -3388,12 +3409,12 @@ function duplicateDeck() {
   const src = getCurrentDeck();
   if (!src) { showToast('沒有選取的牌組'); return; }
   const newName = src.name + '（副本）';
-  const d = {
-    id: makeDeckId(),
+  const d = createDeckObject({
     name: newName,
     cards: JSON.parse(JSON.stringify(src.cards)),
-    owned: JSON.parse(JSON.stringify(src.owned || {}))
-  };
+    owned: JSON.parse(JSON.stringify(src.owned || {})),
+    colors: JSON.parse(JSON.stringify(deckColorState[src.id] || {})),
+  });
   decks.push(d);
   currentDeckId = d.id;
   saveDecks();
@@ -4250,14 +4271,14 @@ async function importDeckFromImage(file) {
         const data = JSON.parse(text);
         if (!Array.isArray(data.cards)) { showToast('牌組資料格式錯誤'); return; }
 
-        const newDeck = { id: makeDeckId(), name: data.name || '匯入的牌組', cards: data.cards, owned: {} };
+        const newDeck = createDeckObject({
+          name: data.name || '匯入的牌組',
+          cards: data.cards,
+          colors: (data.colors && typeof data.colors === 'object') ? data.colors : undefined,
+        });
         decks.push(newDeck);
         currentDeckId = newDeck.id;
         saveDecks();
-        if (data.colors && typeof data.colors === 'object') {
-          deckColorState[newDeck.id] = data.colors;
-          saveColorState();
-        }
         renderDeckSwitcher(); renderDeckPanel(); updateTray(); renderGrid();
         showToast(`已匯入「${newDeck.name}」！`);
         return;
@@ -4269,7 +4290,7 @@ async function importDeckFromImage(file) {
     window.hvDeckScan.open(file, {
       allCards: cards,
       onImportDeck: (scannedCards) => {
-        const newDeck = { id: makeDeckId(), name: file.name.replace(/\.[^.]+$/, '') || '辨識的牌組', cards: scannedCards, owned: {} };
+        const newDeck = createDeckObject({ name: file.name.replace(/\.[^.]+$/, '') || '辨識的牌組', cards: scannedCards });
         decks.push(newDeck);
         currentDeckId = newDeck.id;
         saveDecks();
