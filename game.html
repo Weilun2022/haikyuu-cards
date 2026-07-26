@@ -3939,6 +3939,14 @@ async function performLocalRoundCollect() {
   }
 }
 
+// 重置本局後，我方的分數/counter 要歸零——declareLost()（發起方）跟
+// handleRoundReset()（回應方）都要對稱呼叫這個，缺一邊就會有一方畫面
+// 沿用重置前的舊分數/counter。單純的 Firebase 清空，沒有計分公式可共用。
+async function resetMyRoundScoreState() {
+  await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
+  await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
+}
+
 async function handleRoundReset(data) {
   const rv = data?.roundReset;
   if (!rv || rv === _processedRoundReset) return;
@@ -3947,10 +3955,7 @@ async function handleRoundReset(data) {
   const collected = await performLocalRoundCollect();
   if (!collected) return; // 本地已有收牌流程在跑（例如自己剛按過重置），避免重複收牌
 
-  // 跟 declareLost() 對稱：發起方會清自己的 counterDelta/scores，回應方收到訊號後也要清自己的，
-  // 否則畫面上會沿用重置前的分數/counter（renderBoard 優先顯示持久化的 scores[role]）。
-  await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
-  await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
+  await resetMyRoundScoreState();
 
   toast(`本局結束，牌庫已重置（${L.pile.length} 張），請手動抽牌`);
 }
@@ -5829,8 +5834,7 @@ async function declareLost() {
     // Clear round-scoped Firebase state so opponent's screen doesn't get stuck
     await db.ref(`games/${roomId}/atkAlert`).remove();
     await db.ref(`games/${roomId}/currentAction`).remove();
-    await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
+    await resetMyRoundScoreState();
 
     // Signal opponent to do the same
     const resetVal = Date.now();
