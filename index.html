@@ -3382,7 +3382,7 @@ function makeDeckId()     { return 'dk_' + Date.now() + '_' + Math.random().toSt
 // deckColorState 頂層結構並持久化，呼叫端不用自己記得管這個額外的儲存區——
 // 過去就是因為只有部分呼叫點記得處理 colors，才會有「用 QR 分享牌組會遺失
 // 顏色標籤」這類資料悄悄遺失的問題。
-function createDeckObject({ name, cards: cardEntries, owned, colors } = {}) {
+function createDeckObject({ name, cards: cardEntries, owned, colors } = {}) { // cards 改名 cardEntries 避免遮蔽全域卡片資料庫 cards
   const d = {
     id: makeDeckId(),
     name: name || '新牌組',
