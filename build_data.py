@@ -111,16 +111,15 @@ def num_zh(n):
     mapping = {'1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六'}
     return mapping.get(str(n), str(n))
 
-def translate_skill(text, event_names=None):
+def translate_skill(text, event_names):
     if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
         return ''
     t = text
 
     # 0. 事件牌名稱保護機制（翻譯前先置換為佔位符，翻譯後再還原）
-    # event_names 由 main() 動態傳入（取自 all_cards.json 的 EVENT 卡 name 欄位）
-    # 傳入 event_names=[] 可繞過保護（用於取得事件牌名的中文譯名）
-    if event_names is None:
-        event_names = _EVENT_NAMES
+    # event_names 由呼叫端明確傳入（main() 取自 all_cards.json 的 EVENT 卡 name 欄位）——
+    # 刻意不提供預設值退回模組全域，這個函式才是真正的純函式，不用先跑過 main() 猜隱藏狀態。
+    # 傳入 event_names=[] 可繞過保護（用於取得事件牌名本身的中文譯名）
     evt_placeholders = {}
     for i, name in enumerate(event_names):
         placeholder = f'__EVTNAME_{i}__'
@@ -1483,7 +1482,7 @@ ANNOTATION_ZH = {
 }
 
 
-def translate_annotation(text):
+def translate_annotation(text, event_names):
     """翻譯特殊技能解釋（注釈）。未知文字回退到 translate_skill 啟發式翻譯。"""
     if not isinstance(text, str):
         return ''
@@ -1493,7 +1492,7 @@ def translate_annotation(text):
     if raw in ANNOTATION_ZH:
         return ANNOTATION_ZH[raw]
     # 後備：逐行套用 translate_skill（保底，理論上不應觸發）
-    return '\n'.join(translate_skill(line) or line for line in raw.split('\n'))
+    return '\n'.join(translate_skill(line, event_names) or line for line in raw.split('\n'))
 
 
 # ── 卡片名稱中文翻譯（name_zh）────────────────────────────────────
@@ -1568,7 +1567,7 @@ def main():
         img_end  = c.get('image_end', '')
         school   = extract_school(c.get('affiliation', ''))
         school_tags = extract_school_tags(c.get('affiliation', ''))
-        skill_zh = translate_skill(c.get('skill', ''))
+        skill_zh = translate_skill(c.get('skill', ''), _EVENT_NAMES)
         image_file_key = f"{card_no}-{img_end}.webp"
         if image_file_key in MANUAL_OVERRIDES:
             skill_zh = MANUAL_OVERRIDES[image_file_key]
@@ -1602,7 +1601,7 @@ def main():
             'skill_jp':  c.get('skill','') or '',
             'skill_zh':  skill_zh,
             'annotation_jp': (c.get('annotation','') or '').strip() if (c.get('annotation','') or '').strip() not in ('', '-') else '',
-            'annotation_zh': translate_annotation(c.get('annotation','')),
+            'annotation_zh': translate_annotation(c.get('annotation',''), _EVENT_NAMES),
             'qa':        [
                 {
                     'id':          qa_entry['id'],
