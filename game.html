@@ -5064,39 +5064,17 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
 
   const baseZone = zoneName.split(':')[0];
   if (baseZone === 'block') {
-    const b = normaliseBlock(zones.block);
-    if (zoneName.includes(':')) {
-      const i = parseInt(zoneName.split(':')[1]);
-      const old = b[i];
-      if (old) {
-        if (asGuts) {
-          b[i] = { img: old.img, guts: [...(old.guts || []), img] };
-        } else {
-          b[i] = { img, guts: [...(old.guts || []), old.img] };
-        }
-      } else {
-        b[i] = { img, guts: [] };
-      }
-    } else {
-      const i = b.findIndex(x => !x);
+    if (!zoneName.includes(':')) {
+      const i = normaliseBlock(zones.block).findIndex(x => !x);
       if (i === -1) { toast('攔網區已滿（3人上限）'); return; }
-      b[i] = { img, guts: [] };
+      zoneName = `block:${i}`;
     }
-    zones.block = b;
+    placeOntoResolvedZone(zones, zoneName, img, asGuts);
   } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
     zones.event.push(img);
   } else {
-    const old = zones[baseZone];
-    if (old?.img) {
-      if (asGuts) {
-        zones[baseZone] = { img: old.img, guts: [...(old.guts || []), img] };
-      } else {
-        zones[baseZone] = { img, guts: [...(old.guts || []), old.img] };
-      }
-    } else {
-      zones[baseZone] = { img, guts: [] };
-    }
+    placeOntoResolvedZone(zones, baseZone, img, asGuts);
   }
 
   L.hand.splice(handIdx, 1);
@@ -5148,34 +5126,17 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   // ── Place only the top card at destination ──
   const baseZone = toZone.split(':')[0];
   if (baseZone === 'block') {
-    const b = normaliseBlock(zones.block);
-    const slotIdx = toZone.includes(':') ? parseInt(toZone.split(':')[1]) : b.findIndex(x => !x);
-    if (slotIdx === -1) { toast('攔網區已滿'); return; }
-    const old = b[slotIdx];
-    if (old?.img) {
-      if (asGuts) {
-        b[slotIdx] = { img: old.img, guts: [...(old.guts || []), cardData.img] };
-      } else {
-        b[slotIdx] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
-      }
-    } else {
-      b[slotIdx] = { img: cardData.img, guts: [] };
+    if (!toZone.includes(':')) {
+      const i = normaliseBlock(zones.block).findIndex(x => !x);
+      if (i === -1) { toast('攔網區已滿'); return; }
+      toZone = `block:${i}`;
     }
-    zones.block = b;
+    placeOntoResolvedZone(zones, toZone, cardData.img, asGuts);
   } else if (baseZone === 'event') {
     if (!zones.event) zones.event = [];
     zones.event.push(cardData.img);
   } else {
-    const old = zones[baseZone];
-    if (old?.img) {
-      if (asGuts) {
-        zones[baseZone] = { img: old.img, guts: [...(old.guts || []), cardData.img] };
-      } else {
-        zones[baseZone] = { img: cardData.img, guts: [...(old.guts || []), old.img] };
-      }
-    } else {
-      zones[baseZone] = { img: cardData.img, guts: [] };
-    }
+    placeOntoResolvedZone(zones, baseZone, cardData.img, asGuts);
   }
 
   const card = allCards[cardData.img];
@@ -7070,6 +7031,16 @@ function setZoneCard(zones, zoneName, val) {
   } else {
     zones[zoneName] = val;
   }
+}
+
+// 把一張牌放到一個已解析出具體格子（block 已含 :index）的 zone 上：
+// 有舊卡就照 asGuts 疊在上面或下面，沒有就直接落地。block/一般單格共用同一套疊卡規則，
+// 只有 zone 形狀（哪個 slot）不同，形狀差異交給 getZoneCard/setZoneCard 處理。
+function placeOntoResolvedZone(zones, zoneName, img, asGuts) {
+  const old = getZoneCard(zones, zoneName);
+  setZoneCard(zones, zoneName, old?.img
+    ? (asGuts ? { img: old.img, guts: [...(old.guts || []), img] } : { img, guts: [...(old.guts || []), old.img] })
+    : { img, guts: [] });
 }
 
 function deepCopy(o) { try { return JSON.parse(JSON.stringify(o)); } catch(e) { console.error('deepCopy failed', e); return null; } }
