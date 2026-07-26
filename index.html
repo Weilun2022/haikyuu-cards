@@ -2630,27 +2630,9 @@ function buildCardEl(card) {
 
   const saveCount = () => {
     if (!currentDeckId && decks.length === 0) createDeck('我的牌組1');
-    const deck = getCurrentDeck();
-    if (!deck) return;
-    const imgFile = inp.dataset.img;
+    const imgFile  = inp.dataset.img;
     const newCount = parseInt(inp.value, 10);
-    const cardObj  = cards.find(c => c.image_file === imgFile);
-    const existing = deck.cards.find(c => c.image_file === imgFile);
-
-    if (isNaN(newCount) || newCount <= 0) {
-      // 移除此卡
-      const idx = deck.cards.findIndex(c => c.image_file === imgFile);
-      if (idx !== -1) deck.cards.splice(idx, 1);
-      inp.value = '';
-      inp.classList.remove('has-count');
-    } else {
-      if (existing) existing.count = newCount;
-      else deck.cards.push({ image_file: imgFile, card_no: cardObj?.card_no || '', count: newCount });
-      inp.value = newCount;
-      inp.classList.add('has-count');
-    }
-    saveDecks();
-    updateTray();
+    setCardCountInDeck(imgFile, newCount);
   };
   inp.addEventListener('change', saveCount);
   inp.addEventListener('blur',   saveCount);
@@ -3532,9 +3514,37 @@ function removeCardFromDeck(image_file) {
   if (newCount <= 0) {
     clearCardColorMap(deck.id, image_file);
     deck.cards.splice(idx, 1);
+    if (deck.owned) delete deck.owned[image_file];
   } else {
     trimCardColorMap(deck.id, image_file, newCount);
     deck.cards[idx].count = newCount;
+  }
+  applyCurrentDeckSort(deck);
+  saveDecks();
+  refreshCardBadge(image_file);
+  updateTray();
+}
+
+// 把某張卡在目前牌組裡的數量設成一個明確的值（卡片數量輸入框用），跟
+// addCardToDeck/removeCardFromDeck 共用同一套清理規則：數量歸零就整筆移除、
+// 清顏色標籤、清持有紀錄（deck.owned 對已經不在 deck.cards 裡的卡片而言是
+// 永遠讀不到的孤兒資料）；數量減少但沒歸零就照比例修剪顏色標籤。
+function setCardCountInDeck(image_file, newCount) {
+  const deck = getCurrentDeck();
+  if (!deck) return;
+  const cardObj = cards.find(c => c.image_file === image_file);
+  const idx     = deck.cards.findIndex(c => c.image_file === image_file);
+  if (isNaN(newCount) || newCount <= 0) {
+    if (idx !== -1) {
+      clearCardColorMap(deck.id, image_file);
+      deck.cards.splice(idx, 1);
+      if (deck.owned) delete deck.owned[image_file];
+    }
+  } else if (idx !== -1) {
+    trimCardColorMap(deck.id, image_file, newCount);
+    deck.cards[idx].count = newCount;
+  } else {
+    deck.cards.push({ image_file, card_no: cardObj?.card_no || '', count: newCount });
   }
   applyCurrentDeckSort(deck);
   saveDecks();
