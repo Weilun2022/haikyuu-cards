@@ -1509,8 +1509,12 @@ def translate_annotation(text, event_names):
         return ''
     if raw in ANNOTATION_ZH:
         return ANNOTATION_ZH[raw]
-    # 後備：逐行套用 translate_skill（保底，理論上不應觸發）
-    return '\n'.join(translate_skill(line, event_names) or line for line in raw.split('\n'))
+    # 後備：整段套用 translate_skill（保底，理論上不應觸發）。
+    # 原本這裡是逐行分割後個別呼叫，但 translate_skill() 部分規則（例如 ▶ 條列重排、
+    # 跨行的〔A〕：組合）假設看得到整段上下文，逐行拆開會讓這條後備路徑跟 skill_zh
+    # 的整段呼叫方式不一致——同一個函式因為呼叫方式不同而行為分歧。改成跟 skill_zh
+    # 一樣整段呼叫。
+    return translate_skill(raw, event_names) or raw
 
 
 # ── 卡片名稱中文翻譯（name_zh）────────────────────────────────────
