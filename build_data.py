@@ -1510,10 +1510,11 @@ def translate_annotation(text, event_names):
     if raw in ANNOTATION_ZH:
         return ANNOTATION_ZH[raw]
     # 後備：整段套用 translate_skill（保底，理論上不應觸發）。
-    # 原本這裡是逐行分割後個別呼叫，但 translate_skill() 部分規則（例如 ▶ 條列重排、
-    # 跨行的〔A〕：組合）假設看得到整段上下文，逐行拆開會讓這條後備路徑跟 skill_zh
-    # 的整段呼叫方式不一致——同一個函式因為呼叫方式不同而行為分歧。改成跟 skill_zh
-    # 一樣整段呼叫。
+    # 原本這裡是逐行分割後個別呼叫，但 translate_skill() 有規則（例如 ▶ 條列重排）
+    # 假設看得到整段上下文，逐行拆開會讓這條後備路徑跟 skill_zh 的整段呼叫方式不
+    # 一致——同一個函式因為呼叫方式不同而行為分歧。改成跟 skill_zh 一樣整段呼叫。
+    # （跨行的〔A〕：組合是 ANNOTATION_ZH 精確比對表自己處理的，不會走到這條後備
+    # 路徑，這裡不是它的理由）
     return translate_skill(raw, event_names) or raw
 
 
