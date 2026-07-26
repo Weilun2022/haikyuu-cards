@@ -7821,7 +7821,7 @@ function closeMobileDrawer() {
   function execMove(destZone, hasCards) {
     if (!srcZone || !srcCardData) { closeModal(); return; }
     try {
-      window.dragData = { src: 'zone', zoneName: srcZone, cardData: srcCardData };
+      dragData = { src: 'zone', zoneName: srcZone, cardData: srcCardData };
       handleDrop(destZone, hasCards);
     } catch(e) { console.warn('[msm] execMove error', e); }
     closeModal();
