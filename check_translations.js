@@ -225,12 +225,12 @@ function checkCard(card) {
   // Katakana remaining in zh（排除 [=X] 標注跟「...」引用的原名，只留下真正可能漏翻的部分）
   // 片假名範圍務必含長音符「ー」（U+30FC，原本不在 ァ-ン 範圍內）——少了它，任何含長音符
   // 的一般外來語（例如「サーブ」）都會完全偵測不到殘留，不是只有 ユース 受影響。
-  // ユース／疑似ユース 依 ADR 0001 刻意保留日文原文不翻，這裡明確排除，不能只靠正規表達式
-  // 範圍缺口讓它們「剛好」通過——2026-07-26 發現先前就是這樣，範圍一旦被「修正」涵蓋長音符，
-  // 這兩個詞會立刻被誤判成殘留。
+  // ユース／疑似ユース 依 docs/translation/docs/adr/0001-yuusu-keep-untranslated.md
+  // 刻意保留日文原文不翻，這裡明確排除，不能只靠正規表達式範圍缺口讓它們「剛好」通過
+  // ——範圍一旦被「修正」涵蓋長音符，這兩個詞會立刻被誤判成殘留。
   const YUUSU_TERMS = ['疑似ユース', 'ユース'];
   let zhForKatakanaCheck = zhWithoutQuotedNames.replace(/\[=[^\]]+\]/g, '');
-  for (const term of YUUSU_TERMS) zhForKatakanaCheck = zhForKatakanaCheck.split(term).join('');
+  for (const term of YUUSU_TERMS) zhForKatakanaCheck = zhForKatakanaCheck.replaceAll(term, '');
   const kataInZh = zhForKatakanaCheck.match(/[ァ-ンー]{2,}/g);
   if (kataInZh) {
     cardIssues.push({ type: '語法問題', fragment: '日文片假名殘留: ' + kataInZh.join(','), suggestion: '確認是否需翻譯' });
