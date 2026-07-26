@@ -3508,21 +3508,9 @@ function addCardToDeck(image_file, quantity = 1) {
 function removeCardFromDeck(image_file) {
   const deck = getCurrentDeck();
   if (!deck) return;
-  const idx = deck.cards.findIndex(c => c.image_file === image_file);
-  if (idx === -1) return;
-  const newCount = deck.cards[idx].count - 1;
-  if (newCount <= 0) {
-    clearCardColorMap(deck.id, image_file);
-    deck.cards.splice(idx, 1);
-    if (deck.owned) delete deck.owned[image_file];
-  } else {
-    trimCardColorMap(deck.id, image_file, newCount);
-    deck.cards[idx].count = newCount;
-  }
-  applyCurrentDeckSort(deck);
-  saveDecks();
-  refreshCardBadge(image_file);
-  updateTray();
+  const entry = deck.cards.find(c => c.image_file === image_file);
+  if (!entry) return;
+  setCardCountInDeck(image_file, entry.count - 1);
 }
 
 // 把某張卡在目前牌組裡的數量設成一個明確的值（卡片數量輸入框用），跟
@@ -4619,12 +4607,9 @@ function bindDeckEvents() {
     if (!deck) return;
     const entry = deck.cards.find(c => c.image_file === deckPreviewSelectedImg);
     if (!entry) return;
-    deck.cards = deck.cards.filter(c => c.image_file !== deckPreviewSelectedImg);
-    trimCardColorMap(deck.id, deckPreviewSelectedImg, 0);
-    saveDecks();
-    refreshCardBadge(deckPreviewSelectedImg);
+    setCardCountInDeck(deckPreviewSelectedImg, 0);
     hideDeckPreview();
-    updateTray(); renderGrid();
+    renderGrid();
   });
 
   document.getElementById('tray-deck-select').addEventListener('change', e => {
