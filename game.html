@@ -4240,7 +4240,6 @@ async function endTurn() {
     ? 0
     // Use || so a stored score of 0 also falls back to computing from zones
     : (gameState?.scores?.[myRole] || calcBaseScore(myRole, gameState));
-  _turnLastZoneType = null; // 回合結束，清空供下一輪重新追蹤
   // Optimistic local update: flip button immediately without waiting for Firebase round-trip
   updatePhaseUI(gameState?.phase || 'serve', oppRole);
   try {
@@ -4250,8 +4249,9 @@ async function endTurn() {
     });
   } catch (e) {
     toast('回合結束失敗：' + e.message);
-    return;
+    return; // 寫入失敗、回合其實沒結束，_turnLastZoneType 留著給下一次真正 endTurn 用
   }
+  _turnLastZoneType = null; // 回合真的結束了才清空，供下一輪重新追蹤
   addLog(L.name, `回合結束 — ${actionLabel}`);
   // Clear undo stack at end of turn (no going back across turns)
   L.undoStack = [];
@@ -6951,6 +6951,10 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false)
     await resetCounterDelta(target);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
+  // 補上 placeCard/moveCard/_finishDropZone 都有做的追蹤，這裡原本漏掉：Guts 牌成功落到某個
+  // 格子時也要更新 _turnLastZoneType，回合結束的攻擊分數歸零判斷才不會沿用舊動作。放在所有
+  // 分支的失敗 return 之後才賦值，避免攔網區已滿等失敗案例誤蓋掉真正的上一個動作記錄。
+  if (_gto) _turnLastZoneType = _gto;
   addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}${cardState()}`);
 }
 
