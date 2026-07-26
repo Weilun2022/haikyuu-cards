@@ -8,6 +8,7 @@ __pycache__/
 !firebase.json
 !functions/package.json
 !functions/package-lock.json
+!official_terms.json
 output/
 node_modules/
 cards_zh.json

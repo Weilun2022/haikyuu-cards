@@ -6,6 +6,12 @@ const content = fs.readFileSync(__dirname + '/cards_data.js', 'utf8');
 const modified = content.replace('const CARDS_DATA =', 'global.CARDS_DATA =');
 eval(modified);
 
+// 官方術語單一事實來源：跟 build_data.py 共用同一份 official_terms.json，
+// 不再各自硬編同一批術語——避免像 ドシャット 那次一樣，這裡的預期值
+//本身寫錯卻沒人發現（check_translations.js 曾經預期錯的中文術語，
+// 長期誤報直到 2026-07-25 才修正）。
+const OFFICIAL_TERMS = JSON.parse(fs.readFileSync(__dirname + '/official_terms.json', 'utf8')).terms;
+
 const cards = global.CARDS_DATA.cards;
 console.log('Total cards: ' + cards.length);
 
@@ -139,77 +145,14 @@ function checkCard(card) {
     stats['術語錯誤']++;
   }
 
-  // ドロップエリア → 棄牌區
-  if (jp.includes('ドロップエリア') && !zh.includes('棄牌區')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(ドロップエリア未正確譯出)', suggestion: '應譯為「棄牌區」' });
-    stats['術語錯誤']++;
-  }
-
-  // コーチ → 教練
-  if (jp.includes('コーチ') && !zh.includes('教練')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(コーチ未正確譯出)', suggestion: '應譯為「教練」' });
-    stats['術語錯誤']++;
-  }
-
-  // ドシャット → [=封殺攔網]（2026-07-25 核對全庫詞頻修正：「封殺攔網」出現 36 次、
-  // 「強扣」0 次，原本這條規則期望值本身就是錯的，之前一直在誤報）
-  if (jp.includes('ドシャット') && !zh.includes('封殺攔網')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(ドシャット未標注封殺攔網)', suggestion: '應標注「[=封殺攔網]」' });
-    stats['術語錯誤']++;
-  }
-
-  // ワンタッチ → [=一觸]
-  if (jp.includes('ワンタッチ') && !zh.includes('一觸')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(ワンタッチ未標注一觸)', suggestion: '應標注「[=一觸]」' });
-    stats['術語錯誤']++;
-  }
-
-  // フェイント → [=佯攻]
-  if (jp.includes('フェイント') && !zh.includes('佯攻')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(フェイント未標注佯攻)', suggestion: '應標注「[=佯攻]」' });
-    stats['術語錯誤']++;
-  }
-
-  // トスキャラ → 舉球角色
-  if (jp.includes('トスキャラ') && !zh.includes('舉球角色')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(トスキャラ未正確譯出)', suggestion: '應譯為「舉球角色」' });
-    stats['術語錯誤']++;
-  }
-
-  // レシーブキャラ → 接球角色
-  if (jp.includes('レシーブキャラ') && !zh.includes('接球角色')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(レシーブキャラ未正確譯出)', suggestion: '應譯為「接球角色」' });
-    stats['術語錯誤']++;
-  }
-
-  // ブロックキャラ → 攔網角色
-  if (jp.includes('ブロックキャラ') && !zh.includes('攔網角色')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(ブロックキャラ未正確譯出)', suggestion: '應譯為「攔網角色」' });
-    stats['術語錯誤']++;
-  }
-
-  // アタックキャラ → 攻擊角色
-  if (jp.includes('アタックキャラ') && !zh.includes('攻擊角色')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(アタックキャラ未正確譯出)', suggestion: '應譯為「攻擊角色」' });
-    stats['術語錯誤']++;
-  }
-
-  // サーブキャラ → 發球角色
-  if (jp.includes('サーブキャラ') && !zh.includes('發球角色')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(サーブキャラ未正確譯出)', suggestion: '應譯為「發球角色」' });
-    stats['術語錯誤']++;
-  }
-
-  // オフェンスポイント → 進攻值
-  if (jp.includes('オフェンスポイント') && !zh.includes('進攻值')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(オフェンスポイント未正確譯出)', suggestion: '應譯為「進攻值」' });
-    stats['術語錯誤']++;
-  }
-
-  // ディフェンスポイント → 防禦值
-  if (jp.includes('ディフェンスポイント') && !zh.includes('防禦值')) {
-    cardIssues.push({ type: '術語錯誤', fragment: '(ディフェンスポイント未正確譯出)', suggestion: '應譯為「防禦值」' });
-    stats['術語錯誤']++;
+  // 官方術語一致性檢查：迴圈跑 official_terms.json 裡的每一筆，跟 build_data.py
+  // 共用同一份期望值——不再像過去那樣，這裡的期望值自己寫錯（ドシャット 那次）
+  // 卻沒有任何東西能發現，因為兩邊各自硬編、互不參照。
+  for (const [jpTerm, zhTerm] of Object.entries(OFFICIAL_TERMS)) {
+    if (jp.includes(jpTerm) && !zh.includes(zhTerm)) {
+      cardIssues.push({ type: '術語錯誤', fragment: `(${jpTerm}未正確譯出)`, suggestion: `應譯為「${zhTerm}」` });
+      stats['術語錯誤']++;
+    }
   }
 
   // Grammar checks
