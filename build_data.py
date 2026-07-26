@@ -117,11 +117,12 @@ def num_zh(n):
     mapping = {'1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六'}
     return mapping.get(str(n), str(n))
 
-def translate_skill(text, event_names):
-    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
-        return ''
-    t = text
-
+def _protect_terms(t, event_names):
+    """階段 1/4（issue #75）：專有名詞與保護機制。
+    事件牌名佔位符保護、括號標籤特殊規則（フェイント/ワンタッチ/ドシャット 等帶數字標籤）、
+    完整短語保護、P03 新詞規則。回傳 (轉換後文字, 事件牌名佔位符對照表)——
+    佔位符要留到 translate_skill() 收尾階段才還原，這裡不做還原。
+    """
     # 0. 事件牌名稱保護機制（翻譯前先置換為佔位符，翻譯後再還原）
     # event_names 由呼叫端明確傳入（main() 取自 all_cards.json 的 EVENT 卡 name 欄位）——
     # 刻意不提供預設值退回模組全域，這個函式才是真正的純函式，不用先跑過 main() 猜隱藏狀態。
@@ -250,6 +251,14 @@ def translate_skill(text, event_names):
     # シャッフル（洗牌）
     t = re.sub(r'デッキに戻してシャッフルし[、，]?', '放回牌庫並洗牌，', t)
     t = re.sub(r'デッキに戻してシャッフル[、，]?', '放回牌庫並洗牌，', t)
+
+    return t, evt_placeholders
+
+
+def translate_skill(text, event_names):
+    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
+        return ''
+    t, evt_placeholders = _protect_terms(text, event_names)
 
     # 3. 複合詞組（必須在單詞替換前處理）
     t = t.replace('手札から登場しており、','從手牌出場，且')
