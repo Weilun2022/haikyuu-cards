@@ -8,9 +8,12 @@ eval(modified);
 
 // 官方術語單一事實來源：跟 build_data.py 共用同一份 official_terms.json，
 // 不再各自硬編同一批術語——避免像 ドシャット 那次一樣，這裡的預期值
-//本身寫錯卻沒人發現（check_translations.js 曾經預期錯的中文術語，
+// 本身寫錯卻沒人發現（check_translations.js 曾經預期錯的中文術語，
 // 長期誤報直到 2026-07-25 才修正）。
-const OFFICIAL_TERMS = JSON.parse(fs.readFileSync(__dirname + '/official_terms.json', 'utf8')).terms;
+const _officialTermsData = JSON.parse(fs.readFileSync(__dirname + '/official_terms.json', 'utf8'));
+const OFFICIAL_TERMS = _officialTermsData.terms;
+// 這幾個是 [=X(N)] 遊戲引擎標記語法，不是一般散文詞彙，提示文字要分開處理
+const BRACKET_TAG_TERMS = new Set(_officialTermsData.bracket_tag_terms || []);
 
 const cards = global.CARDS_DATA.cards;
 console.log('Total cards: ' + cards.length);
@@ -150,7 +153,12 @@ function checkCard(card) {
   // 卻沒有任何東西能發現，因為兩邊各自硬編、互不參照。
   for (const [jpTerm, zhTerm] of Object.entries(OFFICIAL_TERMS)) {
     if (jp.includes(jpTerm) && !zh.includes(zhTerm)) {
-      cardIssues.push({ type: '術語錯誤', fragment: `(${jpTerm}未正確譯出)`, suggestion: `應譯為「${zhTerm}」` });
+      const isBracketTag = BRACKET_TAG_TERMS.has(jpTerm);
+      cardIssues.push({
+        type: '術語錯誤',
+        fragment: isBracketTag ? `(${jpTerm}未標注${zhTerm})` : `(${jpTerm}未正確譯出)`,
+        suggestion: isBracketTag ? `應標注「[=${zhTerm}]」` : `應譯為「${zhTerm}」`,
+      });
       stats['術語錯誤']++;
     }
   }
