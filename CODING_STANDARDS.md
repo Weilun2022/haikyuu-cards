@@ -31,6 +31,15 @@
 
 ## 測試現狀（老實說）
 
-**目前沒有任何自動化測試框架或測試檔案。** 沒有 `package.json` 的 `test` script，沒有 Jest/Vitest/Playwright 之類的東西。驗證方式一直是手動：改完用瀏覽器實測（截圖、`console` 手動呼叫、DOM 幾何量測），或是像 `scan_deck_photo.py` 那樣寫一次性 Python 腳本驗證演算法。
+**`functions/` 有自動化測試，其餘（`index.html`／`game.html`／`js/*.js`）沒有。** 這是刻意的分界，不是還沒做完：
 
-採用 `tdd` skill 是**引入新習慣**，不是「補回原本就有的測試」。第一次在某個模組用 TDD 之前，照 `tdd` skill 的規則跟使用者確認 seam 在哪，不要假設既有的手動驗證方式可以直接套用同一套 seam。
+- **`functions/`**：唯一的 npm 專案，也是唯一不碰瀏覽器 DOM 的部分，用 Node 內建的 `node:test` + `node:assert/strict`，**沒有裝任何新的 npm 依賴**（不是 Jest/Vitest，是刻意選擇，理由見 [docs/adr/0004](docs/adr/0004-node-test-runner-for-functions.md)）。
+  - 執行：`cd functions && npm test`（`node --test` 會自動掃描並執行所有符合 `**/*.test.js` 的檔案，不用逐一註冊）。
+  - **加新測試就直接照這個慣例放檔案**：測試檔跟被測的原始檔放同一個資料夾、檔名是 `<被測檔案>.test.js`（例如 `lib/cardLookup.test.js` 測 `lib/cardLookup.js`），寫完直接跑得到，不用改任何設定。
+  - **只測公開匯出的函式（`export function ...`），不測內部細節**——斷言回傳值，不去檢查內部快取變數/私有函式有沒有被呼叫。
+  - **會碰網路的函式**（例如 `cardLookup.js` 的 `loadCards()` 會 `fetch` 一個外部網址）：用 `node:test` 內建的 `mock.method(globalThis, 'fetch', ...)` 把全域 `fetch` 換成回傳假資料的版本，測試不能依賴真實網路——外部網站變慢或掛掉不該讓測試跟著變紅。參考 `functions/lib/cardLookup.test.js` 的寫法。
+  - 現有測試：`functions/lib/cardLookup.test.js`（日文卡名模糊比對）。
+
+- **`index.html`／`game.html`／`js/*.js`**：沒有模組系統（`export`/`import`），函式直接掛在頁面全域作用域，市面上標準測試框架抓不到單一函式來測。要幫這幾個檔案補測試，需要先決定要不要導入瀏覽器層級的測試工具（例如 Playwright，真的開瀏覽器跑腳本），這是一個比較大、還沒做的獨立決定，不要自己假設可以套用 `functions/` 那套 `node:test` 的做法。目前驗證方式維持手動：改完用瀏覽器實測（`console` 手動呼叫、注入 mock 盤面/mock 牌組資料、DOM 幾何量測），這個習慣不算「沒有測試」，只是沒有存成可重跑的腳本。
+
+採用 `tdd` skill 在 `index.html`/`game.html` 這類還沒有自動化測試的模組上是**引入新習慣**，不是「補回原本就有的測試」。第一次在這類模組用 TDD 之前，照 `tdd` skill 的規則跟使用者確認 seam 在哪，不要假設既有的手動驗證方式可以直接套用同一套 seam。`functions/` 底下則已經有真正的 seam 慣例可以直接沿用，不用重新確認。

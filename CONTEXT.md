@@ -38,3 +38,4 @@ _Avoid_: 不要跟「稀有度」混用——稀有度只是版本底下的一�
 - [0001](docs/adr/0001-cloud-sync-last-write-wins.md) — 雲端同步用 last-write-wins，不做欄位級 3-way merge
 - [0002](docs/adr/0002-theme-colors-from-live-official-ui.md) — 視覺主題色票讀官方頁面 UI 元件 computed style，不用圖片採樣
 - [0003](docs/adr/0003-deck-scan-gemini-key-via-env-not-secret-manager.md) — 牌組照片辨識的 Gemini key 存 `.env`，不用 Secret Manager（避免強制升級 Blaze）
+- [0004](docs/adr/0004-node-test-runner-for-functions.md) — `functions/` 的測試框架用 Node 內建 `node:test`，不裝 Jest/Vitest
