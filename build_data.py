@@ -517,13 +517,7 @@ def _translate_grammar(t):
     return t
 
 
-def translate_skill(text, event_names):
-    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
-        return ''
-    t, evt_placeholders = _protect_terms(text, event_names)
-    t = _translate_vocabulary(t)
-    t = _translate_grammar(t)
-
+def _strip_residual_particles(t, evt_placeholders):
     # ── 強化修正（第二輪：殘留日文清理）────────────────────────────────
 
     # A. 特殊名詞（技能名/人名/術語）
@@ -800,6 +794,15 @@ def translate_skill(text, event_names):
         t = t.replace(f'「{placeholder}」', f'「{name}」')
 
     return t.strip()
+
+
+def translate_skill(text, event_names):
+    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
+        return ''
+    t, evt_placeholders = _protect_terms(text, event_names)
+    t = _translate_vocabulary(t)
+    t = _translate_grammar(t)
+    return _strip_residual_particles(t, evt_placeholders)
 
 
 # Q&A 文字中事件牌名的中文譯名 → 日文原名
