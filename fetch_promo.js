@@ -40,6 +40,7 @@ const SCHOOL_KEYWORDS = {
 
 const OUT_PATH = path.join(__dirname, 'promo_data.js');
 const MAX_RETRY = 3;
+const MAX_STORED = 300; // 累積上限：超過只留最新的，避免無上限成長
 
 // ── 抓取（含重試：quota/網路偶發錯誤）──────────────────
 function fetchJson(url, attempt = 1) {
@@ -76,20 +77,31 @@ async function getUploadsPlaylistId(channelId) {
   return uploads;
 }
 
-// uploads 播放清單 → 最新影片列表（1 quota unit）
-async function getPlaylistVideos(playlistId, channelName) {
-  const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${MAX_RESULTS}&key=${API_KEY}`;
-  const data = await fetchJson(url);
-  return (data?.items || [])
-    .filter(item => item.snippet?.resourceId?.videoId)
-    .map(item => ({
-      videoId:   item.snippet.resourceId.videoId,
-      title:     item.snippet.title || '',
-      published: item.snippet.publishedAt || '',   // 完整 ISO 時間戳，前端轉當地時間顯示
-      // 描述只用於分類，不輸出（控制檔案大小）
-      _desc:     item.snippet.description || '',
-      channel:   channelName,
-    }));
+// uploads 播放清單 → 影片列表。預設只抓最新 MAX_RESULTS 部（1 quota unit）；
+// full=true 時翻頁抓完整個上傳歷史（回填用，每 50 部 1 quota unit，MAX_PAGES 是安全閥）。
+const MAX_PAGES = 20; // 目前頻道 489 部影片／50 部一頁 ≈ 10 頁，抓到未來成長也夠用
+async function getPlaylistVideos(playlistId, channelName, { full = false } = {}) {
+  const perPage = full ? 50 : MAX_RESULTS;
+  let all = [];
+  let pageToken = '';
+  let pages = 0;
+  do {
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&playlistId=${playlistId}&maxResults=${perPage}${pageToken ? `&pageToken=${pageToken}` : ''}&key=${API_KEY}`;
+    const data = await fetchJson(url);
+    all = all.concat((data?.items || [])
+      .filter(item => item.snippet?.resourceId?.videoId)
+      .map(item => ({
+        videoId:   item.snippet.resourceId.videoId,
+        title:     item.snippet.title || '',
+        published: item.snippet.publishedAt || '',   // 完整 ISO 時間戳，前端轉當地時間顯示
+        // 描述只用於分類，不輸出（控制檔案大小）
+        _desc:     item.snippet.description || '',
+        channel:   channelName,
+      })));
+    pageToken = data?.nextPageToken || '';
+    pages++;
+  } while (full && pageToken && pages < MAX_PAGES);
+  return all;
 }
 
 function isRelevant(title) {
@@ -128,19 +140,50 @@ function extractStage(text) {
   return '';
 }
 
+// 讀取既有 promo_data.js 的 videos（檔案不存在/格式壞掉都當作沒有舊資料）
+function loadExistingVideos(outPath) {
+  let raw;
+  try {
+    raw = fs.readFileSync(outPath, 'utf8');
+  } catch {
+    return [];
+  }
+  const m = raw.match(/const PROMO_DATA = (.*);\s*$/s);
+  if (!m) return [];
+  try {
+    const parsed = JSON.parse(m[1]);
+    return Array.isArray(parsed.videos) ? parsed.videos : [];
+  } catch {
+    return [];
+  }
+}
+
+// 累積合併：頻道最新 15 部影片裡，非排球少年相關的內容一多，舊的相關影片就會被擠出
+// 這個抓取視窗（見 MAX_RESULTS）。單純覆寫等於讓它們從網站上永久消失，所以改成跟舊
+// 資料以 videoId 去重後合併——一旦被判定相關就會留著，直到超過 MAX_STORED 才淘汰最舊的。
+function mergeVideos(existing, fresh) {
+  const byId = new Map(existing.map(v => [v.videoId, v]));
+  for (const v of fresh) byId.set(v.videoId, v); // 新抓到的資料（分類可能更新）覆蓋舊的
+  return [...byId.values()]
+    .sort((a, b) => b.published.localeCompare(a.published))
+    .slice(0, MAX_STORED);
+}
+
 // ── 主流程 ────────────────────────────────────────────
-(async () => {
+// require.main 判斷：被 fetch_promo.test.js require() 時不執行，只借用上面的函式
+if (require.main === module) (async () => {
   if (!API_KEY) {
     console.error('缺少 YOUTUBE_API_KEY 環境變數，中止（保留舊 promo_data.js 不覆寫）');
     process.exit(1);
   }
 
-  console.log('情報站爬蟲開始', new Date().toISOString());
+  const backfill = process.env.BACKFILL === 'true' || process.argv.includes('--backfill');
+  console.log('情報站爬蟲開始', new Date().toISOString(), backfill ? '（全量回填模式）' : '');
   let all = [];
   for (const ch of CHANNELS) {
     try {
       const uploadsId = await getUploadsPlaylistId(ch.id);
-      const entries = await getPlaylistVideos(uploadsId, ch.name);
+      const entries = await getPlaylistVideos(uploadsId, ch.name, { full: backfill });
       console.log(`[${ch.name}] API ${entries.length} 部`);
       all = all.concat(entries);
     } catch (e) {
@@ -149,22 +192,24 @@ function extractStage(text) {
     }
   }
 
-  const videos = all
+  if (all.length === 0) {
+    console.error('所有頻道皆抓取失敗，保留舊 promo_data.js 不覆寫');
+    process.exit(1);
+  }
+
+  const fresh = all
     .filter(v => isRelevant(v.title + ' ' + v._desc))
     .map(({ _desc, ...v }) => {
       const text = v.title + ' ' + _desc;
       const schools = classifySchools(text);
       return { ...v, schools, school: schools[0], stage: extractStage(text) };
-    })
-    .sort((a, b) => b.published.localeCompare(a.published));
+    });
 
-  console.log(`相關影片 ${videos.length} / 全部 ${all.length}`);
+  console.log(`本次相關影片 ${fresh.length} / 抓取 ${all.length}`);
+
+  const videos = mergeVideos(loadExistingVideos(OUT_PATH), fresh);
+  console.log(`累積後共 ${videos.length} 部`);
   videos.forEach(v => console.log(`  ${v.published} [${v.schools.join('/')}${v.stage ? ' '+v.stage : ''}] ${v.title.slice(0, 36)}`));
-
-  if (all.length === 0) {
-    console.error('所有頻道皆抓取失敗，保留舊 promo_data.js 不覆寫');
-    process.exit(1);
-  }
 
   const data = { updated: new Date().toISOString(), videos };
   fs.writeFileSync(OUT_PATH,
@@ -172,3 +217,5 @@ function extractStage(text) {
     JSON.stringify(data, null, 0) + ';\n');
   console.log(`[OK] 寫入 ${OUT_PATH}`);
 })();
+
+module.exports = { mergeVideos, loadExistingVideos, isRelevant, classifySchools, extractStage };

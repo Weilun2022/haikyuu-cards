@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 */4 * * *'   # 每 4 小時
   workflow_dispatch:          # 可手動觸發
+    inputs:
+      backfill:
+        description: '全量回填頻道歷史影片（翻頁掃描整個上傳清單，只需手動跑一次）'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -21,6 +26,7 @@ jobs:
       - name: 抓取商家 YouTube 影片
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          BACKFILL: ${{ github.event.inputs.backfill }}
         run: node fetch_promo.js
 
       - name: 有變動才 commit + push
