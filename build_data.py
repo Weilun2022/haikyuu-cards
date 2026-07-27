@@ -253,11 +253,7 @@ def _protect_terms(t, event_names):
     return t, evt_placeholders
 
 
-def translate_skill(text, event_names):
-    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
-        return ''
-    t, evt_placeholders = _protect_terms(text, event_names)
-
+def _translate_vocabulary(t):
     # 3. 複合詞組（必須在單詞替換前處理）
     t = t.replace('手札から登場しており、','從手牌出場，且')
     t = t.replace('手札から登場しており','從手牌出場，且')
@@ -342,6 +338,15 @@ def translate_skill(text, event_names):
     t = t.replace('自分の','自己的')
     t = t.replace('相手の','對手的')
     t = t.replace('お互いの','雙方的')
+
+    return t
+
+
+def translate_skill(text, event_names):
+    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
+        return ''
+    t, evt_placeholders = _protect_terms(text, event_names)
+    t = _translate_vocabulary(t)
 
     # 7. 費用/發動
     t = re.sub(r'(\d+)Guts払えば以下の(\d+)つを使える',
