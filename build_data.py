@@ -342,12 +342,7 @@ def _translate_vocabulary(t):
     return t
 
 
-def translate_skill(text, event_names):
-    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
-        return ''
-    t, evt_placeholders = _protect_terms(text, event_names)
-    t = _translate_vocabulary(t)
-
+def _translate_grammar(t):
     # 7. 費用/發動
     t = re.sub(r'(\d+)Guts払えば以下の(\d+)つを使える',
                lambda m: f'支付{m.group(1)} Guts後可發動以下{num_zh(m.group(2))}項', t)
@@ -518,6 +513,16 @@ def translate_skill(text, event_names):
     t = t.replace('一度だけ','只限一次')
     t = t.replace('、','，')
     t = t.replace('無効','無效')
+
+    return t
+
+
+def translate_skill(text, event_names):
+    if not isinstance(text, str) or text.strip() in ('', '-', 'スキル'):
+        return ''
+    t, evt_placeholders = _protect_terms(text, event_names)
+    t = _translate_vocabulary(t)
+    t = _translate_grammar(t)
 
     # ── 強化修正（第二輪：殘留日文清理）────────────────────────────────
 
