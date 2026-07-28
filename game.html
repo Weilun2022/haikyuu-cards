@@ -5086,7 +5086,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   renderZones('self', zones, false);
   await pushZones(zones);
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
-  await resetCounterDelta(baseZone);
+  await resetCounterDelta(zoneName); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
   await _checkAndClearAtkAlert(zones);
   addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}${cardState()}`);
 }
@@ -5145,7 +5145,7 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
   if (_rel.includes(fromBase) || _rel.includes(baseZone)) {
     await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null);
   }
-  await resetCounterDelta(baseZone);
+  await resetCounterDelta(toZone); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
   addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}${cardState()}`);
 }
 
@@ -6156,6 +6156,7 @@ async function moveCardFromStack(fromZone, img, toTarget) {
     setZoneCard(zones, fromZone, zc);
   }
   // Place in target
+  let resolvedTarget = toTarget; // 攔網若是裸 'block'，下面會 resolve 成 'block:i' 供 resetCounterDelta 用
   if (toTarget === 'hand') {
     L.hand.push(img);
     renderHand();
@@ -6167,6 +6168,7 @@ async function moveCardFromStack(fromZone, img, toTarget) {
       if (idx === -1) { toast('攔網區已滿'); return; }
       b[idx] = { img, guts: [] };
       zones.block = b;
+      resolvedTarget = `block:${idx}`;
     } else if (toTarget.startsWith('block:')) {
       const slotIdx = parseInt(toTarget.split(':')[1]);
       const b = normaliseBlock(zones.block);
@@ -6201,7 +6203,7 @@ async function moveCardFromStack(fromZone, img, toTarget) {
   if (_srel.includes(_sfrom) || _srel.includes(_sto)) {
     await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null);
   }
-  await resetCounterDelta(_sto);
+  await resetCounterDelta(resolvedTarget);
   addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}${cardState()}`);
 }
 
@@ -6879,6 +6881,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false)
     logTarget = '棄牌區';
   } else {
     const baseZone = target.split(':')[0];
+    let resolvedTarget = target; // 攔網若是裸 'block'，下面會 resolve 成 'block:i' 供 resetCounterDelta 用
     if (baseZone === 'block') {
       const b = normaliseBlock(zones.block);
       const slotIdx = target.includes(':') ? parseInt(target.split(':')[1]) : b.findIndex(x => !x);
@@ -6886,6 +6889,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false)
       if (b[slotIdx]?.img) { toast('攔網位已有牌'); return; }
       b[slotIdx] = { img: gutsImg, guts: [] };
       zones.block = b;
+      resolvedTarget = `block:${slotIdx}`;
     } else if (baseZone === 'event') {
       zones.event = zones.event || [];
       zones.event.push(gutsImg);
@@ -6902,7 +6906,7 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false)
     }
     await pushZones(zones);
     if (_needsSync) await syncScoreToBase(zones, _modeZone);
-    await resetCounterDelta(target);
+    await resetCounterDelta(resolvedTarget);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
   // 補上 placeCard/moveCard/_finishDropZone 都有做的追蹤，這裡原本漏掉：Guts 牌成功落到某個
