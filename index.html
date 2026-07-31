@@ -2092,10 +2092,15 @@ function loadPendingDelta() {
   }
 }
 function savePendingDelta(pendingDelta) {
-  if (Object.keys(pendingDelta).length === 0) {
-    localStorage.removeItem(VIEW_COUNT_STORAGE_KEY);
-  } else {
-    localStorage.setItem(VIEW_COUNT_STORAGE_KEY, JSON.stringify(pendingDelta));
+  try {
+    if (Object.keys(pendingDelta).length === 0) {
+      localStorage.removeItem(VIEW_COUNT_STORAGE_KEY);
+    } else {
+      localStorage.setItem(VIEW_COUNT_STORAGE_KEY, JSON.stringify(pendingDelta));
+    }
+  } catch {
+    // localStorage 被封鎖/滿了（例如 Safari 私密模式）：這次補寫暫存佇列
+    // 失敗，但不能讓呼叫端（openModal 等）跟著整個中斷。
   }
 }
 let viewCountState = { pendingDelta: loadPendingDelta(), lastSyncedSnapshot: {} };
@@ -2519,6 +2524,9 @@ async function hvLoadSchoolPopularitySnapshot() {
   try {
     const remoteSnapshot = await api.fetchSchoolPopularitySnapshot();
     viewCountState = api.applySnapshot(viewCountState, remoteSnapshot);
+    // 快照是非同步讀回的：如果使用者在讀回之前就已經聚焦搜尋框看到熱門
+    // 學校浮層，畫面會停在冷啟動的 fallback 清單，讀回後要通知它重繪。
+    window.dispatchEvent(new CustomEvent('hv-school-popularity-snapshot-loaded'));
   } catch {
     // 讀取失敗就維持冷啟動的空快照，computeTopSchools 會 fallback 回
     // schoolOrder 預設清單，不影響其餘功能。
@@ -2670,6 +2678,11 @@ function initSearchSuggest() {
   // fixed 定位不會跟著捲動/收合動畫自動移動，捲動或視窗尺寸變動時要重算座標
   window.addEventListener('scroll', () => { if (!suggest.hidden) positionSuggest(); }, { passive: true, capture: true });
   window.addEventListener('resize', () => { if (!suggest.hidden) positionSuggest(); });
+  // Firestore 快照是非同步讀回的：如果使用者剛好在讀回完成前就看到熱門
+  // 學校浮層（還顯示冷啟動 fallback），讀回後要重繪成真實排行。
+  window.addEventListener('hv-school-popularity-snapshot-loaded', () => {
+    if (!suggest.hidden && !emptySlot.hidden) renderTopSchools();
+  });
 
   searchInput.addEventListener('compositionstart', () => { isComposing = true; });
   searchInput.addEventListener('compositionend', () => {

@@ -6,12 +6,15 @@
 // 跑法：`npm run test:rules`（需要在 emulator 環境內執行，例如透過
 // `firebase emulators:exec` 包起來）。
 import { test, before, after, beforeEach } from 'node:test';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   initializeTestEnvironment,
   assertSucceeds,
   assertFails,
 } from '@firebase/rules-unit-testing';
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/firestore';
 
 let testEnv;
 
@@ -80,6 +83,28 @@ test('同一次寫入混合合法與非法 key 時，整筆拒絕', async () => 
   const db = testEnv.unauthenticatedContext().firestore();
   const ref = db.collection('school-popularity').doc('counts');
   await assertFails(ref.set({ '烏野': 1, '不存在的學校': 1 }, { merge: true }));
+});
+
+test('合法寫入：實際 client 用的 FieldValue.increment() transform 也成功（不只是普通 set）', async () => {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await context.firestore().collection('school-popularity').doc('counts').set({ '烏野': 3 });
+  });
+  const db = testEnv.unauthenticatedContext().firestore();
+  const ref = db.collection('school-popularity').doc('counts');
+  // js/school-popularity-firestore.js 實際送出的就是這種 FieldValue.increment
+  // sentinel，不是算好結果的普通數字，這裡驗證規則對兩種寫法一視同仁。
+  await assertSucceeds(ref.set({ '烏野': firebase.firestore.FieldValue.increment(5) }, { merge: true }));
+  const snap = await ref.get();
+  assert.equal(snap.data()['烏野'], 8);
+});
+
+test('超過上限：FieldValue.increment() transform 送出的超額增量一樣被拒絕', async () => {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await context.firestore().collection('school-popularity').doc('counts').set({ '烏野': 3 });
+  });
+  const db = testEnv.unauthenticatedContext().firestore();
+  const ref = db.collection('school-popularity').doc('counts');
+  await assertFails(ref.set({ '烏野': firebase.firestore.FieldValue.increment(10) }, { merge: true }));
 });
 
 test('不需要登入也能讀取熱門度快照', async () => {
