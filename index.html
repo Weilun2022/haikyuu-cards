@@ -100,6 +100,32 @@
   #search-row .search-box { flex: 1; margin: 0; }
   #filter-toggle-compact { display: none; }
 
+  /* ── 搜尋建議浮層（空狀態插槽／有字狀態插槽，互斥顯示）──
+     用 position:fixed（不是 absolute）+ JS 算座標貼齊搜尋框：#search-row
+     手機版有 overflow:hidden 做收合動畫，若浮層是它的子孫、用 absolute
+     定位，超出 #search-row 高度的部分會直接被裁掉不可見。 */
+  .search-suggest-anchor { position: relative; flex: 1; min-width: 0; }
+  .search-suggest-anchor .search-box { flex: none; width: 100%; margin: 0; box-sizing: border-box; }
+  .search-suggest {
+    position: fixed;
+    z-index: 200;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.18);
+    overflow: hidden;
+  }
+  .search-suggest[hidden] { display: none; }
+  .search-suggest-slot[hidden] { display: none; }
+  .search-suggest-slot--scroll { max-height: 40vh; overflow-y: auto; }
+  .search-suggest-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .search-suggest-item.is-active { background: var(--surface2); }
+
   /* ── Header（比照官方導覽列：黑底＋白字＋橘色強調，跟 promo.html 的 .tabs 同一套語言）── */
   header {
     background: var(--text);
@@ -1504,7 +1530,9 @@
 </header>
 
 <div id="search-row">
-  <input type="text" class="search-box" id="search" placeholder="卡名 / 卡號 / 技能關鍵字...">
+  <div class="search-suggest-anchor">
+    <input type="text" class="search-box" id="search" placeholder="卡名 / 卡號 / 技能關鍵字..." autocomplete="off">
+  </div>
   <button class="filter-toggle-btn" id="filter-toggle-compact" aria-label="篩選">
     ☰ 篩選<span class="filter-badge" id="filter-badge-compact" style="display:none">0</span>
   </button>
@@ -1600,6 +1628,14 @@
   <button class="btn-reset" id="btn-reset">重置篩選</button>
 </div>
 </div><!-- /#sticky-wrapper -->
+
+<!-- #search-row 在手機版有 overflow:hidden（收合動畫用），浮層不能是它的
+     子孫節點，否則超出 #search-row 高度的部分會被裁掉。獨立放在這裡，用
+     position:fixed + JS 算座標貼齊搜尋框（見 initSearchSuggest）。 -->
+<div id="search-suggest" class="search-suggest" hidden>
+  <div id="search-suggest-empty" class="search-suggest-slot" data-slot="empty"></div>
+  <div id="search-suggest-query" class="search-suggest-slot search-suggest-slot--scroll" data-slot="query" hidden></div>
+</div>
 
 <div class="grid-container" id="card-grid"></div>
 
@@ -2228,6 +2264,7 @@ function init() {
   buildFilters();
   applyFilters(filterState);
   bindEvents();
+  initSearchSuggest();
   bindDeckEvents();
   renderDeckSwitcher();
   updateTray();
@@ -2388,6 +2425,133 @@ function bindEvents() {
       lastY = y;
     }, { passive: true });
   })();
+}
+
+// ── 搜尋建議浮層骨架 ──────────────────────────────────────────────
+// 只管容器顯示/收起、空/有字兩插槽互斥切換、鍵盤操作骨架；插槽內容一律
+// 透過 renderSuggestItems() 換掉，目前先放佔位項目讓鍵盤操作可以被手動驗證。
+function renderSuggestItems(container, labels) {
+  container.textContent = '';
+  labels.forEach(label => {
+    const item = document.createElement('div');
+    item.className = 'search-suggest-item';
+    item.textContent = label; // 一律用 textContent，不當 HTML 解析
+    container.appendChild(item);
+  });
+}
+
+function initSearchSuggest() {
+  const searchInput = document.getElementById('search');
+  const suggest = document.getElementById('search-suggest');
+  const emptySlot = document.getElementById('search-suggest-empty');
+  const querySlot = document.getElementById('search-suggest-query');
+  let isComposing = false;
+  let activeIndex = -1;
+
+  renderSuggestItems(emptySlot, ['（佔位）熱門學校 A', '（佔位）熱門學校 B', '（佔位）熱門學校 C']);
+  renderSuggestItems(querySlot, ['（佔位）卡名建議 A', '（佔位）卡名建議 B', '（佔位）卡名建議 C']);
+
+  function currentSlot() {
+    return searchInput.value.trim() ? querySlot : emptySlot;
+  }
+
+  function currentItems() {
+    return [...currentSlot().querySelectorAll('.search-suggest-item')];
+  }
+
+  function setActiveIndex(index) {
+    currentItems().forEach(el => el.classList.remove('is-active'));
+    activeIndex = index;
+    const item = currentItems()[activeIndex];
+    if (item) {
+      item.classList.add('is-active');
+      item.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function syncSlots() {
+    const hasText = !!searchInput.value.trim();
+    emptySlot.hidden = hasText;
+    querySlot.hidden = !hasText;
+    activeIndex = -1;
+  }
+
+  function positionSuggest() {
+    const rect = searchInput.getBoundingClientRect();
+    suggest.style.left = `${rect.left}px`;
+    suggest.style.width = `${rect.width}px`;
+    suggest.style.top = `${rect.bottom + 6}px`;
+  }
+
+  function openSuggest() {
+    positionSuggest();
+    suggest.hidden = false;
+    syncSlots();
+  }
+
+  function closeSuggest() {
+    suggest.hidden = true;
+    activeIndex = -1;
+  }
+
+  // mousedown（而非 click）先擋掉，讓之後接上真實項目時，點擊項目不會因為
+  // input 先 blur 而讓浮層在 click 事件送達前就被關掉。
+  suggest.addEventListener('mousedown', e => e.preventDefault());
+
+  searchInput.addEventListener('focus', openSuggest);
+  searchInput.addEventListener('blur', closeSuggest);
+  // fixed 定位不會跟著捲動/收合動畫自動移動，捲動或視窗尺寸變動時要重算座標
+  window.addEventListener('scroll', () => { if (!suggest.hidden) positionSuggest(); }, { passive: true, capture: true });
+  window.addEventListener('resize', () => { if (!suggest.hidden) positionSuggest(); });
+
+  searchInput.addEventListener('compositionstart', () => { isComposing = true; });
+  searchInput.addEventListener('compositionend', () => {
+    isComposing = false;
+    positionSuggest();
+    suggest.hidden = false; // 打完字時浮層可能已被 Esc 關掉，重新打開
+    syncSlots();
+  });
+
+  searchInput.addEventListener('input', e => {
+    if (isComposing || e.isComposing) return;
+    positionSuggest();
+    suggest.hidden = false; // 打字時浮層可能已被 Esc 關掉（游標仍在輸入框內），重新打開
+    syncSlots();
+  });
+
+  document.addEventListener('click', e => {
+    if (!suggest.hidden && !suggest.contains(e.target) && e.target !== searchInput) {
+      closeSuggest();
+    }
+  });
+
+  searchInput.addEventListener('keydown', e => {
+    // IME 選字中的方向鍵/Enter 是在操作候選字視窗，不是在操作這個浮層，
+    // 不能被這裡攔截（否則會誤觸發選取/關閉，選字畫面還跳動）。
+    if (suggest.hidden || isComposing || e.isComposing) return;
+    const items = currentItems();
+    if (e.key === 'ArrowDown') {
+      if (!items.length) return;
+      e.preventDefault();
+      setActiveIndex((activeIndex + 1) % items.length);
+    } else if (e.key === 'ArrowUp') {
+      if (!items.length) return;
+      e.preventDefault();
+      setActiveIndex((activeIndex - 1 + items.length) % items.length);
+    } else if (e.key === 'Enter') {
+      const item = items[activeIndex];
+      if (item) {
+        e.preventDefault();
+        item.dispatchEvent(new CustomEvent('search-suggest:select', {
+          bubbles: true,
+          detail: { text: item.textContent, index: activeIndex },
+        }));
+        closeSuggest();
+      }
+    } else if (e.key === 'Escape') {
+      closeSuggest();
+    }
+  });
 }
 
 // ── 稀有度雙層排序（主稀有度階級 + 同階級版本加工）────────────────────────
