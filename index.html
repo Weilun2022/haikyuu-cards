@@ -12,7 +12,9 @@
   // 橋接純函式 ES module 給下面的傳統全域 <script> 呼叫，比照 cloud-sync.js
   // 掛在 window.hvCloudSync 的做法。
   import { computeTopSchools } from './js/school-popularity.js';
+  import { buildSuggestions } from './js/card-name-suggest.js';
   window.hvSchoolPopularity = { computeTopSchools };
+  window.hvCardNameSuggest = { buildSuggestions };
 </script>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/components.css">
@@ -2458,8 +2460,6 @@ function initSearchSuggest() {
   let isComposing = false;
   let activeIndex = -1;
 
-  renderSuggestItems(querySlot, ['（佔位）卡名建議 A', '（佔位）卡名建議 B', '（佔位）卡名建議 C']);
-
   function renderTopSchools() {
     // computeTopSchools 目前一律吃空快照（還沒有真實瀏覽計數資料，那是
     // Firestore 同步整合的責任），結果等同固定的 schoolOrder 預設清單；
@@ -2469,29 +2469,38 @@ function initSearchSuggest() {
     renderSuggestItems(emptySlot, topSchools, 'school');
   }
 
+  function renderCardSuggestions() {
+    const build = window.hvCardNameSuggest?.buildSuggestions;
+    const suggestions = build ? build(cards, searchInput.value) : [];
+    renderSuggestItems(querySlot, suggestions, 'nameZh');
+  }
+
   function selectSchool(school) {
     schoolSelect.value = school;
     schoolSelect.dispatchEvent(new Event('change'));
     closeSuggest();
   }
 
+  function selectCardName(nameZh) {
+    searchInput.value = nameZh;
+    // 交給既有的 input 監聽器（bindEvents）去更新 filterState.search 並套用
+    // 現有的全欄位篩選邏輯，不在這裡另外重寫一份篩選規則。
+    searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+    closeSuggest();
+  }
+
   // 點擊跟 Enter 選取同一個項目要有一致的行為，集中成一個函式避免兩處各自
-  // 判斷一次 dataset.school：有帶 school 的項目直接套用篩選，其餘項目先只
-  // 發出通用事件，交由外部監聽者決定要做什麼。
+  // 判斷一次 dataset。
   function activateItem(item) {
     if (!item) return;
     if (item.dataset.school) {
       selectSchool(item.dataset.school);
-      return;
+    } else if (item.dataset.nameZh) {
+      selectCardName(item.dataset.nameZh);
     }
-    item.dispatchEvent(new CustomEvent('search-suggest:select', {
-      bubbles: true,
-      detail: { text: item.textContent },
-    }));
-    closeSuggest();
   }
 
-  emptySlot.addEventListener('click', e => {
+  suggest.addEventListener('click', e => {
     activateItem(e.target.closest('.search-suggest-item'));
   });
 
@@ -2515,7 +2524,11 @@ function initSearchSuggest() {
 
   function syncSlots() {
     const hasText = !!searchInput.value.trim();
-    if (!hasText) renderTopSchools();
+    if (hasText) {
+      renderCardSuggestions();
+    } else {
+      renderTopSchools();
+    }
     emptySlot.hidden = hasText;
     querySlot.hidden = !hasText;
     activeIndex = -1;
