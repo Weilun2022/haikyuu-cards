@@ -4926,6 +4926,7 @@ if ('serviceWorker' in navigator) {
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') checkVersion(); // 分頁切回前景
   });
+  window.addEventListener('online', checkVersion); // 離線瀏覽後恢復連線：不必等分頁切換或 5 分鐘輪詢才發現舊版
   setInterval(function () {
     if (document.visibilityState === 'visible') checkVersion();
   }, 5 * 60 * 1000); // 長時間停留前景、沒觸發上面任何事件時的補強
