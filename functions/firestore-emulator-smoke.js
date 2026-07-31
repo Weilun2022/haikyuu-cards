@@ -13,19 +13,26 @@ import { initializeTestEnvironment, assertSucceeds } from '@firebase/rules-unit-
 
 let testEnv;
 
+// `firebase emulators:exec` 會注入 FIRESTORE_EMULATOR_HOST（例如
+// "127.0.0.1:8080"），優先吃這個環境變數而不是寫死 port，避免跟
+// firebase.json 的 emulators.firestore.port 設定值不同步時連錯。
+const [emulatorHost, emulatorPort] = (
+  process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080'
+).split(':');
+
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: 'haikyuu-cards-emulator-smoke',
     firestore: {
       rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8'),
-      host: '127.0.0.1',
-      port: 8080,
+      host: emulatorHost,
+      port: Number(emulatorPort),
     },
   });
 });
 
 after(async () => {
-  await testEnv.cleanup();
+  await testEnv?.cleanup();
 });
 
 test('emulator 寫入一筆資料後可以讀回同樣的內容', async () => {
