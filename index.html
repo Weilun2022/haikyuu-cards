@@ -8,6 +8,12 @@
 <script src="lib/qrcode.min.js"></script>
 <script type="module" src="js/cloud-sync.js"></script>
 <script type="module" src="js/deck-scan.js"></script>
+<script type="module">
+  // 橋接純函式 ES module 給下面的傳統全域 <script> 呼叫，比照 cloud-sync.js
+  // 掛在 window.hvCloudSync 的做法。
+  import { computeTopSchools } from './js/school-popularity.js';
+  window.hvSchoolPopularity = { computeTopSchools };
+</script>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/components.css">
 <style>
@@ -2052,6 +2058,9 @@ const STAT_LABELS = {
 // ── State ──────────────────────────────────────────────────────────────
 let cards = [];
 let filtered = [];
+// 固定校隊 + ユース/疑似ユース 的預設排序，跟 js/school-constants.js 的
+// SCHOOL_KEYS 內容/順序對齊（index.html 不是 ES module，維持獨立一份）。
+const schoolOrder = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台','ユース','疑似ユース'];
 // 7 個篩選維度收成一個物件，不再各自是獨立全域變數：加新篩選維度只需要在這裡
 // 登記一個 key，不用同步改 bindEvents/applyFilters/btn-reset/updateFilterBadge
 // 四個地方各自的變數清單。
@@ -2294,7 +2303,6 @@ function buildFilters() {
 
   // School — collect all unique tags from school_tags arrays
   const allSchoolTags = [...new Set(cards.flatMap(c => c.school_tags || [c.school]).filter(Boolean))];
-  const schoolOrder = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台','ユース','疑似ユース'];
   const schoolSel = document.getElementById('filter-school');
   [...schoolOrder.filter(s => allSchoolTags.includes(s)),
    ...allSchoolTags.filter(s => !schoolOrder.includes(s)).sort()
@@ -2427,15 +2435,16 @@ function bindEvents() {
   })();
 }
 
-// ── 搜尋建議浮層骨架 ──────────────────────────────────────────────
-// 只管容器顯示/收起、空/有字兩插槽互斥切換、鍵盤操作骨架；插槽內容一律
-// 透過 renderSuggestItems() 換掉，目前先放佔位項目讓鍵盤操作可以被手動驗證。
-function renderSuggestItems(container, labels) {
+// ── 搜尋建議浮層 ──────────────────────────────────────────────────
+// 只管容器顯示/收起、空/有字兩插槽互斥切換、鍵盤操作；插槽內容一律透過
+// renderSuggestItems() 換掉。有字插槽（卡名建議）目前先放佔位項目。
+function renderSuggestItems(container, labels, datasetKey) {
   container.textContent = '';
   labels.forEach(label => {
     const item = document.createElement('div');
     item.className = 'search-suggest-item';
     item.textContent = label; // 一律用 textContent，不當 HTML 解析
+    if (datasetKey) item.dataset[datasetKey] = label;
     container.appendChild(item);
   });
 }
@@ -2445,11 +2454,46 @@ function initSearchSuggest() {
   const suggest = document.getElementById('search-suggest');
   const emptySlot = document.getElementById('search-suggest-empty');
   const querySlot = document.getElementById('search-suggest-query');
+  const schoolSelect = document.getElementById('filter-school');
   let isComposing = false;
   let activeIndex = -1;
 
-  renderSuggestItems(emptySlot, ['（佔位）熱門學校 A', '（佔位）熱門學校 B', '（佔位）熱門學校 C']);
   renderSuggestItems(querySlot, ['（佔位）卡名建議 A', '（佔位）卡名建議 B', '（佔位）卡名建議 C']);
+
+  function renderTopSchools() {
+    // computeTopSchools 目前一律吃空快照（還沒有真實瀏覽計數資料，那是
+    // Firestore 同步整合的責任），結果等同固定的 schoolOrder 預設清單；
+    // 之後接上真實計數時這裡不需要改，行為會自動反映真實排行。
+    const compute = window.hvSchoolPopularity?.computeTopSchools;
+    const topSchools = compute ? compute({}, schoolOrder, 8) : schoolOrder.slice(0, 8);
+    renderSuggestItems(emptySlot, topSchools, 'school');
+  }
+
+  function selectSchool(school) {
+    schoolSelect.value = school;
+    schoolSelect.dispatchEvent(new Event('change'));
+    closeSuggest();
+  }
+
+  // 點擊跟 Enter 選取同一個項目要有一致的行為，集中成一個函式避免兩處各自
+  // 判斷一次 dataset.school：有帶 school 的項目直接套用篩選，其餘項目先只
+  // 發出通用事件，交由外部監聽者決定要做什麼。
+  function activateItem(item) {
+    if (!item) return;
+    if (item.dataset.school) {
+      selectSchool(item.dataset.school);
+      return;
+    }
+    item.dispatchEvent(new CustomEvent('search-suggest:select', {
+      bubbles: true,
+      detail: { text: item.textContent },
+    }));
+    closeSuggest();
+  }
+
+  emptySlot.addEventListener('click', e => {
+    activateItem(e.target.closest('.search-suggest-item'));
+  });
 
   function currentSlot() {
     return searchInput.value.trim() ? querySlot : emptySlot;
@@ -2471,6 +2515,7 @@ function initSearchSuggest() {
 
   function syncSlots() {
     const hasText = !!searchInput.value.trim();
+    if (!hasText) renderTopSchools();
     emptySlot.hidden = hasText;
     querySlot.hidden = !hasText;
     activeIndex = -1;
@@ -2541,14 +2586,9 @@ function initSearchSuggest() {
       e.preventDefault();
       setActiveIndex((activeIndex - 1 + items.length) % items.length);
     } else if (e.key === 'Enter') {
-      const item = items[activeIndex];
-      if (item) {
+      if (items[activeIndex]) {
         e.preventDefault();
-        item.dispatchEvent(new CustomEvent('search-suggest:select', {
-          bubbles: true,
-          detail: { text: item.textContent, index: activeIndex },
-        }));
-        closeSuggest();
+        activateItem(items[activeIndex]);
       }
     } else if (e.key === 'Escape') {
       closeSuggest();
