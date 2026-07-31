@@ -39,6 +39,46 @@
 
 ---
 
+## 2026-07-31（Session 35）
+
+### promo.html：影片抓取改累積歷史，修復相關影片被擠出視窗消失（`b62c779`、回填 `fa3db87`、補洞 `e74ddd3`）
+
+使用者反映「promo.html 以往有許多從 YOUTUBE 被標住進來的影片，最近一次整合消失了」。用 `/diagnosing-bugs` 排查：先重放頻道公開 RSS feed（不用 API key）比對相關性關鍵字，跟實際 GitHub Actions log 吻合——`fetch_promo.js` 每次只看頻道最新 15 部影片（`MAX_RESULTS`），過濾後**整批覆寫** `promo_data.js`，完全沒有歷史累積。商家近期發了大量非排球少年內容的日常 vlog，稀釋比例後，舊的相關影片被擠出這個抓取視窗，就從網站上永久消失——不是「整合」壞掉，是設計上的固定視窗被頻道內容比例變化暴露出來。用 git 歷史驗證下滑趨勢（9→7→4 部）也對得上，且程式碼本身從建立以來從未變過、最近一次改動時間點跟下滑時間對不上，排除「最近整合弄壞」的假設。
+
+給使用者選修法方向，選了「累積歷史記錄」：新增 `mergeVideos()` 用 `videoId` 去重合併新舊資料，一旦被判定相關就留著，`MAX_STORED=300` 上限只淘汰最舊的。寫了 `fetch_promo.test.js`（`node --test`，覆蓋「舊相關影片不因這次沒抓到而消失」「同影片重新分類覆蓋」「超過上限淘汰最舊」三案例），並手動確認修復前的邏輯（直接回傳 fresh）在同樣輸入下真的會弄丟資料，證明測試真的在抓這個 bug。
+
+使用者接著要求「盡可能恢復所有排球相關影片」——加了 `workflow_dispatch` 手動回填模式（`getPlaylistVideos(..., {full:true})` 翻頁掃描整個上傳播放清單，`MAX_PAGES=20` 安全閥），觸發一次後從 4 部找回 **67 部**歷史相關影片。
+
+### A2A GPT 品管複審一次，抓到一個真漏洞（`e74ddd3`）
+
+三個本 session 修復（見下方兩節）做完後，使用者問「A2A GPT 當品管 REVIEW 一次是否 OKAY」——判斷屬於 `docs/agents/a2a-hybrid-workflow.md` 講的「純技術性、範圍明確的單點決策，適合拿來壓力測試」，跑了一次一次性問答（`ask_openrouter.ps1 -PromptFile`，附完整 diff + 三個修法的根因摘要，要求唱反調）。
+
+**逐條驗證後只有一條站得住腳**：`getPlaylistVideos()` 回填翻頁到 `MAX_PAGES` 上限時，如果 `nextPageToken` 還在（代表還有更舊的影片沒抓完），迴圈靜默停止，沒有任何警告——跟這次修的「影片消失」是同一種症狀模式，只是換一個成因，補了一行 `console.warn`。
+
+**其餘幾條驗證後是誤判或範圍外**，記錄下來避免以後對 GPT review 結果照單全收：
+- GPT 說 `moveCardFromStack`/`moveGutsCard` 「無空位時可能呼叫 `resetCounterDelta('block:-1')`」——重讀程式碼確認 `if (idx === -1) { toast(...); return; }` 在賦值 `resolvedTarget` 之前就先 return，這個路徑走不到。
+- GPT 說「diff 沒證明傳入 `resetCounterDelta` 的已經是解析後的 `block:i`，根因可能沒修完」——這點在改完當下就已經用瀏覽器 mock 注入實測驗證過（見下方攔網 bug 段落），GPT 不具備瀏覽器實測能力，這條踩到 `a2a-hybrid-workflow.md` 明確寫的「不適用」邊界（「真正的實測/驗證類問題，A2A 沒有能力驗證，不該當作驗證手段的替代品」）。
+- 「reset 沒跟 zone 寫入形成交易」「並行操作非原子讀改寫」——這是整個 `game.html` 一直以來的寫法，不是這次改動引入或應該一併解決的範圍。
+- schedule 腳本「靜默丟棄」解析失敗的列——不準確，程式碼本來就對每個跳過的列印 `console.warn`，會留在 GitHub Actions log。
+
+**教訓**：A2A 品管複審值得跑，但複審意見要照 `receiving-code-review` 的紀律逐條驗證（回去讀實際程式碼、對照已經做過的實測結果），不能因為是「唱反調」語氣就照單全收；花時間驗證後省下了改一堆不需要改的地方，只留真正有價值的那一條。
+
+### game.html：攔網手動調整值放新卡時沒有真的歸零（`4b38309`）
+
+使用者反映「下一回合放攔網角色上去時，上一回合有什麼操作會影響到沒有重置的」。舊記憶裡有一條 30 天前記的類似線索（`block_zones[0]` INTERVAL 後不清），查證後發現那條講的是完全不同的東西——`game_engine/` 是另一個未進 git 的 Python 對戰引擎原型，跟 `game.html`（實際上線、純 JS）互不相關，已在記憶裡加註釐清避免以後搞混。
+
+實際根因：`ZONE_TO_STAT` 把三格攔網（`block:0`/`block:1`/`block:2`）都對應到同一個共用鍵 `blk`（`counterDelta[role].blk` 是三格加總的手動調整值），但 `placeCard`/`moveCard`/`moveCardFromStack`/`moveGutsCard` 這四處放新卡後呼叫 `resetCounterDelta()` 時，傳的是 `zoneName.split(':')[0]` 算出來的裸字串 `'block'`——`ZONE_TO_STAT` 查無這個 key，函式直接提早 return，從未真的歸零。修法：四處都改傳 resolve 完位置索引後的 zone 名稱（`'block:i'`）。用瀏覽器 mock 盤面注入（`(0,eval)` 設 module-scoped `gameState`/`myRole`，stub `db.ref()`/`pushZones`）**逐一**直接呼叫這四個函式驗證過，修復前 delta 會沿用到下一次放卡，修復後正確歸零。
+
+這是繼 2026-07-19 那次「攻擊值沒重置」bug（`a2855b3`，見上方 Session 記錄）之後，同一類「殘留狀態沒清乾淨」問題的第二個實例，但根因不同：前次是攻擊分數用錯 fallback 邏輯，這次是 reset 函式的 key 對不上。順手發現 `game.html` 有兩個同名但參數簽名不同的 `reorderStack` 函式（JS 會讓後面那個蓋掉前面的），跟這次的 bug 無關，已用 `spawn_task` 開一張獨立票追蹤。
+
+### fetch_schedule.js：更新賽程來源網址（`ff9f19a`→`6884676`）
+
+使用者要求把賽程來源換成新的 Google Sheet 網址。抓下新表快照本機驗證：欄位結構、表頭列位置都跟舊表一致，可以直接沿用既有解析邏輯，但只解析出 21~25 筆有效資料（舊表約 85 筆）。查證確認是真實資料量變小（新表標題「排球少年TCG_26年8月招賽」，看起來是月份制），不是解析壞掉——原本 `MIN_VALID_ROWS=30`（有效資料太少視為異常、中止不覆寫）的安全閥是照舊表規模訂的，會讓新表每次都被擋下來。問使用者怎麼處理，選擇直接取消這個閘門檻（不是調低數字），只保留「完全零筆」才中止的最低保護。
+
+**Push 時撞到 rebase 衝突**：本機 commit 完成後才發現 GitHub Actions 排程在這之間又用舊來源跑了一次自動更新，`schedule_data.js`/`schedule_registry.json`（自動產生檔）產生衝突。判斷這類自動生成檔案手動解 conflict 沒意義且風險高，改成 rebase 時暫時取 origin 那版當佔位、code 部分正常套用，rebase 完成後**直接重新執行 `fetch_schedule.js`** 對新來源重新抓一次產生乾淨資料，這才是正確可信的結果，不是手動 merge 兩份自動產生的 diff。
+
+---
+
 ## 2026-07-25（Session 34）
 
 ### 導入 Matt Pocock 開發流程 skill chain（開源 MIT，github.com/mattpocock/skills）
