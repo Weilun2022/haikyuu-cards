@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node --test",
     "test:emulator": "node --test firestore-emulator-smoke.js",
+    "test:rules": "node --test school-popularity-rules.js",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },

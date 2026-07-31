@@ -36,11 +36,13 @@ after(async () => {
 });
 
 test('emulator 寫入一筆資料後可以讀回同樣的內容', async () => {
+  // 寫入路徑要落在 firestore.rules 實際允許的範圍內，才能反映真實環境的
+  // 讀寫行為；學校熱門度計數不需要登入即可寫入，是最簡單的驗證路徑。
   const db = testEnv.unauthenticatedContext().firestore();
-  const ref = db.collection('smoke-test').doc('ping');
+  const ref = db.collection('school-popularity').doc('counts');
 
-  await assertSucceeds(ref.set({ hello: 'world' }));
+  await assertSucceeds(ref.set({ '烏野': 1 }, { merge: true }));
 
   const snap = await ref.get();
-  assert.equal(snap.data().hello, 'world');
+  assert.equal(snap.data()['烏野'], 1);
 });

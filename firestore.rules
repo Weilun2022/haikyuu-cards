@@ -1,14 +1,57 @@
 rules_version = '2';
 
-// ⚠️ 本地 emulator 專用的最小可跑規則，允許任何讀寫。這份檔案同時是
-// `firebase.json` 的 firestore.rules 部署來源，**在正式環境的白名單學校
-// key / increment 上限規則落地之前，不可對 haikyuu-cards-cloud 執行
-// `firebase deploy --only firestore`**（會讓正式 Firestore 變成匿名可
-// 讀寫）。只在本地 `firebase emulators:start`/`emulators:exec` 使用。
+// ⚠️ 這份檔案同時是 `firebase.json` 的 firestore.rules 部署來源，但目前
+// 只在本地 emulator 用過（`firebase emulators:start`/`emulators:exec`），
+// **從未 deploy 到正式的 haikyuu-cards-cloud 專案**。是否要部署、何時部署，
+// 由使用者自行決定並親自執行，不要自動跑 `firebase deploy --only firestore`。
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+
+    // ── 牌組雲端同步（js/cloud-sync.js）──────────────────────────────
+    // 每個使用者只能讀寫自己 /users/{uid}/... 底下的資料（牌組、我的最愛等
+    // 子集合），跟下面的熱門學校計數規則完全分開，不受本次修改影響。
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── 熱門學校瀏覽計數（js/school-popularity-firestore.js）──────────
+    // 不需要登入（所有訪客的瀏覽行為都要計入熱門度），唯一的濫用防護層：
+    // 只能寫白名單學校 key、單次 increment 不能超過固定上限，擋住最粗暴的
+    // 洗榜/濫寫腳本。不做頻率限制/驗證碼等額外機制。
+    match /school-popularity/counts {
+      allow read: if true;
+      allow write: if request.resource != null && isValidSchoolPopularityWrite();
+    }
+
+    // 單次寫入某個學校 key 的增量必須是正整數，且不超過 cap（個位數）。
+    function withinIncrementCap(before, afterData, key, cap) {
+      let prev = key in before ? before[key] : 0;
+      let next = afterData[key];
+      return next is number && prev is number && next > prev && (next - prev) <= cap;
+    }
+
+    // 白名單學校 key 涵蓋 js/school-constants.js 的 SCHOOL_KEYS 全部 10 個
+    // 合法值，不接受任何其他 key；每個有變動的 key 都要通過 increment 上限
+    // 檢查（Firestore Rules 沒有迴圈語法，固定 10 個 key 逐一檢查是刻意的
+    // 寫法，不是遺漏簡化）。
+    function isValidSchoolPopularityWrite() {
+      let allowedKeys = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台','ユース','疑似ユース'];
+      let cap = 9;
+      let before = resource != null ? resource.data : {};
+      let afterData = request.resource.data;
+      let changedKeys = afterData.diff(before).affectedKeys();
+      return changedKeys.size() > 0 &&
+        changedKeys.hasOnly(allowedKeys) &&
+        (!changedKeys.hasAny(['烏野']) || withinIncrementCap(before, afterData, '烏野', cap)) &&
+        (!changedKeys.hasAny(['音駒']) || withinIncrementCap(before, afterData, '音駒', cap)) &&
+        (!changedKeys.hasAny(['稲荷崎']) || withinIncrementCap(before, afterData, '稲荷崎', cap)) &&
+        (!changedKeys.hasAny(['白鳥沢']) || withinIncrementCap(before, afterData, '白鳥沢', cap)) &&
+        (!changedKeys.hasAny(['伊達工業']) || withinIncrementCap(before, afterData, '伊達工業', cap)) &&
+        (!changedKeys.hasAny(['青葉城西']) || withinIncrementCap(before, afterData, '青葉城西', cap)) &&
+        (!changedKeys.hasAny(['梟谷']) || withinIncrementCap(before, afterData, '梟谷', cap)) &&
+        (!changedKeys.hasAny(['鴎台']) || withinIncrementCap(before, afterData, '鴎台', cap)) &&
+        (!changedKeys.hasAny(['ユース']) || withinIncrementCap(before, afterData, 'ユース', cap)) &&
+        (!changedKeys.hasAny(['疑似ユース']) || withinIncrementCap(before, afterData, '疑似ユース', cap));
     }
   }
 }
