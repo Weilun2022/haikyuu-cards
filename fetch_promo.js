@@ -101,6 +101,7 @@ async function getPlaylistVideos(playlistId, channelName, { full = false } = {})
     pageToken = data?.nextPageToken || '';
     pages++;
   } while (full && pageToken && pages < MAX_PAGES);
+  if (full && pageToken) console.warn(`[${channelName}] 回填在 ${MAX_PAGES} 頁截斷，頻道還有更舊的影片沒抓到（考慮調高 MAX_PAGES）`);
   return all;
 }
 
