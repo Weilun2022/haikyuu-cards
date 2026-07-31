@@ -1,0 +1,8 @@
+{
+  "name": "haikyuu-cards-js-modules",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

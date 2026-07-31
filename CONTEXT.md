@@ -39,3 +39,4 @@ _Avoid_: 不要跟「稀有度」混用——稀有度只是版本底下的一�
 - [0002](docs/adr/0002-theme-colors-from-live-official-ui.md) — 視覺主題色票讀官方頁面 UI 元件 computed style，不用圖片採樣
 - [0003](docs/adr/0003-deck-scan-gemini-key-via-env-not-secret-manager.md) — 牌組照片辨識的 Gemini key 存 `.env`，不用 Secret Manager（避免強制升級 Blaze）
 - [0004](docs/adr/0004-node-test-runner-for-functions.md) — `functions/` 的測試框架用 Node 內建 `node:test`，不裝 Jest/Vitest
+- [0005](docs/adr/0005-node-test-for-js-pure-modules.md) — `js/` 底下刻意不碰 DOM 的純函式模組（`school-popularity.js` 等）也用 `node:test`，透過 `js/package.json` 開一個獨立 ESM 邊界

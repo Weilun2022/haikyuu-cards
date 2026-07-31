@@ -5,8 +5,8 @@
 ## 技術棧
 
 - 純前端靜態站（GitHub Pages），無建置流程、無框架。JS 直接寫在 `index.html`／`promo.html`／`game.html` 等頁面的 `<script>` 裡，或 `js/*.js`。
-- 只有需要 Firebase SDK（雲端同步、Cloud Function 呼叫）的檔案用 ES module（`<script type="module">`），其餘一律是傳統全域 `<script>`，函式/變數直接掛在頁面的全域作用域。
-- `functions/` 是唯一的 Node/npm 專案（Firebase Cloud Functions v2），其餘都不是 npm 專案，不要在根目錄加 `package.json`/建置工具。
+- 只有需要 Firebase SDK（雲端同步、Cloud Function 呼叫）的檔案、或刻意設計成不碰 DOM 的純函式模組（供 `node:test` 覆蓋，見下方測試現狀）用 ES module（`<script type="module">`），其餘一律是傳統全域 `<script>`，函式/變數直接掛在頁面的全域作用域。
+- `functions/` 是唯一有第三方 npm 依賴的 Node 專案（Firebase Cloud Functions v2）。`js/package.json` 是例外但範圍很窄——只宣告 `js/` 底下的 ESM 模組邊界給 `node:test` 用，不裝任何依賴（理由見 [docs/adr/0005](docs/adr/0005-node-test-for-js-pure-modules.md)）。除此之外不要在根目錄或其他地方加 `package.json`/建置工具。
 - Python 腳本（`build_data.py`、`scan_deck_photo.py` 等）是離線資料處理/開發用工具，不隨網站部署（`.gitignore` 排除全部 `*.py`），不用套用前端規範。
 
 ## 命名/組織
@@ -31,15 +31,19 @@
 
 ## 測試現狀（老實說）
 
-**`functions/` 有自動化測試，其餘（`index.html`／`game.html`／`js/*.js`）沒有。** 這是刻意的分界，不是還沒做完：
+**`functions/` 跟 `js/` 底下刻意不碰 DOM 的純函式模組有自動化測試，其餘（`index.html`／`game.html`／`js/*.js` 裡會碰 DOM 的檔案）沒有。** 這是刻意的分界，不是還沒做完：
 
-- **`functions/`**：唯一的 npm 專案，也是唯一不碰瀏覽器 DOM 的部分，用 Node 內建的 `node:test` + `node:assert/strict`，**沒有裝任何新的 npm 依賴**（不是 Jest/Vitest，是刻意選擇，理由見 [docs/adr/0004](docs/adr/0004-node-test-runner-for-functions.md)）。
+- **`functions/`**：唯一有第三方 npm 依賴的 Node 專案，也是最早採用這套慣例的地方，用 Node 內建的 `node:test` + `node:assert/strict`，**沒有裝任何新的測試框架依賴**（不是 Jest/Vitest，是刻意選擇，理由見 [docs/adr/0004](docs/adr/0004-node-test-runner-for-functions.md)）。
   - 執行：`cd functions && npm test`（`node --test` 會自動掃描並執行所有符合 `**/*.test.js` 的檔案，不用逐一註冊）。
   - **加新測試就直接照這個慣例放檔案**：測試檔跟被測的原始檔放同一個資料夾、檔名是 `<被測檔案>.test.js`（例如 `lib/cardLookup.test.js` 測 `lib/cardLookup.js`），寫完直接跑得到，不用改任何設定。
   - **只測公開匯出的函式（`export function ...`），不測內部細節**——斷言回傳值，不去檢查內部快取變數/私有函式有沒有被呼叫。
   - **會碰網路的函式**（例如 `cardLookup.js` 的 `loadCards()` 會 `fetch` 一個外部網址）：用 `node:test` 內建的 `mock.method(globalThis, 'fetch', ...)` 把全域 `fetch` 換成回傳假資料的版本，測試不能依賴真實網路——外部網站變慢或掛掉不該讓測試跟著變紅。參考 `functions/lib/cardLookup.test.js` 的寫法。
   - 現有測試：`functions/lib/cardLookup.test.js`（日文卡名模糊比對）。
 
-- **`index.html`／`game.html`／`js/*.js`**：沒有模組系統（`export`/`import`），函式直接掛在頁面全域作用域，市面上標準測試框架抓不到單一函式來測。要幫這幾個檔案補測試，需要先決定要不要導入瀏覽器層級的測試工具（例如 Playwright，真的開瀏覽器跑腳本），這是一個比較大、還沒做的獨立決定，不要自己假設可以套用 `functions/` 那套 `node:test` 的做法。目前驗證方式維持手動：改完用瀏覽器實測（`console` 手動呼叫、注入 mock 盤面/mock 牌組資料、DOM 幾何量測），這個習慣不算「沒有測試」，只是沒有存成可重跑的腳本。
+- **`js/` 底下刻意設計成不碰 DOM／瀏覽器 API 的純函式模組**（例如 `school-popularity.js`／`card-name-suggest.js`）：跟 `functions/` 一樣用 `node:test`，測試檔同資料夾、命名 `<被測檔案>.test.js`。`js/package.json`（`{"type": "module"}`）只是讓 Node 的 ESM 判定在這層停下來，本身不裝任何 npm 依賴，`js/` 底下不會有 `node_modules/`。理由跟例外範圍見 [docs/adr/0005](docs/adr/0005-node-test-for-js-pure-modules.md)——只有「刻意不碰 DOM」的模組適用，`cloud-sync.js`／`deck-scan.js` 這類會碰 DOM/瀏覽器 API 的 `js/*.js` 不受影響，繼續維持下面這條的手動測試慣例。
+  - 執行：`cd js && npm test`。
+  - 現有測試：`js/school-popularity.test.js`（`computeTopSchools` 熱門學校排行）。
+
+- **`index.html`／`game.html`／`js/*.js` 裡會碰 DOM 的檔案**：沒有模組系統（`export`/`import`），函式直接掛在頁面全域作用域，市面上標準測試框架抓不到單一函式來測。要幫這幾個檔案補測試，需要先決定要不要導入瀏覽器層級的測試工具（例如 Playwright，真的開瀏覽器跑腳本），這是一個比較大、還沒做的獨立決定，不要自己假設可以套用 `functions/`／`js/` 純函式模組那套 `node:test` 的做法。目前驗證方式維持手動：改完用瀏覽器實測（`console` 手動呼叫、注入 mock 盤面/mock 牌組資料、DOM 幾何量測），這個習慣不算「沒有測試」，只是沒有存成可重跑的腳本。
 
 採用 `tdd` skill 在 `index.html`/`game.html` 這類還沒有自動化測試的模組上是**引入新習慣**，不是「補回原本就有的測試」。第一次在這類模組用 TDD 之前，照 `tdd` skill 的規則跟使用者確認 seam 在哪，不要假設既有的手動驗證方式可以直接套用同一套 seam。`functions/` 底下則已經有真正的 seam 慣例可以直接沿用，不用重新確認。
