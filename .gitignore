@@ -13,3 +13,6 @@ output/
 node_modules/
 cards_zh.json
 all_cards.json
+.firebase/
+firestore-debug.log
+ui-debug.log

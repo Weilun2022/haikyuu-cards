@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// 本地 emulator 用的最小可跑規則：先允許基本讀寫，讓 emulator 環境本身
+// 能被驗證通過（啟動、寫入、讀回）。正式環境要用的白名單學校 key /
+// increment 上限等防濫用規則是獨立的後續決定，不在這份檔案裡先做。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
