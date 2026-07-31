@@ -1,92 +1,449 @@
 {
   "meta": {
-    "nextSeq": 66,
-    "lastRunAt": "2026-07-31T03:20:57.050Z",
-    "lastSuccessfulFetchAt": "2026-07-31T03:20:57.050Z"
+    "nextSeq": 80,
+    "lastRunAt": "2026-07-31T03:26:10.790Z",
+    "lastSuccessfulFetchAt": "2026-07-31T03:26:10.790Z"
   },
   "events": [
     {
-      "date": "2026-07-11",
-      "storeKey": "magicstar",
-      "time": "18:00",
-      "typeKey": "newbie",
-      "region": "north",
-      "storeName": "MAGIC STAR",
-      "phone": "(02)2701 8400",
-      "address": "臺北市大安區和平東路二段231號",
-      "format": "新手教學",
+      "date": "2026-08-05",
+      "storeKey": "新世紀",
+      "time": "19:30",
+      "typeKey": "mixed",
+      "region": "unknown",
+      "storeName": "新世紀",
+      "phone": "03-5266122",
+      "address": "新竹市平和街7號",
+      "format": "交流/新手",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
-      "startAt": "2026-07-11T18:00:00+08:00",
-      "id": "evt_000001",
+      "startAt": "2026-08-05T19:30:00+08:00",
+      "id": "evt_000066",
       "revision": 1,
       "status": "active",
-      "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
       "removedAt": null
     },
     {
-      "date": "2026-07-25",
-      "storeKey": "magicstar",
-      "time": "18:00",
-      "typeKey": "newbie",
-      "region": "north",
-      "storeName": "MAGIC STAR",
-      "phone": "(02)2701 8400",
-      "address": "臺北市大安區和平東路二段231號",
-      "format": "新手教學",
+      "date": "2026-08-12",
+      "storeKey": "新世紀",
+      "time": "19:30",
+      "typeKey": "mixed",
+      "region": "unknown",
+      "storeName": "新世紀",
+      "phone": "03-5266122",
+      "address": "新竹市平和街7號",
+      "format": "交流/新手",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
-      "startAt": "2026-07-25T18:00:00+08:00",
-      "id": "evt_000002",
+      "startAt": "2026-08-12T19:30:00+08:00",
+      "id": "evt_000067",
       "revision": 1,
       "status": "active",
-      "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
       "removedAt": null
     },
     {
-      "date": "2026-07-11",
+      "date": "2026-08-19",
+      "storeKey": "新世紀",
+      "time": "19:30",
+      "typeKey": "mixed",
+      "region": "unknown",
+      "storeName": "新世紀",
+      "phone": "03-5266122",
+      "address": "新竹市平和街7號",
+      "format": "交流/新手",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-19T19:30:00+08:00",
+      "id": "evt_000068",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-26",
+      "storeKey": "新世紀",
+      "time": "19:30",
+      "typeKey": "mixed",
+      "region": "unknown",
+      "storeName": "新世紀",
+      "phone": "03-5266122",
+      "address": "新竹市平和街7號",
+      "format": "交流/新手",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-26T19:30:00+08:00",
+      "id": "evt_000069",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-07",
+      "storeKey": "一刻館",
+      "time": "19:30",
+      "typeKey": "mixed",
+      "region": "north",
+      "storeName": "一刻館",
+      "phone": "937370484",
+      "address": "桃園市桃園區中華路43號2樓",
+      "format": "交流/新手",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-07T19:30:00+08:00",
+      "id": "evt_000070",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-14",
+      "storeKey": "一刻館",
+      "time": "19:30",
+      "typeKey": "mixed",
+      "region": "north",
+      "storeName": "一刻館",
+      "phone": "937370484",
+      "address": "桃園市桃園區中華路43號2樓",
+      "format": "交流/新手",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-14T19:30:00+08:00",
+      "id": "evt_000071",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-08",
       "storeKey": "magicstar",
       "time": "19:30",
       "typeKey": "casual",
       "region": "north",
-      "storeName": "MAGIC STAR",
-      "phone": "(02)2701 8400",
+      "storeName": "MagicStar",
+      "phone": "(02) 2701 8400",
       "address": "臺北市大安區和平東路二段231號",
-      "format": "交流",
+      "format": "交流賽",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
-      "startAt": "2026-07-11T19:30:00+08:00",
-      "id": "evt_000003",
-      "revision": 1,
-      "status": "active",
-      "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
-    },
-    {
-      "date": "2026-07-25",
-      "storeKey": "magicstar",
-      "time": "19:30",
-      "typeKey": "casual",
-      "region": "north",
-      "storeName": "MAGIC STAR",
-      "phone": "(02)2701 8400",
-      "address": "臺北市大安區和平東路二段231號",
-      "format": "交流",
-      "capacity": "16",
-      "registrationMethod": "現場",
-      "dateInferred": false,
-      "startAt": "2026-07-25T19:30:00+08:00",
+      "startAt": "2026-08-08T19:30:00+08:00",
       "id": "evt_000004",
-      "revision": 1,
+      "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-22",
+      "storeKey": "magicstar",
+      "time": "19:30",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "MagicStar",
+      "phone": "(02) 2701 8400",
+      "address": "臺北市大安區和平東路二段231號",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-22T19:30:00+08:00",
+      "id": "evt_000003",
+      "revision": 2,
+      "status": "active",
+      "firstSeenAt": "2026-07-11T02:39:47.172Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-08",
+      "storeKey": "magicstar",
+      "time": "18:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "MagicStar",
+      "phone": "(02) 2701 8400",
+      "address": "臺北市大安區和平東路二段231號",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-08T18:00:00+08:00",
+      "id": "evt_000002",
+      "revision": 2,
+      "status": "active",
+      "firstSeenAt": "2026-07-11T02:39:47.172Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-22",
+      "storeKey": "magicstar",
+      "time": "18:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "MagicStar",
+      "phone": "(02) 2701 8400",
+      "address": "臺北市大安區和平東路二段231號",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-22T18:00:00+08:00",
+      "id": "evt_000001",
+      "revision": 2,
+      "status": "active",
+      "firstSeenAt": "2026-07-11T02:39:47.172Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-09",
+      "storeKey": "貓腳印士林店",
+      "time": "15:00",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "貓腳印士林店",
+      "phone": "(02) 2883-5322",
+      "address": "台北市士林區大西路66號B1",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-09T15:00:00+08:00",
+      "id": "evt_000072",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-23",
+      "storeKey": "貓腳印士林店",
+      "time": "15:00",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "貓腳印士林店",
+      "phone": "(02) 2883-5322",
+      "address": "台北市士林區大西路66號B1",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-23T15:00:00+08:00",
+      "id": "evt_000073",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "貓腳印士林店",
+      "time": "15:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "貓腳印士林店",
+      "phone": "(02) 2883-5322",
+      "address": "台北市士林區大西路66號B1",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T15:00:00+08:00",
+      "id": "evt_000023",
+      "revision": 2,
+      "status": "active",
+      "firstSeenAt": "2026-07-11T02:39:47.172Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-22",
+      "storeKey": "雙子星高雄鹽埕店",
+      "time": "15:00",
+      "typeKey": "newbie",
+      "region": "south",
+      "storeName": "雙子星高雄鹽埕店",
+      "phone": "07-5219599",
+      "address": "高雄市鹽埕區田單街17號",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-22T15:00:00+08:00",
+      "id": "evt_000074",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-29",
+      "storeKey": "雙子星高雄鹽埕店",
+      "time": "15:00",
+      "typeKey": "newbie",
+      "region": "south",
+      "storeName": "雙子星高雄鹽埕店",
+      "phone": "07-5219599",
+      "address": "高雄市鹽埕區田單街17號",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-29T15:00:00+08:00",
+      "id": "evt_000075",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-22",
+      "storeKey": "雙子星高雄鹽埕店",
+      "time": "16:00",
+      "typeKey": "casual",
+      "region": "south",
+      "storeName": "雙子星高雄鹽埕店",
+      "phone": "07-5219599",
+      "address": "高雄市鹽埕區田單街17號",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-22T16:00:00+08:00",
+      "id": "evt_000076",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-29",
+      "storeKey": "雙子星高雄鹽埕店",
+      "time": "16:00",
+      "typeKey": "casual",
+      "region": "south",
+      "storeName": "雙子星高雄鹽埕店",
+      "phone": "07-5219599",
+      "address": "高雄市鹽埕區田單街17號",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-29T16:00:00+08:00",
+      "id": "evt_000077",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-09",
+      "storeKey": "台中黑殿",
+      "time": "16:00",
+      "typeKey": "other",
+      "region": "central",
+      "storeName": "台中黑殿",
+      "phone": "0988056964",
+      "address": "台中市北區尚德街109號",
+      "format": "週賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-09T16:00:00+08:00",
+      "id": "evt_000022",
+      "revision": 2,
+      "status": "active",
+      "firstSeenAt": "2026-07-11T02:39:47.172Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-16",
+      "storeKey": "台中黑殿",
+      "time": "16:00",
+      "typeKey": "casual",
+      "region": "central",
+      "storeName": "台中黑殿",
+      "phone": "0988056964",
+      "address": "台中市北區尚德街109號",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-16T16:00:00+08:00",
+      "id": "evt_000021",
+      "revision": 2,
+      "status": "active",
+      "firstSeenAt": "2026-07-11T02:39:47.172Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-23",
+      "storeKey": "台中黑殿",
+      "time": "16:00",
+      "typeKey": "casual",
+      "region": "central",
+      "storeName": "台中黑殿",
+      "phone": "0988056964",
+      "address": "台中市北區尚德街109號",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-23T16:00:00+08:00",
+      "id": "evt_000078",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "台中黑殿",
+      "time": "16:00",
+      "typeKey": "other",
+      "region": "central",
+      "storeName": "台中黑殿",
+      "phone": "0988056964",
+      "address": "台中市北區尚德街109號",
+      "format": "週賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T16:00:00+08:00",
+      "id": "evt_000079",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T03:26:10.790Z",
       "removedAt": null
     },
     {
@@ -105,10 +462,10 @@
       "startAt": "2026-07-17T19:30:00+08:00",
       "id": "evt_000005",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-24",
@@ -126,10 +483,10 @@
       "startAt": "2026-07-24T19:30:00+08:00",
       "id": "evt_000006",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-07",
@@ -147,10 +504,10 @@
       "startAt": "2026-07-07T19:00:00+08:00",
       "id": "evt_000007",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-21",
@@ -168,10 +525,10 @@
       "startAt": "2026-07-21T19:00:00+08:00",
       "id": "evt_000008",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-14",
@@ -189,10 +546,10 @@
       "startAt": "2026-07-14T19:00:00+08:00",
       "id": "evt_000009",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-28",
@@ -210,10 +567,10 @@
       "startAt": "2026-07-28T19:00:00+08:00",
       "id": "evt_000010",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-15",
@@ -231,10 +588,10 @@
       "startAt": "2026-07-15T19:00:00+08:00",
       "id": "evt_000011",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-22",
@@ -252,10 +609,10 @@
       "startAt": "2026-07-22T19:00:00+08:00",
       "id": "evt_000012",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-03",
@@ -273,10 +630,10 @@
       "startAt": "2026-07-03T19:00:00+08:00",
       "id": "evt_000013",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-17",
@@ -294,10 +651,10 @@
       "startAt": "2026-07-17T19:00:00+08:00",
       "id": "evt_000014",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-18",
@@ -315,10 +672,10 @@
       "startAt": "2026-07-18T15:00:00+08:00",
       "id": "evt_000015",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-25",
@@ -336,10 +693,10 @@
       "startAt": "2026-07-25T15:00:00+08:00",
       "id": "evt_000016",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-18",
@@ -357,10 +714,10 @@
       "startAt": "2026-07-18T16:00:00+08:00",
       "id": "evt_000017",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-25",
@@ -378,10 +735,10 @@
       "startAt": "2026-07-25T16:00:00+08:00",
       "id": "evt_000018",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-05",
@@ -399,10 +756,10 @@
       "startAt": "2026-07-05T16:00:00+08:00",
       "id": "evt_000019",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-12",
@@ -420,73 +777,10 @@
       "startAt": "2026-07-12T16:00:00+08:00",
       "id": "evt_000020",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
-    },
-    {
-      "date": "2026-07-19",
-      "storeKey": "台中黑殿",
-      "time": "16:00",
-      "typeKey": "casual",
-      "region": "central",
-      "storeName": "台中黑殿",
-      "phone": "0988056964",
-      "address": "台中市北區尚德街109號",
-      "format": "交流賽",
-      "capacity": "16",
-      "registrationMethod": "現場",
-      "dateInferred": false,
-      "startAt": "2026-07-19T16:00:00+08:00",
-      "id": "evt_000021",
-      "revision": 1,
-      "status": "active",
-      "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
-    },
-    {
-      "date": "2026-07-26",
-      "storeKey": "台中黑殿",
-      "time": "16:00",
-      "typeKey": "casual",
-      "region": "central",
-      "storeName": "台中黑殿",
-      "phone": "0988056964",
-      "address": "台中市北區尚德街109號",
-      "format": "交流賽",
-      "capacity": "16",
-      "registrationMethod": "現場",
-      "dateInferred": false,
-      "startAt": "2026-07-26T16:00:00+08:00",
-      "id": "evt_000022",
-      "revision": 1,
-      "status": "active",
-      "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
-    },
-    {
-      "date": "2026-07-08",
-      "storeKey": "貓腳印士林店",
-      "time": "18:00",
-      "typeKey": "newbie",
-      "region": "north",
-      "storeName": "貓腳印士林店",
-      "phone": "02-28835322",
-      "address": "台北市士林區大西路66號B1",
-      "format": "新手教學",
-      "capacity": "16",
-      "registrationMethod": "現場",
-      "dateInferred": false,
-      "startAt": "2026-07-08T18:00:00+08:00",
-      "id": "evt_000023",
-      "revision": 1,
-      "status": "active",
-      "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-12",
@@ -504,10 +798,10 @@
       "startAt": "2026-07-12T15:00:00+08:00",
       "id": "evt_000024",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-19",
@@ -525,10 +819,10 @@
       "startAt": "2026-07-19T15:00:00+08:00",
       "id": "evt_000025",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-09",
@@ -546,10 +840,10 @@
       "startAt": "2026-07-09T19:30:00+08:00",
       "id": "evt_000026",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-16",
@@ -567,10 +861,10 @@
       "startAt": "2026-07-16T19:30:00+08:00",
       "id": "evt_000027",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-15",
@@ -588,10 +882,10 @@
       "startAt": "2026-07-15T20:00:00+08:00",
       "id": "evt_000028",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-22",
@@ -609,10 +903,10 @@
       "startAt": "2026-07-22T20:00:00+08:00",
       "id": "evt_000029",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-12",
@@ -630,10 +924,10 @@
       "startAt": "2026-07-12T16:30:00+08:00",
       "id": "evt_000030",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-26",
@@ -651,10 +945,10 @@
       "startAt": "2026-07-26T16:30:00+08:00",
       "id": "evt_000031",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-12",
@@ -672,10 +966,10 @@
       "startAt": "2026-07-12T16:00:00+08:00",
       "id": "evt_000032",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-06",
@@ -693,10 +987,10 @@
       "startAt": "2026-07-06T20:00:00+08:00",
       "id": "evt_000033",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-13",
@@ -714,10 +1008,10 @@
       "startAt": "2026-07-13T20:00:00+08:00",
       "id": "evt_000034",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-20",
@@ -735,10 +1029,10 @@
       "startAt": "2026-07-20T20:00:00+08:00",
       "id": "evt_000035",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-18",
@@ -756,10 +1050,10 @@
       "startAt": "2026-07-18T17:00:00+08:00",
       "id": "evt_000036",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-25",
@@ -777,10 +1071,10 @@
       "startAt": "2026-07-25T17:00:00+08:00",
       "id": "evt_000037",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-10",
@@ -798,10 +1092,10 @@
       "startAt": "2026-07-10T19:30:00+08:00",
       "id": "evt_000038",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-24",
@@ -819,10 +1113,10 @@
       "startAt": "2026-07-24T19:30:00+08:00",
       "id": "evt_000039",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-08",
@@ -840,10 +1134,10 @@
       "startAt": "2026-07-08T17:30:00+08:00",
       "id": "evt_000040",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-15",
@@ -861,10 +1155,10 @@
       "startAt": "2026-07-15T17:30:00+08:00",
       "id": "evt_000041",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-22",
@@ -882,10 +1176,10 @@
       "startAt": "2026-07-22T17:30:00+08:00",
       "id": "evt_000042",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-29",
@@ -903,10 +1197,10 @@
       "startAt": "2026-07-29T17:30:00+08:00",
       "id": "evt_000043",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-22",
@@ -924,10 +1218,10 @@
       "startAt": "2026-07-22T19:00:00+08:00",
       "id": "evt_000044",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-29",
@@ -945,10 +1239,10 @@
       "startAt": "2026-07-29T19:00:00+08:00",
       "id": "evt_000045",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-08",
@@ -966,10 +1260,10 @@
       "startAt": "2026-07-08T19:00:00+08:00",
       "id": "evt_000046",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-15",
@@ -987,10 +1281,10 @@
       "startAt": "2026-07-15T19:00:00+08:00",
       "id": "evt_000047",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-22",
@@ -1008,10 +1302,10 @@
       "startAt": "2026-07-22T19:00:00+08:00",
       "id": "evt_000048",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-29",
@@ -1029,10 +1323,10 @@
       "startAt": "2026-07-29T19:00:00+08:00",
       "id": "evt_000049",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-04",
@@ -1050,10 +1344,10 @@
       "startAt": "2026-07-04T15:00:00+08:00",
       "id": "evt_000050",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-25",
@@ -1071,10 +1365,10 @@
       "startAt": "2026-07-25T15:00:00+08:00",
       "id": "evt_000051",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-05",
@@ -1092,10 +1386,10 @@
       "startAt": "2026-07-05T18:00:00+08:00",
       "id": "evt_000052",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-12",
@@ -1113,10 +1407,10 @@
       "startAt": "2026-07-12T18:00:00+08:00",
       "id": "evt_000053",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-19",
@@ -1134,10 +1428,10 @@
       "startAt": "2026-07-19T18:00:00+08:00",
       "id": "evt_000054",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-26",
@@ -1155,10 +1449,10 @@
       "startAt": "2026-07-26T18:00:00+08:00",
       "id": "evt_000055",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-10",
@@ -1176,10 +1470,10 @@
       "startAt": "2026-07-10T19:30:00+08:00",
       "id": "evt_000056",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-24",
@@ -1197,10 +1491,10 @@
       "startAt": "2026-07-24T19:30:00+08:00",
       "id": "evt_000057",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-04",
@@ -1218,10 +1512,10 @@
       "startAt": "2026-07-04T17:00:00+08:00",
       "id": "evt_000058",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-18",
@@ -1239,10 +1533,10 @@
       "startAt": "2026-07-18T17:00:00+08:00",
       "id": "evt_000059",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-11",
@@ -1260,10 +1554,10 @@
       "startAt": "2026-07-11T17:00:00+08:00",
       "id": "evt_000060",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-25",
@@ -1281,10 +1575,10 @@
       "startAt": "2026-07-25T17:00:00+08:00",
       "id": "evt_000061",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-05",
@@ -1302,10 +1596,10 @@
       "startAt": "2026-07-05T20:00:00+08:00",
       "id": "evt_000062",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-12",
@@ -1323,10 +1617,10 @@
       "startAt": "2026-07-12T20:00:00+08:00",
       "id": "evt_000063",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-19",
@@ -1344,10 +1638,10 @@
       "startAt": "2026-07-19T20:00:00+08:00",
       "id": "evt_000064",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     },
     {
       "date": "2026-07-26",
@@ -1365,10 +1659,10 @@
       "startAt": "2026-07-26T20:00:00+08:00",
       "id": "evt_000065",
       "revision": 1,
-      "status": "active",
+      "status": "removed",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
       "lastSeenAt": "2026-07-31T03:20:57.050Z",
-      "removedAt": null
+      "removedAt": "2026-07-31T03:26:10.790Z"
     }
   ]
 }
