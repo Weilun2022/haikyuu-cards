@@ -1,8 +1,8 @@
 {
   "meta": {
-    "nextSeq": 84,
-    "lastRunAt": "2026-07-31T08:54:34.783Z",
-    "lastSuccessfulFetchAt": "2026-07-31T08:54:34.783Z"
+    "nextSeq": 87,
+    "lastRunAt": "2026-07-31T14:16:13.913Z",
+    "lastSuccessfulFetchAt": "2026-07-31T14:16:13.913Z"
   },
   "events": [
     {
@@ -23,7 +23,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -44,7 +44,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -65,7 +65,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -86,7 +86,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -107,7 +107,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -128,7 +128,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -149,7 +149,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -170,7 +170,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -191,7 +191,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -212,7 +212,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -233,7 +233,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -254,7 +254,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -275,7 +275,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -296,7 +296,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -317,7 +317,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -338,7 +338,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -359,7 +359,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -380,7 +380,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -401,7 +401,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -422,7 +422,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -443,7 +443,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -464,7 +464,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -485,7 +485,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -506,7 +506,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
@@ -527,7 +527,70 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-17",
+      "storeKey": "豬豬玩具",
+      "time": "20:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "豬豬玩具",
+      "phone": "FB粉絲團",
+      "address": "新北市永和區永和路二段203號9樓",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-17T20:00:00+08:00",
+      "id": "evt_000084",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T14:16:13.913Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-24",
+      "storeKey": "豬豬玩具",
+      "time": "20:00",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "豬豬玩具",
+      "phone": "FB粉絲團",
+      "address": "新北市永和區永和路二段203號9樓",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-24T20:00:00+08:00",
+      "id": "evt_000085",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T14:16:13.913Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-31",
+      "storeKey": "豬豬玩具",
+      "time": "20:00",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "豬豬玩具",
+      "phone": "FB粉絲團",
+      "address": "新北市永和區永和路二段203號9樓",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-31T20:00:00+08:00",
+      "id": "evt_000086",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T14:16:13.913Z",
+      "lastSeenAt": "2026-07-31T14:16:13.913Z",
       "removedAt": null
     },
     {
