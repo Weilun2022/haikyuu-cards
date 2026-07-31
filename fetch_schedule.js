@@ -18,14 +18,13 @@ const fs = require('fs');
 const path = require('path');
 
 // ── 設定 ──────────────────────────────────────────────
-const SHEET_ID = '1JY7M87jaLwtZs-v2nFmYp4Ds3lO529f75aT9oG_viKs';
+const SHEET_ID = '1SuLydg-rVSWSh9Y9JGikC2PvA4vPQixH1t_5WKlQbpU';
 const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 
 const DATA_OUT_PATH = path.join(__dirname, 'schedule_data.js');
 const REGISTRY_PATH = path.join(__dirname, 'schedule_registry.json');
 
 const EXPECTED_HEADERS = ['序', '日期', '活動時間', '比賽類型', '店家名稱', '店家連絡電話', '店家地址', '報名人數', '報名方式', '業務分區', '負責業務'];
-const MIN_VALID_ROWS = 30;          // 有效資料列數低於此門檻，視為抓取異常，中止不覆寫
 const BIG_REMOVAL_RATIO = 0.5;      // 這次未來場次「消失比例」超過此值，視為可疑，中止不覆寫
 const DATE_MATCH_WINDOW_DAYS = 45;  // fuzzy matching 允許的日期位移範圍
 const TOMBSTONE_RETENTION_DAYS = 45; // 場次消失後，registry 保留 tombstone 供比對/前端提示的天數
@@ -277,8 +276,8 @@ function ymdToIso(y, mo, d) { return `${y}-${pad2(mo)}-${pad2(d)}`; }
   }
 
   console.log(`解析出 ${normalized.length} 筆有效賽事（原始 ${dataRows.length} 列）`);
-  if (normalized.length < MIN_VALID_ROWS) {
-    console.error(`有效資料筆數 ${normalized.length} 低於門檻 ${MIN_VALID_ROWS}，可能是格式跑掉，中止並保留舊資料`);
+  if (normalized.length === 0) {
+    console.error('解析出 0 筆有效賽事，可能是格式跑掉，中止並保留舊資料');
     process.exit(1);
   }
 
