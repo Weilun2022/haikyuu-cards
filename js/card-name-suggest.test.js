@@ -57,3 +57,8 @@ test('只比對 name/name_zh，不比對 school 等其他欄位', () => {
   const result = buildSuggestions(CARD_FIXTURES, '烏野');
   assert.deepEqual(result, []);
 });
+
+test('沒有 name_zh 的卡片即使 name 命中也不產生建議（沒有東西可以填回搜尋框）', () => {
+  const cards = [{ name: '日向 翔陽', name_zh: '' }];
+  assert.deepEqual(buildSuggestions(cards, '日向'), []);
+});

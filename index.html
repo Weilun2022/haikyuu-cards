@@ -2507,6 +2507,8 @@ function initSearchSuggest() {
   searchInput.addEventListener('compositionstart', () => { isComposing = true; });
   searchInput.addEventListener('compositionend', () => {
     isComposing = false;
+    // 組字結束前如果輸入框已經失焦（例如中途點掉），不要又把浮層打開
+    if (document.activeElement !== searchInput) return;
     positionSuggest();
     suggest.hidden = false; // 打完字時浮層可能已被 Esc 關掉，重新打開
     syncSlots();

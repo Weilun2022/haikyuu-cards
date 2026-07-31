@@ -17,6 +17,7 @@ export function buildSuggestions(cards, query) {
   const suggestionByKey = new Map();
   for (const card of cards) {
     const nameZh = card.name_zh || '';
+    if (!nameZh) continue; // 沒有 name_zh 就沒有東西可以填回搜尋框，不產生建議
     const name = card.name || '';
     const normalizedNameZh = stripSpaces(nameZh);
     const isMatch =
