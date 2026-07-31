@@ -11,10 +11,26 @@
 <script type="module">
   // 橋接純函式 ES module 給下面的傳統全域 <script> 呼叫，比照 cloud-sync.js
   // 掛在 window.hvCloudSync 的做法。
-  import { computeTopSchools } from './js/school-popularity.js';
+  import {
+    computeTopSchools, addView, buildIncrementPayload,
+    onFlushSuccess, onFlushFailure, applySnapshot,
+  } from './js/school-popularity.js';
   import { buildSuggestions } from './js/card-name-suggest.js';
-  window.hvSchoolPopularity = { computeTopSchools };
+  import {
+    fetchSchoolPopularitySnapshot, flushSchoolPopularityIncrement,
+  } from './js/school-popularity-firestore.js';
+  window.hvSchoolPopularity = {
+    computeTopSchools, addView, buildIncrementPayload,
+    onFlushSuccess, onFlushFailure, applySnapshot,
+    fetchSchoolPopularitySnapshot, flushSchoolPopularityIncrement,
+  };
   window.hvCardNameSuggest = { buildSuggestions };
+  // 比照 cloud-sync.js 的 hv-cloud-sync-ready：不能只靠 DOMContentLoaded
+  // 判斷這個 module script 是否執行完畢，因為 school-popularity-firestore.js
+  // 動態 import 外部 CDN 的 firebase-firestore.js，實測 DOMContentLoaded
+  // 有時候會在這個 import 完成前就先觸發（跟規格描述的「defer 語意」對不上，
+  // 但實測環境確實會發生），用明確的 ready 事件才可靠。
+  window.dispatchEvent(new CustomEvent('hv-school-popularity-ready'));
 </script>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/components.css">
@@ -2063,6 +2079,26 @@ let filtered = [];
 // 固定校隊 + ユース/疑似ユース 的預設排序，跟 js/school-constants.js 的
 // SCHOOL_KEYS 內容/順序對齊（index.html 不是 ES module，維持獨立一份）。
 const schoolOrder = ['烏野','音駒','稲荷崎','白鳥沢','伊達工業','青葉城西','梟谷','鴎台','ユース','疑似ユース'];
+
+// ── 熱門學校瀏覽計數 ───────────────────────────────────────────────────
+// pendingDelta 需要能撐過分頁被直接關掉（來不及等 pagehide 送出），所以每次
+// 累加都立即存一份到 localStorage；下次頁面載入時讀回、繼續嘗試補送。
+const VIEW_COUNT_STORAGE_KEY = 'hv_school_view_pending_delta';
+function loadPendingDelta() {
+  try {
+    return JSON.parse(localStorage.getItem(VIEW_COUNT_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+function savePendingDelta(pendingDelta) {
+  if (Object.keys(pendingDelta).length === 0) {
+    localStorage.removeItem(VIEW_COUNT_STORAGE_KEY);
+  } else {
+    localStorage.setItem(VIEW_COUNT_STORAGE_KEY, JSON.stringify(pendingDelta));
+  }
+}
+let viewCountState = { pendingDelta: loadPendingDelta(), lastSyncedSnapshot: {} };
 // 7 個篩選維度收成一個物件，不再各自是獨立全域變數：加新篩選維度只需要在這裡
 // 登記一個 key，不用同步改 bindEvents/applyFilters/btn-reset/updateFilterBadge
 // 四個地方各自的變數清單。
@@ -2276,6 +2312,7 @@ function init() {
   applyFilters(filterState);
   bindEvents();
   initSearchSuggest();
+  initSchoolViewCountSync();
   bindDeckEvents();
   renderDeckSwitcher();
   updateTray();
@@ -2437,9 +2474,79 @@ function bindEvents() {
   })();
 }
 
+// ── 熱門學校瀏覽計數同步 ─────────────────────────────────────────────
+// 卡片被點開時累加本地 pendingDelta；分頁切換/關閉時嘗試把累積的增量以
+// atomic increment 方式送進 Firestore，成功才清空，失敗保留給下次補送。
+// 全程沒有 realtime listener／輪詢：只有頁面載入時讀一次快照。
+//
+// 已知取捨：onFlushSuccess 會整份清空 pendingDelta（規格明確要求送成功後
+// 呼叫它），如果送出後、伺服器回應前使用者又點開新卡片，那筆新增量會被
+// 一起清掉、沒送到就消失。這個時間窗只會發生在分頁已經 hidden/正在關閉
+// 的當下還能繼續點卡片，實務上機率極低，先接受這個簡化、不為了這個窄縫
+// 案例改動 pendingDelta 的清空邏輯。
+function hvRecordSchoolView(card) {
+  const api = window.hvSchoolPopularity;
+  if (!api) return; // ES module 橋接還沒載入完成，這次瀏覽不計入也沒關係
+  viewCountState = api.addView(viewCountState, card);
+  savePendingDelta(viewCountState.pendingDelta);
+}
+
+let hvSchoolViewFlushInFlight = false;
+async function hvFlushSchoolViewCount() {
+  // visibilitychange（切分頁）跟 pagehide（真的關閉）常常在同一次操作中
+  // 幾乎同時觸發，沒有這個防呆會把同一份 pendingDelta 送兩次、被 Firestore
+  // atomic increment 各自疊加，變成重複計數。
+  if (hvSchoolViewFlushInFlight) return;
+  const api = window.hvSchoolPopularity;
+  if (!api) return;
+  const payload = api.buildIncrementPayload(viewCountState);
+  if (!payload) return; // pendingDelta 是空的，不需要同步
+
+  hvSchoolViewFlushInFlight = true;
+  try {
+    await api.flushSchoolPopularityIncrement(payload);
+    viewCountState = api.onFlushSuccess(viewCountState);
+  } catch {
+    viewCountState = api.onFlushFailure(viewCountState);
+  }
+  hvSchoolViewFlushInFlight = false;
+  savePendingDelta(viewCountState.pendingDelta);
+}
+
+async function hvLoadSchoolPopularitySnapshot() {
+  const api = window.hvSchoolPopularity;
+  if (!api) return;
+  try {
+    const remoteSnapshot = await api.fetchSchoolPopularitySnapshot();
+    viewCountState = api.applySnapshot(viewCountState, remoteSnapshot);
+  } catch {
+    // 讀取失敗就維持冷啟動的空快照，computeTopSchools 會 fallback 回
+    // schoolOrder 預設清單，不影響其餘功能。
+  }
+}
+
+function initSchoolViewCountSync() {
+  // init() 是傳統同步 <script> 呼叫的，一定跑在下面 type="module" 橋接腳本
+  // 前面，這裡呼叫當下 window.hvSchoolPopularity 一定還沒設定好。實測
+  // DOMContentLoaded 不能保證這個 module script（動態 import 外部 CDN 的
+  // firebase-firestore.js）已經跑完，改成跟 cloud-sync.js 一樣，等它自己
+  // 廣播的 ready 事件（見該 script 的 hv-school-popularity-ready）。
+  if (window.hvSchoolPopularity) {
+    hvLoadSchoolPopularitySnapshot();
+  } else {
+    window.addEventListener('hv-school-popularity-ready', hvLoadSchoolPopularitySnapshot, { once: true });
+  }
+  // visibilitychange（切分頁/切APP）跟 pagehide（真的關閉/離開）都要嘗試送出：
+  // 只靠 pagehide 不夠，行動裝置切到背景常常直接被系統砍掉、pagehide 不保證觸發。
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') hvFlushSchoolViewCount();
+  });
+  window.addEventListener('pagehide', hvFlushSchoolViewCount);
+}
+
 // ── 搜尋建議浮層 ──────────────────────────────────────────────────
 // 只管容器顯示/收起、空/有字兩插槽互斥切換、鍵盤操作；插槽內容一律透過
-// renderSuggestItems() 換掉。有字插槽（卡名建議）目前先放佔位項目。
+// renderSuggestItems() 換掉。
 function renderSuggestItems(container, labels, datasetKey) {
   container.textContent = '';
   labels.forEach(label => {
@@ -2461,11 +2568,13 @@ function initSearchSuggest() {
   let activeIndex = -1;
 
   function renderTopSchools() {
-    // computeTopSchools 目前一律吃空快照（還沒有真實瀏覽計數資料，那是
-    // Firestore 同步整合的責任），結果等同固定的 schoolOrder 預設清單；
-    // 之後接上真實計數時這裡不需要改，行為會自動反映真實排行。
+    // 用 viewCountState.lastSyncedSnapshot（頁面載入時從 Firestore 讀回的
+    // 真實計數）；冷啟動或還沒讀到快照時是空物件，computeTopSchools 本身
+    // 會 fallback 回固定的 schoolOrder 預設清單。
     const compute = window.hvSchoolPopularity?.computeTopSchools;
-    const topSchools = compute ? compute({}, schoolOrder, 8) : schoolOrder.slice(0, 8);
+    const topSchools = compute
+      ? compute(viewCountState.lastSyncedSnapshot, schoolOrder, 8)
+      : schoolOrder.slice(0, 8);
     renderSuggestItems(emptySlot, topSchools, 'school');
   }
 
@@ -2870,6 +2979,7 @@ function buildCardEl(card) {
 
 // ── Modal ──────────────────────────────────────────────────────────────
 function openModal(card) {
+  hvRecordSchoolView(card);
   const rarityColor = RARITY_COLOR[card.rarity] || '#888';
   const schoolColor = SCHOOL_COLOR[card.school] || '#6B6B6B';
 
