@@ -1,8 +1,8 @@
 {
   "meta": {
-    "nextSeq": 80,
-    "lastRunAt": "2026-07-31T03:26:10.790Z",
-    "lastSuccessfulFetchAt": "2026-07-31T03:26:10.790Z"
+    "nextSeq": 84,
+    "lastRunAt": "2026-07-31T08:54:34.783Z",
+    "lastSuccessfulFetchAt": "2026-07-31T08:54:34.783Z"
   },
   "events": [
     {
@@ -23,7 +23,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -44,7 +44,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -65,7 +65,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -86,7 +86,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -107,7 +107,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -128,7 +128,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -149,7 +149,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -170,7 +170,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -191,7 +191,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -212,7 +212,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -233,7 +233,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -254,7 +254,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -275,7 +275,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -296,7 +296,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -317,7 +317,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -338,7 +338,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -359,7 +359,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -380,7 +380,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -401,7 +401,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -422,7 +422,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
@@ -443,7 +443,91 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-07-31T03:26:10.790Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-16",
+      "storeKey": "塔普卡桌遊卡牌",
+      "time": "16:30",
+      "typeKey": "casual",
+      "region": "unknown",
+      "storeName": "塔普卡桌遊卡牌",
+      "phone": "0989-527-725",
+      "address": "新竹縣竹北市仁義路182號2樓",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-16T16:30:00+08:00",
+      "id": "evt_000080",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "塔普卡桌遊卡牌",
+      "time": "16:30",
+      "typeKey": "casual",
+      "region": "unknown",
+      "storeName": "塔普卡桌遊卡牌",
+      "phone": "0989-527-725",
+      "address": "新竹縣竹北市仁義路182號2樓",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T16:30:00+08:00",
+      "id": "evt_000081",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-06",
+      "storeKey": "cardple卡片人卡牌遊戲專賣店",
+      "time": "19:30",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "Card-Ple 卡片人卡牌遊戲專賣店",
+      "phone": "(02)22045014",
+      "address": "新莊區民安西路120號2樓, Xinbei, Taiwan, 242",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-06T19:30:00+08:00",
+      "id": "evt_000082",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-13",
+      "storeKey": "cardple卡片人卡牌遊戲專賣店",
+      "time": "19:30",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "Card-Ple 卡片人卡牌遊戲專賣店",
+      "phone": "(02)22045014",
+      "address": "新莊區民安西路120號2樓, Xinbei, Taiwan, 242",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-13T19:30:00+08:00",
+      "id": "evt_000083",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-07-31T08:54:34.783Z",
+      "lastSeenAt": "2026-07-31T08:54:34.783Z",
       "removedAt": null
     },
     {
