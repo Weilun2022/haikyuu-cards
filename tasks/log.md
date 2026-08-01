@@ -39,6 +39,32 @@
 
 ---
 
+## 2026-08-01（Session 36）
+
+### 熱門學校標籤 + 卡名搜尋建議 大功能上線（#80，子 ticket #81~#90 全數完成並部署，`91b7f55`~`de3bb46`）
+
+Matt Pocock 流程走完 `/to-tickets` 之後，`#80` 拆成 10 張子 ticket（A~J），這個 session 用 `/implement` 逐張跑完 `#81`~`#90`，每張都有獨立 commit + code-review（Standards/Spec 兩軸）+ GPT A2A 第二意見審查，重點記錄幾個「光靠單元測試抓不到、實測才發現」的真 bug：
+
+- **`#81`（資料契約）～`#86`（本地狀態機）**：純函式部分（`computeTopSchools`/`buildSuggestions`/`addView` 等）用 `node:test` 覆蓋，跟 `functions/` 共用慣例，補了 ADR 0005 記錄「`js/` 底下刻意不碰 DOM 的模組也能用 `node:test`，靠 `js/package.json` 只宣告 ESM 邊界、不裝依賴」這個決定的理由。
+- **`#82`（Firestore emulator）**：本機需要 Java（JRE）才能跑 emulator，環境原本沒裝，用 `winget` 裝 Temurin 21 解決。
+- **`#89`（Firestore 同步整合）**：這張是全部子 ticket 裡踩坑最多的一張，全部是「連上本地 emulator 實測」才抓到的：
+  1. `initSchoolViewCountSync()` 原本靠 `DOMContentLoaded` 判斷「type=module 橋接腳本一定跑完了」——實測發現不可靠（`school-popularity-firestore.js` 動態 `import` 外部 CDN 的 `firebase-firestore.js`，DOMContentLoaded 有時候會搶在這個 import 完成前就先觸發），改成跟 `cloud-sync.js` 一樣自己廣播一個 `hv-school-popularity-ready` 事件才可靠。
+  2. `#87` 的 `renderTopSchools()` 裡 `computeTopSchools({}, ...)` 寫死傳空物件（`#87` 完成當下還沒有真實資料，這樣寫沒錯），但 `#89` 把真實快照接上以後忘記把呼叫點一起改掉，導致熱門標籤永遠停在 fallback 清單、`#89` 做的東西完全不會反映在畫面上——這個是實測「重新整理後應該要顯示真實排行」這條驗收才抓到的。
+  3. `visibilitychange` 跟 `pagehide` 幾乎同時觸發時會把同一筆 `pendingDelta` 送兩次，Firestore atomic increment 各自疊加造成重複計數，加了 in-flight guard。
+  4. **`file://` 開發預覽會把 URL query string 吃掉**：一開始想用 `?use-emulator` 這種 query 參數手動切換 emulator/正式環境，結果瀏覽器預覽工具對「專案資料夾外的 `file://` 路徑」是用靜態快照渲染，會把 query string 整個丟掉，導致原本以為連到 emulator，其實一直在打正式環境（好在正式環境當時規則還沒放行，只是一直 permission-denied，沒有真的寫入垃圾資料）。改用本機 `python -m http.server` 起一個真正的 HTTP server 才解決。
+- **`#90`（Firestore 安全規則）**：白名單學校 key + 單次 increment 上限（9）用 Firestore Rules 的 `diff().affectedKeys()` 逐一檢查（規則語言沒有迴圈，10 個白名單 key 手動展開是刻意寫法）。GPT 複審時抓到規則允許小數增量（`next > prev` 沒檢查整數），補上 `math.floor(delta)==delta`；也抓到新規則上線後 `#82` 原本的 smoke test 會因為寫入路徑不在白名單裡被連坐擋下，另外開了 `_smoke-test/` 專用路徑解耦。
+- **`#91`（整合驗收，人工執行）**：在合併後的 main 上重跑一輪端到端手動驗收（含用真實 `CompositionEvent` 模擬 IME 組字防呆、手機直橫式），GPT 複審這輪驗收本身的嚴謹度後，多補了失敗補送流程重驗、既有功能回歸檢查、規則測試在乾淨 emulator 上重新跑一次（不只是沿用之前 session 的結果）。
+
+**部署 `firebase deploy --only firestore` 到正式環境的認證問題**：Firebase CLI 本身在這個 Bash 工具環境裡偵測到「非互動式」直接拒絕跑 `firebase login`（不是權限問題，是這個指令本身認定沒有真正的終端機輸入）。使用者一度想授權我直接跑登入流程，堅持拒絕——OAuth 登入這件事不管使用者怎麼授權都不會由 agent 代為完成，最後請使用者自己在終端機跑 `firebase login`，登入完成後才由我接手 `firebase deploy`。部署後直接讀正式 Firestore 驗證規則生效（含刻意送一筆超額/白名單外的寫入，確認正確被拒絕、沒有污染真實資料）。
+
+**部署後使用者一連串「為什麼沒看到更新」的疑問**，逐一實測排除：不是離線模式（程式沒有離線判斷邏輯）、不是篩選會影響計數（篩選跟計數互不相干，逐步驗證過）、不是特定學校壞掉（梟谷用真實 UI 流程測過完全正常）——真正原因是：①「切分頁/關分頁才會觸發同步」跟「使用者還停留在畫面上」的時間差，容易誤判成沒生效；②既有的頁面版本偵測機制（`#79`）「同一 session 最多自動 reload 一次」，如果手機分頁在這次功能開發期間已經因為前面某次推送而重整過一次，之後就不會再偵測到後續更新，需要使用者真的關掉分頁重開。
+
+### HV-PR-050 卡名翻譯修正「忠——！」（`de3bb46`）
+
+使用者猜測卡名「ただーし！」原譯「只不過呢！」有誤，應該是人名。查證：這張卡自己的 `skill_zh`（技能文字）早就正確把同一句譯成「忠——！」、並提到角色「山口 忠」——卡名欄位（`name_zh_data.py`）跟技能欄位翻譯沒對齊，是本來就標記 `status: low`／「查無明確出處」的低信心翻譯。修正後 status 提升為 `high`，重跑 `build_data.py` 確認 521 張卡正常無新錯誤。
+
+---
+
 ## 2026-07-31（Session 35）
 
 ### promo.html：影片抓取改累積歷史，修復相關影片被擠出視窗消失（`b62c779`、回填 `fa3db87`、補洞 `e74ddd3`）
