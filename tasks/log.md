@@ -39,6 +39,20 @@
 
 ---
 
+## 2026-08-02（Session 37）
+
+### 修復伊達工業推薦影片打字錯誤（`f7de4ff`）
+
+使用者回報：`index.html` 篩選「伊達工業」時沒有跳出情報站推薦影片，但 `promo.html` 明明有伊達工業標籤的影片。用 `/diagnosing-bugs` 流程排查：
+
+- **建立 feedback loop**：寫一支 Node 腳本，`eval` 出 `promo_data.js` + `promo_tags.js`，重現 `index.html` 內 `SCHOOL_VIDEO_COUNT` 的計數邏輯，比對「用 `DB2PROMO_SCHOOL` 對照表查出的 key」vs「正確 key」各自算出幾部影片，兩秒內可重跑、可紅可綠。
+- **根因**：`DB2PROMO_SCHOOL` 這張「卡牌庫日文校名 → 情報站繁中校名」對照表裡，`'伊達工業'` 誤對應到 `'伊達工'`（少打一個「業」字），跟 `promo_tags.js`／`promo.html` 自己的 `SCHOOLS` 陣列實際用的完整拼法 `'伊達工業'` 對不上，導致查表永遠算出 0 部影片，banner 跟卡片上的 `🎬 相關影片` 標籤都被隱藏。其餘 7 校（烏野/音駒/稲荷崎/白鳥沢/青葉城西/梟谷/鴎台）從一開始拼法就是對的，只有這一項是孤立的打字錯誤。
+- **修復**：把該項改成 `'伊達工業':'伊達工業'`，一行修正。
+- **`/code-review` 雙軸驗證**：Standards／Spec 兩軸子代理各自審查，皆無發現——確認範圍精準、無 scope creep、無其他相同 typo（另外交叉比對過 `cards_data.js` 實際 27 種校名值、`DB2PROMO_SCHOOL` 全部 8 個 key/value、`promo_tags.js`+`promo_data.js` 標註用到的所有校名字串，三方逐一核對，確認目前沒有其他學校有同樣的問題）。
+- 沒有自動化測試 seam（`index.html` 屬於「會碰 DOM、沒有模組系統」的既有分界，見 `CODING_STANDARDS.md`），驗證方式是上述 Node repro 腳本 + 手動走查，不是遺漏。
+
+---
+
 ## 2026-08-01（Session 36）
 
 ### 熱門學校標籤 + 卡名搜尋建議 大功能上線（#80，子 ticket #81~#90 全數完成並部署，`91b7f55`~`de3bb46`）
