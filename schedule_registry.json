@@ -1,8 +1,8 @@
 {
   "meta": {
-    "nextSeq": 89,
-    "lastRunAt": "2026-08-02T03:19:36.645Z",
-    "lastSuccessfulFetchAt": "2026-08-02T03:19:36.645Z"
+    "nextSeq": 93,
+    "lastRunAt": "2026-08-02T08:28:40.216Z",
+    "lastSuccessfulFetchAt": "2026-08-02T08:28:40.216Z"
   },
   "events": [
     {
@@ -23,7 +23,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -44,7 +44,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -65,7 +65,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -86,7 +86,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -107,7 +107,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -128,7 +128,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -149,7 +149,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -170,7 +170,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -191,7 +191,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -212,7 +212,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -233,7 +233,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -254,7 +254,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -275,7 +275,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -296,7 +296,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -317,7 +317,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -338,7 +338,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -359,7 +359,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -380,7 +380,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -401,7 +401,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -422,7 +422,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -443,7 +443,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -464,7 +464,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -485,7 +485,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -506,7 +506,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -527,7 +527,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -548,7 +548,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T14:16:13.913Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -569,7 +569,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T14:16:13.913Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -590,7 +590,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T14:16:13.913Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -611,7 +611,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T19:39:12.446Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
@@ -632,7 +632,91 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T19:39:12.446Z",
-      "lastSeenAt": "2026-08-02T03:19:36.645Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-19",
+      "storeKey": "松梅桌遊舖",
+      "time": "19:00",
+      "typeKey": "casual",
+      "region": "south",
+      "storeName": "松梅桌遊舖",
+      "phone": "0977232767",
+      "address": "高雄市苓雅區自強三路2號3F",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-19T19:00:00+08:00",
+      "id": "evt_000089",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-02T08:28:40.216Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-26",
+      "storeKey": "松梅桌遊舖",
+      "time": "19:00",
+      "typeKey": "casual",
+      "region": "south",
+      "storeName": "松梅桌遊舖",
+      "phone": "0977232767",
+      "address": "高雄市苓雅區自強三路2號3F",
+      "format": "交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-26T19:00:00+08:00",
+      "id": "evt_000090",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-02T08:28:40.216Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-12",
+      "storeKey": "松梅桌遊舖",
+      "time": "19:00",
+      "typeKey": "newbie",
+      "region": "south",
+      "storeName": "松梅桌遊舖",
+      "phone": "0977232767",
+      "address": "高雄市苓雅區自強三路2號3F",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-12T19:00:00+08:00",
+      "id": "evt_000091",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-02T08:28:40.216Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-09-02",
+      "storeKey": "松梅桌遊舖",
+      "time": "19:00",
+      "typeKey": "newbie",
+      "region": "south",
+      "storeName": "松梅桌遊舖",
+      "phone": "0977232767",
+      "address": "高雄市苓雅區自強三路2號3F",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-09-02T19:00:00+08:00",
+      "id": "evt_000092",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-02T08:28:40.216Z",
+      "lastSeenAt": "2026-08-02T08:28:40.216Z",
       "removedAt": null
     },
     {
