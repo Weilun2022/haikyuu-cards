@@ -4448,7 +4448,7 @@ async function drawDeckCanvas(deck) {
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(lockupX + kickerW + 6, row1Y - 3.5);
-  ctx.lineTo(lockupX + lockupW, row1Y - 3.5);
+  ctx.lineTo(contentX1, row1Y - 3.5);
   ctx.stroke();
 
   ctx.fillStyle = '#e0563a';
@@ -4489,13 +4489,31 @@ async function drawDeckCanvas(deck) {
     ctx.textAlign = 'center';
     ctx.fillText(label, cx, LABEL_Y);
 
-    ctx.font = 'bold 12px "Segoe UI",sans-serif';
     const px = cx - meas.pillW / 2;
     ctx.fillStyle = bg;
     canvasRoundRect(ctx, px, PILL_TOP, meas.pillW, PILL_H, PILL_H / 2);
     ctx.fill();
     ctx.fillStyle = fg;
-    ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4);
+
+    // 分類膠囊數值後綴「枚」用小字（牌組總數膠囊維持 N/40 格式，不加「枚」）
+    const hasUnit = val.endsWith('枚');
+    if (hasUnit) {
+      const num = val.slice(0, -1);
+      ctx.font = 'bold 12px "Segoe UI",sans-serif';
+      const numW = ctx.measureText(num).width;
+      ctx.font = '600 9px "Segoe UI","Noto Sans TC",sans-serif';
+      const unitW = ctx.measureText('枚').width;
+      const startX = cx - (numW + unitW) / 2;
+      ctx.textAlign = 'left';
+      ctx.font = 'bold 12px "Segoe UI",sans-serif';
+      ctx.fillText(num, startX, PILL_TOP + PILL_H / 2 + 4);
+      ctx.font = '600 9px "Segoe UI","Noto Sans TC",sans-serif';
+      ctx.fillText('枚', startX + numW, PILL_TOP + PILL_H / 2 + 3);
+      ctx.textAlign = 'center';
+    } else {
+      ctx.font = 'bold 12px "Segoe UI",sans-serif';
+      ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4);
+    }
   }
 
   let sx = contentX1 - statsTotalW;
