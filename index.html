@@ -4385,7 +4385,6 @@ async function drawDeckCanvas(deck) {
   // 畫布整體內距 28/32/22/32（取代舊版統一 20px）；左右對稱（32/32），
   // 供卡格區純函式沿用單一 pad 參數。
   const PAD_TOP = 28, PAD_SIDE = 32, PAD_BOTTOM = 22;
-  const HEADER_GAP = 22;      // 頭部橫條 margin-bottom，與卡格區的間距
   const FOOT_H = 34;
   const BOX_PAD_V = 14, BOX_PAD_H = 22;
   const BOX_H = 78;
@@ -4398,7 +4397,10 @@ async function drawDeckCanvas(deck) {
   const headContentW = head.lockupW + NAME_GAP + NAME_MIN_W + STATS_GAP + head.statsTotalW;
   const minHeadW = headContentW + BOX_PAD_H * 2 + PAD_SIDE * 2;
 
-  const headH = PAD_TOP + BOX_H + HEADER_GAP;
+  // headH 只到頭部橫條底部；橫條與卡格區的間距由 computeDeckImageLayout() 的
+  // pad 參數提供（見下方呼叫），不要在這裡另外加一次，否則會跟 pad 疊加
+  // 出雙倍間距（曾經發生過：22+32=54px，肉眼看起來留白多一大截）
+  const headH = PAD_TOP + BOX_H;
   const layout = window.hvDeckImageLayout.computeDeckImageLayout(entries.length, {
     cols: COLS, cardW: CARD_W, cardH: CARD_H, gap: GAP, pad: PAD_SIDE, headH, footH: 0,
   });
@@ -4443,12 +4445,17 @@ async function drawDeckCanvas(deck) {
   ctx.textAlign = 'left';
   const kickerText = '排球少年!!';
   ctx.fillText(kickerText, lockupX, row1Y);
-  const kickerW = ctx.measureText(kickerText).width;
+  const kickerMetrics = ctx.measureText(kickerText);
+  const kickerW = kickerMetrics.width;
+  // 細線畫在文字下緣之下，不要用固定的負偏移——CJK 粗體字在 11px 時
+  // actualBoundingBoxAscent 逼近 10px，線畫在文字中段會直接切過字身
+  // （曾經發生過：線在字的正中間，視覺上看起來字被壓扁/變小）
+  const kickerLineY = row1Y + kickerMetrics.actualBoundingBoxDescent + 1;
   ctx.strokeStyle = '#101114';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(lockupX + kickerW + 6, row1Y - 3.5);
-  ctx.lineTo(contentX1, row1Y - 3.5);
+  ctx.moveTo(lockupX + kickerW + 6, kickerLineY);
+  ctx.lineTo(contentX1, kickerLineY);
   ctx.stroke();
 
   ctx.fillStyle = '#e0563a';
