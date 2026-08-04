@@ -1,92 +1,92 @@
 {
   "meta": {
-    "nextSeq": 105,
-    "lastRunAt": "2026-08-04T02:50:31.281Z",
-    "lastSuccessfulFetchAt": "2026-08-04T02:50:31.281Z"
+    "nextSeq": 123,
+    "lastRunAt": "2026-08-04T08:43:08.549Z",
+    "lastSuccessfulFetchAt": "2026-08-04T08:43:08.549Z"
   },
   "events": [
     {
       "date": "2026-08-05",
       "storeKey": "新世紀",
       "time": "19:30",
-      "typeKey": "mixed",
-      "region": "unknown",
+      "typeKey": "casual",
+      "region": "north",
       "storeName": "新世紀",
       "phone": "03-5266122",
       "address": "新竹市平和街7號",
-      "format": "交流/新手",
+      "format": "交流",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
       "startAt": "2026-08-05T19:30:00+08:00",
       "id": "evt_000066",
-      "revision": 1,
+      "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
       "date": "2026-08-12",
       "storeKey": "新世紀",
       "time": "19:30",
-      "typeKey": "mixed",
-      "region": "unknown",
+      "typeKey": "casual",
+      "region": "north",
       "storeName": "新世紀",
       "phone": "03-5266122",
       "address": "新竹市平和街7號",
-      "format": "交流/新手",
+      "format": "交流",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
       "startAt": "2026-08-12T19:30:00+08:00",
       "id": "evt_000067",
-      "revision": 1,
+      "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
       "date": "2026-08-19",
       "storeKey": "新世紀",
       "time": "19:30",
-      "typeKey": "mixed",
-      "region": "unknown",
+      "typeKey": "newbie",
+      "region": "north",
       "storeName": "新世紀",
       "phone": "03-5266122",
       "address": "新竹市平和街7號",
-      "format": "交流/新手",
+      "format": "新手",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
       "startAt": "2026-08-19T19:30:00+08:00",
       "id": "evt_000068",
-      "revision": 1,
+      "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
       "date": "2026-08-26",
       "storeKey": "新世紀",
       "time": "19:30",
-      "typeKey": "mixed",
-      "region": "unknown",
+      "typeKey": "newbie",
+      "region": "north",
       "storeName": "新世紀",
       "phone": "03-5266122",
       "address": "新竹市平和街7號",
-      "format": "交流/新手",
+      "format": "新手",
       "capacity": "16",
       "registrationMethod": "現場",
       "dateInferred": false,
       "startAt": "2026-08-26T19:30:00+08:00",
       "id": "evt_000069",
-      "revision": 1,
+      "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -107,7 +107,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -128,7 +128,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -149,7 +149,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -170,7 +170,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -191,7 +191,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -212,7 +212,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -233,7 +233,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -254,7 +254,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -275,7 +275,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -296,7 +296,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -317,7 +317,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -338,7 +338,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -359,7 +359,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -380,7 +380,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -401,7 +401,7 @@
       "revision": 2,
       "status": "active",
       "firstSeenAt": "2026-07-11T02:39:47.172Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -422,7 +422,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -443,7 +443,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T03:26:10.790Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -451,7 +451,7 @@
       "storeKey": "塔普卡桌遊卡牌",
       "time": "16:30",
       "typeKey": "casual",
-      "region": "unknown",
+      "region": "north",
       "storeName": "塔普卡桌遊卡牌",
       "phone": "0989-527-725",
       "address": "新竹縣竹北市仁義路182號2樓",
@@ -464,7 +464,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -472,7 +472,7 @@
       "storeKey": "塔普卡桌遊卡牌",
       "time": "16:30",
       "typeKey": "casual",
-      "region": "unknown",
+      "region": "north",
       "storeName": "塔普卡桌遊卡牌",
       "phone": "0989-527-725",
       "address": "新竹縣竹北市仁義路182號2樓",
@@ -485,7 +485,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -506,7 +506,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -527,7 +527,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T08:54:34.783Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -548,7 +548,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T14:16:13.913Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -569,7 +569,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T14:16:13.913Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -590,7 +590,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T14:16:13.913Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -611,7 +611,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T19:39:12.446Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -632,7 +632,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-07-31T19:39:12.446Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -653,7 +653,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-02T08:28:40.216Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -674,7 +674,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-02T08:28:40.216Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -695,7 +695,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-02T08:28:40.216Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -716,7 +716,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-02T08:28:40.216Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -737,7 +737,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T14:47:07.309Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -758,7 +758,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T14:47:07.309Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -779,7 +779,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T14:47:07.309Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -800,7 +800,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T14:47:07.309Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -821,7 +821,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T14:47:07.309Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -842,7 +842,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T14:47:07.309Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -863,7 +863,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T19:42:16.802Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -884,7 +884,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-03T19:42:16.802Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -905,7 +905,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-04T02:50:31.281Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -926,7 +926,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-04T02:50:31.281Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -947,7 +947,7 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-04T02:50:31.281Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
@@ -968,7 +968,385 @@
       "revision": 1,
       "status": "active",
       "firstSeenAt": "2026-08-04T02:50:31.281Z",
-      "lastSeenAt": "2026-08-04T02:50:31.281Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-23",
+      "storeKey": "台南卡通卡片遊戲店",
+      "time": "14:00",
+      "typeKey": "newbie",
+      "region": "south",
+      "storeName": "台南卡通卡片遊戲店",
+      "phone": "06-208-5773",
+      "address": "臺南市中西區成功路29號5樓",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-23T14:00:00+08:00",
+      "id": "evt_000105",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-23",
+      "storeKey": "台南卡通卡片遊戲店",
+      "time": "15:00",
+      "typeKey": "casual",
+      "region": "south",
+      "storeName": "台南卡通卡片遊戲店",
+      "phone": "06-208-5773",
+      "address": "臺南市中西區成功路29號5樓",
+      "format": "交流",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-23T15:00:00+08:00",
+      "id": "evt_000106",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "台南卡通卡片遊戲店",
+      "time": "14:00",
+      "typeKey": "newbie",
+      "region": "south",
+      "storeName": "台南卡通卡片遊戲店",
+      "phone": "06-208-5773",
+      "address": "臺南市中西區成功路29號5樓",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T14:00:00+08:00",
+      "id": "evt_000107",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "台南卡通卡片遊戲店",
+      "time": "15:00",
+      "typeKey": "casual",
+      "region": "south",
+      "storeName": "台南卡通卡片遊戲店",
+      "phone": "06-208-5773",
+      "address": "臺南市中西區成功路29號5樓",
+      "format": "交流",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T15:00:00+08:00",
+      "id": "evt_000108",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-09",
+      "storeKey": "小蝦米玩具店",
+      "time": "17:00",
+      "typeKey": "newbie",
+      "region": "central",
+      "storeName": "小蝦米玩具店",
+      "phone": "04-23711581",
+      "address": "台中市西區朝陽街59之3號",
+      "format": "新手",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-09T17:00:00+08:00",
+      "id": "evt_000109",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-23",
+      "storeKey": "小蝦米玩具店",
+      "time": "17:00",
+      "typeKey": "newbie",
+      "region": "central",
+      "storeName": "小蝦米玩具店",
+      "phone": "04-23711581",
+      "address": "台中市西區朝陽街59之3號",
+      "format": "新手",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-23T17:00:00+08:00",
+      "id": "evt_000110",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-16",
+      "storeKey": "小蝦米玩具店",
+      "time": "17:00",
+      "typeKey": "casual",
+      "region": "central",
+      "storeName": "小蝦米玩具店",
+      "phone": "04-23711581",
+      "address": "台中市西區朝陽街59之3號",
+      "format": "交流",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-16T17:00:00+08:00",
+      "id": "evt_000111",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "小蝦米玩具店",
+      "time": "17:00",
+      "typeKey": "casual",
+      "region": "central",
+      "storeName": "小蝦米玩具店",
+      "phone": "04-23711581",
+      "address": "台中市西區朝陽街59之3號",
+      "format": "交流",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T17:00:00+08:00",
+      "id": "evt_000112",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-21",
+      "storeKey": "卡咖王國",
+      "time": "14:00",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "卡咖王國",
+      "phone": "(02)86018462",
+      "address": "新北市林口區文化二路一段390號三樓之三",
+      "format": "交流",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-21T14:00:00+08:00",
+      "id": "evt_000113",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-28",
+      "storeKey": "卡咖王國",
+      "time": "14:00",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "卡咖王國",
+      "phone": "(02)86018462",
+      "address": "新北市林口區文化二路一段390號三樓之三",
+      "format": "交流",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-28T14:00:00+08:00",
+      "id": "evt_000114",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-19",
+      "storeKey": "卡咖王國",
+      "time": "17:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "卡咖王國",
+      "phone": "(02)86018462",
+      "address": "新北市林口區文化二路一段390號三樓之三",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-19T17:00:00+08:00",
+      "id": "evt_000115",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-26",
+      "storeKey": "卡咖王國",
+      "time": "17:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "卡咖王國",
+      "phone": "(02)86018462",
+      "address": "新北市林口區文化二路一段390號三樓之三",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-26T17:00:00+08:00",
+      "id": "evt_000116",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-07",
+      "storeKey": "鬧鬧卡片專賣店",
+      "time": "19:30",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "鬧鬧卡片專賣店",
+      "phone": "0903257799",
+      "address": "台北市大同區南京西路163號B1",
+      "format": "對戰交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-07T19:30:00+08:00",
+      "id": "evt_000117",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-09",
+      "storeKey": "鬧鬧卡片專賣店",
+      "time": "18:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "鬧鬧卡片專賣店",
+      "phone": "0903257799",
+      "address": "台北市大同區南京西路163號B1",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-09T18:00:00+08:00",
+      "id": "evt_000118",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-16",
+      "storeKey": "鬧鬧卡片專賣店",
+      "time": "18:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "鬧鬧卡片專賣店",
+      "phone": "0903257799",
+      "address": "台北市大同區南京西路163號B1",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-16T18:00:00+08:00",
+      "id": "evt_000119",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-21",
+      "storeKey": "鬧鬧卡片專賣店",
+      "time": "19:30",
+      "typeKey": "casual",
+      "region": "north",
+      "storeName": "鬧鬧卡片專賣店",
+      "phone": "0903257799",
+      "address": "台北市大同區南京西路163號B1",
+      "format": "對戰交流賽",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-21T19:30:00+08:00",
+      "id": "evt_000120",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-23",
+      "storeKey": "鬧鬧卡片專賣店",
+      "time": "18:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "鬧鬧卡片專賣店",
+      "phone": "0903257799",
+      "address": "台北市大同區南京西路163號B1",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-23T18:00:00+08:00",
+      "id": "evt_000121",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
+      "removedAt": null
+    },
+    {
+      "date": "2026-08-30",
+      "storeKey": "鬧鬧卡片專賣店",
+      "time": "18:00",
+      "typeKey": "newbie",
+      "region": "north",
+      "storeName": "鬧鬧卡片專賣店",
+      "phone": "0903257799",
+      "address": "台北市大同區南京西路163號B1",
+      "format": "新手教學",
+      "capacity": "16",
+      "registrationMethod": "現場",
+      "dateInferred": false,
+      "startAt": "2026-08-30T18:00:00+08:00",
+      "id": "evt_000122",
+      "revision": 1,
+      "status": "active",
+      "firstSeenAt": "2026-08-04T08:43:08.549Z",
+      "lastSeenAt": "2026-08-04T08:43:08.549Z",
       "removedAt": null
     },
     {
