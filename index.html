@@ -19,12 +19,14 @@
   import {
     fetchSchoolPopularitySnapshot, flushSchoolPopularityIncrement,
   } from './js/school-popularity-firestore.js';
+  import { computeDeckImageLayout } from './js/deck-image-layout.js';
   window.hvSchoolPopularity = {
     computeTopSchools, addView, buildIncrementPayload,
     onFlushSuccess, onFlushFailure, applySnapshot,
     fetchSchoolPopularitySnapshot, flushSchoolPopularityIncrement,
   };
   window.hvCardNameSuggest = { buildSuggestions };
+  window.hvDeckImageLayout = { computeDeckImageLayout };
   // 比照 cloud-sync.js 的 hv-cloud-sync-ready：不能只靠 DOMContentLoaded
   // 判斷這個 module script 是否執行完畢，因為 school-popularity-firestore.js
   // 動態 import 外部 CDN 的 firebase-firestore.js，實測 DOMContentLoaded
@@ -4336,24 +4338,74 @@ function canvasRoundRect(ctx, x, y, w, h, r) {
 }
 
 // 畫牌組 Canvas（高解析度）
+function measureHeadLayout(ctx, deck) {
+  const colorStats = getColorStats(deck);
+  const total = getTotalCount(deck);
+  const over = total > 40;
+
+  ctx.font = '900 19px "Segoe UI","Noto Sans TC",sans-serif';
+  const wordmarkW = ctx.measureText('バボカ!!').width;
+  ctx.font = 'bold 13px "Segoe UI","Noto Sans TC",sans-serif';
+  const breakW = ctx.measureText('BREAK').width;
+  const lockupW = 4 + 6 + wordmarkW + 4 + breakW;
+
+  const group1 = COLOR_TAGS.map(({ key, label }) => ({ key, label, val: `${colorStats[key]}枚` }));
+  const group2 = [
+    { key: 'event', label: '事件', val: `${colorStats.event}枚` },
+    { key: 'total', label: '牌組', val: `${total}/40` },
+  ];
+  const ITEM_GAP = 16;
+  function measureItem({ label, val }) {
+    ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
+    const labelW = ctx.measureText(label).width;
+    ctx.font = 'bold 12px "Segoe UI",sans-serif';
+    const pillW = Math.max(36, ctx.measureText(val).width + 16);
+    return { width: Math.max(labelW, pillW), pillW };
+  }
+  const m1 = group1.map(measureItem);
+  const m2 = group2.map(measureItem);
+  const g1W = m1.reduce((s, m) => s + m.width, 0) + ITEM_GAP * (m1.length - 1);
+  const g2W = m2.reduce((s, m) => s + m.width, 0) + ITEM_GAP * (m2.length - 1);
+  const statsTotalW = g1W + 16 * 2 + 1 + g2W;
+
+  return { over, wordmarkW, lockupW, group1, group2, m1, m2, g1W, statsTotalW, ITEM_GAP };
+}
+
 async function drawDeckCanvas(deck) {
   const SCALE  = 3;          // 3x 高解析度
   const entries = expandEntriesForCanvasGrouped(deck);
 
-  // 欄數：≤8張用實際張數寬度，>8張固定8欄
-  const COLS   = Math.min(8, entries.length);
+  // 固定 8 欄，不論卡片總數多寡皆同一寬度版面（issue #96），欄數/座標交給
+  // #94 的純函式 computeDeckImageLayout()。
+  const COLS   = 8;
 
   const CARD_W = 100;        // 邏輯尺寸（實際 ×SCALE）
   const CARD_H = 140;
   const GAP    = 10;
-  const PAD    = 20;
-  const HEAD_H = 118;        // 品牌+牌組名一組（左上）／統計徽章獨立一條容器列在下方
+  // 畫布整體內距 28/32/22/32（取代舊版統一 20px）；左右對稱（32/32），
+  // 供卡格區純函式沿用單一 pad 參數。
+  const PAD_TOP = 28, PAD_SIDE = 32, PAD_BOTTOM = 22;
+  const HEADER_GAP = 22;      // 頭部橫條 margin-bottom，與卡格區的間距
   const FOOT_H = 34;
+  const BOX_PAD_V = 14, BOX_PAD_H = 22;
+  const BOX_H = 78;
+  const NAME_GAP = 24, NAME_MIN_W = 140, STATS_GAP = 32;
 
-  const rows = Math.ceil(entries.length / COLS);
-  // 統計徽章列需要一定寬度才擺得下六個膠囊，卡少的牌組（COLS小）要保底最小寬度
-  const W    = Math.max(PAD*2 + COLS*(CARD_W+GAP) - GAP, 560);
-  const H    = HEAD_H + PAD + rows*(CARD_H+GAP) - GAP + PAD + FOOT_H;
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  const head = measureHeadLayout(measureCtx, deck);
+  // 頭部橫條要一次擺下 lockup／牌組名（至少留 NAME_MIN_W）／統計膠囊，
+  // 8 欄卡格算出的畫布寬度可能不夠寬，這裡取兩者較大值
+  const headContentW = head.lockupW + NAME_GAP + NAME_MIN_W + STATS_GAP + head.statsTotalW;
+  const minHeadW = headContentW + BOX_PAD_H * 2 + PAD_SIDE * 2;
+
+  const headH = PAD_TOP + BOX_H + HEADER_GAP;
+  const layout = window.hvDeckImageLayout.computeDeckImageLayout(entries.length, {
+    cols: COLS, cardW: CARD_W, cardH: CARD_H, gap: GAP, pad: PAD_SIDE, headH, footH: 0,
+  });
+  const rows = layout.rows;
+  const cardAreaH = layout.height - headH - PAD_SIDE * 2;
+  const W    = Math.max(layout.width, minHeadW);
+  const H    = headH + PAD_SIDE + cardAreaH + PAD_BOTTOM + FOOT_H;
 
   const canvas  = document.createElement('canvas');
   canvas.width  = W * SCALE;
@@ -4363,52 +4415,58 @@ async function drawDeckCanvas(deck) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 背景
-  ctx.fillStyle = '#FAFAFA';
+  // 背景：白色，四角維持直角矩形（不繪製外層圓角或陰影）
+  ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
-  // 標題列
-  ctx.fillStyle = '#F3EFEA';
-  ctx.fillRect(0, 0, W, HEAD_H);
+  // 頭部：單一黑框橫條（品牌 lockup／牌組名／統計膠囊三塊並排），比照設計交付檔
+  // design_handoff_card_collection，取代舊版「品牌名+牌組名一塊、統計徽章列
+  // 另起一條」的雙層結構。
+  const boxX = PAD_SIDE, boxY = PAD_TOP, boxW = W - PAD_SIDE * 2, boxH = BOX_H;
+  ctx.strokeStyle = '#101114';
+  ctx.lineWidth = 2;
+  canvasRoundRect(ctx, boxX, boxY, boxW, boxH, 6);
+  ctx.stroke();
 
-  // 跟 GPT-5.6-Luna 討論定案的重新設計（原本「品牌名+徽章共用一列」被診斷為
-  // 資訊層級錯誤：品牌識別跟牌組統計是兩件不同的事，硬塞同一排即使基線對齊
-  // 還是會像「品牌名+一排小按鈕」拼接感。改成三塊各自獨立：
-  // ① 左側橘色識別線，把「品牌名(kicker小字)+牌組名(大字主標題)」框成一組
-  // ② 統計徽章獨立一條淺色容器列在下方，六欄等寬、拿掉漸層/陰影/玻璃光澤，
-  //    顏色只留給小圓點做分類提示，膠囊本身用扁平純色，降低視覺噪音
-  // ③ 底部只留一小段橘色 accent（不是整條橘線），避免線本身搶過內容
+  const contentX0 = boxX + BOX_PAD_H;
+  const contentX1 = boxX + boxW - BOX_PAD_H;
+  const contentMidY = boxY + boxH / 2;
 
-  // 左側識別線，framing 品牌名+牌組名
-  ctx.fillStyle = '#BE520B';
-  ctx.fillRect(PAD, 15, 3, 50);
+  // ① 品牌 lockup：三行堆疊
+  const lockupX = contentX0;
+  const { wordmarkW, lockupW, group1, group2, m1, m2, g1W, statsTotalW, ITEM_GAP } = head;
 
-  // 品牌名：小型 kicker
-  ctx.font = 'bold 12px "Segoe UI","Noto Sans TC",sans-serif';
-  ctx.fillStyle = '#BE520B';
+  const row1Y = contentMidY - 20, row2Y = contentMidY - 3, row3Y = contentMidY + 16;
+
+  ctx.font = '800 11px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#101114';
   ctx.textAlign = 'left';
-  ctx.fillText('排球少年!! バボカ!!BREAK', PAD + 12, 25);
+  const kickerText = '排球少年!!';
+  ctx.fillText(kickerText, lockupX, row1Y);
+  const kickerW = ctx.measureText(kickerText).width;
+  ctx.strokeStyle = '#101114';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(lockupX + kickerW + 6, row1Y - 3.5);
+  ctx.lineTo(lockupX + lockupW, row1Y - 3.5);
+  ctx.stroke();
 
-  // 牌組名：header 主標題
-  ctx.font = 'bold 24px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#e0563a';
+  ctx.fillRect(lockupX, row2Y - 14, 4, 18);
+  ctx.font = '900 19px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#0D0506';
-  const nameMaxW = W - PAD * 2 - 44;
-  let nameToDraw = deck.name;
-  while (ctx.measureText(nameToDraw).width > nameMaxW && nameToDraw.length > 1) {
-    nameToDraw = nameToDraw.slice(0, -1);
-  }
-  if (nameToDraw !== deck.name) nameToDraw = nameToDraw.slice(0, -1) + '…';
-  ctx.fillText(nameToDraw, PAD + 12, 59);
+  ctx.fillText('バボカ!!', lockupX + 4 + 6, row2Y);
+  ctx.font = 'bold 13px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#e0563a';
+  ctx.fillText('BREAK', lockupX + 4 + 6 + wordmarkW + 4, row2Y);
 
-  // 統計徽章：獨立容器列，六欄等寬，扁平色塊（不用漸層/陰影/玻璃光澤）
-  const colorStats = getColorStats(deck);
-  const total = getTotalCount(deck);
-  const over = total > 40;
-  const badgeItems = [
-    ...COLOR_TAGS.map(({ key, label }) => ({ key, label, val: String(colorStats[key]) })),
-    { key: 'event', label: '事件', val: String(colorStats.event) },
-    { key: 'total', label: '牌組', val: `${total}/40` },
-  ];
+  ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#8a8f98';
+  ctx.fillText('卡牌資料庫 / Card Database', lockupX, row3Y);
+
+  // ③ 統計膠囊：分兩子組（自由/接球/舉球/攻擊、事件/牌組），中間細直線分隔；
+  // 每個膠囊「純文字標籤在上（不含色點）＋色底圓角膠囊在下」，寬度已由 measureHeadLayout() 量測好
+  const over = getTotalCount(deck) > 40;
   const BADGE_COLOR = {
     free:    ['#6B6B6B', '#fff'],
     receive: ['#2563EB', '#fff'],
@@ -4417,63 +4475,62 @@ async function drawDeckCanvas(deck) {
     event:   ['#EAB308', '#0D0506'],
     total:   over ? ['#C63D3D', '#fff'] : ['#1A1A1A', '#fff'],
   };
+  const DIVIDER_GAP = 16, DIVIDER_W = 1;
 
-  const railX = PAD, railY = 74, railW = W - PAD * 2, railH = 36;
-  ctx.fillStyle = '#ECE7E1';
-  canvasRoundRect(ctx, railX, railY, railW, railH, 10);
-  ctx.fill();
-  ctx.strokeStyle = '#DED7CF';
-  ctx.lineWidth = 1;
-  canvasRoundRect(ctx, railX, railY, railW, railH, 10);
-  ctx.stroke();
-
-  const slotW    = railW / badgeItems.length;
-  const LABEL_Y  = railY + 12;
-  const PILL_TOP = railY + 15;
+  const LABEL_Y  = contentMidY - 8;
+  const PILL_TOP = contentMidY - 2;
   const PILL_H   = 20;
 
-  badgeItems.forEach(({ key, label, val }, i) => {
-    const cx = railX + slotW * i + slotW / 2;
+  function drawStatItem(item, meas, cx) {
+    const { label, val, key } = item;
     const [bg, fg] = BADGE_COLOR[key];
+    ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.fillStyle = '#6b6f76';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, cx, LABEL_Y);
 
-    // 標籤：左側小圓點（用該分類色）+ 統一灰字，顏色只當分類提示不搶焦點
-    ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
-    ctx.textAlign = 'left';
-    if (key !== 'total') {
-      const labelW = ctx.measureText(label).width;
-      const dotR = 2.5;
-      const groupStartX = cx - (dotR * 2 + 5 + labelW) / 2;
-      ctx.beginPath();
-      ctx.arc(groupStartX + dotR, LABEL_Y - 3.5, dotR, 0, Math.PI * 2);
-      ctx.fillStyle = bg;
-      ctx.fill();
-      ctx.fillStyle = '#6B6B6B';
-      ctx.fillText(label, groupStartX + dotR * 2 + 5, LABEL_Y);
-    } else {
-      ctx.fillStyle = '#6B6B6B';
-      ctx.textAlign = 'center';
-      ctx.fillText(label, cx, LABEL_Y);
-    }
-
-    // 數字膠囊：統一高度/圓角，純色不加漸層陰影
     ctx.font = 'bold 12px "Segoe UI",sans-serif';
-    const textW = ctx.measureText(val).width;
-    const pillW = Math.min(slotW - 10, Math.max(36, textW + 16));
-    const px = cx - pillW / 2;
+    const px = cx - meas.pillW / 2;
     ctx.fillStyle = bg;
-    canvasRoundRect(ctx, px, PILL_TOP, pillW, PILL_H, PILL_H / 2);
+    canvasRoundRect(ctx, px, PILL_TOP, meas.pillW, PILL_H, PILL_H / 2);
     ctx.fill();
     ctx.fillStyle = fg;
-    ctx.textAlign = 'center';
     ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4);
+  }
+
+  let sx = contentX1 - statsTotalW;
+  group1.forEach((item, i) => {
+    const cx = sx + m1[i].width / 2;
+    drawStatItem(item, m1[i], cx);
+    sx += m1[i].width + ITEM_GAP;
+  });
+  sx = contentX1 - statsTotalW + g1W + DIVIDER_GAP;
+  ctx.strokeStyle = '#ececec';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(sx, boxY + BOX_PAD_V);
+  ctx.lineTo(sx, boxY + boxH - BOX_PAD_V);
+  ctx.stroke();
+  sx += DIVIDER_W + DIVIDER_GAP;
+  group2.forEach((item, i) => {
+    const cx = sx + m2[i].width / 2;
+    drawStatItem(item, m2[i], cx);
+    sx += m2[i].width + ITEM_GAP;
   });
   ctx.textAlign = 'left';
 
-  // 底部只留一小段橘色 accent（不是整條橘線），避免線本身搶過內容
-  ctx.fillStyle = '#DCD5CE';
-  ctx.fillRect(0, HEAD_H - 1, W, 1);
-  ctx.fillStyle = '#BE520B';
-  ctx.fillRect(PAD, HEAD_H - 2, 76, 2);
+  // ② 牌組名稱：置中於 lockup 與統計膠囊之間，沿用超長名稱截斷+刪節號邏輯
+  const nameX = lockupX + lockupW + NAME_GAP;
+  const nameMaxW = Math.max(NAME_MIN_W, (contentX1 - statsTotalW - STATS_GAP) - nameX);
+  ctx.font = 'bold 22px "Segoe UI","Noto Sans TC",sans-serif';
+  ctx.fillStyle = '#0D0506';
+  ctx.textAlign = 'left';
+  let nameToDraw = deck.name;
+  while (ctx.measureText(nameToDraw).width > nameMaxW && nameToDraw.length > 1) {
+    nameToDraw = nameToDraw.slice(0, -1);
+  }
+  if (nameToDraw !== deck.name) nameToDraw = nameToDraw.slice(0, -1) + '…';
+  ctx.fillText(nameToDraw, nameX, contentMidY + 8);
 
   // 載入圖片（快取避免重複請求）
   const imgCache = {};
@@ -4494,21 +4551,23 @@ async function drawDeckCanvas(deck) {
     const card  = cards.find(c => c.image_file === entry.image_file);
     if (!card) continue;
 
-    const col = i % COLS;
-    const row = Math.floor(i / COLS);
-    const x   = PAD + col * (CARD_W + GAP);
-    const y   = HEAD_H + PAD + row * (CARD_H + GAP);
+    const { x, y } = layout.positions[i];
 
-    // 卡片底色
+    // 卡片底色＋外框陰影（設計稿 0 1px 3px rgba(0,0,0,0.12)）
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.12)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetY = 1;
     ctx.fillStyle = '#FFFFFF';
-    canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 7); ctx.fill();
+    canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 6); ctx.fill();
+    ctx.restore();
 
     // 卡片圖片
     if (card.image_file) {
       const img = await loadImg(`images/${card.image_file}`);
       if (img) {
         ctx.save();
-        canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 7); ctx.clip();
+        canvasRoundRect(ctx, x, y, CARD_W, CARD_H, 6); ctx.clip();
         ctx.drawImage(img, x, y, CARD_W, CARD_H);
         ctx.restore();
       }
@@ -4519,7 +4578,7 @@ async function drawDeckCanvas(deck) {
     grad.addColorStop(0, 'rgba(0,0,0,0)');
     grad.addColorStop(1, 'rgba(0,0,0,0.9)');
     ctx.fillStyle = grad;
-    canvasRoundRect(ctx, x, y + CARD_H - 36, CARD_W, 36, [0,0,7,7]); ctx.fill();
+    canvasRoundRect(ctx, x, y + CARD_H - 36, CARD_W, 36, [0,0,6,6]); ctx.fill();
 
     ctx.font = '10px "Segoe UI","Noto Sans TC",sans-serif';
     ctx.fillStyle = '#fff';
@@ -4541,12 +4600,13 @@ async function drawDeckCanvas(deck) {
       ctx.textAlign = 'left';
     }
 
-    // 顏色外框
+    // 顏色外框：1.5px 寬，沿用現有 COLOR_TAGS/EVENT_COLOR_HEX 分類色；
+    // 未手動指定顏色的卡維持無外框（entry.borderColor 為 null）
     if (entry.borderColor) {
-      const brd = 3;
+      const brd = 1.5;
       ctx.strokeStyle = entry.borderColor;
       ctx.lineWidth = brd;
-      canvasRoundRect(ctx, x + brd/2, y + brd/2, CARD_W - brd, CARD_H - brd, 5.5);
+      canvasRoundRect(ctx, x + brd/2, y + brd/2, CARD_W - brd, CARD_H - brd, 6 - brd/2);
       ctx.stroke();
     }
   }
