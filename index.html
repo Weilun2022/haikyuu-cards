@@ -4451,11 +4451,14 @@ async function drawDeckCanvas(deck) {
   // actualBoundingBoxAscent 逼近 10px，線畫在文字中段會直接切過字身
   // （曾經發生過：線在字的正中間，視覺上看起來字被壓扁/變小）
   const kickerLineY = row1Y + kickerMetrics.actualBoundingBoxDescent + 1;
+  // 細線只延伸到 lockup 欄寬（跟第二行「バボカ!!BREAK」wordmark 同寬對齊），
+  // 不要畫到橫條最右側——曾經照 issue 文字「延伸至橫條右側」字面延伸到
+  // contentX1，結果線橫跨整條牌組名/統計膠囊區，牌組名字一長就會被線穿過
   ctx.strokeStyle = '#101114';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(lockupX + kickerW + 6, kickerLineY);
-  ctx.lineTo(contentX1, kickerLineY);
+  ctx.lineTo(lockupX + lockupW, kickerLineY);
   ctx.stroke();
 
   ctx.fillStyle = '#e0563a';
