@@ -237,10 +237,15 @@ def _protect_terms(t, event_names):
     t = re.sub(r'以下から(\d+)つを選ん', lambda m: f'選擇以下其中{num_zh(m.group(1))}項', t)
     t = re.sub(r'以下から(\d+)つ', lambda m: f'以下其中{num_zh(m.group(1))}項', t)
     # 特殊卡片名稱
-    t = t.replace('ヒナガラス', '雛烏鴉')
+    # ヒナガラス／今日 何をする？ 在 name_zh_data.py 的 status 是 high（尚未使用者拍板為
+    # confirmed），故不透過 _apply_confirmed_name_zh() 的通用掃描機制自動套用（那個機制只吃
+    # confirmed，避免還沒定案的猜測透過掃描悄悄外流進其他語境）。但這裡是已知的單點替換，
+    # 直接查 name_zh_data.py 目前的值即可，不用再手動同步一份字面量副本——
+    # 見 docs/translation/CONTEXT.md「譯名單一真相來源」。
+    t = t.replace('ヒナガラス', _name_zh_value('ヒナガラス', fallback='雛烏'))
     t = t.replace('巣立て', '展翅')
-    t = t.replace('今日 何をする？', '今天做什麼？')
-    t = t.replace('今日 何する？', '今天做什麼？')
+    t = t.replace('今日 何をする？', _name_zh_value('今日 何をする？', fallback='今天，你要做什麼？'))
+    t = t.replace('今日 何する？', _name_zh_value('今日 何をする？', fallback='今天，你要做什麼？'))
     t = re.sub(r'言えば使え[、，]?', '可使用，', t)
     # 接球値を元々の接球値に（可選擇）
     t = re.sub(r'を元々の([\u4e00-\u9fff]{2,4}?)値に', r'（可選擇）恢復為原本的\1值，', t)
@@ -307,9 +312,9 @@ def _translate_vocabulary(t):
         ('ブロックフェイズ','攔網階段'),('レシーブフェイズ', OFFICIAL_TERMS["レシーブフェイズ"]),
         ('アタックフェイズ','攻擊階段'),('サーブフェイズ','發球階段'),
         ('トスフェイズ','舉球階段'),('エンドフェイズ','結束階段'),
-        ('ブロックポイント','攔網值'),('アタックポイント', OFFICIAL_TERMS["アタックポイント"]),
-        ('トスポイント', OFFICIAL_TERMS["トスポイント"]),('レシーブポイント','接球值'),
-        ('サーブポイント','發球值'),('オフェンスポイント', OFFICIAL_TERMS["オフェンスポイント"]),
+        ('ブロックポイント', OFFICIAL_TERMS["ブロックポイント"]),('アタックポイント', OFFICIAL_TERMS["アタックポイント"]),
+        ('トスポイント', OFFICIAL_TERMS["トスポイント"]),('レシーブポイント', OFFICIAL_TERMS["レシーブポイント"]),
+        ('サーブポイント', OFFICIAL_TERMS["サーブポイント"]),('オフェンスポイント', OFFICIAL_TERMS["オフェンスポイント"]),
         ('アタックキャラ', OFFICIAL_TERMS["アタックキャラ"]),('ブロックキャラ', OFFICIAL_TERMS["ブロックキャラ"]),
         ('トスキャラ', OFFICIAL_TERMS["トスキャラ"]),('レシーブキャラ', OFFICIAL_TERMS["レシーブキャラ"]),
         ('サーブキャラ', OFFICIAL_TERMS["サーブキャラ"]),('キャラカード','角色牌'),
@@ -517,12 +522,30 @@ def _translate_grammar(t):
     return t
 
 
+def _apply_confirmed_name_zh(t):
+    """套用 name_zh_data.py 裡 status='confirmed'（使用者拍板）的條目，取代 skill 文字裡對應的日文原詞。
+    只吃 confirmed——high/medium/low/draft 仍是研究中的猜測，不透過這裡自動套用進 skill 文字，
+    否則還沒定案的翻譯會透過這個機制悄悄外流，見 docs/translation/CONTEXT.md「譯名單一真相來源」。
+    也一併處理原詞內部空白（全形/半形）被壓縮/省略的常見變體，不用每個詞各自寫兩行。
+    """
+    for entry in NAME_ZH_ENTRIES:
+        if entry.get('status') != 'confirmed':
+            continue
+        jp = entry['jp']
+        zh = entry['zh']
+        if jp in t:
+            t = t.replace(jp, zh)
+        jp_nospace = jp.replace('　', '').replace(' ', '')
+        if jp_nospace != jp and jp_nospace in t:
+            t = t.replace(jp_nospace, zh)
+    return t
+
+
 def _strip_residual_particles(t, evt_placeholders):
     # ── 強化修正（第二輪：殘留日文清理）────────────────────────────────
 
     # A. 特殊名詞（技能名/人名/術語）
-    t = t.replace('どんぴしゃり', '渾圓命中')
-    t = t.replace('どん ぴしゃり', '渾圓命中')
+    t = _apply_confirmed_name_zh(t)  # 例如「どん ぴしゃり」→ name_zh_data.py confirmed 版本「分毫不差！」
     t = t.replace('超インナークロス', '超內側穿越')
     t = t.replace('インナークロス', '內側穿越')
     t = t.replace('助けてもらう', '接受幫助')
@@ -1086,7 +1109,7 @@ MANUAL_OVERRIDES = {
     'HV-PR-028-P.webp':  '[=登場][=舉球區] 支付2 Guts後可發動。從對手的Event區棄置最多1張牌，對手下回合中，當對手的接球角色出場時，該角色的接球值 -2',
     'HV-PR-030-P.webp':  '[=接球] [=每回合1次]自己的音駒接球角色1人的接球值 +2。若該角色是「芝山 優生」，抽1張牌',
     'HV-PR-036-P.webp':  '出場此牌時，可將牌名從「宮兄弟」改為「宮 侑」或「宮 治」。（出場此牌時選擇的牌名至該回合結束為止有效。此牌在計算場地角色數量時計為1人）',
-    'HV-PR-037-P.webp':  '[=登場][=攻擊區] 從自己的手牌棄置1張牌，並說出『展翅 雛烏鴉』後可使用。此角色的攻擊值 +3',
+    'HV-PR-037-P.webp':  '[=登場][=攻擊區] 從自己的手牌棄置1張牌，並說出『展翅 雛烏』後可使用。此角色的攻擊值 +3',
     'HV-PR-038-P.webp':  '出場此牌時，可將牌名從「西谷・東峰」改為「西谷 夕」或「東峰 旭」。（出場此牌時選擇的牌名至該回合結束為止有效。此牌在計算場地角色數量時計為1人）',
     'HV-PR-039-P.webp':  '出場此牌時，可將牌名從「青根・二口」改為「青根 高伸」或「二口 堅治」。（出場此牌時選擇的牌名至該回合結束為止有效。此牌在計算場地角色數量時計為1人）',
     'HV-PR-040-P.webp':  '出場此牌時，可將牌名從「宮兄弟」改為「宮 侑」或「宮 治」。（出場此牌時選擇的牌名至該回合結束為止有效。此牌在計算場地角色數量時計為1人）',
@@ -1307,6 +1330,12 @@ def clean_qa_text(text: str) -> str:
         return text
     t = text
 
+    # ⚠️ 疑似死代碼（Section 1-6，本函式以下到「7. translate_skill 後の残留形式」之前）：
+    # QA 文字現在的翻譯管道是 Google Translate 整段機翻，這批規則命中的樣式（と→和、です/ます
+    # 語尾殘留等）對應的是早期「對 QA 文字套用 translate_skill() 風格規則」的做法，後來才改用
+    # Google Translate（見 docs/translation/docs/adr/0003）。2026-08 架構檢視時本機沒有
+    # haikyuu_output/qa_data_zh.json 語料可以建立輸出快照驗證這批規則是否真的零命中，
+    # 所以先保留、不刪除——待有完整歷史 QA 語料時，比對輸出快照確認零命中後才能移除。
     # 1. 固定長句（防止短規則先匹配，最長優先）
     t = t.replace('することができる', '可以')
     t = t.replace('することができ',   '可以')
@@ -1563,6 +1592,15 @@ for _entry in NAME_ZH_ENTRIES:
     if _key in NAME_ZH_LOOKUP and NAME_ZH_LOOKUP[_key]['zh'] != _entry['zh']:
         print(f"[WARN] name_zh 正規化後 key 衝突：「{_key}」同時對應「{NAME_ZH_LOOKUP[_key]['zh']}」與「{_entry['zh']}」")
     NAME_ZH_LOOKUP[_key] = _entry
+
+
+def _name_zh_value(jp, fallback):
+    """查 name_zh_data.py 目前對 jp 的翻譯值（不管 status 是不是 confirmed），查無條目才用 fallback。
+    給已知需要單點替換、但還沒到 confirmed 門檻的個別詞用（見 _protect_terms 的「特殊卡片名稱」段），
+    這樣 name_zh_data.py 的值一改，這幾個硬編呼叫點會自動跟著變，不用手動同步兩處。
+    跟 _apply_confirmed_name_zh() 不同：那個是掃全部 skill 文字、只吃 confirmed 的通用機制；
+    這個是已知特定詞、不管狀態都直接對到單一查表值的個別呼叫。"""
+    return NAME_ZH_LOOKUP.get(normalize_name_key(jp), {}).get('zh', fallback)
 
 
 # ── 主處理 ─────────────────────────────────────────────────────────

@@ -69,7 +69,6 @@
 | **DAT-2** | 原始資料 | `all_cards.json` | 從官方 API 爬下的原始日文資料 |
 | **DAT-3** | 翻譯引擎 | `build_data.py` | 日→繁中翻譯管道；140+ 規則，7 大問題類型文件化 |
 | **DAT-4** | Q&A 翻譯器 | `translate_qa.py` | 官方 Q&A 文件翻譯 |
-| **DAT-5** | 批次翻譯器 | `translate_outputjson.py` | JSON 批次翻譯處理器 |
 | **DAT-6** | 翻譯 QA 工具 | `check_translations.js` | 驗證翻譯一致性 |
 | **DAT-7** | 圖片資源 | `images/` | 1000+ 張 WebP 卡圖；命名規則：`HV-P01-001-H.webp` |
 | **DAT-8** | 爬蟲 | `haikyuu_downloader.py` | 從 Takara Tomy API 抓資料 + 下載圖片 |
