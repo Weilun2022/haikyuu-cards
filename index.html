@@ -4438,7 +4438,10 @@ async function drawDeckCanvas(deck) {
   const lockupX = contentX0;
   const { wordmarkW, lockupW, group1, group2, m1, m2, g1W, statsTotalW, ITEM_GAP } = head;
 
-  const row1Y = contentMidY - 20, row2Y = contentMidY - 3, row3Y = contentMidY + 16;
+  // 三行的 y 偏移是舊 BOX_H=78 時代調的，統計膠囊放大兩輪後 BOX_H 已經加到
+  // 84，這三個值沒有跟著重新置中，導致 lockup 整塊比橫條中線高了約 6px、
+  // 跟右邊統計膠囊視覺對不齊——這裡整塊往下移 6px 重新置中
+  const row1Y = contentMidY - 14, row2Y = contentMidY + 3, row3Y = contentMidY + 22;
 
   ctx.font = '800 11px "Segoe UI","Noto Sans TC",sans-serif';
   ctx.fillStyle = '#101114';
