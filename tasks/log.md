@@ -39,6 +39,29 @@
 
 ---
 
+## 2026-08-05（Session 38）
+
+### 牌組轉圖片版面重新設計（#93 主票，子票 #94/#95/#96 全數完成，`bb7bfb0`~`a7a997e`）
+
+Matt Pocock 流程走完 `/to-tickets` 後拆出三張序列票，`/implement` 一次跑完：
+
+- **`#94`**：新增 `js/deck-image-layout.js`（`computeDeckImageLayout()`），不碰 DOM 的純函式算固定 8 欄卡格幾何（畫布寬高/列數/每格 x,y），`js/deck-image-layout.test.js` 覆蓋 0/1-7/8/16/40/39 張等邊界，`cd js && npm test` 全過。
+- **`#95`**：`drawDeckCanvas()`（`index.html`）頭部改版——舊版「品牌名+牌組名一塊、統計徽章列另起一條」雙層結構，改成單一黑框橫條（品牌 lockup 三行堆疊／牌組名／統計膠囊兩子組）。
+- **`#96`**：卡格區改用 `#94` 的純函式算座標，固定 8 欄不再用 `Math.min(8, entries.length)`；卡格外框 1.5px/6px 圓角/陰影；畫布底色改白、內距改 28/32/22/32。回歸驗證：匯出的 PNG 走 `importDeckFromImage()` 讀回，內嵌牌組 JSON 正確重建。
+
+`bb7bfb0` 首次落地後，兩軸 code-review（Standards/Spec）當場抓到兩個真問題（kicker 細線沒延伸到橫條右側、統計膠囊「枚」字級沒縮小），`e99f6a1` 修正。
+
+### 頭部橫條後續 4 輪視覺 bug（使用者實測匯出真牌組後陸續回報）
+
+這幾輪都是「先在 code-review 通過、單元測試也過，但實際匯出圖片後才發現的視覺問題」，說明 `index.html` 這類會碰 DOM/Canvas 的模組沒有自動化視覺測試 seam（見 `CODING_STANDARDS.md`），只能靠「本地渲染 canvas → 裁切截圖 → 像素掃描量測」這套手動迴圈驗證，這次 session 反覆用了很多次，記錄下來給下次類似情境參考：
+
+1. **細線壓字＋卡格間距過大**（`dd50cd4`）：kicker 細線 y 座標落在 11px 粗體字的字身範圍內，線直接切過字；`headH` 已加了 `HEADER_GAP(22)`，又把整個 `headH` 傳進 `computeDeckImageLayout()`，其 `pad` 參數（32）在函式內部又疊加一次，雙重計算出 54px 間距。
+2. **細線橫跨整條牌組名/統計膠囊**（`e23d8b3`）：上一輪照 issue 文字「延伸至橫條右側」把線終點改成橫條最右側 `contentX1`，結果牌組名字一長線就穿過整段牌組名。改回只延伸到 lockup 欄寬（跟第二行 wordmark 同寬對齊）。
+3. **細線黏字模型錯誤＋統計字級對齊設計稿**（`3959ace`）：對照設計稿原始碼（`design_handoff_card_collection/card-collection.dc.html`）才發現細線根本不是「文字底線」，是跟文字同排 flex 垂直置中並排——之前用 baseline+descent 的底線模型硬塞進窄橫條，模型本身就跟設計稿不一樣，不管怎麼調 offset 都會覺得黏。改成用 `actualBoundingBoxAscent` 算文字視覺中心，線跟文字並排。
+4. **統計膠囊字級再放大＋LOGO 垂直置中**（`cb24385`、`a7a997e`）：套用設計稿字面 px 值後使用者仍覺得偏小——canvas 用的 Segoe UI/Noto Sans TC 字體跟設計稿 Hiragino Sans/Yu Gothic 同字級視覺大小不同，且 canvas `bold` 對應字重比設計稿標示的 800 輕；直接加大字級/字重/膠囊高度後，橫條加高但左側 LOGO 三行的 y 偏移沒跟著重新置中，左右兩塊視覺不對齊，最後統一用 `contentMidY` 重新置中兩塊。
+
+---
+
 ## 2026-08-02（Session 37）
 
 ### 修復伊達工業推薦影片打字錯誤（`f7de4ff`）
