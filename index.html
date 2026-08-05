@@ -4354,11 +4354,11 @@ function measureHeadLayout(ctx, deck) {
     { key: 'event', label: '事件', val: `${colorStats.event}枚` },
     { key: 'total', label: '牌組', val: `${total}/40` },
   ];
-  const ITEM_GAP = 16;
+  const ITEM_GAP = 18;
   function measureItem({ label, val }) {
-    ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.font = '600 11px "Segoe UI","Noto Sans TC",sans-serif';
     const labelW = ctx.measureText(label).width;
-    ctx.font = 'bold 12px "Segoe UI",sans-serif';
+    ctx.font = 'bold 13px "Segoe UI",sans-serif';
     const pillW = Math.max(36, ctx.measureText(val).width + 16);
     return { width: Math.max(labelW, pillW), pillW };
   }
@@ -4387,7 +4387,7 @@ async function drawDeckCanvas(deck) {
   const PAD_TOP = 28, PAD_SIDE = 32, PAD_BOTTOM = 22;
   const FOOT_H = 34;
   const BOX_PAD_V = 14, BOX_PAD_H = 22;
-  const BOX_H = 78;
+  const BOX_H = 84;        // 統計膠囊放大後（20→26px）需要多留一點垂直空間
   const NAME_GAP = 24, NAME_MIN_W = 140, STATS_GAP = 32;
 
   const measureCtx = document.createElement('canvas').getContext('2d');
@@ -4447,17 +4447,18 @@ async function drawDeckCanvas(deck) {
   ctx.fillText(kickerText, lockupX, row1Y);
   const kickerMetrics = ctx.measureText(kickerText);
   const kickerW = kickerMetrics.width;
-  // 細線畫在文字下緣之下，不要用固定的負偏移——CJK 粗體字在 11px 時
-  // actualBoundingBoxAscent 逼近 10px，線畫在文字中段會直接切過字身
-  // （曾經發生過：線在字的正中間，視覺上看起來字被壓扁/變小）
-  const kickerLineY = row1Y + kickerMetrics.actualBoundingBoxDescent + 1;
+  // 細線跟文字左右並排、垂直置中對齊（比照設計稿 flex align-items:center，
+  // 不是畫在文字下緣的底線）——曾經用 baseline+descent 的底線模型，在窄橫條
+  // 裡跟文字/第二行擠在一起，改成跟文字同高並排後兩者不再共用同一段擁擠
+  // 的垂直空間，字身中心 = baseline − ascent/2
+  const kickerLineY = row1Y - kickerMetrics.actualBoundingBoxAscent / 2;
   // 細線只延伸到 lockup 欄寬（跟第二行「バボカ!!BREAK」wordmark 同寬對齊），
   // 不要畫到橫條最右側——曾經照 issue 文字「延伸至橫條右側」字面延伸到
   // contentX1，結果線橫跨整條牌組名/統計膠囊區，牌組名字一長就會被線穿過
   ctx.strokeStyle = '#101114';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(lockupX + kickerW + 6, kickerLineY);
+  ctx.moveTo(lockupX + kickerW + 8, kickerLineY);
   ctx.lineTo(lockupX + lockupW, kickerLineY);
   ctx.stroke();
 
@@ -4487,14 +4488,16 @@ async function drawDeckCanvas(deck) {
   };
   const DIVIDER_GAP = 16, DIVIDER_W = 1;
 
-  const LABEL_Y  = contentMidY - 8;
-  const PILL_TOP = contentMidY - 2;
-  const PILL_H   = 20;
+  // 標籤/膠囊字級對齊設計稿（11px 標籤／13px 膠囊數字），膠囊也跟著加高，
+  // 兩者間距、跟橫條中線的置中位置一起重新算過
+  const LABEL_Y  = contentMidY - 12;
+  const PILL_TOP = contentMidY - 4;
+  const PILL_H   = 26;
 
   function drawStatItem(item, meas, cx) {
     const { label, val, key } = item;
     const [bg, fg] = BADGE_COLOR[key];
-    ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.font = '600 11px "Segoe UI","Noto Sans TC",sans-serif';
     ctx.fillStyle = '#6b6f76';
     ctx.textAlign = 'center';
     ctx.fillText(label, cx, LABEL_Y);
@@ -4509,19 +4512,19 @@ async function drawDeckCanvas(deck) {
     const hasUnit = val.endsWith('枚');
     if (hasUnit) {
       const num = val.slice(0, -1);
-      ctx.font = 'bold 12px "Segoe UI",sans-serif';
+      ctx.font = 'bold 13px "Segoe UI",sans-serif';
       const numW = ctx.measureText(num).width;
       ctx.font = '600 9px "Segoe UI","Noto Sans TC",sans-serif';
       const unitW = ctx.measureText('枚').width;
       const startX = cx - (numW + unitW) / 2;
       ctx.textAlign = 'left';
-      ctx.font = 'bold 12px "Segoe UI",sans-serif';
+      ctx.font = 'bold 13px "Segoe UI",sans-serif';
       ctx.fillText(num, startX, PILL_TOP + PILL_H / 2 + 4);
       ctx.font = '600 9px "Segoe UI","Noto Sans TC",sans-serif';
       ctx.fillText('枚', startX + numW, PILL_TOP + PILL_H / 2 + 3);
       ctx.textAlign = 'center';
     } else {
-      ctx.font = 'bold 12px "Segoe UI",sans-serif';
+      ctx.font = 'bold 13px "Segoe UI",sans-serif';
       ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4);
     }
   }
