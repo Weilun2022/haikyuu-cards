@@ -4356,10 +4356,10 @@ function measureHeadLayout(ctx, deck) {
   ];
   const ITEM_GAP = 18;
   function measureItem({ label, val }) {
-    ctx.font = '600 11px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.font = '600 12px "Segoe UI","Noto Sans TC",sans-serif';
     const labelW = ctx.measureText(label).width;
-    ctx.font = 'bold 13px "Segoe UI",sans-serif';
-    const pillW = Math.max(36, ctx.measureText(val).width + 16);
+    ctx.font = '800 16px "Segoe UI",sans-serif';
+    const pillW = Math.max(40, ctx.measureText(val).width + 20);
     return { width: Math.max(labelW, pillW), pillW };
   }
   const m1 = group1.map(measureItem);
@@ -4488,16 +4488,16 @@ async function drawDeckCanvas(deck) {
   };
   const DIVIDER_GAP = 16, DIVIDER_W = 1;
 
-  // 標籤/膠囊字級對齊設計稿（11px 標籤／13px 膠囊數字），膠囊也跟著加高，
+  // 標籤/膠囊字級再放大一輪（12px 標籤／16px 膠囊數字），膠囊也跟著加高，
   // 兩者間距、跟橫條中線的置中位置一起重新算過
-  const LABEL_Y  = contentMidY - 12;
-  const PILL_TOP = contentMidY - 4;
-  const PILL_H   = 26;
+  const LABEL_Y  = contentMidY - 14;
+  const PILL_TOP = contentMidY - 5;
+  const PILL_H   = 32;
 
   function drawStatItem(item, meas, cx) {
     const { label, val, key } = item;
     const [bg, fg] = BADGE_COLOR[key];
-    ctx.font = '600 11px "Segoe UI","Noto Sans TC",sans-serif';
+    ctx.font = '600 12px "Segoe UI","Noto Sans TC",sans-serif';
     ctx.fillStyle = '#6b6f76';
     ctx.textAlign = 'center';
     ctx.fillText(label, cx, LABEL_Y);
@@ -4512,20 +4512,20 @@ async function drawDeckCanvas(deck) {
     const hasUnit = val.endsWith('枚');
     if (hasUnit) {
       const num = val.slice(0, -1);
-      ctx.font = 'bold 13px "Segoe UI",sans-serif';
+      ctx.font = '800 16px "Segoe UI",sans-serif';
       const numW = ctx.measureText(num).width;
-      ctx.font = '600 9px "Segoe UI","Noto Sans TC",sans-serif';
+      ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
       const unitW = ctx.measureText('枚').width;
       const startX = cx - (numW + unitW) / 2;
       ctx.textAlign = 'left';
-      ctx.font = 'bold 13px "Segoe UI",sans-serif';
-      ctx.fillText(num, startX, PILL_TOP + PILL_H / 2 + 4);
-      ctx.font = '600 9px "Segoe UI","Noto Sans TC",sans-serif';
-      ctx.fillText('枚', startX + numW, PILL_TOP + PILL_H / 2 + 3);
+      ctx.font = '800 16px "Segoe UI",sans-serif';
+      ctx.fillText(num, startX, PILL_TOP + PILL_H / 2 + 5);
+      ctx.font = '600 10px "Segoe UI","Noto Sans TC",sans-serif';
+      ctx.fillText('枚', startX + numW, PILL_TOP + PILL_H / 2 + 4);
       ctx.textAlign = 'center';
     } else {
-      ctx.font = 'bold 13px "Segoe UI",sans-serif';
-      ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 4);
+      ctx.font = '800 16px "Segoe UI",sans-serif';
+      ctx.fillText(val, cx, PILL_TOP + PILL_H / 2 + 5);
     }
   }
 
