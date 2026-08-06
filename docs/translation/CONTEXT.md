@@ -6,7 +6,8 @@
 
 **新卡／新QA偵測**：
 判斷「官方是否有更新」的標準流程：先打 API 第一頁讀宣告總數（`data['count']`），跟本地 `all_cards.json` 的張數比較，有差才觸發 `fetch_all_cards()` 全量重抓，用卡片 variant 層級的穩定 `ID` 欄位 diff 新舊，找出真正新增/下架的卡。QA 資料的新增判斷同理，但**不能**用 QA API 回傳的 `id` 欄位（每次重抓會整批重新編號，不是穩定主鍵）——必須用 `(question, answer)` 內容比對，見 `docs/adr/0004`。
-_Avoid_: 這個判斷目前只存在操作記憶裡，不是任何腳本裡現成的函式——`haikyuu_downloader.py`/`run_download.py`/`fetch_new_qa.py` 都只是被呼叫的下層工具，沒有一個「該不該觸發下載」的統一入口。
+`haikyuu_downloader.py` 的 `check_for_new_cards()`/`should_refetch()` 把這個判斷寫成可呼叫、可測試的純函式（2026-08）；實際的 CLI 入口是 `check_new_cards.py`——呼叫 `check_for_new_cards()`，`has_new=True` 時先過兩道安全檢查（`is_fetch_complete()` 確認抓到的張數沒有少於官方宣告總數、`is_removal_suspicious()` 確認下架比例沒有異常，預設超過 30% 視為可疑），都過了才備份舊的 `all_cards.json`（`.bak`）再原子寫入新資料；任一檢查沒過就印錯誤、不寫檔、以非零 exit code 結束。不需要互動確認——`all_cards.json` 本來就是可以從官方 API 完全重建的可拋棄快取。
+_Avoid_: 不要繞過 `check_new_cards.py` 直接手動呼叫 `check_for_new_cards()` 再自己寫檔——那樣會跳過完整性/下架比例這兩道安全檢查。
 
 **通用規則（`translate_skill()`）**：
 把日文技能文字（`skill_jp`）轉成中文（`skill_zh`）的正規表達式規則鏈，套用在**所有卡片**上。規則**依序執行**，寫在哪一段會決定能不能命中——例如某規則要用「の」還沒被轉成「的」之前的日文原形寫，寫在轉換點之後就永遠不會觸發。新增規則前一定要確認插入位置在正確的轉換段落之間。

@@ -27,6 +27,47 @@ def test_should_refetch_official_has_fewer():
     assert hd.should_refetch(official_count=515, local_count=518) is True
 
 
+# ── is_fetch_complete: check_new_cards.py 寫檔前的完整性檢查 ──────────
+def test_is_fetch_complete_exact_match():
+    assert hd.is_fetch_complete(fetched_count=521, official_count=521) is True
+
+
+def test_is_fetch_complete_more_than_official():
+    # 抓到的比宣告數字多也算完整（不該發生，但不該因此擋下寫檔）
+    assert hd.is_fetch_complete(fetched_count=522, official_count=521) is True
+
+
+def test_is_fetch_complete_short_by_one():
+    assert hd.is_fetch_complete(fetched_count=520, official_count=521) is False
+
+
+def test_is_fetch_complete_severely_incomplete():
+    assert hd.is_fetch_complete(fetched_count=3, official_count=521) is False
+
+
+# ── is_removal_suspicious: 下架比例過高時要擋下寫檔 ──────────────────
+def test_is_removal_suspicious_zero_local_count_never_suspicious():
+    assert hd.is_removal_suspicious(removed_count=0, local_count=0) is False
+
+
+def test_is_removal_suspicious_below_threshold():
+    assert hd.is_removal_suspicious(removed_count=100, local_count=500, threshold=0.3) is False
+
+
+def test_is_removal_suspicious_exactly_at_threshold_not_suspicious():
+    # 剛好等於門檻不算「超過」，維持嚴格大於的語意
+    assert hd.is_removal_suspicious(removed_count=150, local_count=500, threshold=0.3) is False
+
+
+def test_is_removal_suspicious_above_threshold():
+    assert hd.is_removal_suspicious(removed_count=200, local_count=500, threshold=0.3) is True
+
+
+def test_is_removal_suspicious_uses_default_threshold():
+    assert hd.is_removal_suspicious(removed_count=200, local_count=500) is True
+    assert hd.is_removal_suspicious(removed_count=100, local_count=500) is False
+
+
 # ── check_for_new_cards: 只測決策，API 呼叫與檔案 I/O 全部 stub ──────
 def _fake_response(count):
     resp = mock.Mock()

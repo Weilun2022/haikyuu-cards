@@ -490,6 +490,20 @@ def should_refetch(official_count: int, local_count: int) -> bool:
     return official_count != local_count
 
 
+def is_fetch_complete(fetched_count: int, official_count: int) -> bool:
+    """純決策：check_new_cards.py 寫檔前的完整性檢查。全量重抓若中途部分失敗，
+    可能只抓到一部分就被誤當完整快照——抓到的張數不足官方宣告總數就視為不完整。"""
+    return fetched_count >= official_count
+
+
+def is_removal_suspicious(removed_count: int, local_count: int, threshold: float = 0.3) -> bool:
+    """純決策：下架比例超過門檻（預設 30%）時視為可疑，比較可能是 API 暫時異常
+    而不是真的大量下架，check_new_cards.py 應該中止寫檔而非靜默覆寫。"""
+    if local_count <= 0:
+        return False
+    return (removed_count / local_count) > threshold
+
+
 def fetch_official_count() -> int:
     """只打 API 第一頁讀宣告總數，不做完整分頁抓取（比 fetch_all_cards() 便宜很多）。"""
     res = requests.get(BASE_API, params={"p": 1}, headers=HEADERS, timeout=15)
