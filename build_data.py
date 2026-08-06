@@ -1534,7 +1534,7 @@ def _name_zh_value(jp, fallback):
 # ── 主處理 ─────────────────────────────────────────────────────────
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
-    src  = os.path.join(base, 'all_cards.json')
+    src  = os.path.join(base, 'haikyuu_output', 'all_cards.json')
     with open(src, 'r', encoding='utf-8') as f:
         raw = json.load(f)
 
