@@ -7,7 +7,7 @@
 - 純前端靜態站（GitHub Pages），無建置流程、無框架。JS 直接寫在 `index.html`／`promo.html`／`game.html` 等頁面的 `<script>` 裡，或 `js/*.js`。
 - 只有需要 Firebase SDK（雲端同步、Cloud Function 呼叫）的檔案、或刻意設計成不碰 DOM 的純函式模組（供 `node:test` 覆蓋，見下方測試現狀）用 ES module（`<script type="module">`），其餘一律是傳統全域 `<script>`，函式/變數直接掛在頁面的全域作用域。
 - `functions/` 是唯一有第三方 npm 依賴的 Node 專案（Firebase Cloud Functions v2）。`js/package.json` 是例外但範圍很窄——只宣告 `js/` 底下的 ESM 模組邊界給 `node:test` 用，不裝任何依賴（理由見 [docs/adr/0005](docs/adr/0005-node-test-for-js-pure-modules.md)）。除此之外不要在根目錄或其他地方加 `package.json`/建置工具。
-- Python 腳本（`build_data.py`、`scan_deck_photo.py` 等）是離線資料處理/開發用工具，不隨網站部署（`.gitignore` 排除全部 `*.py`），不用套用前端規範。
+- Python 腳本（`build_data.py`、`scan_deck_photo.py` 等）是離線資料處理/開發用工具，不隨網站部署，不用套用前端規範。`.gitignore` 對 `*.py` 是 blanket 排除，但 2026-08 架構檢視後大部分下載/翻譯腳本已經個別 `git add -f` 進版控（`build_data.py`／`haikyuu_downloader.py`／`run_download.py`／`fetch_new_qa.py`／`apply_qa_fixes.py`／`translate_qa.py`／`translate_qa_new.py`／`audit_manual_overrides.py`／`build_card_feature_index.py`）——規則本身沒改，是逐一加回追蹤，之後新增的 Python 工具腳本預設也應該個別追蹤，不要假設「反正 *.py 都被排除」。
 
 ## 命名/組織
 
@@ -47,3 +47,9 @@
 - **`index.html`／`game.html`／`js/*.js` 裡會碰 DOM 的檔案**：沒有模組系統（`export`/`import`），函式直接掛在頁面全域作用域，市面上標準測試框架抓不到單一函式來測。要幫這幾個檔案補測試，需要先決定要不要導入瀏覽器層級的測試工具（例如 Playwright，真的開瀏覽器跑腳本），這是一個比較大、還沒做的獨立決定，不要自己假設可以套用 `functions/`／`js/` 純函式模組那套 `node:test` 的做法。目前驗證方式維持手動：改完用瀏覽器實測（`console` 手動呼叫、注入 mock 盤面/mock 牌組資料、DOM 幾何量測），這個習慣不算「沒有測試」，只是沒有存成可重跑的腳本。
 
 採用 `tdd` skill 在 `index.html`/`game.html` 這類還沒有自動化測試的模組上是**引入新習慣**，不是「補回原本就有的測試」。第一次在這類模組用 TDD 之前，照 `tdd` skill 的規則跟使用者確認 seam 在哪，不要假設既有的手動驗證方式可以直接套用同一套 seam。`functions/` 底下則已經有真正的 seam 慣例可以直接沿用，不用重新確認。
+
+- **根目錄的 Python 下載/翻譯 pipeline（2026-08 起）**：用 `pytest`（`requirements.txt` 記錄依賴），不是 stdlib `unittest`——這是這條 pipeline 第一次有自動化測試時的明確選擇，理由是 fixture/parametrize 對這批規則鏈類的回歸測試比較好寫，跟 `functions/`/`js/` 選 `node:test`（避免新依賴）是不同情境下的不同判斷，不要互相套用對方的理由。
+  - 執行：`pip install -r requirements.txt` 後 `pytest`（或 `pytest test_build_data.py` 等單檔執行）。
+  - 測試檔命名 `test_<被測檔案>.py`，放在根目錄（跟被測檔同層），只測外部行為（輸入→輸出），不斷言內部呼叫了哪個 helper。
+  - 會打真實網路/寫真實檔案的函式（`haikyuu_downloader.py` 的 `fetch_qa_data`/`check_for_new_cards` 等）一律用 `unittest.mock`／`monkeypatch` 把 `requests`/檔案路徑換掉，測試不能依賴真實網路或本機的 `haikyuu_output/` 資料。
+  - 現有測試：`test_build_data.py`（翻譯規則鏈回歸）、`test_haikyuu_downloader.py`（新卡偵測/下載決策邏輯）、`test_apply_qa_fixes.py`（QA 修正內容比對邏輯）。

@@ -27,6 +27,8 @@ P03 系列卡片裡的官方用語，刻意**保留日文原文不翻**（見 `d
 官方 QA 裁定文字（`qa_data.json`）走的是**完全獨立**的第二條管線：先用 Google Translate 整段機翻成 `qa_data_zh.json`，`clean_qa_text()` 再對機翻結果做後製修正（修正 Google 常見誤譯類別，例如 Guts/攔網 相關術語誤譯）。跟「通用規則」處理的輸入本質不同——通用規則吃的是原始日文，QA 裁定翻譯吃的是 Google 已經翻完的中文——所以兩條規則鏈**不應該合併**，見 `docs/adr/0003`。
 _Avoid_: 不要跟「通用規則」搞混成同一套機制；也不要把 `translate_qa.py`/`translate_qa_new.py`（負責機翻+術語修正表）跟 `clean_qa_text()`（負責後製修正）當成同一層。
 
+`translate_qa.py` 的 `TERM_FIX` 表跟 `official_terms.json` 也刻意不合併：`TERM_FIX` 的 key 是「Google 常見的錯誤中文譯法」（例如「阻擋值」），value 是修正後的正確中文；`official_terms.json` 的 key 是「日文原詞」，value 才是正確中文。兩者比對方向不同（錯誤中文→正確中文 vs 日文→正確中文），沒辦法共用同一份表，2026-08 架構檢視時確認過這不是遺漏，是表本身形狀不同。
+
 **譯名單一真相來源（`name_zh_data.py`）**：
 卡片名稱翻譯的權威表（`NAME_ZH_ENTRIES`／`NAME_ZH_LOOKUP`），每筆有 `status`（`draft`/`confirmed`/`high` 等信心等級）。`通用規則` 裡如果要翻譯剛好也出現在卡名裡的日文字串（例如技能文字引用了某張卡的卡名），一律查這份表，不要另外硬編一份翻譯——2026-08 檢視時發現三筆歷史硬編翻譯（ヒナガラス／どんぴしゃり／今日 何をする？）跟這份表的確認版本已經 drift，原因是 `name_zh_data.py` 建表時（2026-07-07）比 `build_data.py` 那批硬編寫死的時間（2026-04-15）晚，同步從未補上。
 _Avoid_: 修翻譯問題時，若字串同時是某卡卡名，先查 `name_zh_data.py` 有沒有 `confirmed` 版本，不要在 `通用規則`／`MANUAL_OVERRIDES` 裡重新翻一次。

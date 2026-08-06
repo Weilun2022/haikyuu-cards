@@ -15,16 +15,6 @@ def test_sono_go_vs_sono_order_dependency():
     assert bd.translate_skill('その後、抽1張牌', []) == '之後，抽1張牌'
 
 
-@pytest.mark.xfail(
-    reason=(
-        "2026-08 架構檢視時發現：檔頭記錄問題二的修法（在 _translate_grammar 內把"
-        "「登場させられない」規則寫在「登場させ」一般規則之前）本身沒錯，但 _protect_terms"
-        "（更早的階段）另外有一條通用的「られない→不能」規則（會先吃掉「登場させられない」"
-        "尾端的「られない」），導致 _translate_grammar 那條專用規則永遠等不到完整字串可比對。"
-        "這是一個預先存在、跟本次候選 A/B/C 收斂無關的翻譯規則 bug，修正翻譯規則本身超出"
-        "這次 spec 的範圍（見 issue #97 Out of Scope），故標記 xfail 而非修掉或悄悄放行。"
-    )
-)
 def test_tojousaserarenai_vs_tojousase_order_dependency():
     # 問題二：登場させられない vs 登場させ，一般規則先吃掉前半會拆壞成「使其出場，不能」
     result = bd.translate_skill('このキャラは登場させられない', [])

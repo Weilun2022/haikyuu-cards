@@ -67,11 +67,11 @@
 |------|------|------|------|
 | **DAT-1** | 主資料檔 | `cards_zh.json` | 最終主資料，1000+ 張卡，含中文技能文字 |
 | **DAT-2** | 原始資料 | `all_cards.json` | 從官方 API 爬下的原始日文資料 |
-| **DAT-3** | 翻譯引擎 | `build_data.py` | 日→繁中翻譯管道；140+ 規則，7 大問題類型文件化 |
-| **DAT-4** | Q&A 翻譯器 | `translate_qa.py` | 官方 Q&A 文件翻譯 |
+| **DAT-3** | 翻譯引擎 | `build_data.py` | 日→繁中翻譯管道；140+ 規則，7 大問題類型文件化；卡名相關字串統一查 `name_zh_data.py`（見 `docs/translation/CONTEXT.md`「譯名單一真相來源」）；`test_build_data.py`（pytest）覆蓋 |
+| **DAT-4** | Q&A 翻譯器 | `translate_qa.py` | 官方 Q&A 文件翻譯（Google Translate + `TERM_FIX` 術語修正表）；`translate_qa_new.py` 是只抓缺漏卡的增量版本；`apply_qa_fixes.py` 用內容比對（非位置索引）套用回報的翻譯修正，見 `docs/translation/docs/adr/0004` |
 | **DAT-6** | 翻譯 QA 工具 | `check_translations.js` | 驗證翻譯一致性 |
 | **DAT-7** | 圖片資源 | `images/` | 1000+ 張 WebP 卡圖；命名規則：`HV-P01-001-H.webp` |
-| **DAT-8** | 爬蟲 | `haikyuu_downloader.py` | 從 Takara Tomy API 抓資料 + 下載圖片 |
+| **DAT-8** | 爬蟲 | `haikyuu_downloader.py` | 從 Takara Tomy API 抓資料 + 下載圖片；`check_for_new_cards()`/`should_refetch()` 判斷官方是否有新卡（比對宣告總數 vs 本地張數），`run_download.py`/`fetch_new_qa.py` 是呼叫這裡參數化函式的薄 wrapper；`test_haikyuu_downloader.py`（pytest）覆蓋 |
 
 ---
 
