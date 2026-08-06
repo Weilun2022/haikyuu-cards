@@ -2,6 +2,8 @@
 
 建置期工具：把官方日文卡片原始資料轉成網站實際載入的 `cards_zh.json`／`cards_data.js`。跟「卡片目錄／牌組管理」（使用者怎麼用網站）是不同性質的知識，只共用「產出結果會被那個 context 讀取」這一點，見根目錄 `CONTEXT-MAP.md`。這個 context 也涵蓋「官方資料下載」這個上游步驟（`haikyuu_downloader.py` 等）——它產出的 `all_cards.json`／`qa_data.json` 就是本 pipeline的原始輸入。
 
+**要實際執行「更新官方最新資料」，照 [SOP.md](SOP.md) 的步驟操作**——這份文件是詞彙/概念表，不是操作手冊。
+
 ## Language
 
 **新卡／新QA偵測**：
