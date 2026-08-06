@@ -86,13 +86,15 @@ pytest
 
 ### 8. Commit + push
 
-只有 `cards_data.js` 需要進版控（`all_cards.json`/`qa_data.json`/`qa_data_zh.json`/`cards_zh.json` 都是 gitignored 的本地快取/中繼資料）。
+`cards_data.js` 跟 `haikyuu_output/qa_data_zh.json` 都要進版控（`all_cards.json`/`qa_data.json`/`cards_zh.json` 是可以從官方 API 或既有規則鏈重建的可拋棄資料，維持 gitignore 不動；`qa_data_zh.json` 混有人工審核修正、無法重建，見 `docs/adr/0005`）。
 
 ```bash
-git add cards_data.js
+git add cards_data.js haikyuu_output/qa_data_zh.json
 git commit -m "chore(cards): 更新官方新卡資料（含 P0X 系列）"
 git push
 ```
+
+第一次把 `qa_data_zh.json` 加進版控時要用 `git add -f haikyuu_output/qa_data_zh.json`（`.gitignore` 對 `*.json` 是 blanket 排除）；加過一次之後 git 就會正常追蹤，之後不用再加 `-f`。
 
 ## 遇到問題時
 

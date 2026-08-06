@@ -30,6 +30,8 @@ P03 系列卡片裡的官方用語，刻意**保留日文原文不翻**（見 `d
 官方 QA 裁定文字（`qa_data.json`）走的是**完全獨立**的第二條管線：先用 Google Translate 整段機翻成 `qa_data_zh.json`，`clean_qa_text()` 再對機翻結果做後製修正（修正 Google 常見誤譯類別，例如 Guts/攔網 相關術語誤譯）。跟「通用規則」處理的輸入本質不同——通用規則吃的是原始日文，QA 裁定翻譯吃的是 Google 已經翻完的中文——所以兩條規則鏈**不應該合併**，見 `docs/adr/0003`。
 _Avoid_: 不要跟「通用規則」搞混成同一套機制；也不要把 `translate_qa.py`/`translate_qa_new.py`（負責機翻+術語修正表）跟 `clean_qa_text()`（負責後製修正）當成同一層。
 
+`qa_data_zh.json`（機翻＋人工審核修正過的結果）是這條 context 唯一進版控的資料檔（見 `docs/adr/0005`）——`all_cards.json`／`qa_data.json`／`cards_zh.json` 都是可以從官方 API 或既有規則鏈重新產生的可拋棄資料，唯獨 `qa_data_zh.json` 混有 `apply_qa_fixes.py` 套用過的人工修正，遺失就無法重建。改完一定要 `git add haikyuu_output/qa_data_zh.json`（見 `SOP.md` 第 8 步）。
+
 `translate_qa.py` 的 `TERM_FIX` 表跟 `official_terms.json` 也刻意不合併：`TERM_FIX` 的 key 是「Google 常見的錯誤中文譯法」（例如「阻擋值」），value 是修正後的正確中文；`official_terms.json` 的 key 是「日文原詞」，value 才是正確中文。兩者比對方向不同（錯誤中文→正確中文 vs 日文→正確中文），沒辦法共用同一份表，2026-08 架構檢視時確認過這不是遺漏，是表本身形狀不同。
 
 **譯名單一真相來源（`name_zh_data.py`）**：
@@ -45,3 +47,4 @@ _Avoid_: 修翻譯問題時，若字串同時是某卡卡名，先查 `name_zh_d
 - [0002](docs/adr/0002-crlf-normalization-in-pipeline.md) — pipeline 對 CRLF 換行做正規化，避免規則比對假陰性
 - [0003](docs/adr/0003-qa-pipeline-google-translate-not-shared-engine.md) — QA 裁定翻譯改用 Google Translate + 術語修正表，不套用 translate_skill() 規則引擎
 - [0004](docs/adr/0004-qa-diff-by-content-not-api-id.md) — QA 新增判斷用內容 diff，不用官方 API 的 id 欄位（會整批重新編號）
+- [0005](docs/adr/0005-track-qa-data-zh-json-in-git.md) — qa_data_zh.json 進版控（含人工修正，不可重建），其餘三個資料檔維持 gitignore
