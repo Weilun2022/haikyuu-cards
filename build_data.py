@@ -1330,101 +1330,23 @@ def safe_int(v):
     except: return None
 
 
-# ── Q&A 後處理：清除 translate_skill() 殘留的日文語尾・助詞 ─────────
+# ── Q&A 後製修正：修正 Google Translate 常見的術語/標記誤譯 ─────────
+# 2026-08 架構檢視時刪掉了本來寫在這裡的 10 個 section（清理「されている/使え
+# ます/した後」這類日文語尾・助詞殘留的規則）：這批規則的比對樣式（と→和、か→
+# 或、で→，等）只有在文字先被 translate_skill() 的殘留助詞規則處理過、留下不完
+# 整轉換痕跡時才可能出現（刪除前旁邊就有原作者自己寫的「か→或 変換後の残骸」這
+# 類註解，直接承認這點）。但這個函式唯一的呼叫點（main() 裡的
+# qa_entry['question_zh']/['answer_zh']）吃的是 translate_qa.py 透過 Google
+# Translate 產出的文字（見 docs/translation/docs/adr/0003），Google Translate
+# 是整句機翻、不會留下「中文夾雜殘留假名助詞」這種半調子輸出——不需要語料驗證，
+# 從輸入來源的性質本身就能證明這批規則對現在（以及只要 QA 管線繼續用 Google
+# Translate 就會是未來）的輸入永遠不會命中，故直接刪除，不是保留觀察。
 def clean_qa_text(text: str) -> str:
     if not text:
         return text
     t = text
 
-    # ⚠️ 疑似死代碼（Section 1-6，本函式以下到「7. translate_skill 後の残留形式」之前）：
-    # QA 文字現在的翻譯管道是 Google Translate 整段機翻，這批規則命中的樣式（と→和、です/ます
-    # 語尾殘留等）對應的是早期「對 QA 文字套用 translate_skill() 風格規則」的做法，後來才改用
-    # Google Translate（見 docs/translation/docs/adr/0003）。2026-08 架構檢視時本機沒有
-    # haikyuu_output/qa_data_zh.json 語料可以建立輸出快照驗證這批規則是否真的零命中，
-    # 所以先保留、不刪除——待有完整歷史 QA 語料時，比對輸出快照確認零命中後才能移除。
-    # 1. 固定長句（防止短規則先匹配，最長優先）
-    t = t.replace('することができる', '可以')
-    t = t.replace('することができ',   '可以')
-    t = t.replace('和どういう意味，す或？', '是什麼意思？')
-    t = t.replace('和どういう意味，す',     '是什麼意思')
-    t = t.replace('和いう意味，す',        '的意思')
-    t = t.replace('，きます或？',          '可以嗎？')
-    t = t.replace('，きません或？',        '不可以嗎？')
-    t = t.replace('，す或？',              '嗎？')
-    t = t.replace('使えます',             '可以使用')
-    t = t.replace('使えません',           '不可以使用')
-    t = t.replace('た後',                '後')
-    t = t.replace('ボール',              '球')
-    t = t.replace('タイミング',          '時機')
-
-    # 2. 回答冒頭 はい/いいえ
-    t = re.sub(r'^いいえ，きません', '不可以', t)
-    t = re.sub(r'^いいえ，',         '不，',   t)
-    t = re.sub(r'^い，きます',       '可以',   t)
-    t = re.sub(r'^い，',             '是，',   t)
-
-    # 3. できます/できません（疑問・陳述兼用）
-    t = re.sub(r'，きます([。，\n]|$)',    lambda m: '可以'   + m.group(1), t)
-    t = re.sub(r'，きません([。，\n]|$)', lambda m: '不可以' + m.group(1), t)
-
-    # 4. 疑問句尾（行末 或？ → 嗎？）
-    t = re.sub(r'(?:(?:あり|なり)?ます|す)?或？$', '嗎？', t, flags=re.MULTILINE)
-
-    # 5. 陳述句尾（繁体字を含む行末に限定・安全優先）
-    CJK = r'[\u4e00-\u9fff]'
-    # 時/後 + に（時間・条件の後の助詞）
-    t = re.sub(r'時に([，、]|$)', r'時，', t, flags=re.MULTILINE)
-    t = re.sub(r'後に([，、]|$)', r'後，', t, flags=re.MULTILINE)
-    # 特殊：比べた時（比較時）
-    t = re.sub(r'比べた時', '比較時', t)
-    # 動詞語尾（特殊 → 一般の順で処理）
-    t = re.sub(rf'({CJK}.*)されません([。]?)$', r'\1不\2', t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)されます([。]?)$',   r'\1\2',   t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)になります([。]?)$',  r'\1\2',   t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)あります([。]?)$',    r'\1\2',   t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)指します([。]?)$',    r'\1\2',   t, flags=re.MULTILINE)
-    # 特殊：指します除去後に露出する「になるこ和」殘骸を除去
-    t = re.sub(r'になるこ和([。]?)$',            r'\1',     t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)します([。]?)$',      r'\1\2',   t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)ません([。]?)$',      r'\1\2',   t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)ます([。]?)$',        r'\1\2',   t, flags=re.MULTILINE)
-    t = re.sub(rf'({CJK}.*)，す([。]?)$',        r'\1\2',   t, flags=re.MULTILINE)
-
-    # 6. 繁体字間の残留助詞（に は判断困難なため除外、安全なケースのみ）
-    t = re.sub(rf'({CJK})[がをはも]({CJK})', r'\1\2', t)
-
-    # 7. translate_skill 後の残留形式（と→和 変換済み）
-    # するこ和，きます（することができます）→ 先に組み合わせ処理して二重変換を防ぐ
-    t = re.sub(r'するこ和，き', '可以', t)
-    t = re.sub(r'するこ和', '可以', t)
-    t = re.sub(r'するこが', '可以', t)
-    # 二重変換の後始末
-    t = t.replace('可以可以', '可以')
-
-    # 8. 時に／中に（後接任意非空白文字）
-    t = re.sub(r'時に(?=[^\s，、。？！])', '時，', t)
-    t = re.sub(r'中に(?=[^\s，、。？！])', '中，', t)
-
-    # 9. 固定語彙
-    t = t.replace('なんら', '某種')
-    t = t.replace('まま',   '原樣')
-
-    # 10. 追加補正
-    # 何或しら（何かしら → translate_skill が か→或 変換後の残骸）
-    t = t.replace('何或しら', '某種')
-    # 使った → 使用
-    t = re.sub(r'使った', '使用', t)
-    # されている/されていた → 的（被動進行・完了形）
-    t = re.sub(r'されてい[るた]', '的', t)
-    t = re.sub(r'されてい，', '的，', t)
-    # +して → +（数値加算の接続助詞を除去）
-    t = re.sub(r'\+して', '+', t)
-    t = re.sub(r'＋して', '＋', t)
-    # 出場した/登場した → 出場的（安全な過去形のみ）
-    t = re.sub(r'出場した', '出場的', t)
-    t = re.sub(r'登場した', '出場的', t)
-
-    # 11. AI 誤譯的技能標記修正（音譯 / 意譯錯誤 → 正確中文標記）
+    # AI 誤譯的技能標記修正（音譯 / 意譯錯誤 → 正確中文標記）
     # [=doshat(N)] / [=Doshat(N)]（ドシャット音譯）→ [=封殺攔網(N)]
     t = re.sub(r'\[=(?:doshat|Doshat)\((\w+)\)\]', r'[=封殺攔網(\1)]', t)
     # [=強扣(N)]（舊術語殘留）→ [=封殺攔網(N)]
@@ -1443,7 +1365,7 @@ def clean_qa_text(text: str) -> str:
     # 注意：只修正 [=攔網(數字)] 形式，避免影響「攔網值」等一般中文描述
     t = re.sub(r'\[=攔網\((\w+)\)\]', r'[=攔網出界(\1)]', t)
 
-    # 12. 術語一致性修正（強化版翻譯掃描後發現的 AI 誤譯）
+    # 術語一致性修正（強化版翻譯掃描後發現的 AI 誤譯）
     # ── A. 技能標記誤譯（必須在一般詞彙替換前處理）──
     t = t.replace('[=外觀]',    '[=登場]')   # 登場 → 外觀（AI 誤）
     t = t.replace('[=出現]',    '[=登場]')   # 登場 → 出現（AI 誤）

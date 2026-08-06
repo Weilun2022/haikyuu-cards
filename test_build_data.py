@@ -3,8 +3,11 @@
 
 只斷言 translate_skill()/clean_qa_text()(輸入) == 預期輸出這種外部行為，不斷言內部呼叫了
 哪個 helper。案例來源：檔頭「翻譯問題整理」歷史踩雷記錄（問題一～問題七）、2026-08 架構
-檢視時發現的候選 B 譯名 drift 修正案例，以及 clean_qa_text() 裡確認仍在運作的規則（Section
-11+ 的 AI 誤譯技能標記修正；Section 1-6 疑似死代碼未涵蓋在內，見該函式內的說明註解）。
+檢視時發現的候選 B 譯名 drift 修正案例，以及 clean_qa_text() 現存規則（AI 誤譯技能標記修正）。
+clean_qa_text() 原本前段還有 10 個處理日文語尾/助詞殘留的 section，2026-08 確認這批規則
+只可能對「先跑過 translate_skill() 殘留助詞規則」的文字命中，但這個函式唯一的輸入來源
+（Google Translate 輸出）不會產生這種殘留，故直接刪除，不是保留觀察——見 build_data.py
+裡 clean_qa_text() 上方的說明註解。
 """
 import pytest
 import build_data as bd
@@ -100,9 +103,29 @@ def test_name_zh_value_uses_fallback_when_entry_missing():
 
 
 def test_clean_qa_text_fixes_ai_mistranslated_skill_tags():
-    # Section 11+（確認仍在運作，非疑似死代碼範圍）：Google Translate 常把卡面標記音譯/意譯錯，
-    # clean_qa_text() 負責修正回正確的中文標記。
+    # Google Translate 常把卡面標記音譯/意譯錯，clean_qa_text() 負責修正回正確的中文標記。
     assert bd.clean_qa_text('[=doshat(3)]') == '[=封殺攔網(3)]'
     assert bd.clean_qa_text('[=Doshat(5)]') == '[=封殺攔網(5)]'
     assert bd.clean_qa_text('[=一鍵(2)]') == '[=一觸(2)]'
     assert bd.clean_qa_text('[=一次觸摸(4)]') == '[=一觸(4)]'
+
+
+def test_clean_qa_text_fixes_ai_mistranslated_terminology():
+    # 另一批確認仍在運作的規則：Google Translate 常見的詞彙誤譯修正（非技能標記，是一般用詞）。
+    assert bd.clean_qa_text('對手的活動卡') == '對手的Event牌'
+    assert bd.clean_qa_text('自己的格斯不足') == '自己的Guts不足'
+    assert bd.clean_qa_text('貓魔的角色') == '音駒的角色'
+
+
+def test_clean_qa_text_no_longer_touches_removed_particle_residue_patterns():
+    # 2026-08 刪掉的 10 個 section 曾經處理這類日文語尾/助詞殘留字串——這些輸入現在應該
+    # 原樣通過，不會被誤觸發任何規則（confirm 真的刪乾淨了，不是還留著某條漏網之魚）。
+    assert bd.clean_qa_text('することができる') == 'することができる'
+    assert bd.clean_qa_text('使えません') == '使えません'
+    assert bd.clean_qa_text('和どういう意味，す或？') == '和どういう意味，す或？'
+
+
+def test_clean_qa_text_passes_through_ordinary_google_translated_sentence_unchanged():
+    # Google Translate 輸出的一般完整中文句子（沒有誤譯詞彙）應該原樣通過。
+    sentence = '這張卡的技能可以在對手回合結束時發動一次。'
+    assert bd.clean_qa_text(sentence) == sentence

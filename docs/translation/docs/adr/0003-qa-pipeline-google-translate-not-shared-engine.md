@@ -13,6 +13,6 @@ status: accepted
 
 ## Consequences
 
-- `clean_qa_text()` 內殘留的 Section 1-6（對應「沿用 translate_skill() 規則」那個被放棄的做法）目前是無害的 no-op，但看起來像技術債，容易被誤刪或誤以為還在運作——刪除前應先用完整歷史 QA 語料建立輸出快照比對，確認真的沒有任何現存資料會命中這些規則，而不是只憑閱讀規則本身判斷。
+- ~~`clean_qa_text()` 內殘留的 Section 1-6（對應「沿用 translate_skill() 規則」那個被放棄的做法）目前是無害的 no-op...~~ **已於 2026-08 移除**：實際範圍是 Section 1-10（不只 1-6），刪除依據不是語料快照比對（`qa_data_zh.json` 在 git 全部歷史/所有 branch/release/gist/既有 worktree 都找不到，這條路徑走不通），而是結構性論證——這批規則的比對樣式（と→和、か→或、で→，等）只有在文字先被 `translate_skill()` 的殘留助詞規則處理過才可能出現，但 `clean_qa_text()` 唯一的輸入來源是 Google Translate 的輸出，不會產生這種殘留，所以不需要語料就能證明這批規則對現在及未來的輸入都不會命中。
 - 術語修正目前分散在三處（`translate_skill()` 硬編的少數 point/value 詞彙、`official_terms.json`、`translate_qa.py` 內未進版控的 `TERM_FIX`），這不是本 ADR 決定的一部分，但收斂翻譯規則引擎時應該把三處併入 `official_terms.json` 單一來源。
 - `docs/translation/CONTEXT.md` 過去完全沒記錄這條 QA 管線的存在，2026-08 架構檢視時補上。
