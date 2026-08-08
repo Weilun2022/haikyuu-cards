@@ -6,10 +6,9 @@ docs/translation/docs/adr/0004（官方 QA API 的 id 欄位不穩定，位置�
 若 qa_data_zh.json 是從頭重新產生，陣列裡的順序不保證跟當初套用這些修正時一樣）。
 找不到目標、或找到超過一筆，一律直接報錯，不能靜默跳過或誤改到別筆。
 """
-import json, os, sys
+import json
 
-base = os.path.dirname(os.path.abspath(__file__))
-path = os.path.join(base, 'haikyuu_output', 'qa_data_zh.json')
+from pipeline_paths import QA_ZH_JSON as path
 
 
 def find_fix_target(qa_array, target_fields, anchor_fields=None):

@@ -75,16 +75,12 @@ Google Translate (ja→zh-TW) 對以下術語有系統性誤譯，
 """
 
 import json
-import re
 import sys
 import time
 
 from deep_translator import GoogleTranslator
 
-# ── 路徑 ──────────────────────────────────────────────────────────────────
-QA_SRC   = r'haikyuu_output/qa_data.json'
-QA_DST   = r'haikyuu_output/qa_data_zh.json'
-CARDS_JS = r'cards_data.js'
+from pipeline_paths import QA_JSON as QA_SRC, QA_ZH_JSON as QA_DST, ALL_CARDS_JSON
 
 # ── 參數 ──────────────────────────────────────────────────────────────────
 DELAY        = 0.5   # 每次請求後等待秒數
@@ -144,18 +140,18 @@ TERM_FIX = {
     '登場': '出場',
 }
 
-# ── Step 1：從 cards_data.js 建立人名清單 ─────────────────────────────────
-def load_character_names(js_path: str) -> list[str]:
-    """回傳所有 CHARACTER 卡的 name，按長度降序排列（長名先替換）。"""
-    with open(js_path, encoding='utf-8') as f:
-        content = f.read()
-    # 去掉首行注釋與 JS 變數宣告，取得純 JSON
-    lines = content.split('\n', 1)
-    json_line = lines[1] if lines[0].startswith('//') else content
-    json_str = re.sub(r'^const\s+CARDS_DATA\s*=\s*', '', json_line.strip().rstrip(';'))
-    data = json.loads(json_str)
+# ── Step 1：從 all_cards.json 建立人名清單 ─────────────────────────────────
+def load_character_names(all_cards_path) -> list[str]:
+    """回傳所有 CHARACTER 卡的 name，按長度降序排列（長名先替換）。
+
+    讀原始 all_cards.json（下載 pipeline 步驟1的輸出），不是 build_data.py
+    建置出的 cards_data.js——後者只在 SOP 步驟6才會重新產生，若這裡讀 cards_data.js
+    會拿到上一輪舊資料，新卡的角色名在這次 QA 翻譯時就不會被佔位符保護
+    （2026-08 架構檢視發現的隱性步驟順序依賴）。"""
+    with open(all_cards_path, encoding='utf-8') as f:
+        raw = json.load(f)
     seen = {}
-    for card in data['cards']:
+    for card in raw:
         name = card.get('name', '').strip()
         if name and card.get('category') == 'CHARACTER':
             if name not in seen:
@@ -210,7 +206,7 @@ def main():
     sys.stdout.reconfigure(encoding='utf-8')
 
     # Step 1
-    names = load_character_names(CARDS_JS)
+    names = load_character_names(ALL_CARDS_JSON)
     print(f'[INFO] 載入人名 {len(names)} 筆')
 
     name_to_ph = build_placeholder_map(names)

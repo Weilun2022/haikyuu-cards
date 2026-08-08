@@ -6,6 +6,10 @@
 
 ## Language
 
+**`pipeline_paths.py`（位置知識單一來源，2026-08 架構檢視新增）**：
+`haikyuu_output/all_cards.json`／`qa_data.json`／`qa_data_zh.json`／`images/`（pipeline 暫存）、根目錄 `images/`（網站實際讀圖）、`cards_data.js`／`cards_zh.json` 這些「檔案實際放在哪」的事實，全部只在 `pipeline_paths.py` 定義一次，`haikyuu_downloader.py`／`build_data.py`／`translate_qa.py`／`translate_qa_new.py`／`apply_qa_fixes.py`／`audit_manual_overrides.py`／`deck_optimizer/analyze.py` 一律從這裡 import，不再各自宣告字面路徑。緣起：2026-08 同一週內連續出現兩次事故（`build_data.py` 讀到舊路徑的 `all_cards.json`、新卡圖片沒同步到網站讀圖的 `images/`），根因都是同一個位置事實被複製到多個檔案、其中一份沒跟著改。
+_Avoid_: 新增任何會讀寫這些檔案的腳本時，不要用 `os.path.join(...)` 或字面字串重新宣告一份路徑——一律 `from pipeline_paths import ...`。
+
 **新卡／新QA偵測**：
 判斷「官方是否有更新」的標準流程：先打 API 第一頁讀宣告總數（`data['count']`），跟本地 `all_cards.json` 的張數比較，有差才觸發 `fetch_all_cards()` 全量重抓，用卡片 variant 層級的穩定 `ID` 欄位 diff 新舊，找出真正新增/下架的卡。QA 資料的新增判斷同理，但**不能**用 QA API 回傳的 `id` 欄位（每次重抓會整批重新編號，不是穩定主鍵）——必須用 `(question, answer)` 內容比對，見 `docs/adr/0004`。
 `haikyuu_downloader.py` 的 `check_for_new_cards()`/`should_refetch()` 把這個判斷寫成可呼叫、可測試的純函式（2026-08）；實際的 CLI 入口是 `check_new_cards.py`——呼叫 `check_for_new_cards()`，`has_new=True` 時先過兩道安全檢查（`is_fetch_complete()` 確認抓到的張數沒有少於官方宣告總數、`is_removal_suspicious()` 確認下架比例沒有異常，預設超過 30% 視為可疑），都過了才備份舊的 `all_cards.json`（`.bak`）再原子寫入新資料；任一檢查沒過就印錯誤、不寫檔、以非零 exit code 結束。不需要互動確認——`all_cards.json` 本來就是可以從官方 API 完全重建的可拋棄快取。

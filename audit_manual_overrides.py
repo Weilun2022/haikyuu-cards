@@ -15,6 +15,8 @@ import json
 import os
 import sys
 
+from pipeline_paths import ALL_CARDS_JSON
+
 BASE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -29,7 +31,7 @@ def load_build_data():
 def main():
     bd = load_build_data()
 
-    with open(os.path.join(BASE, 'all_cards.json'), encoding='utf-8') as f:
+    with open(ALL_CARDS_JSON, encoding='utf-8') as f:
         raw_cards = json.load(f)
 
     # 比照 build_data.py main() 的做法：動態事件牌名清單 + CRLF 正規化

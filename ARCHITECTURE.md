@@ -71,7 +71,8 @@
 | **DAT-4** | Q&A 翻譯器 | `translate_qa.py` | 官方 Q&A 文件翻譯（Google Translate + `TERM_FIX` 術語修正表）；`translate_qa_new.py` 是只翻缺漏卡的增量版本，動態算出「`qa_data.json` 有、`qa_data_zh.json` 沒有」的 card_no 清單，不用手動編輯；`apply_qa_fixes.py` 用內容比對（非位置索引）套用回報的翻譯修正，見 `docs/translation/docs/adr/0004` |
 | **DAT-6** | 翻譯 QA 工具 | `check_translations.js` | 驗證翻譯一致性 |
 | **DAT-7** | 圖片資源 | `images/` | 1000+ 張 WebP 卡圖；命名規則：`HV-P01-001-H.webp` |
-| **DAT-8** | 爬蟲 | `haikyuu_downloader.py` | 從 Takara Tomy API 抓資料 + 下載圖片；`check_for_new_cards()`/`should_refetch()` 判斷官方是否有新卡（比對宣告總數 vs 本地張數），`check_new_cards.py` 是實際的 CLI 入口（含 `is_fetch_complete()`/`is_removal_suspicious()` 兩道安全檢查才寫檔+備份），`run_download.py`/`fetch_new_qa.py` 是呼叫這裡參數化函式的薄 wrapper；`test_haikyuu_downloader.py`／`test_check_new_cards.py`（pytest）覆蓋 |
+| **DAT-8** | 爬蟲 | `haikyuu_downloader.py` | 從 Takara Tomy API 抓資料 + 下載圖片；`check_for_new_cards()`/`should_refetch()` 判斷官方是否有新卡（比對宣告總數 vs 本地張數），`check_new_cards.py` 是實際的 CLI 入口（含 `is_fetch_complete()`/`is_removal_suspicious()` 兩道安全檢查才寫檔+備份），`run_download.py`/`fetch_new_qa.py` 是呼叫這裡參數化函式的薄 wrapper；下載完會自動用 `sync_images_to_site()` 把新圖同步到 DAT-7；`test_haikyuu_downloader.py`／`test_check_new_cards.py`（pytest）覆蓋 |
+| **DAT-9** | 位置知識單一來源 | `pipeline_paths.py` | DAT-2/DAT-4 的暫存輸出（`haikyuu_output/all_cards.json`／`qa_data.json`／`qa_data_zh.json`／`images/`）跟 DAT-1/DAT-7（網站實際讀取的 `cards_zh.json`／`cards_data.js`／根目錄 `images/`）之間的路徑事實只在這裡定義一次；DAT-3/DAT-4/DAT-8 全部從這裡 import，不各自宣告字面路徑（2026-08 架構檢視新增，見 `docs/translation/CONTEXT.md`）；`test_pipeline_paths.py`（pytest）覆蓋 |
 
 ---
 

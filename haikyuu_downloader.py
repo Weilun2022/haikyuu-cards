@@ -16,6 +16,11 @@ from pathlib import Path
 from io import BytesIO
 from datetime import datetime
 
+from pipeline_paths import (
+    OUTPUT_DIR, ALL_CARDS_JSON as JSON_PATH, QA_JSON as QA_PATH,
+    IMG_DIR, SITE_IMG_DIR, EXCEL_PATH,
+)
+
 # ─── 設定 ───────────────────────────────────────────────────────
 BASE_API   = "https://www.takaratomy.co.jp/products/haikyuvobacabreak/cardlist/itemsearch.php"
 IMG_BASE   = "https://www.takaratomy.co.jp/products/haikyuvobacabreak/cardlist/card"
@@ -24,12 +29,6 @@ HEADERS    = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Referer":    REFERER,
 }
-OUTPUT_DIR   = Path("haikyuu_output")
-IMG_DIR      = OUTPUT_DIR / "images"
-SITE_IMG_DIR = Path("images")  # 網站實際讀圖的位置（index.html/game.html 都是相對路徑 images/）——
-                                # haikyuu_output/images/ 只是下載暫存區，不會被網站讀到
-JSON_PATH    = OUTPUT_DIR / "all_cards.json"
-EXCEL_PATH   = OUTPUT_DIR / "haikyuu_cards_with_images.xlsx"
 REQUEST_WAIT = 0.4   # API リクエスト間隔(秒)
 IMG_WAIT     = 0.3   # 画像リクエスト間隔(秒)
 IMG_THUMB_H  = 80    # Excel 内サムネ高さ(px)
@@ -37,7 +36,6 @@ IMG_THUMB_W  = 58    # Excel 内サムネ幅(px)
 ROW_HEIGHT   = 62    # Excel 行高(pt)
 CARD_DETAIL_URL = "https://www.takaratomy.co.jp/products/haikyuvobacabreak/cardlist/card.html"
 QA_WAIT      = 0.5   # Q&A リクエスト間隔(秒)
-QA_PATH      = OUTPUT_DIR / "qa_data.json"
 
 # ─── Step 1: API 全ページ取得 ─────────────────────────────────────
 def fetch_all_cards() -> list[dict]:

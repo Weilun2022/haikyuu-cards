@@ -13,18 +13,16 @@ socket.setdefaulttimeout(15)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from translate_qa import (
     load_character_names, build_placeholder_map, preprocess,
-    postprocess_names, apply_term_fix, translate_text, CARDS_JS, DELAY,
+    postprocess_names, apply_term_fix, translate_text, DELAY,
 )
-from haikyuu_downloader import QA_PATH
+from pipeline_paths import ALL_CARDS_JSON, QA_JSON as QA_PATH, QA_ZH_JSON as QA_DST
 from deep_translator import GoogleTranslator
-
-QA_DST = r'haikyuu_output/qa_data_zh.json'
 
 
 def main():
     sys.stdout.reconfigure(encoding='utf-8')
 
-    names = load_character_names(CARDS_JS)
+    names = load_character_names(ALL_CARDS_JSON)
     name_to_ph = build_placeholder_map(names)
     ph_to_name = {v: k for k, v in name_to_ph.items()}
 

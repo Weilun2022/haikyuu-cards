@@ -52,4 +52,4 @@
   - 執行：`pip install -r requirements.txt` 後 `pytest`（或 `pytest test_build_data.py` 等單檔執行）。
   - 測試檔命名 `test_<被測檔案>.py`，放在根目錄（跟被測檔同層），只測外部行為（輸入→輸出），不斷言內部呼叫了哪個 helper。
   - 會打真實網路/寫真實檔案的函式（`haikyuu_downloader.py` 的 `fetch_qa_data`/`check_for_new_cards` 等）一律用 `unittest.mock`／`monkeypatch` 把 `requests`/檔案路徑換掉，測試不能依賴真實網路或本機的 `haikyuu_output/` 資料。
-  - 現有測試：`test_build_data.py`（翻譯規則鏈回歸）、`test_haikyuu_downloader.py`（新卡偵測/下載決策邏輯）、`test_apply_qa_fixes.py`（QA 修正內容比對邏輯）、`test_check_new_cards.py`（`check_new_cards.py` 的寫檔/中止決策）。
+  - 現有測試：`test_build_data.py`（翻譯規則鏈回歸）、`test_haikyuu_downloader.py`（新卡偵測/下載決策邏輯，含 `sync_images_to_site()`）、`test_apply_qa_fixes.py`（QA 修正內容比對邏輯）、`test_check_new_cards.py`（`check_new_cards.py` 的寫檔/中止決策）、`test_pipeline_paths.py`（pipeline 位置常數的形狀檢查）。
