@@ -7,6 +7,7 @@
 """
 
 import requests
+import shutil
 import time
 import json
 import os
@@ -25,6 +26,8 @@ HEADERS    = {
 }
 OUTPUT_DIR   = Path("haikyuu_output")
 IMG_DIR      = OUTPUT_DIR / "images"
+SITE_IMG_DIR = Path("images")  # 網站實際讀圖的位置（index.html/game.html 都是相對路徑 images/）——
+                                # haikyuu_output/images/ 只是下載暫存區，不會被網站讀到
 JSON_PATH    = OUTPUT_DIR / "all_cards.json"
 EXCEL_PATH   = OUTPUT_DIR / "haikyuu_cards_with_images.xlsx"
 REQUEST_WAIT = 0.4   # API リクエスト間隔(秒)
@@ -148,6 +151,34 @@ def download_images(cards: list[dict]) -> dict[str, Path]:
 
     print(f"\n  ✅ 成功: {success}  ⏭ スキップ: {skip}  ❌ 失敗: {fail}")
     return id_to_path
+
+
+# ─── Step 2.5: 網站用画像ディレクトリへ同期 ──────────────────────────
+def sync_images_to_site(cards: list[dict]) -> int:
+    """haikyuu_output/images/ からサイトが実際に読む images/ へ新規カード画像をコピーする。
+    index.html/game.html 等は相対パス images/ を直接参照しており、haikyuu_output/images/ は
+    ダウンロード用の一時置き場に過ぎない——このコピーを忘れると新カードの画像がサイト上で
+    表示されない（2026-08 に発見・修正）。"""
+    print("\n" + "=" * 60)
+    print("【Step 2.5】サイト用 images/ への同期")
+    print("=" * 60)
+
+    SITE_IMG_DIR.mkdir(parents=True, exist_ok=True)
+    copied = 0
+    for card in cards:
+        filename = f"{card.get('card_no', '')}-{card.get('image_end', '')}.webp"
+        src = IMG_DIR / filename
+        dst = SITE_IMG_DIR / filename
+        if not src.exists():
+            continue
+        if dst.exists() and dst.stat().st_size == src.stat().st_size:
+            continue
+        shutil.copyfile(src, dst)
+        copied += 1
+        print(f"  📋 {filename}")
+
+    print(f"\n  同期完了: 新規/更新 {copied} 件")
+    return copied
 
 
 # ─── Step 1.5: Q&A データ取得 ─────────────────────────────────────
@@ -581,6 +612,9 @@ def main(interactive: bool = True):
 
     # Step 2: 画像ダウンロード
     id_to_path = download_images(cards)
+
+    # Step 2.5: サイト用 images/ への同期
+    sync_images_to_site(cards)
 
     # Step 3: Excel 生成
     build_excel(cards, id_to_path)

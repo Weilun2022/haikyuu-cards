@@ -164,6 +164,52 @@ def _fake_response_with_qa(count):
     return resp
 
 
+# ── sync_images_to_site: haikyuu_output/images/ → 網站實際讀圖的 images/ ──
+def test_sync_images_to_site_copies_missing_file(tmp_path, monkeypatch):
+    img_dir = tmp_path / "haikyuu_output_images"
+    site_dir = tmp_path / "site_images"
+    img_dir.mkdir()
+    monkeypatch.setattr(hd, "IMG_DIR", img_dir)
+    monkeypatch.setattr(hd, "SITE_IMG_DIR", site_dir)
+
+    (img_dir / "HV-P01-001-H.webp").write_bytes(b"new card image")
+
+    copied = hd.sync_images_to_site([{"card_no": "HV-P01-001", "image_end": "H"}])
+
+    assert copied == 1
+    assert (site_dir / "HV-P01-001-H.webp").read_bytes() == b"new card image"
+
+
+def test_sync_images_to_site_skips_already_synced_file(tmp_path, monkeypatch):
+    img_dir = tmp_path / "haikyuu_output_images"
+    site_dir = tmp_path / "site_images"
+    img_dir.mkdir()
+    site_dir.mkdir()
+    monkeypatch.setattr(hd, "IMG_DIR", img_dir)
+    monkeypatch.setattr(hd, "SITE_IMG_DIR", site_dir)
+
+    (img_dir / "HV-P01-001-H.webp").write_bytes(b"same size")
+    (site_dir / "HV-P01-001-H.webp").write_bytes(b"same size")
+
+    copied = hd.sync_images_to_site([{"card_no": "HV-P01-001", "image_end": "H"}])
+
+    assert copied == 0
+
+
+def test_sync_images_to_site_skips_missing_source(tmp_path, monkeypatch):
+    img_dir = tmp_path / "haikyuu_output_images"
+    site_dir = tmp_path / "site_images"
+    img_dir.mkdir()
+    monkeypatch.setattr(hd, "IMG_DIR", img_dir)
+    monkeypatch.setattr(hd, "SITE_IMG_DIR", site_dir)
+
+    # 該卡的圖還沒下載到 IMG_DIR，不該報錯，也不該建立目標檔案
+    copied = hd.sync_images_to_site([{"card_no": "HV-P99-999", "image_end": "H"}])
+
+    assert copied == 0
+    assert not (site_dir / "HV-P99-999-H.webp").exists()
+
+
 # ── haikyuu_downloader.py 的 interactive 分支：不觸發真實 input()/網路 ──────
 def test_main_non_interactive_fetches_when_json_missing(tmp_path, monkeypatch):
     json_path = tmp_path / "all_cards.json"
@@ -175,6 +221,7 @@ def test_main_non_interactive_fetches_when_json_missing(tmp_path, monkeypatch):
     monkeypatch.setattr(hd, "fetch_all_cards", lambda: [{"ID": "a", "card_no": "HV-P01-001"}])
     monkeypatch.setattr(hd, "fetch_qa_data", lambda cards, only_missing=None: {})
     monkeypatch.setattr(hd, "download_images", lambda cards: {})
+    monkeypatch.setattr(hd, "sync_images_to_site", lambda cards: 0)
     monkeypatch.setattr(hd, "build_excel", lambda cards, id_to_path: None)
 
     def fail_on_input(*_a, **_k):

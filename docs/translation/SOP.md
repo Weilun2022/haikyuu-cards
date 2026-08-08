@@ -37,6 +37,7 @@ python run_download.py
 
 - 讀步驟 1 產生的 `all_cards.json`，只下載本機還沒有的圖片（已存在的自動跳過），重新產生 Excel。
 - 這一步不會重抓 `all_cards.json` 本身——那是步驟 1 的責任。
+- 圖片會先存進 `haikyuu_output/images/`，接著自動同步複製到根目錄 `images/`（`sync_images_to_site()`，2026-08 新增）——網站（`index.html`/`game.html` 等）實際讀圖是走根目錄 `images/` 相對路徑，不是 `haikyuu_output/images/`，這一步沒做的話新卡在網站上會顯示不出來。
 
 ### 3. 補新卡的 Q&A 原文
 
@@ -86,10 +87,10 @@ pytest
 
 ### 8. Commit + push
 
-`cards_data.js` 跟 `haikyuu_output/qa_data_zh.json` 都要進版控（`all_cards.json`/`qa_data.json`/`cards_zh.json` 是可以從官方 API 或既有規則鏈重建的可拋棄資料，維持 gitignore 不動；`qa_data_zh.json` 混有人工審核修正、無法重建，見 `docs/adr/0005`）。
+`cards_data.js`、`haikyuu_output/qa_data_zh.json`、以及根目錄 `images/` 底下新增的卡圖都要進版控（`all_cards.json`/`qa_data.json`/`cards_zh.json`/`haikyuu_output/images/` 是可以從官方 API 重建的可拋棄資料，維持 gitignore 不動；`qa_data_zh.json` 混有人工審核修正、無法重建，見 `docs/adr/0005`；根目錄 `images/` 是網站實際讀圖的位置，步驟 2 的 `sync_images_to_site()` 已經把新卡圖同步過去，這裡只是要把新增的檔案 `git add` 進去）。
 
 ```bash
-git add cards_data.js haikyuu_output/qa_data_zh.json
+git add cards_data.js haikyuu_output/qa_data_zh.json images/
 git commit -m "chore(cards): 更新官方新卡資料（含 P0X 系列）"
 git push
 ```
