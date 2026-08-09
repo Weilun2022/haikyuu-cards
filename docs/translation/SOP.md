@@ -82,8 +82,8 @@ node check_translations.js
 pytest
 ```
 
-- `check_translations.js`：假名殘留掃描，抓「規則沒命中、整段還是日文」的漏翻。
-- `pytest`：跑現有的回歸測試套件（`translate_skill()`/`clean_qa_text()` 規則鏈、新卡/新QA偵測決策、QA 修正比對邏輯），確認這次資料更新沒有連帶跑出程式邏輯層級的問題。
+- `check_translations.js`：假名/片假名殘留掃描 + 官方術語一致性檢查（含 QA 文字），抓「規則沒命中、整段還是日文」或用詞跟站內慣例不符的漏翻；現在抓到問題會直接 exit 1，不是只印出來。
+- `pytest`：跑現有的回歸測試套件（`translate_skill()`/`clean_qa_text()` 規則鏈、新卡/新QA偵測決策、QA 修正比對邏輯），確認這次資料更新沒有連帶跑出程式邏輯層級的問題。**也包含一個靜態掃描 `build_data.py` 原始碼本身的安全網測試**（`test_build_data_source_has_no_hardcoded_name_replacements`）：找有沒有任何已登記在 `name_zh_data.py` 裡的角色/台詞譯名被寫死翻譯、繞過查表機制——這是 2026-08 修「灰羽リエーフ」等 3 筆歷史譯名分歧時新增的，往後同款問題會在這裡自動被抓到，見 `docs/translation/CONTEXT.md`「譯名單一真相來源」。
 
 ### 8. Commit + push
 
@@ -102,4 +102,5 @@ git push
 - `check_new_cards.py` 印 `[ERROR]` 中止：看訊息判斷是「抓取不完整」還是「下架比例異常」，重跑一次通常就好（暫時性 API 問題）；如果重跑還是一樣，才需要人工檢查官方頁面是不是真的改版了。
 - `translate_qa_new.py` 翻譯結果出現「翻譯失敗」字樣：Google Translate 那次呼叫失敗，腳本會繼續跑完其他卡，跑完後手動針對失敗的卡再跑一次，或直接編輯 `qa_data_zh.json` 對應欄位。
 - 翻譯用詞系統性錯誤（同一種誤譯出現在很多張卡）：改 `translate_qa.py` 的 `TERM_FIX` 表，不要一張一張手改 `qa_data_zh.json`；個別卡的裁定文字邏輯性翻錯才用 `apply_qa_fixes.py`。
+- `pytest` 在 `test_build_data_source_has_no_hardcoded_name_replacements` 失敗：代表 `build_data.py` 裡有某個已登記在 `name_zh_data.py` 的角色/台詞名字被寫死翻譯、沒透過查表機制——錯誤訊息會指出是哪一行、對應哪個日文詞，改成呼叫 `_apply_confirmed_name_zh()`（全文掃描，需要 `status: confirmed`）或 `_name_zh_value(jp, fallback)`（個別鎖定，不看 status），不要留著寫死字面量。`MANUAL_OVERRIDES` 裡的個別條目不在這個測試掃描範圍內，要另外人工核對是否跟 `name_zh_data.py` 一致。
 - 更多細節（規則鏈怎麼運作、各種例外情況）見 `docs/translation/CONTEXT.md`。

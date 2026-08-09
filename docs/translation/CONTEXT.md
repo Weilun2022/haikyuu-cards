@@ -39,8 +39,10 @@ _Avoid_: 不要跟「通用規則」搞混成同一套機制；也不要把 `tra
 `translate_qa.py` 的 `TERM_FIX` 表跟 `official_terms.json` 也刻意不合併：`TERM_FIX` 的 key 是「Google 常見的錯誤中文譯法」（例如「阻擋值」），value 是修正後的正確中文；`official_terms.json` 的 key 是「日文原詞」，value 才是正確中文。兩者比對方向不同（錯誤中文→正確中文 vs 日文→正確中文），沒辦法共用同一份表，2026-08 架構檢視時確認過這不是遺漏，是表本身形狀不同。
 
 **譯名單一真相來源（`name_zh_data.py`）**：
-卡片名稱翻譯的權威表（`NAME_ZH_ENTRIES`／`NAME_ZH_LOOKUP`），每筆有 `status`（`draft`/`confirmed`/`high` 等信心等級）。`通用規則` 裡如果要翻譯剛好也出現在卡名裡的日文字串（例如技能文字引用了某張卡的卡名），一律查這份表，不要另外硬編一份翻譯——2026-08 檢視時發現三筆歷史硬編翻譯（ヒナガラス／どんぴしゃり／今日 何をする？）跟這份表的確認版本已經 drift，原因是 `name_zh_data.py` 建表時（2026-07-07）比 `build_data.py` 那批硬編寫死的時間（2026-04-15）晚，同步從未補上。
-_Avoid_: 修翻譯問題時，若字串同時是某卡卡名，先查 `name_zh_data.py` 有沒有 `confirmed` 版本，不要在 `通用規則`／`MANUAL_OVERRIDES` 裡重新翻一次。
+卡片名稱翻譯的權威表（`NAME_ZH_ENTRIES`／`NAME_ZH_LOOKUP`），每筆有 `status`（`draft`/`confirmed`/`high` 等信心等級）。`通用規則` 裡如果要翻譯剛好也出現在卡名裡的日文字串（例如技能文字引用了某張卡的卡名），一律查這份表（`_apply_confirmed_name_zh()` 吃全文掃描＋`confirmed` gate；`_name_zh_value(jp, fallback)` 給還沒到 `confirmed` 門檻、但需要個別鎖定單一詞的呼叫點用），不要另外硬編一份翻譯。
+2026-08 架構檢視時發現三筆歷史硬編翻譯（ヒナガラス／どんぴしゃり／今日 何をする？）跟這份表的確認版本已經 drift，原因是 `name_zh_data.py` 建表時（2026-07-07）比 `build_data.py` 那批硬編寫死的時間（2026-04-15）晚，同步從未補上；同一個月稍後又發現第 4～6 筆（灰羽リエーフ／超インナークロス／助けてもらう），其中「灰羽リエーフ」還同時在卡片名稱標籤、一般技能文字、`MANUAL_OVERRIDES` 三處各自顯示不同譯名。
+**這批問題現在有自動化安全網**：`test_build_data.py` 的 `test_build_data_source_has_no_hardcoded_name_replacements` 靜態掃描 `build_data.py` 原始碼本身，找有沒有任何已登記在 `name_zh_data.py` 裡的日文詞被寫死翻譯、沒透過查表機制——`pytest`（SOP.md 步驟 7）跑的時候會自動執行，不用再等下一次人工全文審查才發現第 7 筆。這個測試刻意不掃 `MANUAL_OVERRIDES`（人工手寫、審查過的純文字，見 `docs/adr/0005` 同一套「不自動改寫人工內容」原則），所以 `MANUAL_OVERRIDES` 裡引用角色名字還是要人工確認跟 `name_zh_data.py` 一致。
+_Avoid_: 修翻譯問題時，若字串同時是某卡卡名，先查 `name_zh_data.py` 有沒有 `confirmed`／個別鎖定版本，不要在 `通用規則`／`MANUAL_OVERRIDES` 裡重新翻一次。也不要因為新測試型態是「掃原始碼」就把一般函式測試也寫成斷言內部呼叫——這是刻意的單一例外，見 `CODING_STANDARDS.md`。
 
 **假名殘留掃描**：
 翻譯完成後的品質關卡——掃 `skill_zh`/`annotation_zh` 有沒有殘留日文假名/片假名，用來抓「規則沒命中、整段還是日文」的情況。**已知陷阱**：掃描時要排除引號「...」內引用其他卡片/技能日文原名的部分（那是刻意保留，不是漏翻，2026-07-25 在 `check_translations.js` 踩過這個坑），也要排除「ユース」類保留詞；且掃描範圍要涵蓋全庫，不能只挑特定系列（`\r\n` vs `\n` 換行差異曾經導致特定幾張卡的規則對不上而被漏掃，見 `docs/adr/0002`）。
