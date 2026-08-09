@@ -51,5 +51,6 @@
 - **根目錄的 Python 下載/翻譯 pipeline（2026-08 起）**：用 `pytest`（`requirements.txt` 記錄依賴），不是 stdlib `unittest`——這是這條 pipeline 第一次有自動化測試時的明確選擇，理由是 fixture/parametrize 對這批規則鏈類的回歸測試比較好寫，跟 `functions/`/`js/` 選 `node:test`（避免新依賴）是不同情境下的不同判斷，不要互相套用對方的理由。
   - 執行：`pip install -r requirements.txt` 後 `pytest`（或 `pytest test_build_data.py` 等單檔執行）。
   - 測試檔命名 `test_<被測檔案>.py`，放在根目錄（跟被測檔同層），只測外部行為（輸入→輸出），不斷言內部呼叫了哪個 helper。
+  - **明確例外：靜態掃描原始碼文字本身的測試**（例如 `test_build_data.py` 的 `test_build_data_source_has_no_hardcoded_name_replacements`，掃 `build_data.py` 原始碼找有沒有繞過 `name_zh_data.py` 查表機制的寫死翻譯字面量）。這種測試的斷言對象不是任何函式的輸入輸出，而是「程式碼有沒有透過正確的機制取值」這個事實本身——某個值今天剛好正確，不代表它是透過查表拿到的，兩者只有讀原始碼才分得出來，任何黑箱輸入輸出測試都表達不出這個保證。只在這種「要保護的是架構事實，不是行為結果」的情境才適用，不要因為這個例外就把一般函式測試也寫成斷言內部呼叫。
   - 會打真實網路/寫真實檔案的函式（`haikyuu_downloader.py` 的 `fetch_qa_data`/`check_for_new_cards` 等）一律用 `unittest.mock`／`monkeypatch` 把 `requests`/檔案路徑換掉，測試不能依賴真實網路或本機的 `haikyuu_output/` 資料。
   - 現有測試：`test_build_data.py`（翻譯規則鏈回歸）、`test_haikyuu_downloader.py`（新卡偵測/下載決策邏輯，含 `sync_images_to_site()`）、`test_apply_qa_fixes.py`（QA 修正內容比對邏輯）、`test_check_new_cards.py`（`check_new_cards.py` 的寫檔/中止決策）、`test_pipeline_paths.py`（pipeline 位置常數的形狀檢查）、`test_translate_qa.py`（QA 術語覆寫表 `apply_term_fix()`／撞名術語佔位符機制，含冪等性回歸測試）。

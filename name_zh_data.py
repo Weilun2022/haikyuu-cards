@@ -877,10 +877,10 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "灰羽 リエーフ",
-        "zh": "灰羽列夫",
+        "zh": "灰羽利耶夫",
         "kind": "person",
-        "status": "high",
-        "note": "音駒一年MB，日俄混血，名字源自俄語Lev(獅子)，比照托爾斯泰譯法",
+        "status": "confirmed",
+        "note": "音駒一年MB，日俄混血，名字源自俄語Lev(獅子)，比照托爾斯泰譯法。拍板統一為「利耶夫」並升級為 confirmed——之前 build_data.py 硬編字面量跟 MANUAL_OVERRIDES 各自寫著「里耶夫」，是這份表建立前留下的舊值，兩邊從沒同步過。",
     },
     {
         "jp": "烏養 一繋",
