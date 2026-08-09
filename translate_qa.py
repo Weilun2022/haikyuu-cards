@@ -75,6 +75,7 @@ Google Translate (ja→zh-TW) 對以下術語有系統性誤譯，
 """
 
 import json
+import re
 import sys
 import time
 
@@ -124,20 +125,103 @@ TERM_FIX = {
     '區塊階段': '攔網階段',
     '區塊區域': '攔網區',
     '區塊': '攔網',
+    # 方塊（ブロック 第 4 種誤譯，長詞先——2026-08 QA 全量重翻批次核對術語一致性
+    # 時發現，跟格擋/阻擋/區塊同一類問題，只是這批機翻換了個新的錯譯詞）
+    '方塊區域': '攔網區',
+    '方塊角色': '攔網角色',
+    '方塊': '攔網',
+    # 攔網值（ブロックポイント 誤譯，長詞先）
+    '攔網點數': '攔網值',
+    '攔網點': '攔網值',
+    # 中間攔網手（センターブロッカー 誤譯；長詞（帶「者/手」後綴）先，短詞（無後綴）
+    # 才不會把長詞截斷成「中間攔網手者」這種疊字錯誤）
+    '中路攔網者': '中間攔網手',
+    '中路攔網手': '中間攔網手',
+    '中攔網者': '中間攔網手',
+    '中央攔網者': '中間攔網手',
+    '中心攔網者': '中間攔網手',
+    '中攔網': '中間攔網手',
+    '中心攔網': '中間攔網手',
+    # 側翼攔網手（サイドブロッカー 誤譯）
+    '側攔網': '側翼攔網手',
+    '旁路攔網者': '側翼攔網手',
+    '側方攔網者': '側翼攔網手',
+    '側擋': '側翼攔網手',
     # 數值（接球點 variant）
     '接球點': '接球值',
+    # 接球值（レシーブポイント 誤譯，長詞先）
+    '獲得點數': '接球值',
+    '獲得積分': '接球值',
+    '獲得點': '接球值',
+    # 防禦值（ディフェンスポイント 誤譯）
+    '防禦分數': '防禦值',
+    # 場地（コート 誤譯，兩種變體）
+    '場上': '場地',
+    '場區': '場地',
+    # 稻荷崎（校名誤譯——Google 偶爾把「稲荷崎」音近誤植成「稻成崎」）
+    '稻成崎': '稻荷崎',
+    # 舉球角色（トスキャラ 誤譯，各自獨立、彼此無包含關係）
+    '投擲的角色': '舉球角色',
+    '投球角色': '舉球角色',
+    '折騰人物': '舉球角色',
+    '拋擲角色': '舉球角色',
+    # 攻擊角色（アタックキャラ 誤譯）
+    '攻擊字元': '攻擊角色',
+    # 後排攻擊（バックアタック 誤譯，只在技能標記內出現，bare「反擊」是常見中文詞
+    # 不能整批替換，只替換標記開頭那一段）
+    '[=反擊(': '[=後排攻擊(',
     # 特殊技能詞
     'Doshat': '強扣',
-    # 出現→出場 + 第一人稱語氣（長詞先）
+    # 元々の → 原本（Google 翻成「原創」是錯誤的）
+    '原創': '原本',
+    # ── 登場／出現／出場（必須放在同一批，順序有嚴格要求，見下方說明）──
+    #
+    # 技能標記「[=登場]」要保留日文原形不翻，跟散文的「登場→出場」方向相反。
+    # apply_term_fix() 是單純字串替換，不管上下文，所以「登場」這個字下面第一條
+    # 散文規則一律當成「散文」處理——如果標記不先「挖出來」保護，[=登場] 裡的
+    # 「登場」子字串一樣會被那條規則誤改成 [=出場]。這裡先把所有代表「標記」的
+    # 三種輸入形式（已經正確的 [=登場]、Google 常見的兩種誤譯 [=出現]/[=外觀]）
+    # 統一收斂成同一個佔位符，讓下面的散文規則完全碰不到它，最後再統一還原成
+    # 正確的 [=登場]。這麼做也讓 apply_term_fix() 對同一段文字重複呼叫是安全的
+    # （冪等）——不會因為文字已經是正確的 [=登場] 而在下一輪被錯誤地改回
+    # [=出場]（2026-08 QA 全量重翻後，對同一批資料重跑第二輪術語修正時才發現
+    # 這個問題：沒有先保護的版本會把上一輪已經修好的 [=登場] 吃掉）。
+    '[=登場]': '<<<QA_TAG_TOUBA>>>',
+    '[=出現]': '<<<QA_TAG_TOUBA>>>',
+    '[=外觀]': '<<<QA_TAG_TOUBA>>>',
+    # 出現→出場 + 第一人稱語氣（長詞先，標記已經保護起來，這裡只會動到散文）
     '不能出現': '無法出場',
     '無法出現': '無法出場',
     '可以出現': '可以出場',
     '不，我': '不，',
     '是，我': '是，',
-    # 元々の → 原本（Google 翻成「原創」是錯誤的）
-    '原創': '原本',
     # 動詞
     '登場': '出場',
+    # 出現→出場（整批規則，但「出現什麼狀況」是「發生什麼狀況」的意思，跟角色
+    # 出場無關，必須用佔位符保護起來，不能被下面的整批規則誤改——原理跟這個檔案
+    # 已有的人名 <<<N{i}>>> 佔位符機制一樣：先佔位讓它暫時不含「出現」子字串，
+    # 整批規則跑完再換回來）
+    '出現什麼狀況': '<<<QA_SAFE_0>>>',
+    '出現': '出場',
+    '<<<QA_SAFE_0>>>': '出現什麼狀況',
+    # 登場 的其他錯譯（不是「出現」這個字，是完全不同的詞——2026-08 QA 全量重翻
+    # 批次核對術語一致性時發現，長詞先）
+    '帶入遊戲': '出場',
+    '帶入': '出場',
+    '引入': '出場',
+    '您介紹該角色並支付': '您使該角色出場並支付',
+    # 還原技能標記佔位符（放在整批 dict 最後——上面所有散文規則都跑完了才還原，
+    # 確保標記不會被任何一條散文規則誤傷）
+    '<<<QA_TAG_TOUBA>>>': '[=登場]',
+    # Event 牌/區（長詞先，避免短詞截斷長詞殘留「域」字；跟站內其他地方保留英文
+    # 「Event」的慣例一致，不翻成中文「活動/事件」——2026-08 QA 全量重翻才發現
+    # 這條規則整個沒收錄，見 docs/translation/CONTEXT.md）
+    '活動區域': 'Event區',
+    '事件區域': 'Event區',
+    '活動區':   'Event區',
+    '事件區':   'Event區',
+    '活動卡':   'Event牌',
+    '事件卡':   'Event牌',
 }
 
 # ── Step 1：從 all_cards.json 建立人名清單 ─────────────────────────────────
@@ -178,8 +262,46 @@ def postprocess_names(text: str, ph_to_name: dict[str, str]) -> str:
     return text
 
 
+# ── 有些日文術語 Google 翻譯後會跟「另一個不同日文術語的正確譯文」撞名——
+# 例如 オフェンスポイント（官方值「進攻值」）常被 Google 翻成跟 アタックポイント
+# （官方值「攻擊值」）一樣的「攻擊值」。TERM_FIX 的簡單字串替換完全沒辦法分辨
+# 「這個攻擊值原本是哪個日文詞」，兩個術語又常常出現在同一句裡，無法用 TERM_FIX
+# 修正（2026-08 QA 全量重翻批次核對術語一致性時發現，39 筆受影響）。
+# 用跟人名一樣的佔位符機制：翻譯前先佔位，翻譯後直接還原成官方值，不讓 Google
+# 有機會誤譯——只收錄「確認會跟另一個術語撞名」的項目，不是所有術語都要佔位。
+PINNED_TERMS = {
+    'オフェンスポイント': '進攻值',
+}
+
+
+def pin_ambiguous_terms(text: str) -> tuple[str, dict[str, str]]:
+    """回傳 (置換後文字, {佔位符: 正確譯文})，翻譯前呼叫。"""
+    ph_to_correct = {}
+    for i, (jp, correct) in enumerate(PINNED_TERMS.items()):
+        if jp in text:
+            ph = f'<<<P{i}>>>'
+            text = text.replace(jp, ph)
+            ph_to_correct[ph] = correct
+    return text, ph_to_correct
+
+
+def restore_pinned_terms(text: str, ph_to_correct: dict[str, str]) -> str:
+    for ph, correct in ph_to_correct.items():
+        text = text.replace(ph, correct)
+    return text
+
+
 # ── Step 4：術語覆寫 ──────────────────────────────────────────────────────
+def _normalize_bracket_parens(text: str) -> str:
+    """[=X（N）] 技能標記語法裡的括號偶爾被 Google 吐成全形，害下面逐一設計的
+    標記修正規則字串對不上（2026-08 核對術語一致性時發現：ワンタッチ/ツーアタック/
+    Aパス 都中過）。統一把 [=...] 標記內的全形括號正規化成半形，只動標記內部，
+    不影響標記外的一般文字。"""
+    return re.sub(r'\[=([^\]]*)\]', lambda m: '[=' + m.group(1).replace('（', '(').replace('）', ')') + ']', text)
+
+
 def apply_term_fix(text: str) -> str:
+    text = _normalize_bracket_parens(text)
     for wrong, correct in TERM_FIX.items():
         text = text.replace(wrong, correct)
     return text
@@ -231,9 +353,11 @@ def main():
         for entry in entries:
             total += 1
 
-            # Step 2：Pre-process
-            q_pre = preprocess(entry['question'], name_to_ph)
-            a_pre = preprocess(entry['answer'],   name_to_ph)
+            # Step 2：Pre-process（人名 + 容易撞名的術語都先佔位）
+            q_pre, q_pins = pin_ambiguous_terms(entry['question'])
+            a_pre, a_pins = pin_ambiguous_terms(entry['answer'])
+            q_pre = preprocess(q_pre, name_to_ph)
+            a_pre = preprocess(a_pre, name_to_ph)
 
             # Step 3：Google 翻譯
             q_translated = translate_text(q_pre, translator)
@@ -244,9 +368,11 @@ def main():
             if '翻譯失敗' in q_translated or '翻譯失敗' in a_translated:
                 failed += 1
 
-            # 還原人名佔位符
+            # 還原人名佔位符 + 撞名術語佔位符
             q_zh = postprocess_names(q_translated, ph_to_name)
             a_zh = postprocess_names(a_translated, ph_to_name)
+            q_zh = restore_pinned_terms(q_zh, q_pins)
+            a_zh = restore_pinned_terms(a_zh, a_pins)
 
             # Step 4：術語覆寫
             q_zh = apply_term_fix(q_zh)

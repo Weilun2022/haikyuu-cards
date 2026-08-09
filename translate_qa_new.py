@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from translate_qa import (
     load_character_names, build_placeholder_map, preprocess,
     postprocess_names, apply_term_fix, translate_text, DELAY,
+    pin_ambiguous_terms, restore_pinned_terms,
 )
 from pipeline_paths import ALL_CARDS_JSON, QA_JSON as QA_PATH, QA_ZH_JSON as QA_DST
 from deep_translator import GoogleTranslator
@@ -53,8 +54,10 @@ def main():
         out_entries = []
         for entry in entries:
             total += 1
-            q_pre = preprocess(entry['question'], name_to_ph)
-            a_pre = preprocess(entry['answer'], name_to_ph)
+            q_pre, q_pins = pin_ambiguous_terms(entry['question'])
+            a_pre, a_pins = pin_ambiguous_terms(entry['answer'])
+            q_pre = preprocess(q_pre, name_to_ph)
+            a_pre = preprocess(a_pre, name_to_ph)
 
             q_translated = translate_text(q_pre, translator)
             time.sleep(DELAY)
@@ -64,8 +67,8 @@ def main():
             if '翻譯失敗' in q_translated or '翻譯失敗' in a_translated:
                 failed += 1
 
-            q_zh = apply_term_fix(postprocess_names(q_translated, ph_to_name))
-            a_zh = apply_term_fix(postprocess_names(a_translated, ph_to_name))
+            q_zh = apply_term_fix(restore_pinned_terms(postprocess_names(q_translated, ph_to_name), q_pins))
+            a_zh = apply_term_fix(restore_pinned_terms(postprocess_names(a_translated, ph_to_name), a_pins))
 
             out_entries.append({
                 'id': entry['id'],

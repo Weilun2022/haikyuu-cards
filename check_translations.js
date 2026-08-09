@@ -31,9 +31,85 @@ const stats = {
   'Rule09_選擇發動': 0,
   'Rule10_時可使用': 0,
   'Rule11_值等於': 0,
+  'Rule12_登場出場': 0,
   '術語錯誤': 0,
   '語法問題': 0,
 };
+
+// ── 共用檢查：跟輸入來源無關（skill 文字／QA 文字都適用），2026-08 從 checkCard()
+// 抽出來，讓 QA 掃描可以重用同一套邏輯，不用另外複製一份 ──────────────────
+
+// 引號內是引用其他卡片/技能的日文原名（刻意保留不翻，跟 ユース 同一類政策），
+// 假名/片假名殘留檢查、單字漢字檢查都不該把這些算進去——2026-07-25 逐筆核對 44 筆誤判
+// 後發現 「...」 這個引號形式；2026-08 QA 全量重翻批次核對術語一致性時發現 QA 文字
+// 引用 EVENT 卡名時常用 “...” 全形彎引號而不是 「...」，同一個 EVENT 卡名在不同筆
+// QA 裡兩種引號都會出現，只排除 「...」 會讓一半誤判成殘留——兩種引號都要排除。
+function stripQuotedNames(zh) {
+  return zh.replace(/「[^」]*」/g, '').replace(/“[^”]*”/g, '');
+}
+
+// Japanese hiragana/katakana remaining in zh
+function checkKanaResidue(zh) {
+  const issues = [];
+  const zhWithoutQuotedNames = stripQuotedNames(zh);
+
+  // hiragana
+  if (/[ぁ-ん]/.test(zhWithoutQuotedNames)) {
+    const m = zhWithoutQuotedNames.match(/[ぁ-ん]+/g);
+    issues.push({ type: '語法問題', fragment: '日文假名殘留: ' + m.join(','), suggestion: '移除日文假名' });
+  }
+
+  // katakana（排除 [=X] 標注跟「...」引用的原名，只留下真正可能漏翻的部分）
+  // 片假名範圍務必含長音符「ー」（U+30FC）；ユース／疑似ユース 依 ADR-0001 刻意保留不翻，明確排除
+  const YUUSU_TERMS = ['疑似ユース', 'ユース'];
+  let zhForKatakanaCheck = zhWithoutQuotedNames.replace(/\[=[^\]]+\]/g, '');
+  for (const term of YUUSU_TERMS) zhForKatakanaCheck = zhForKatakanaCheck.replaceAll(term, '');
+  const kataInZh = zhForKatakanaCheck.match(/[ァ-ンー]{2,}/g);
+  if (kataInZh) {
+    issues.push({ type: '語法問題', fragment: '日文片假名殘留: ' + kataInZh.join(','), suggestion: '確認是否需翻譯' });
+  }
+
+  return issues;
+}
+
+// 官方術語一致性檢查：迴圈跑 official_terms.json 裡的每一筆，跟 build_data.py
+// 共用同一份期望值——不再像過去那樣，這裡的期望值自己寫錯（ドシャット 那次）
+// 卻沒有任何東西能發現，因為兩邊各自硬編、互不參照。
+function checkOfficialTerms(zh, jp) {
+  const issues = [];
+  for (const [jpTerm, zhTerm] of Object.entries(OFFICIAL_TERMS)) {
+    if (jp.includes(jpTerm) && !zh.includes(zhTerm)) {
+      const isBracketTag = BRACKET_TAG_TERMS.has(jpTerm);
+      issues.push({
+        type: '術語錯誤',
+        fragment: isBracketTag ? `(${jpTerm}未標注${zhTerm})` : `(${jpTerm}未正確譯出)`,
+        suggestion: isBracketTag ? `應標注「[=${zhTerm}]」` : `應譯為「${zhTerm}」`,
+      });
+    }
+  }
+  return issues;
+}
+
+// 登場／出場／[=登場] 雙形式語境檢查：不能放進 OFFICIAL_TERMS 直接跑上面那個迴圈——
+// 「登場」有兩種正確形式看語境（一般散文「出場」vs 技能標記保留原文「[=登場]」），
+// 用同一把 zh.includes(zhTerm) 尺量會讓其中一種形式必然誤判（2026-08 QA 全量重翻
+// 才發現這個問題：bracket 標記被機翻成 [=出現]/[=外觀]，散文被機翻成「出現」，
+// 兩種都不是「出場」，需要各自比對來源是不是 bracket 標記）。
+function checkAppearanceTerm(zh, jp) {
+  const issues = [];
+  if (!jp) return issues;
+  const jpWithoutBracketTags = jp.replace(/\[=[^\]]+\]/g, '');
+  const hasBareTouba = jpWithoutBracketTags.includes('登場');
+  const hasBracketTouba = jp.includes('[=登場]');
+
+  if (hasBareTouba && !zh.includes('出場')) {
+    issues.push({ type: 'Rule12_登場出場', fragment: '(登場未正確譯出)', suggestion: '應譯為「出場」' });
+  }
+  if (hasBracketTouba && !zh.includes('[=登場]')) {
+    issues.push({ type: 'Rule12_登場出場', fragment: '(登場未標注[=登場])', suggestion: '應標注「[=登場]」（保留原文，不是出場）' });
+  }
+  return issues;
+}
 
 function checkCard(card) {
   if (!card.skill_zh) return;
@@ -42,21 +118,17 @@ function checkCard(card) {
   const id = card.image_file || card.card_no;
   const cardIssues = [];
 
-  // 引號「...」內是引用其他卡片/技能的日文原名（刻意保留不翻，跟 ユース 同一類政策），
-  // 假名/片假名殘留檢查、單字漢字檢查都不該把這些算進去——2026-07-25 逐筆核對 44 筆誤判後發現
-  const zhWithoutQuotedNames = zh.replace(/「[^」]*」/g, '');
+  const zhWithoutQuotedNames = stripQuotedNames(zh);
 
   // Rule 1: その後 → 之後（not 該後）
   if (zh.includes('該後')) {
     cardIssues.push({ type: 'Rule01_其後', fragment: '該後', suggestion: '改為「之後」' });
-    stats['Rule01_其後']++;
   }
 
   // Rule 2: 登場させられない → 不能出場（not 使其出場...不能）
   const r2match = zh.match(/使其出場[^。，「」]{0,10}(不能|無法)/);
   if (r2match) {
     cardIssues.push({ type: 'Rule02_使其出場', fragment: r2match[0], suggestion: '改為「不能出場」' });
-    stats['Rule02_使其出場']++;
   }
   // Also check JP: if jp has 登場させられない but zh doesn't convey the restriction at all。
   // 2026-07-25 逐筆核對發現：「しか...出場させられない」常見的正確譯法是「最多只能出場N名」
@@ -66,7 +138,6 @@ function checkCard(card) {
   if (jp.includes('させられない') && !conveysRestriction) {
     if (!r2match) { // avoid double counting
       cardIssues.push({ type: 'Rule02_使其出場', fragment: '(JP:させられない未正確譯出)', suggestion: '應譯為「不能出場」' });
-      stats['Rule02_使其出場']++;
     }
   }
 
@@ -74,63 +145,54 @@ function checkCard(card) {
   const r3match = zh.match(/(每次出場時|每當出場時)/);
   if (r3match) {
     cardIssues.push({ type: 'Rule03_每次出場', fragment: r3match[0], suggestion: '改為「出場時」' });
-    stats['Rule03_每次出場']++;
   }
 
   // Rule 4: 自己的從X區 → 從自己的X區
   const r4match = zh.match(/自己的從[^\s，。、「」]{1,8}區/);
   if (r4match) {
     cardIssues.push({ type: 'Rule04_自己的從X區', fragment: r4match[0], suggestion: '改為「從自己的X區」' });
-    stats['Rule04_自己的從X區']++;
   }
 
   // Rule 5: 對手的從X區 → 從對手的X區
   const r5match = zh.match(/對手的從[^\s，。、「」]{1,8}區/);
   if (r5match) {
     cardIssues.push({ type: 'Rule05_對手的從X區', fragment: r5match[0], suggestion: '改為「從對手的X區」' });
-    stats['Rule05_對手的從X區']++;
   }
 
   // Rule 6: 自己的在X區中 → 自己的X區中
   const r6match = zh.match(/自己的在[^\s，。、「」]{1,8}區中/);
   if (r6match) {
     cardIssues.push({ type: 'Rule06_自己的在X區', fragment: r6match[0], suggestion: '改為「自己的X區中」' });
-    stats['Rule06_自己的在X區']++;
   }
 
   // Rule 7: 再+N值 → 值再 +N（語序問題: 再+2攻擊值 instead of 攻擊值再+2）
   const r7match = zh.match(/再[+＋]\d+[攻攔接舉發進防][擊網球球球攻禦]?值/);
   if (r7match) {
     cardIssues.push({ type: 'Rule07_再N值語序', fragment: r7match[0], suggestion: '改為「X值再 +N」語序' });
-    stats['Rule07_再N值語序']++;
   }
 
   // Rule 8: 防守點數 → 防禦值
   if (zh.includes('防守點數') || zh.includes('防守值')) {
     const m = zh.match(/(防守點數|防守值)/);
     cardIssues.push({ type: 'Rule08_防守點數', fragment: m[0], suggestion: '改為「防禦值」' });
-    stats['Rule08_防守點數']++;
   }
 
   // Rule 9: 選擇以下其中N項可發動的 → 選擇以下其中N項使用
   const r9match = zh.match(/選擇以下其中[一二三四五\d]+項可發動的/);
   if (r9match) {
     cardIssues.push({ type: 'Rule09_選擇發動', fragment: r9match[0], suggestion: '改為「選擇以下其中N項使用」' });
-    stats['Rule09_選擇發動']++;
   }
 
   // Rule 10: で使える → 後可發動（not 時可使用）- only when NOT in a selection context
   const r10match = zh.match(/時可使用/);
   if (r10match && !zh.includes('選擇')) {
     cardIssues.push({ type: 'Rule10_時可使用', fragment: r10match[0], suggestion: '改為「後可發動」' });
-    stats['Rule10_時可使用']++;
   }
 
   // Rule 11: 值=N或以上/以下 → 值N或以上/以下（不加=）
   const r11match = zh.match(/值[=＝]\d+或以[上下]/);
   if (r11match) {
     cardIssues.push({ type: 'Rule11_值等於', fragment: r11match[0], suggestion: '移除「=」符號' });
-    stats['Rule11_值等於']++;
   }
 
   // Term checks
@@ -138,70 +200,62 @@ function checkCard(card) {
   // Event 卡的本名），刻意保留不翻，不算漏翻——排除引號內容再檢查。
   if (zhWithoutQuotedNames.includes('攻撃')) {
     cardIssues.push({ type: '術語錯誤', fragment: '攻撃', suggestion: '改為「攻擊」(正體字)' });
-    stats['術語錯誤']++;
   }
 
   // X點數/分數 where should be X值
   const wrongPoint = zh.match(/(舉球|接球|攔網|攻擊|發球|進攻|防禦)(點數|分數|分)/);
   if (wrongPoint) {
     cardIssues.push({ type: '術語錯誤', fragment: wrongPoint[0], suggestion: '改為「' + wrongPoint[1] + '值」' });
-    stats['術語錯誤']++;
   }
 
-  // 官方術語一致性檢查：迴圈跑 official_terms.json 裡的每一筆，跟 build_data.py
-  // 共用同一份期望值——不再像過去那樣，這裡的期望值自己寫錯（ドシャット 那次）
-  // 卻沒有任何東西能發現，因為兩邊各自硬編、互不參照。
-  for (const [jpTerm, zhTerm] of Object.entries(OFFICIAL_TERMS)) {
-    if (jp.includes(jpTerm) && !zh.includes(zhTerm)) {
-      const isBracketTag = BRACKET_TAG_TERMS.has(jpTerm);
-      cardIssues.push({
-        type: '術語錯誤',
-        fragment: isBracketTag ? `(${jpTerm}未標注${zhTerm})` : `(${jpTerm}未正確譯出)`,
-        suggestion: isBracketTag ? `應標注「[=${zhTerm}]」` : `應譯為「${zhTerm}」`,
-      });
-      stats['術語錯誤']++;
-    }
-  }
-
-  // Grammar checks
-  // Japanese hiragana remaining in zh。引號「...」內是引用其他卡片/技能的日文原名
-  // （例如「どん ぴしゃり」「今日 何をする？」都是刻意保留原文的卡名/技能名，不是漏翻），
-  // 2026-07-25 核對全庫發現原本 19 筆全部誤判在這裡——先排除引號內容再檢查。
-  if (/[ぁ-ん]/.test(zhWithoutQuotedNames)) {
-    const m = zhWithoutQuotedNames.match(/[ぁ-ん]+/g);
-    cardIssues.push({ type: '語法問題', fragment: '日文假名殘留: ' + m.join(','), suggestion: '移除日文假名' });
-    stats['語法問題']++;
-  }
-
-  // Katakana remaining in zh（排除 [=X] 標注跟「...」引用的原名，只留下真正可能漏翻的部分）
-  // 片假名範圍務必含長音符「ー」（U+30FC，原本不在 ァ-ン 範圍內）——少了它，任何含長音符
-  // 的一般外來語（例如「サーブ」）都會完全偵測不到殘留，不是只有 ユース 受影響。
-  // ユース／疑似ユース 依 docs/translation/docs/adr/0001-yuusu-keep-untranslated.md
-  // 刻意保留日文原文不翻，這裡明確排除，不能只靠正規表達式範圍缺口讓它們「剛好」通過
-  // ——範圍一旦被「修正」涵蓋長音符，這兩個詞會立刻被誤判成殘留。
-  const YUUSU_TERMS = ['疑似ユース', 'ユース'];
-  let zhForKatakanaCheck = zhWithoutQuotedNames.replace(/\[=[^\]]+\]/g, '');
-  for (const term of YUUSU_TERMS) zhForKatakanaCheck = zhForKatakanaCheck.replaceAll(term, '');
-  const kataInZh = zhForKatakanaCheck.match(/[ァ-ンー]{2,}/g);
-  if (kataInZh) {
-    cardIssues.push({ type: '語法問題', fragment: '日文片假名殘留: ' + kataInZh.join(','), suggestion: '確認是否需翻譯' });
-    stats['語法問題']++;
-  }
+  cardIssues.push(...checkOfficialTerms(zh, jp));
+  cardIssues.push(...checkKanaResidue(zh));
 
   // "此角色是X角色" - check for missing 是
   // Pattern: 此角色舉球角色 or 此角色接球角色 (missing 是)
   const r_missing_shi = zh.match(/此角色(?!是|的|在|從|出場)(舉球|接球|攔網|攻擊|發球)角色/);
   if (r_missing_shi) {
     cardIssues.push({ type: '語法問題', fragment: r_missing_shi[0], suggestion: '應加入「是」字：「此角色是X角色」' });
-    stats['語法問題']++;
   }
 
   if (cardIssues.length > 0) {
-    issues.push({ id, zh, jp, cardIssues });
+    for (const iss of cardIssues) stats[iss.type] = (stats[iss.type] || 0) + 1;
+    issues.push({ source: 'skill', id, zh, jp, cardIssues });
+  }
+}
+
+// QA 文字掃描（2026-08 新增）：card.qa[] 之前完全沒被這支腳本掃過，QA 全量重翻批次
+// 出現的簡體字殘留、Event 用詞、登場/出場混用都是靠人工事後抽查才發現——不套用上面
+// 11 條 skill 專屬 Rule（那些是針對 translate_skill() regex 鏈的已知 bug 寫的，QA 走
+// 完全不同的 Google Translate + TERM_FIX 管線，硬套會製造大量噪音誤報），只跑通用的
+// 殘留檢查、官方術語檢查、跟這次新增的登場/出場雙形式檢查。
+function checkQaField(card, qaEntry, field) {
+  const zh = qaEntry[field] || '';
+  const jp = qaEntry[field + '_jp'] || '';
+  if (!zh) return;
+
+  const cardIssues = [
+    ...checkOfficialTerms(zh, jp),
+    ...checkKanaResidue(zh),
+    ...checkAppearanceTerm(zh, jp),
+  ];
+
+  if (cardIssues.length > 0) {
+    for (const iss of cardIssues) stats[iss.type] = (stats[iss.type] || 0) + 1;
+    const id = (card.image_file || card.card_no) + ` / QA#${qaEntry.id}.${field}`;
+    issues.push({ source: 'qa', id, zh, jp, cardIssues });
+  }
+}
+
+function checkQaEntries(card) {
+  for (const qaEntry of (card.qa || [])) {
+    checkQaField(card, qaEntry, 'question');
+    checkQaField(card, qaEntry, 'answer');
   }
 }
 
 cards.forEach(checkCard);
+cards.forEach(checkQaEntries);
 
 // Output results
 console.log('\n========== 翻譯問題清單 ==========\n');
@@ -227,3 +281,9 @@ Object.entries(stats).forEach(([k, v]) => {
 });
 console.log('\n總問題數: ' + total);
 console.log('有問題的卡片數: ' + issues.length);
+
+// 2026-08 新增：以前這支腳本不管抓到幾個問題永遠 exit 0，SOP 步驟 7 寫著要跑它，
+// 但沒有東西真的會因為它失敗——等於是個只會印出來、沒人保證會看的關卡。改成抓到
+// 問題就 exit 1，才能真的擋下不合站內慣例的資料（跟 pytest/check_new_cards.py
+// 一樣用 exit code 表達成功/失敗）。
+process.exit(total > 0 ? 1 : 0);
