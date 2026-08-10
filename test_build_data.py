@@ -64,17 +64,42 @@ def test_kyou_nani_wo_suru_corrected_to_match_name_zh_data():
     assert bd.translate_skill('今日 何をする？', []) == '今天，你要做什麼？'
 
 
-def test_apply_confirmed_name_zh_only_touches_confirmed_status():
-    # _apply_confirmed_name_zh 只吃 status=confirmed 的條目，high/medium/low/draft 不透過這個機制套用
-    non_confirmed_statuses = {'high', 'medium', 'low', 'draft', 'auto'}
-    sample_non_confirmed = [
-        e for e in bd.NAME_ZH_ENTRIES if e.get('status') in non_confirmed_statuses
+def test_apply_confirmed_name_zh_only_touches_confirmed_and_auto_status():
+    # _apply_confirmed_name_zh 吃 status=confirmed（使用者拍板）跟 status=auto（機械去空格/
+    # 繁體正字，高信心）的條目；high/medium/low/draft 這些還在研究中的猜測不透過這個機制套用。
+    # auto 曾經被排除在外，是這次「全站人名統一無空格」重構要修正的閘門過嚴問題——auto 不是
+    # 未定案的猜測，是已經高信心機械正規化過的值，不該跟 high/medium/low/draft 同一個待遇。
+    still_excluded_statuses = {'high', 'medium', 'low', 'draft'}
+    sample_excluded = [
+        e for e in bd.NAME_ZH_ENTRIES if e.get('status') in still_excluded_statuses
     ]
-    assert sample_non_confirmed, "測試前提：應該存在非 confirmed 狀態的條目"
-    for entry in sample_non_confirmed[:5]:
+    assert sample_excluded, "測試前提：應該存在 high/medium/low/draft 狀態的條目"
+    for entry in sample_excluded[:5]:
         t = f"前綴 {entry['jp']} 後綴"
         result = bd._apply_confirmed_name_zh(t)
-        assert result == t, f"非 confirmed 條目 {entry['jp']!r} 不應該被自動套用"
+        assert result == t, f"{entry.get('status')} 狀態條目 {entry['jp']!r} 不應該被自動套用"
+
+
+def test_apply_confirmed_name_zh_now_applies_auto_status_person_names():
+    # 根因修正：name_zh_data.py 裡所有人名條目的 status 其實是 auto，不是 confirmed，過去
+    # 被 _apply_confirmed_name_zh() 的閘門一併擋下，導致通用規則鏈翻出來的技能文字裡，角色
+    # 全名一直維持著日文原文的帶空格格式沒被轉換（例如「影山 飛雄」「及川 徹」）。
+    auto_person_entries = [e for e in bd.NAME_ZH_ENTRIES if e.get('status') == 'auto']
+    assert auto_person_entries, "測試前提：應該存在 status=auto 的人名條目"
+    for entry in auto_person_entries[:5]:
+        t = f"自己的角色是「{entry['jp']}」時"
+        result = bd._apply_confirmed_name_zh(t)
+        assert entry['zh'] in result, f"auto 條目 {entry['jp']!r} 應該被套用成 {entry['zh']!r}"
+        assert entry['jp'] not in result, f"auto 條目 {entry['jp']!r} 不應該原樣殘留"
+
+
+def test_translate_skill_outputs_no_space_person_name_via_general_pipeline():
+    # 端到端驗證：通用規則鏈（不是個別窄規則）翻出來的技能文字，引用其他角色全名時輸出
+    # 無空格版本，跟卡片標題慣例一致——這是這次重構要解決的原始問題（搜尋「日向翔陽」
+    # 找不到技能文字裡「日向 翔陽」這種帶空格引用）的資料層根本修正。
+    result = bd.translate_skill('自己的舉球角色是「影山 飛雄」時', [])
+    assert '影山飛雄' in result
+    assert '影山 飛雄' not in result
 
 
 def test_point_terms_use_official_terms_single_source():
@@ -148,15 +173,39 @@ def test_tasukete_quote_corrected_to_match_name_zh_data():
 
 
 def test_manual_overrides_riefu_entries_use_confirmed_translation():
-    # MANUAL_OVERRIDES 裡提到灰羽リエーフ的 3 筆，改成拍板譯名（有空格的引用全名格式，
-    # 跟其他人工覆蓋條目引用角色全名的既有寫法一致），維持純靜態字串、不接查表機制。
+    # MANUAL_OVERRIDES 裡提到灰羽リエーフ的 3 筆，改成拍板譯名——2026-08 全站人名統一無空格
+    # 重構後，跟卡片標題／通用規則鏈輸出一致改成無空格「灰羽利耶夫」（先前版本要求帶空格
+    # 「灰羽 利耶夫」，是尚未確認全站慣例前的舊決策，已被這次重構取代），維持純靜態字串、
+    # 不接查表機制。
     affected = ['HV-P01-028-N.webp', 'HV-D02-004-D.webp', 'HV-PR-023-P.webp']
     for key in affected:
         assert key in bd.MANUAL_OVERRIDES, f'{key} 應該存在於 MANUAL_OVERRIDES'
         text = bd.MANUAL_OVERRIDES[key]
-        assert '灰羽 利耶夫' in text, f'{key} 應該含拍板譯名「灰羽 利耶夫」'
+        assert '灰羽利耶夫' in text, f'{key} 應該含拍板譯名「灰羽利耶夫」（無空格）'
+        assert '灰羽 利耶夫' not in text, f'{key} 不應該再含舊版帶空格寫法「灰羽 利耶夫」'
         assert '里耶夫' not in text, f'{key} 不應該再含舊錯誤寫法「里耶夫」'
         assert '列夫' not in text, f'{key} 不應該含另一種舊錯誤寫法「列夫」'
+
+
+def test_manual_overrides_no_space_person_names_from_batch_migration():
+    # 2026-08「全站人名統一無空格」重構：MANUAL_OVERRIDES 裡 33 個角色、107 筆帶空格的
+    # 全名引用（例如「日向 翔陽」），批次收斂成跟 name_zh_data.py 一致的無空格版本。
+    assert 'HV-P01-003-S.webp' in bd.MANUAL_OVERRIDES
+    assert '影山飛雄' in bd.MANUAL_OVERRIDES['HV-P01-003-S.webp']
+    assert '影山 飛雄' not in bd.MANUAL_OVERRIDES['HV-P01-003-S.webp']
+
+    assert 'HV-P01-006-I.webp' in bd.MANUAL_OVERRIDES
+    assert '日向翔陽' in bd.MANUAL_OVERRIDES['HV-P01-006-I.webp']
+    assert '日向 翔陽' not in bd.MANUAL_OVERRIDES['HV-P01-006-I.webp']
+
+    # 沒有空格可去、單純字型差異（黒→黑）的「・」複合名稱標籤，不在這次範圍內，維持原樣
+    assert 'HV-PR-014-P.webp' in bd.MANUAL_OVERRIDES
+    assert '孤爪・黒尾' in bd.MANUAL_OVERRIDES['HV-PR-014-P.webp']
+
+
+def test_manual_overrides_redundant_entry_removed():
+    # HV-PR-047-P.webp 逐一 diff 通用規則鏈後確認完全冗餘（輸出逐字相同），2026-08 重構順便刪除
+    assert 'HV-PR-047-P.webp' not in bd.MANUAL_OVERRIDES
 
 
 def test_clean_qa_text_fixes_ai_mistranslated_skill_tags():

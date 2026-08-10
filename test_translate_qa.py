@@ -9,7 +9,7 @@
    （オフェンスポイント正確值「進攻值」同時是 アタックポイント 常見的錯譯字串），
    TERM_FIX 的字串替換完全沒辦法分辨，改用翻譯前佔位、翻譯後直接還原的機制。
 """
-from translate_qa import apply_term_fix, pin_ambiguous_terms, restore_pinned_terms
+from translate_qa import apply_term_fix, pin_ambiguous_terms, restore_pinned_terms, postprocess_names
 
 
 def test_event_variants_become_official_english_term():
@@ -56,6 +56,24 @@ def test_apply_term_fix_is_idempotent_for_appearance_family():
 def test_full_width_bracket_parens_normalized_to_half_width():
     assert apply_term_fix('[=一鍵（N）]') == '[=一鍵(N)]'
     assert apply_term_fix('[=反擊（3）]計算') == '[=後排攻擊(3)]計算'
+
+
+def test_postprocess_names_restores_confirmed_zh_value_not_raw_jp():
+    # 2026-08「全站人名統一無空格」重構：postprocess_names() 過去把佔位符還原成未經處理的
+    # 原始日文姓名字串（帶空格），跟網站其他地方（卡片標題、技能文字）的無空格慣例不一致。
+    # 改成優先查 name_zh_data.py 的無空格 zh 值還原。
+    ph_to_name = {'<<<N0>>>': '影山 飛雄'}
+    result = postprocess_names('自己的舉球角色是<<<N0>>>', ph_to_name)
+    assert result == '自己的舉球角色是影山飛雄'
+    assert '影山 飛雄' not in result
+
+
+def test_postprocess_names_falls_back_to_raw_jp_when_no_table_entry():
+    # 查無 name_zh_data.py 對應條目時（例如還沒建表的角色），fallback 回原始日文姓名，
+    # 不能讓查無條目變成佔位符沒被還原、或還原成空字串。
+    ph_to_name = {'<<<N0>>>': '這個名字在表裡不存在_xyz'}
+    result = postprocess_names('提到<<<N0>>>這個人', ph_to_name)
+    assert result == '提到這個名字在表裡不存在_xyz這個人'
 
 
 def test_backattack_bracket_scoped_not_bare_word():

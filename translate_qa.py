@@ -82,6 +82,7 @@ import time
 from deep_translator import GoogleTranslator
 
 from pipeline_paths import QA_JSON as QA_SRC, QA_ZH_JSON as QA_DST, ALL_CARDS_JSON
+from name_zh_data import NAME_ZH_ENTRIES
 
 # ── 參數 ──────────────────────────────────────────────────────────────────
 DELAY        = 0.5   # 每次請求後等待秒數
@@ -256,9 +257,25 @@ def preprocess(text: str, name_to_ph: dict[str, str]) -> str:
     return text
 
 
+# 本地建一份 {jp: zh} 對照，只給 postprocess_names() 用——不 import build_data.py 本身，
+# 避免繼承它模組層級的副作用（開檔讀 official_terms.json、建 AUDIO_BY_CARD_NO、印 [WARN] 等，
+# 對一支翻譯腳本來說是不相關的負擔）。只吃 confirmed／auto，跟 build_data.py 的
+# _apply_confirmed_name_zh() 用同一個信心門檻——高信心機械正規化過的值視同拍板，
+# 其餘還在研究中的猜測（high/medium/low/draft）不透過這裡自動套用。
+_NAME_ZH_LOOKUP = {
+    entry['jp']: entry['zh']
+    for entry in NAME_ZH_ENTRIES
+    if entry.get('status') in ('confirmed', 'auto')
+}
+
+
 def postprocess_names(text: str, ph_to_name: dict[str, str]) -> str:
+    """把佔位符還原成人名——2026-08「全站人名統一無空格」重構後，優先還原成
+    name_zh_data.py 的無空格 zh 值，跟卡片標題／技能文字的既有無空格慣例一致；
+    查無對應條目（例如還沒建表的角色）才 fallback 回原始日文姓名字串。"""
     for ph, name in ph_to_name.items():
-        text = text.replace(ph, name)
+        zh = _NAME_ZH_LOOKUP.get(name, name)
+        text = text.replace(ph, zh)
     return text
 
 
