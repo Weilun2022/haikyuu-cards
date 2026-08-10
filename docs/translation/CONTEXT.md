@@ -39,10 +39,16 @@ _Avoid_: 不要跟「通用規則」搞混成同一套機制；也不要把 `tra
 `translate_qa.py` 的 `TERM_FIX` 表跟 `official_terms.json` 也刻意不合併：`TERM_FIX` 的 key 是「Google 常見的錯誤中文譯法」（例如「阻擋值」），value 是修正後的正確中文；`official_terms.json` 的 key 是「日文原詞」，value 才是正確中文。兩者比對方向不同（錯誤中文→正確中文 vs 日文→正確中文），沒辦法共用同一份表，2026-08 架構檢視時確認過這不是遺漏，是表本身形狀不同。
 
 **譯名單一真相來源（`name_zh_data.py`）**：
-卡片名稱翻譯的權威表（`NAME_ZH_ENTRIES`／`NAME_ZH_LOOKUP`），每筆有 `status`（`draft`/`confirmed`/`high` 等信心等級）。`通用規則` 裡如果要翻譯剛好也出現在卡名裡的日文字串（例如技能文字引用了某張卡的卡名），一律查這份表（`_apply_confirmed_name_zh()` 吃全文掃描＋`confirmed` gate；`_name_zh_value(jp, fallback)` 給還沒到 `confirmed` 門檻、但需要個別鎖定單一詞的呼叫點用），不要另外硬編一份翻譯。
+卡片名稱翻譯的權威表（`NAME_ZH_ENTRIES`／`NAME_ZH_LOOKUP`），每筆有 `status`（`draft`/`confirmed`/`high`/`auto` 等信心等級）。`通用規則` 裡如果要翻譯剛好也出現在卡名裡的日文字串（例如技能文字引用了某張卡的卡名），一律查這份表（`_apply_confirmed_name_zh()` 吃全文掃描＋`confirmed`／`auto` gate；`_name_zh_value(jp, fallback)` 給還沒到這個門檻、但需要個別鎖定單一詞的呼叫點用），不要另外硬編一份翻譯。
 2026-08 架構檢視時發現三筆歷史硬編翻譯（ヒナガラス／どんぴしゃり／今日 何をする？）跟這份表的確認版本已經 drift，原因是 `name_zh_data.py` 建表時（2026-07-07）比 `build_data.py` 那批硬編寫死的時間（2026-04-15）晚，同步從未補上；同一個月稍後又發現第 4～6 筆（灰羽リエーフ／超インナークロス／助けてもらう），其中「灰羽リエーフ」還同時在卡片名稱標籤、一般技能文字、`MANUAL_OVERRIDES` 三處各自顯示不同譯名。
 **這批問題現在有自動化安全網**：`test_build_data.py` 的 `test_build_data_source_has_no_hardcoded_name_replacements` 靜態掃描 `build_data.py` 原始碼本身，找有沒有任何已登記在 `name_zh_data.py` 裡的日文詞被寫死翻譯、沒透過查表機制——`pytest`（SOP.md 步驟 7）跑的時候會自動執行，不用再等下一次人工全文審查才發現第 7 筆。這個測試刻意不掃 `MANUAL_OVERRIDES`（人工手寫、審查過的純文字，見 `docs/adr/0005` 同一套「不自動改寫人工內容」原則），所以 `MANUAL_OVERRIDES` 裡引用角色名字還是要人工確認跟 `name_zh_data.py` 一致。
 _Avoid_: 修翻譯問題時，若字串同時是某卡卡名，先查 `name_zh_data.py` 有沒有 `confirmed`／個別鎖定版本，不要在 `通用規則`／`MANUAL_OVERRIDES` 裡重新翻一次。也不要因為新測試型態是「掃原始碼」就把一般函式測試也寫成斷言內部呼叫——這是刻意的單一例外，見 `CODING_STANDARDS.md`。
+
+**角色全名一律無空格（2026-08 全站統一）**：
+角色全名（卡片標題 `name_zh`、技能文字／QA裁定文字裡用「」或句引號引用的全名）統一都是無空格（例如「日向翔陽」不是「日向 翔陽」）——這是團隊自己翻譯決定的整合慣例，不比照日文原文「姓 空格 名」的排版習慣。
+根因是 `_apply_confirmed_name_zh()` 的 status 閘門過去只放行 `status: 'confirmed'`，但 `name_zh_data.py` 裡所有人名條目的 status 其實是 `'auto'`（機械去空格/繁體正字，高信心），從沒被這個閘門放行過，導致通用規則鏈翻出來的技能文字裡角色全名一直維持著日文原文的帶空格格式沒被轉換；閘門修正後同時放行 `'confirmed'` 跟 `'auto'`。同一批重構也把 `MANUAL_OVERRIDES`（33 個角色、107 筆帶空格引用）跟 `translate_qa.py` 的人名還原機制（含既有 432 筆 QA 資料回溯）一併收斂成同一套無空格慣例，含 `apply_qa_fixes.py`「FIXES」表裡少數提及角色全名的 `set` 值（只改文字內容配合新慣例，`anchor` 定位邏輯完全沒動）——否則這幾筆歷史修正一旦未來被重新套用到全新翻譯的資料上，會把已經無空格的文字又改回帶空格。
+`translate_skill()` 裡另外還有一條處理「灰羽リエーフ」裸假名殘留（只有片假名姓氏、沒有「灰羽」前綴）的窄規則，跟 `_apply_confirmed_name_zh()` 比對的模式不同（後者需要完整比對到「灰羽 リエーフ」全名），所以閘門修正後這條窄規則沒有變成冗餘，兩條規則處理的是不同殘留形狀，都要保留。
+_Avoid_: 不要假設角色全名在任何語境都該保留空格比照日文——這個專案明確選擇無空格；也不要因為 `MANUAL_OVERRIDES`／`apply_qa_fixes.py` 是「人工審查過的內容」就完全不能碰，內容本身跟著站內既有慣例更新是允許的，只是不能動到比對／定位邏輯本身（`MANUAL_OVERRIDES` 的查表機制、`apply_qa_fixes.py` 的 `anchor` 欄位）。
 
 **假名殘留掃描**：
 翻譯完成後的品質關卡——掃 `skill_zh`/`annotation_zh` 有沒有殘留日文假名/片假名，用來抓「規則沒命中、整段還是日文」的情況。**已知陷阱**：掃描時要排除引號「...」內引用其他卡片/技能日文原名的部分（那是刻意保留，不是漏翻，2026-07-25 在 `check_translations.js` 踩過這個坑），也要排除「ユース」類保留詞；且掃描範圍要涵蓋全庫，不能只挑特定系列（`\r\n` vs `\n` 換行差異曾經導致特定幾張卡的規則對不上而被漏掃，見 `docs/adr/0002`）。

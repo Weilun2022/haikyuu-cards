@@ -96,10 +96,18 @@ def test_apply_confirmed_name_zh_now_applies_auto_status_person_names():
 def test_translate_skill_outputs_no_space_person_name_via_general_pipeline():
     # 端到端驗證：通用規則鏈（不是個別窄規則）翻出來的技能文字，引用其他角色全名時輸出
     # 無空格版本，跟卡片標題慣例一致——這是這次重構要解決的原始問題（搜尋「日向翔陽」
-    # 找不到技能文字裡「日向 翔陽」這種帶空格引用）的資料層根本修正。
-    result = bd.translate_skill('自己的舉球角色是「影山 飛雄」時', [])
-    assert '影山飛雄' in result
-    assert '影山 飛雄' not in result
+    # 找不到技能文字裡「日向 翔陽」這種帶空格引用）的資料層根本修正。涵蓋票 #104 acceptance
+    # criteria 點名的三個曾經漏接案例（影山飛雄／及川徹／澤村大地），確認都透過
+    # translate_skill() 這個公開入口，而不是只測內部的 _apply_confirmed_name_zh()。
+    cases = [
+        ('自己的舉球角色是「影山 飛雄」時', '影山飛雄', '影山 飛雄'),
+        ('若對手的攻擊角色是「及川 徹」', '及川徹', '及川 徹'),
+        ('自己的角色「澤村 大地」出場時', '澤村大地', '澤村 大地'),
+    ]
+    for skill_jp, expected_zh, stale_spaced in cases:
+        result = bd.translate_skill(skill_jp, [])
+        assert expected_zh in result, f'{skill_jp!r} 應該輸出無空格 {expected_zh!r}，實際：{result!r}'
+        assert stale_spaced not in result, f'{skill_jp!r} 不應該殘留帶空格 {stale_spaced!r}'
 
 
 def test_point_terms_use_official_terms_single_source():
