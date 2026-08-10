@@ -206,9 +206,22 @@ def test_manual_overrides_no_space_person_names_from_batch_migration():
     assert '日向翔陽' in bd.MANUAL_OVERRIDES['HV-P01-006-I.webp']
     assert '日向 翔陽' not in bd.MANUAL_OVERRIDES['HV-P01-006-I.webp']
 
-    # 沒有空格可去、單純字型差異（黒→黑）的「・」複合名稱標籤，不在這次範圍內，維持原樣
-    assert 'HV-PR-014-P.webp' in bd.MANUAL_OVERRIDES
-    assert '孤爪・黒尾' in bd.MANUAL_OVERRIDES['HV-PR-014-P.webp']
+
+def test_manual_overrides_kanji_variant_person_labels_use_traditional_forms():
+    # 「・」複合人名標籤沒有空格可去，但殘留日文新字體（黒/国/瀬），改用繁體正字
+    # （黑/國/瀨），跟 name_zh_data.py 已登記的 status='auto' 版本一致。
+    cases = [
+        ('HV-PR-014-P.webp', '孤爪・黑尾', '孤爪・黒尾'),
+        ('HV-P01-073-N.webp', '月島・黑尾', '月島・黒尾'),
+        ('HV-P02-078-R.webp', '澤村・黑尾', '澤村・黒尾'),
+        ('HV-PR-042-P.webp', '白布・瀨見', '白布・瀬見'),
+        ('HV-PR-017-P.webp', '金田一・國見', '金田一・国見'),
+    ]
+    for key, correct, stale in cases:
+        assert key in bd.MANUAL_OVERRIDES, f'{key} 應該存在於 MANUAL_OVERRIDES'
+        text = bd.MANUAL_OVERRIDES[key]
+        assert correct in text, f'{key} 應該含正字版本「{correct}」'
+        assert stale not in text, f'{key} 不應該含日文新字體版本「{stale}」'
 
 
 def test_manual_overrides_redundant_entry_removed():
