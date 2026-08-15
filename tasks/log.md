@@ -39,6 +39,24 @@
 
 ---
 
+## 2026-08-15
+
+### 翻譯字型殘留修正（`#107`／`#108`，`4ca7215`）+ 兩筆技術債盤點
+
+上次「全站人名統一無空格」重構（`#103`～`#106`）過程中順帶稽核發現、當時刻意排除的三件事，這次 session 逐一查證現況（記憶檔案快照跟現狀有落差，例如 MANUAL_OVERRIDES 筆數 168→167，已修正）：
+
+**1. 5 筆「・」複合人名標籤字型殘留（黒/国/瀬→黑/國/瀨），已完整走完 Matt Pocock 流程並落地：**
+- 用平行 workflow 查證：三個未提交文件（見下）內容完整自洽；セット→覆蓋誤譯規則其實已寫在 `clean_qa_text()`（`build_data.py:1494`），只是沒接進 `translate_skill()` 呼叫鏈；属→屬完全沒有通用轉換步驟，純靠 4 筆 MANUAL_OVERRIDES 頂著。
+- `/diagnosing-bugs` 建立 feedback loop（以 `name_zh_data.py` 的 `status=confirmed/auto` 條目為權威來源反查殘留），確認這 5 筆是封閉集合、不會外溢到一般規則鏈輸出，判定跟項目「規則鏈技術債」完全獨立、可任意排序。過程中一度誤判 `HV-P03-080-N`「探せ」殘留也是同類 bug，後來查出那張卡本身就是 EVENT 卡「探せ」，`_protect_terms()`/`restore_event_names()`（`build_data.py:121-133`／`834-836`）刻意保留 EVENT 卡名稱引號引用的日文原文，是設計行為不是缺陷，已撤回排除。
+- `/to-spec`（`#107`）→ `/to-tickets`（`#108`，單一垂直切片）→ `/implement`：TDD 沿用 `test_build_data.py` 既有縫，反轉舊的「維持原樣」釘住斷言＋新增涵蓋全部 5 筆的參數化測試；`/code-review` 兩軸抓到 2 筆 Standards 問題（註解殘留會過時的 issue 編號、新舊測試重複斷言），當場修正合併；86 個測試全過；`python build_data.py` 重新產生 `cards_data.js`/`cards_zh.json` 並逐一核對 5 張卡 `skill_zh` 正確。
+- Push 前發現本機 `main` 落後 `origin/main` 3 個自動排程 commit（`promo_data.js`/`schedule_data.js`/`schedule_registry.json`，跟本次改動檔案無交集），`git pull --rebase --autostash` 安全接上後推送，`#107`/`#108` 隨 push 自動關閉。
+
+**2. 未完成，寫入代辦（見 Task #1/#2）：**
+- 三個從重構前就未提交的文件（`CLAUDE.md`／`docs/agents/a2a-hybrid-workflow.md`／`docs/agents/issue-tracker.md`）——內容查證過完整自洽，但 `CLAUDE.md` 新增段落引用的 `docs/agents/triage-labels.md` 目前是 untracked，commit 時要一併加入才不會產生斷鏈引用。
+- `translate_skill()` 規則鏈技術債（166/167 筆 MANUAL_OVERRIDES 頂著規則鏈真實缺陷：89 筆贅字「的」、51 筆漏「若/當」、22 筆語序錯誤、7 筆假名殘留、4 筆属→屬、2 筆セット/覆蓋規則接線缺失）——量體大、風險高（會波及所有未重新審查過的卡片，且診斷發現還有 360 張從未被稽核過的卡片，範圍可能不只 167 筆），需要另開正式 `/to-spec` 處理，不適合輕量修復。
+
+---
+
 ## 2026-08-05（Session 38）
 
 ### 牌組轉圖片版面重新設計（#93 主票，子票 #94/#95/#96 全數完成，`bb7bfb0`~`a7a997e`）
