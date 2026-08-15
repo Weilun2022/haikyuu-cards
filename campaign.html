@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>校排聯賽</title>
+<style>
+  @font-face {
+    font-family: "PosterCJK";
+    src: url(fonts/notosanstc-var-subset.woff2) format("woff2");
+    font-weight: 400 900;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  :root {
+    --bg: #FAFAFA;
+    --surface: #FFFFFF;
+    --surface2: #F3EFEA;
+    --border: #E2DCD3;
+    --text: #0D0506;
+    --text-dim: #6B6B6B;
+    --accent: #BE520B;
+    --accent2: #9C6209;
+    --focus: #FFB066;
+    --on-accent: #FFFFFF;
+
+    --s-karasuno: #D6350C;
+    --s-aoba: #0e7490;
+    --s-nekoma: #dc2626;
+    --s-fukurodani: #8B4513;
+    --s-shiratorizawa: #2563eb;
+    --s-inarizaki: #9333ea;
+    --s-date: #15803d;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #17130F;
+      --surface: #1E1914;
+      --surface2: #241E18;
+      --border: #3A3128;
+      --text: #F5EFE6;
+      --text-dim: #B3A899;
+      --accent: #E8833B;
+      --accent2: #D9A73E;
+      --focus: #FFB066;
+      --on-accent: #1A1108;
+      --s-fukurodani: #B5651D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #17130F;
+    --surface: #1E1914;
+    --surface2: #241E18;
+    --border: #3A3128;
+    --text: #F5EFE6;
+    --text-dim: #B3A899;
+    --accent: #E8833B;
+    --accent2: #D9A73E;
+    --focus: #FFB066;
+    --on-accent: #1A1108;
+    --s-fukurodani: #B5651D;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "PosterCJK", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 0 64px;
+  }
+
+  /* ── Hero ─────────────────────────────────────────── */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    padding: 56px 28px 40px;
+    background:
+      repeating-linear-gradient(
+        115deg,
+        color-mix(in srgb, var(--accent) 7%, transparent) 0px,
+        color-mix(in srgb, var(--accent) 7%, transparent) 1px,
+        transparent 1px,
+        transparent 34px
+      ),
+      var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -1px;
+    width: 92%;
+    max-width: 640px;
+    height: 2px;
+    transform: translateX(-50%);
+    background: repeating-linear-gradient(
+      to right,
+      var(--text-dim) 0 14px,
+      transparent 14px 24px
+    );
+    opacity: .35;
+  }
+  .venue {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .venue::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  h1.title {
+    margin: 14px 0 0;
+    font-size: clamp(34px, 8.4vw, 54px);
+    font-weight: 900;
+    line-height: 1.12;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  h1.title em {
+    font-style: normal;
+    color: var(--accent);
+  }
+  .subline {
+    margin-top: 6px;
+    font-size: 15px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .tagline {
+    margin-top: 20px;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.6;
+    padding-left: 14px;
+    border-left: 3px solid var(--accent);
+  }
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    margin-top: 28px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .stat-row .stat {
+    background: var(--surface);
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .stat .num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent2);
+  }
+  .stat .lbl {
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+
+  /* ── Sections ─────────────────────────────────────── */
+  section {
+    padding: 40px 28px 0;
+  }
+  .sec-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .sec-head .icon {
+    flex: none;
+    width: 26px; height: 26px;
+    color: var(--accent);
+  }
+  .sec-head h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -.005em;
+  }
+  .sec-sub {
+    margin: 0 0 20px;
+    font-size: 14.5px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  /* ── School roster ────────────────────────────────── */
+  .roster-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin: 4px 0 14px;
+  }
+  .roster-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 10px;
+  }
+  .school-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    width: 70px;
+  }
+  .school-chip .avatar {
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--surface2);
+    border: 2.5px solid var(--school-color);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--text) 14%, transparent);
+  }
+  .school-chip .avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: center 12%;
+    display: block;
+  }
+  .school-chip .label {
+    font-size: 11.5px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* ── Registration slip mockup ─────────────────────── */
+  .regform {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent);
+  }
+  .regform-head {
+    background: var(--surface2);
+    padding: 13px 18px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .regform-head .tag {
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    color: var(--on-accent);
+    background: var(--accent);
+    padding: 3px 7px;
+    border-radius: 5px;
+    flex: none;
+  }
+  .regform-head h3 { margin: 0; font-size: 16.5px; font-weight: 800; }
+  .regform-body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 15px; }
+  .regform-field { display: flex; align-items: baseline; gap: 10px; }
+  .regform-field .rf-label {
+    flex: none;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .regform-field .rf-blank {
+    flex: 1;
+    border-bottom: 1.5px dashed var(--border);
+    height: 1px;
+  }
+  .regform-schools .rf-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-dim);
+    margin-bottom: 10px;
+  }
+  .rf-check-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 9px 14px;
+  }
+  .rf-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .rf-check .box {
+    flex: none;
+    width: 15px; height: 15px;
+    border-radius: 4px;
+    border: 1.6px solid var(--school-color);
+    background: color-mix(in srgb, var(--school-color) 10%, transparent);
+  }
+  .regform-foot {
+    font-size: 11.5px;
+    color: var(--text-dim);
+    border-top: 1px dashed var(--border);
+    padding-top: 11px;
+  }
+  .roster-note {
+    margin-top: 16px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .roster-note b { color: var(--accent2); }
+
+  /* ── Schedule stats ───────────────────────────────── */
+  .info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .info-list .row {
+    background: var(--surface);
+    padding: 14px 16px;
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .info-list .row .k {
+    flex: none;
+    width: 84px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+  .info-list .row .v {
+    font-size: 14.5px;
+    line-height: 1.7;
+  }
+
+  /* ── Scoring flow ─────────────────────────────────── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 18px 20px;
+  }
+  .step + .step { margin-top: 22px; }
+  .step-connector {
+    display: flex;
+    justify-content: center;
+    margin: -4px 0;
+  }
+  .step-connector svg { color: var(--text-dim); opacity: .6; }
+  .step-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+  .step-eyebrow .n {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 11px;
+  }
+  .step h3 {
+    margin: 8px 0 12px;
+    font-size: 17px;
+    font-weight: 800;
+  }
+  .formula {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    background: var(--surface2);
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .formula .op {
+    color: var(--accent2);
+    font-size: 18px;
+    font-weight: 900;
+  }
+  .formula .term {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+  }
+  .step p.note {
+    margin: 12px 0 0;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: var(--text-dim);
+  }
+  .step p.note + p.note { margin-top: 8px; }
+
+  /* ── Rewards ──────────────────────────────────────── */
+  .reward-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .reward-card + .reward-card { margin-top: 12px; }
+  .reward-card .rk {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--accent2);
+  }
+  .reward-card .rv {
+    margin-top: 4px;
+    font-size: 15.5px;
+    font-weight: 700;
+    line-height: 1.6;
+  }
+  .card-spotlight {
+    margin-top: 14px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .card-spotlight img {
+    width: 72px;
+    aspect-ratio: 5/7;
+    object-fit: cover;
+    border-radius: 6px;
+    flex: none;
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--text) 18%, transparent);
+  }
+  .card-spotlight .cs-name {
+    font-size: 14px;
+    font-weight: 800;
+  }
+  .card-spotlight .cs-desc {
+    margin-top: 3px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  /* ── Champion table ───────────────────────────────── */
+  .tier-table {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tier {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .tier .qty {
+    flex: none;
+    width: 88px;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .tier .bar-wrap {
+    flex: 1;
+    height: 8px;
+    background: var(--surface2);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .tier .bar-wrap .fill {
+    height: 100%;
+    background: linear-gradient(to right, var(--accent2), var(--accent));
+    border-radius: 5px;
+  }
+  .tier .box {
+    flex: none;
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--accent2);
+    text-align: right;
+    min-width: 92px;
+  }
+
+  /* ── Footer ───────────────────────────────────────── */
+  footer {
+    margin-top: 48px;
+    padding: 20px 28px 0;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  footer .fnote {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  footer .fmark {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-dim);
+    letter-spacing: .04em;
+  }
+
+  /* ── Tear-off stub ────────────────────────────────── */
+  .stub-wrap {
+    padding: 26px 28px 0;
+  }
+  .tearline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+    color: var(--text-dim);
+  }
+  .tearline .line {
+    flex: 1;
+    border-top: 2px dashed var(--border);
+  }
+  .tearline .label {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .tearline .label svg { width: 15px; height: 15px; }
+  .regform.stub { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <span class="venue">新竹賽區 · 草米菓機制</span>
+    <h1 class="title">校排聯賽<br><em>賽程公告</em></h1>
+    <div class="subline">《排球少年!!》卡牌對戰　School League Championship</div>
+    <p class="tagline">飛吧！帶著所屬學校的驕傲，揪團抱走整盒大獎！</p>
+    <div class="stat-row">
+      <div class="stat"><div class="num">150</div><div class="lbl">元 / 場入場費</div></div>
+      <div class="stat"><div class="num">2</div><div class="lbl">比賽週 / 月</div></div>
+      <div class="stat"><div class="num">7</div><div class="lbl">強校可代表</div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/><path d="M8.5 11.5h7M8.5 15h7M8.5 8h4"/></svg>
+      <h2>校隊入部</h2>
+    </div>
+    <p class="sec-sub">選定代表學校，登記你的參戰陣營。海報最下方剪下「入社單」，勾選你代表的 7 大強校陣營之一（一人限報一校），留下聯絡方式交給店家就完成入部。</p>
+
+    <div class="roster-label">7 大強校陣營</div>
+    <div class="roster-strip">
+      <div class="school-chip" style="--school-color: var(--s-karasuno)">
+        <div class="avatar"><img src="images/HV-P01-002-IP.webp" alt="烏野"></div>
+        <div class="label">烏野</div>
+      </div>
+      <div class="school-chip" style="--school-color: var(--s-aoba)">
+        <div class="avatar"><img src="images/HV-P01-033-IP.webp" alt="青葉城西"></div>
+        <div class="label">青葉城西</div>
+      </div>
+      <div class="school-chip" style="--school-color: var(--s-nekoma)">
+        <div class="avatar"><img src="images/HV-P01-021-IP.webp" alt="音駒"></div>
+        <div class="label">音駒</div>
+      </div>
+      <div class="school-chip" style="--school-color: var(--s-fukurodani)">
+        <div class="avatar"><img src="images/HV-P01-043-IP.webp" alt="梟谷"></div>
+        <div class="label">梟谷</div>
+      </div>
+      <div class="school-chip" style="--school-color: var(--s-shiratorizawa)">
+        <div class="avatar"><img src="images/HV-P01-056-SP.webp" alt="白鳥澤"></div>
+        <div class="label">白鳥澤</div>
+      </div>
+      <div class="school-chip" style="--school-color: var(--s-inarizaki)">
+        <div class="avatar"><img src="images/HV-P02-077-KP.webp" alt="稻荷崎"></div>
+        <div class="label">稻荷崎</div>
+      </div>
+      <div class="school-chip" style="--school-color: var(--s-date)">
+        <div class="avatar"><img src="images/HV-P02-038-IP.webp" alt="伊達工"></div>
+        <div class="label">伊達工</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16"/><path d="M8 3v3M16 3v3"/><path d="M8.5 13h2M8.5 16h2M13.5 13h2"/></svg>
+      <h2>賽程時間</h2>
+    </div>
+    <div class="info-list">
+      <div class="row"><div class="k">比賽地點</div><div class="v">平日場・新竹「新世紀遊樂器TCG卡牌休閒館」<br>假日場・竹北「TOP CARD 塔普卡桌遊/卡牌」</div></div>
+      <div class="row"><div class="k">活動週期</div><div class="v">本期賽季自第 3 彈上市日開戰，只要球還沒落地，就用盡全力拼到第 4 彈上市前一天！</div></div>
+      <div class="row"><div class="k">比賽頻率</div><div class="v">每月固定舉辦 2 個比賽週（均設有平日場與假日場，滿足不同時段玩家需求）</div></div>
+      <div class="row"><div class="k">入場費用</div><div class="v">150 元 / 場</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M11 20V4M18 20v-7"/><path d="M3 20h18"/></svg>
+      <h2>學校排行賽</h2>
+    </div>
+    <p class="sec-sub">比的不是人數，而是戰力密度！小校精銳也能拚出高分。</p>
+
+    <div class="flow">
+      <div class="step">
+        <div class="step-eyebrow"><span class="n">1</span>每週分數計算</div>
+        <h3>單日計分</h3>
+        <div class="formula">
+          <span class="term">當天總勝場得分</span>
+          <span class="op">÷</span>
+          <span class="term">當天參賽人數</span>
+        </div>
+        <p class="note">每贏 1 場得 100 分。</p>
+        <p class="note"><b style="color:var(--text)">當週採計：</b>每個比賽週包含「平日場」（新竹新世紀）與「假日場」（竹北塔普卡），直接取該校分數較高的一場作為該週成績——兩店戰績合併計入同一張新竹賽區排行榜。</p>
+      </div>
+
+      <div class="step-connector">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v16M6 14l6 6 6-6"/></svg>
+      </div>
+
+      <div class="step">
+        <div class="step-eyebrow"><span class="n">2</span>彈期總冠軍判定</div>
+        <h3>總分加總</h3>
+        <div class="formula">
+          <span class="term">每個比賽週最高分</span>
+          <span class="op">+</span>
+          <span class="term">…累加全彈期</span>
+        </div>
+        <p class="note">總分最高的學校即為「本彈冠軍校」，全隊準備瓜分大獎！</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8"/><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M12 8c-1.2-3-3-4.5-4.6-4.5A2 2 0 0 0 5.5 5.6C5.5 7.4 8 8 12 8ZM12 8c1.2-3 3-4.5 4.6-4.5A2 2 0 0 1 18.5 5.6C18.5 7.4 16 8 12 8Z"/></svg>
+      <h2>參賽專屬福利</h2>
+    </div>
+
+    <div class="reward-card">
+      <div class="rk">每場參加獎</div>
+      <div class="rv">每次報名比賽，直接抽 1 包卡包！</div>
+    </div>
+    <div class="reward-card">
+      <div class="rk">月底全勤大獎</div>
+      <div class="rv">當月每個比賽週都有出席的全勤玩家，抽出 1 位獲得「ドンピシャ!!」幸運稱號，並獨得當月參賽金 10% 利潤換算之卡包！</div>
+      <div class="card-spotlight">
+        <img src="images/HVBP-013-P.webp" alt="ドンピシャ!!">
+        <div>
+          <div class="cs-name">「ドンピシャ!!」</div>
+          <div class="cs-desc">HVBP-013・看不見球，也接得住運氣！</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6l2 8h10l2-8-5 3-4-5-4 5-1-3Z"/><path d="M7 20h10M8 14l-.6 6M16 14l.6 6"/></svg>
+      <h2>冠軍校加碼獎勵</h2>
+    </div>
+    <p class="sec-sub">彈期結束，冠軍學校依「當彈出勤達 50% 以上」的正式參賽人數，領取對應獎勵：</p>
+
+    <div class="tier-table">
+      <div class="tier">
+        <div class="qty">3 人以下</div>
+        <div class="bar-wrap"><div class="fill" style="width:33%"></div></div>
+        <div class="box">1 盒</div>
+      </div>
+      <div class="tier">
+        <div class="qty">4–6 人</div>
+        <div class="bar-wrap"><div class="fill" style="width:66%"></div></div>
+        <div class="box">2 盒</div>
+      </div>
+      <div class="tier">
+        <div class="qty">7 人以上</div>
+        <div class="bar-wrap"><div class="fill" style="width:100%"></div></div>
+        <div class="box">3 盒</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="fnote">詳細規則以各店最終公告為準，如有變動恕不另行通知。<br>追蹤兩間店家的粉專，掌握最新賽況與異動。</div>
+    <div class="fmark">新竹賽區主辦店家 × 台北草米菓機制協力</div>
+  </footer>
+
+  <div class="stub-wrap">
+    <div class="tearline">
+      <span class="line"></span>
+      <span class="label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8.5 19 19M8.5 15.5 19 5"/></svg>沿線剪下，帶到店裡登記</span>
+      <span class="line"></span>
+    </div>
+    <div class="regform stub">
+      <div class="regform-head">
+        <span class="tag">現場登記</span>
+        <h3>入社單</h3>
+      </div>
+      <div class="regform-body">
+        <div class="regform-field"><span class="rf-label">姓名</span><span class="rf-blank"></span></div>
+        <div class="regform-field"><span class="rf-label">聯絡方式</span><span class="rf-blank"></span></div>
+        <div class="regform-schools">
+          <span class="rf-label">代表學校（限選一校）</span>
+          <div class="rf-check-grid">
+            <label class="rf-check" style="--school-color: var(--s-karasuno)"><span class="box"></span>烏野</label>
+            <label class="rf-check" style="--school-color: var(--s-aoba)"><span class="box"></span>青葉城西</label>
+            <label class="rf-check" style="--school-color: var(--s-nekoma)"><span class="box"></span>音駒</label>
+            <label class="rf-check" style="--school-color: var(--s-fukurodani)"><span class="box"></span>梟谷</label>
+            <label class="rf-check" style="--school-color: var(--s-shiratorizawa)"><span class="box"></span>白鳥澤</label>
+            <label class="rf-check" style="--school-color: var(--s-inarizaki)"><span class="box"></span>稻荷崎</label>
+            <label class="rf-check" style="--school-color: var(--s-date)"><span class="box"></span>伊達工</label>
+          </div>
+        </div>
+        <div class="regform-foot">一人限報一校，聯絡方式僅供賽事核對使用。</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
