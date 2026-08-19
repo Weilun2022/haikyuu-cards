@@ -2,6 +2,15 @@
 const PROMO_NEWS = {
   items: [
     {
+      date: '2026-10-24',
+      title: 'HV-P04 ハイキュー!! バボカ!! BREAK ブースターパック 才能とセンス',
+      desc: '',
+      link: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/product/HV-P04.html',
+      img: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/img/mv7/ttl.webp',
+      productCode: 'HV-P04',
+      productType: 'ブースターパック',
+    },
+    {
       date: '2026-06-27',
       title: 'HV-P03 ハイキュー!! バボカ!! BREAK ブースターパック ユース&選抜強化合宿',
       desc: '',
@@ -33,26 +42,17 @@ const PROMO_NEWS = {
       title: 'HV-P01 ハイキュー!! バボカ!! BREAK ブースターパック ゴミ捨て場の決戦',
       desc: '',
       link: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/product/HV-P01.html',
-      img: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/img/mv1/ttl.png',
+      img: '',
       productCode: 'HV-P01',
       productType: 'ブースターパック',
     },
     {
-      date: '2025-10-25',
-      title: 'HV-D01 ハイキュー!! バボカ!! BREAK スターターデッキ 烏野高校',
+      date: '',
+      title: 'HV-D04 ハイキュー!! バボカ!! BREAK スターターデッキ 青葉城西高校',
       desc: '',
-      link: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/product/HV-D01.html',
-      img: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/img/mv2/ttl.png',
-      productCode: 'HV-D01',
-      productType: 'スターターデッキ',
-    },
-    {
-      date: '2025-10-25',
-      title: 'HV-D02 ハイキュー!! バボカ!! BREAK スターターデッキ 音駒高校',
-      desc: '',
-      link: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/product/HV-D02.html',
-      img: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/img/mv3/ttl.png',
-      productCode: 'HV-D02',
+      link: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/product/HV-D04.html',
+      img: 'https://www.takaratomy.co.jp/products/haikyuvobacabreak/img/mv8/ttl.webp',
+      productCode: 'HV-D04',
       productType: 'スターターデッキ',
     }
   ],
