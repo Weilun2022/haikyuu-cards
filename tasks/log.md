@@ -39,6 +39,20 @@
 
 ---
 
+## 2026-08-24
+
+### Google Search Console 網站收錄設定（`327fb51`／`f28308f`／`8504f43`）
+
+目的：讓 `https://weilun2022.github.io/haikyuu-cards/` 能被 Google 搜尋收錄，之前完全沒設定過任何 SEO 相關檔案。
+
+- `327fb51`：根目錄加入 `google11f71f7789257c95.html`（Search Console「HTML 檔案」驗證法用，內容固定是 `google-site-verification: google11f71f7789257c95.html`），完成網站擁有權驗證。**這個檔案不要刪**，Google 會持續靠它確認擁有權，日後若要移除驗證要先去 Search Console 解除關聯再刪檔。
+- `f28308f`：新增 `robots.txt`（允許全站爬取，但 `Disallow: /admin.html`、`/order-status.html`——這兩頁是內部管理／使用者訂單查詢頁，不該被搜尋引擎收錄）與 `sitemap.xml`。
+- `8504f43`：`sitemap.xml` 從原本列 5 個公開頁面（首頁/game/campaign/promo/shop）精簡成只留 `index.html` 與 `promo.html`——使用者明確表示現階段只想讓這兩頁被搜尋到。**之後如果要讓 `game.html`／`campaign.html`／`shop.html` 也被收錄，只要把對應 `<url><loc>` 加回 `sitemap.xml` 即可，不影響 robots.txt。**
+- 已在 Search Console 提交 sitemap，首次提交時 GitHub Pages 尚未部署完成，狀態顯示「無法擷取」；事後用 curl 確認 `sitemap.xml`／`robots.txt` 皆回應 `200 OK`，判斷純粹是 Google 抓取時機問題，非檔案本身有誤。
+- 收錄進度可用 `site:weilun2022.github.io/haikyuu-cards` 在 Google 搜尋確認，通常需數天到一兩週才會出現結果。
+
+---
+
 ## 2026-08-15
 
 ### 翻譯字型殘留修正（`#107`／`#108`，`4ca7215`）+ 兩筆技術債盤點
