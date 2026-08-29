@@ -18,6 +18,8 @@ const MAX_RESULTS = 15; // 每頻道抓取最新幾部
 const CHANNELS = [
   // 執貳（@unique7purify31）
   { id: 'UCWTVsru0nSGFIaRGbiN5o-w', name: '執貳' },
+  // HVB俱樂部（@HVB-club）
+  { id: 'UCZzLY6IhEanUYnIzthUmYHw', name: 'HVB俱樂部' },
   // 未來新增商家：在此加一行即可
 ];
 
