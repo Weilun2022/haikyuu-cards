@@ -39,6 +39,18 @@
 
 ---
 
+## 2026-08-30
+
+### 情報站新增合作頻道：HVB俱樂部（`436a752`／`2950e2e`）
+
+使用者要求追蹤 `https://www.youtube.com/@HVB-club`。透過瀏覽器讀取頻道頁 `externalId` 取得頻道 ID `UCZzLY6IhEanUYnIzthUmYHw`（顯示名稱 "Haikyu!! Vobaca!! Break 排球部"），加進 `fetch_promo.js` 的 `CHANNELS` 陣列，命名為「HVB俱樂部」。
+
+commit 後手動 `gh workflow run promo.yml` 觸發雲端排程驗證效果（本機沒有 `YOUTUBE_API_KEY`，這把金鑰只存在 GitHub Actions secret）。跑完確認：該頻道目前僅 1 部影片，標題含 `VOBACA`／`BREAK` 關鍵字被判定相關，歸類「烏野」，已出現在 [promo.html](https://weilun2022.github.io/haikyuu-cards/promo.html) 頁面上。之後跟其他頻道一樣每 4 小時自動排程抓取。
+
+**過程中的側支狀況（跟本次任務無關，未處理）**：push 前本機 `main` 落後遠端多筆自動排程 commit，`git stash push -u` 暫存其他未提交檔案後 rebase 再 push、pop 回來。`robots.txt`／`sitemap.xml` 兩個檔案 pop 失敗並留在 stash 裡——本機有一份未提交的舊草稿版本（多一條 `Disallow: /order-status.html`、sitemap 少 `changefreq`/`priority`），跟遠端已提交、較新的版本內容衝突。已詢問使用者要套用還是丟棄，尚未回覆，stash 還留著（`git stash list` 可查）。
+
+---
+
 ## 2026-08-24
 
 ### Google Search Console 網站收錄設定（`327fb51`／`f28308f`／`8504f43`）
