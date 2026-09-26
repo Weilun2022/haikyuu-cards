@@ -645,6 +645,13 @@ NAME_ZH_ENTRIES = [
         "note": "",
     },
     {
+        "jp": "挑戦者たち",
+        "zh": "挑戰者們",
+        "kind": "group",
+        "status": "medium",
+        "note": "HV-PR-078 烏野事件卡，字面直譯；2026-09-27 新增",
+    },
+    {
         "jp": "探せ",
         "zh": "找出來！",
         "kind": "quote",
