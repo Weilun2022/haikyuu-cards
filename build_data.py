@@ -342,6 +342,7 @@ def _translate_vocabulary(t):
         ('ドロー','抽牌'),('ランダム','隨機'),
         ('元監督','前任教練'),('監督','教練'),('コーチ', OFFICIAL_TERMS["コーチ"]),
         ('ポジション','站位'),('じゃんけん','猜拳'),
+        ('所属','所屬'),
     ]
     for jp, zh in single_map:
         t = t.replace(jp, zh)

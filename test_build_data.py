@@ -41,6 +41,13 @@ def test_jibun_no_word_order_after_verb():
     assert '自己的公開' not in result
 
 
+def test_shozoku_converted_to_traditional_form():
+    # 「所属」是日文新字體，規則鏈要轉成正體「所屬」（HV-P01-068/076 曾殘留）
+    result = bd.translate_skill('自分の手札が4枚以下の場合、自分のエリア1つから同じ所属のガッツ2枚を手札に加える。', [])
+    assert '所属' not in result
+    assert '所屬' in result
+
+
 def test_kono_kyara_ga_baai_inserts_shi():
     # 問題五：このキャラが〜キャラの場合，要補「是」字
     result = bd.translate_skill('このキャラがアタックキャラの場合', [])

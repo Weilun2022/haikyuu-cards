@@ -648,8 +648,8 @@ NAME_ZH_ENTRIES = [
         "jp": "挑戦者たち",
         "zh": "挑戰者們",
         "kind": "group",
-        "status": "medium",
-        "note": "HV-PR-078 烏野事件卡，字面直譯；2026-09-27 新增",
+        "status": "confirmed",
+        "note": "HV-PR-078 烏野事件卡；出自原作最終話第402話標題/原畫展名稱，東立官方譯名",
     },
     {
         "jp": "探せ",

@@ -201,6 +201,10 @@ function checkCard(card) {
   if (zhWithoutQuotedNames.includes('攻撃')) {
     cardIssues.push({ type: '術語錯誤', fragment: '攻撃', suggestion: '改為「攻擊」(正體字)' });
   }
+  // 所属 (日文新字體) → 所屬
+  if (zhWithoutQuotedNames.includes('所属')) {
+    cardIssues.push({ type: '術語錯誤', fragment: '所属', suggestion: '改為「所屬」(正體字)' });
+  }
 
   // X點數/分數 where should be X值
   const wrongPoint = zh.match(/(舉球|接球|攔網|攻擊|發球|進攻|防禦)(點數|分數|分)/);
