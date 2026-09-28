@@ -25,4 +25,6 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
-> `wayfinder` skill 沒有安裝，這裡不收錄它的 Wayfinding operations 教學（map/child issue/blocking 那套），避免有人照著做卻發現沒有這個指令可用。之後如果真的要裝 `wayfinder`，再從原始 repo（github.com/mattpocock/skills）補這段內容回來。
+## Wayfinding
+
+`wayfinder` skill 現在已安裝，可用它在 issue/spec 之間導航（map、child issue、blocking 關係）。用法見 `wayfinder` skill 本身的說明。

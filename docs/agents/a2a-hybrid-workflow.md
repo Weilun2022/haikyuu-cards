@@ -22,6 +22,9 @@
 2. **使用者的 slash command 關卡不變。** Claude 仍然不能自己觸發 `/grilling`/`/to-spec`/`/to-tickets`/`/implement`——這些指令必須由使用者親自打。改變的只是「關卡打開之後、裡面怎麼跑」。
 3. **遇到只有使用者才知道答案的業務/情境判斷**（不是 GPT 能幫忙解決的技術分歧），**用最合理的猜測繼續走，不中斷 loop**，但在最後總結裡明確標出「這點是用猜的」。真的卡死、猜不出合理答案才中斷詢問使用者。
 4. **`/implement` 前，只給使用者看一次白話文總結**：涵蓋 grilling/spec/tickets 全程決議的關鍵決策、理由，以及哪些地方是用猜的（要明確標出）。使用者看的是這一份總結，不是每個關卡的原始討論記錄。滿意後才打 `/implement`——這之後的實作、`/code-review` 流程完全不變。
+5. **A2A 呼叫失敗時不要卡住等**：GPT 端沒回應、被 rate limit、或回傳格式不對（`ask_peer` 拋 `PeerCallError`；辯論模式的 `run_debate_session()` 回傳 `outcome="error"`），這輪決策直接改成問使用者，並在最後總結裡標「這點是因為 A2A 呼叫失敗才問你的，不是設計上要問」。不要重試到卡死或憑空腦補一個答案。
+
+**辯論模式已內建防呆，不用另外加**：`common/debate_coordinator.py` 本身就有硬上限（最多 3 次 Claude 追問 `MAX_CLAUDE_FOLLOWUPS`、總共 6 次模型呼叫 `MAX_TOTAL_MODEL_CALLS`、5 分鐘牆鐘時限 `SESSION_TIME_LIMIT_SECONDS`），撞到任何一個上限會讓 OpenRouter 端強制給最終答案，不會無限迴圈跑下去。
 
 ## 下 prompt 的原則
 
