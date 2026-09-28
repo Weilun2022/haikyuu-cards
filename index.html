@@ -353,6 +353,10 @@
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
     position: relative;
+    /* 畫面外的卡片跳過渲染：renderGrid 每次篩選都整批重建全部卡片，不篩選時樣式/版面/繪製成本會讓搜尋每個字都卡頓。
+       330px 是桌機卡高的預估值（手機在 max-width:600px 另設 290px）；auto 只在同一批節點存活期間記住實際高度 */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 330px;
   }
   .card:hover {
     transform: translateY(-3px);
@@ -776,6 +780,7 @@
       padding: 14px 14px 14px 12px;
     }
     .grid-container { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
+    .card { contain-intrinsic-size: auto 290px; } /* 手機卡較矮，對應 .card 的 content-visibility 預估高度 */
     header, #search-row {
       transition: max-height 0.25s ease, padding 0.25s ease, opacity 0.2s ease;
       overflow: hidden;
