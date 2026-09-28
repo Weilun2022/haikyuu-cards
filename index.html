@@ -409,8 +409,8 @@
     font-weight: 700;
     padding: 2px 6px;
     border-radius: 4px;
-    background: rgba(0,0,0,0.7);
-    backdrop-filter: blur(4px);
+    /* 不用 backdrop-filter：每張卡都會被升成獨立合成層，數百張卡讓每幀 Layerize 佔滿主執行緒 */
+    background: rgba(0,0,0,0.78);
   }
 
   .card-info {
