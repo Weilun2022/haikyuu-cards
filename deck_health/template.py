@@ -15,6 +15,8 @@ ARCH = {
     'S': dict(srv=2, blk=1, rcv=1, tos=1, atk=1, position='S'),
     'S2': dict(srv=2, blk=1, rcv=1, tos=2, atk=1, position='S'),       # 舉球手約 40% 是 2
     'A': dict(srv=2, blk=2, rcv=2, tos=0, atk=3, position='WS'),
+    'RA': dict(srv=1, blk=1, rcv=5, tos=0, atk=3, position='WS'),     # 503，可攻可守
+    'SA': dict(srv=1, blk=1, rcv=1, tos=1, atk=3, position='S'),      # 013，可舉可攻
 }
 # 通用事件：卡池 61/80 張事件會抽牌，常見效果是「抽 1 + 數值 +1」
 GEN_EVENTS = {
@@ -46,7 +48,7 @@ def raw(no, name, cat, st=None):
     return d
 
 
-def make_deck(E, R, S, A, n6=None, n2=None):
+def make_deck(E, R, S, A, n6=None, n2=None, nRA=0, nSA=0):
     assert E + R + S + A == 40
     cards = []
     # 接球 6、舉球 2 的張數：可直接指定；否則看 FIX_R6 / FIX_S2；再否則依卡池比例
@@ -54,12 +56,27 @@ def make_deck(E, R, S, A, n6=None, n2=None):
     if n2 is None: n2 = int(os.environ['FIX_S2']) if 'FIX_S2' in os.environ else round(S * 0.4)
     n6, n2 = min(n6, R), min(n2, S)
     sk = lambda i, n: (i % 2 == 1) if SKILLED == 0.5 else (i < round(n * SKILLED))
-    for i in range(R):
-        st = ARCH['R6' if i < n6 else 'R']
-        cards.append(raw('GEN-R+' if sk(i, R) else 'GEN-R', f'接{i // 3}', 'CHARACTER', st))
-    for i in range(S):
-        st = ARCH['S2' if i < n2 else 'S']
-        cards.append(raw('GEN-S+' if sk(i, S) else 'GEN-S', f'舉{i // 3}', 'CHARACTER', st))
+
+    # 接球手：共 R 張，其中 nRA 張替換為 RA，其餘優先保留 n6 張 R6
+    cur_r6 = min(n6, max(0, R - nRA))
+    cur_r = max(0, R - nRA - cur_r6)
+    for i in range(cur_r6):
+        cards.append(raw('GEN-R+' if sk(i, R) else 'GEN-R', f'接{i // 3}', 'CHARACTER', ARCH['R6']))
+    for i in range(cur_r):
+        cards.append(raw('GEN-R+' if sk(cur_r6 + i, R) else 'GEN-R', f'接{(cur_r6 + i) // 3}', 'CHARACTER', ARCH['R']))
+    for i in range(nRA):
+        cards.append(raw('GEN-RA', f'攻守{i // 3}', 'CHARACTER', ARCH['RA']))
+
+    # 舉球手：共 S 張，其中 nSA 張替換為 SA，其餘優先保留 n2 張 S2
+    cur_s2 = min(n2, max(0, S - nSA))
+    cur_s = max(0, S - nSA - cur_s2)
+    for i in range(cur_s2):
+        cards.append(raw('GEN-S+' if sk(i, S) else 'GEN-S', f'舉{i // 3}', 'CHARACTER', ARCH['S2']))
+    for i in range(cur_s):
+        cards.append(raw('GEN-S+' if sk(cur_s2 + i, S) else 'GEN-S', f'舉{(cur_s2 + i) // 3}', 'CHARACTER', ARCH['S']))
+    for i in range(nSA):
+        cards.append(raw('GEN-SA', f'舉攻{i // 3}', 'CHARACTER', ARCH['SA']))
+
     for i in range(A): cards.append(raw('GEN-A+' if sk(i, A) else 'GEN-A', f'攻{i // 3}', 'CHARACTER', ARCH['A']))
     for i in range(E): cards.append(raw('GEN-EV-R' if i % 2 == 0 else 'GEN-EV-A', f'事{i}', 'EVENT'))
     return [sim2.Card(c) for c in cards]
