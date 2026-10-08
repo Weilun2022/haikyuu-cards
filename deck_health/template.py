@@ -64,8 +64,9 @@ def make_deck(E, R, S, A, n6=None, n2=None, nRA=0, nSA=0):
         cards.append(raw('GEN-R+' if sk(i, R) else 'GEN-R', f'接{i // 3}', 'CHARACTER', ARCH['R6']))
     for i in range(cur_r):
         cards.append(raw('GEN-R+' if sk(cur_r6 + i, R) else 'GEN-R', f'接{(cur_r6 + i) // 3}', 'CHARACTER', ARCH['R']))
+    # 雙重卡型沿用被替換卡的技能比例（RA 帶接球技能、SA 帶舉球技能），只比較「多了攻擊 3」的差異
     for i in range(nRA):
-        cards.append(raw('GEN-RA', f'攻守{i // 3}', 'CHARACTER', ARCH['RA']))
+        cards.append(raw('GEN-R+' if sk(cur_r6 + cur_r + i, R) else 'GEN-R', f'攻守{i // 3}', 'CHARACTER', ARCH['RA']))
 
     # 舉球手：共 S 張，其中 nSA 張替換為 SA，其餘優先保留 n2 張 S2
     cur_s2 = min(n2, max(0, S - nSA))
@@ -75,7 +76,7 @@ def make_deck(E, R, S, A, n6=None, n2=None, nRA=0, nSA=0):
     for i in range(cur_s):
         cards.append(raw('GEN-S+' if sk(cur_s2 + i, S) else 'GEN-S', f'舉{(cur_s2 + i) // 3}', 'CHARACTER', ARCH['S']))
     for i in range(nSA):
-        cards.append(raw('GEN-SA', f'舉攻{i // 3}', 'CHARACTER', ARCH['SA']))
+        cards.append(raw('GEN-S+' if sk(cur_s2 + cur_s + i, S) else 'GEN-S', f'舉攻{i // 3}', 'CHARACTER', ARCH['SA']))
 
     for i in range(A): cards.append(raw('GEN-A+' if sk(i, A) else 'GEN-A', f'攻{i // 3}', 'CHARACTER', ARCH['A']))
     for i in range(E): cards.append(raw('GEN-EV-R' if i % 2 == 0 else 'GEN-EV-A', f'事{i}', 'EVENT'))
