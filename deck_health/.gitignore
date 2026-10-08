@@ -1,0 +1,5 @@
+# 根目錄 .gitignore 排除所有 *.py / *.json；這個資料夾是分析工具，需要納入版控
+!*.py
+!*.json
+__pycache__/
+*.jsonl
