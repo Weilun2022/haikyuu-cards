@@ -120,3 +120,70 @@ MANUAL = {
              cost=[dict(type='this_to_deck_bottom')],
              effects=[dict(type='event_to_hand', who='self', filter=dict(only_phase='attack'), max=1)])],
 }
+
+# ── 梟谷（2026-10-09 結構化，待使用者驗收）──────────────────
+MANUAL_FUKURODANI = {
+    'HV-P01-051': [dict(  # 鷲尾辰生
+        timing='on_enter', zones=['block'],
+        conditions=[dict(type='opp_op_ge', n=4, of='serve_or_attack',
+                         note='原文只寫「相手のオフェンスポイント」，攔發球也適用')],
+        cost=[dict(type='mill', who='self', n=1, capture='milled')],
+        effects=[dict(type='keyword', name='ワンタッチ', n=3,
+                      **{'if': [dict(type='captured_school', key='milled', school='梟谷')]},
+                      note='9-3：對手進攻 −3，跳過剩下的攔網階段，進入自己的抽牌→接球；QA：之後接球可再出另一張鷲尾')])],
+
+    'HV-PR-047': [dict(  # 小見春樹
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='discard_hand', n=1)],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=2)])],
+
+    'HV-P01-045': [dict(  # 赤葦京治
+        timing='on_enter', zones=['toss'],
+        cost=[dict(type='guts_multi', zones=['toss', 'attack'], n=4,
+                   note='QA：從舉球區與攻擊區任意組合，合計 4')],
+        effects=[dict(type='stat_add', target='this', stat='tos', n=2),
+                 dict(type='drop_to_hand', who='self', filter=dict(name='木兎 光太郎'), max=1,
+                      note='QA：剛支付的 Guts 裡的木兎也可以拿')])],
+
+    'HV-P02-067': [dict(  # 赤葦京治
+        timing='on_enter', zones=['toss'],
+        effects=[dict(type='mill', who='self', n=1, up_to=True, capture='milled'),
+                 dict(type='optional', cost=[dict(type='discard_hand', n=1)],
+                      effects=[dict(type='keyword', name='ツーアタック', n=3,
+                                    note='9-8：進攻值固定 3，跳到結束階段（不出攻擊角色），對手下回合不能出攔網')],
+                      **{'if': [dict(type='captured_school', key='milled', school='梟谷', category='CHARACTER')]})])],
+
+    'HV-P03-061': [dict(  # 木兎光太郎
+        timing='on_enter', zones=['serve', 'attack'],
+        cost=[dict(type='discard_named', name='木兎 光太郎', n=1,
+                   note='QA：雙名卡「木兎・赤葦」不能拿來棄')],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target='this', stat='any', n=3,
+                      note='任一數值；在發球區加發球、在攻擊區加攻擊')])],
+
+    'HV-P01-043': [dict(  # 木兎光太郎
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='entered_from_hand'),
+                    dict(type='all_own_chars_school', school='梟谷'),
+                    dict(type='zone_guts_odd', zone='attack',
+                         note='QA：在這張出場、使用技能的時候判斷')],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=5)])],
+
+    'HV-P01-091': [  # 這可不是音駒的專利啊！
+        dict(timing='event', phases=['receive'],
+             effects=[dict(type='draw', who='self', n=1),
+                      dict(type='stat_add', target=dict(who='self', count=1, school='梟谷'), stat='rcv', n=1)]),
+        dict(timing='event', phases=['receive'], part_of_same_card=True,
+             cost=[dict(type='drop_block_char', who='self', school='梟谷', n=1)],
+             effects=[dict(type='opp_op_add', n=-1, note='QA：可以降到負數')])],
+
+    'HV-PR-031': [dict(  # 所有人都在看著你喔
+        timing='event', phases=['attack'],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target=dict(who='self', count=1, school='梟谷'), stat='atk', n=1),
+                 dict(type='restrict_opp', who='opp', rule='center_blocker_blk_add', n=-2, duration=TO,
+                      note='QA：可以降到負數',
+                      **{'if': [dict(type='self_role_name', role='toss', name='赤葦 京治'),
+                                dict(type='self_role_name', role='attack', name='木兎 光太郎')]})])],
+}
+MANUAL.update(MANUAL_FUKURODANI)
