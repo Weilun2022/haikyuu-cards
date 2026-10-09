@@ -125,8 +125,8 @@ MANUAL = {
 MANUAL_FUKURODANI = {
     'HV-P01-051': [dict(  # 鷲尾辰生
         timing='on_enter', zones=['block'],
-        conditions=[dict(type='opp_op_ge', n=4, of='serve_or_attack',
-                         note='原文只寫「相手のオフェンスポイント」，攔發球也適用')],
+        conditions=[dict(type='opp_op_ge', n=4, of='any',
+                         note='QA（PR-022/PR-023）：進攻值有發球、攔網、攻擊三種；原文未限定，三種都適用')],
         cost=[dict(type='mill', who='self', n=1, capture='milled')],
         effects=[dict(type='keyword', name='ワンタッチ', n=3,
                       **{'if': [dict(type='captured_school', key='milled', school='梟谷')]},

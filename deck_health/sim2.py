@@ -140,8 +140,9 @@ def cond_ok(c, P, T):
     t = c['type']; opp = T['opp']
     if t == 'set_total_le': return len(P.setz) + len(opp.setz) <= c['n']
     if t in ('opp_op_le', 'opp_op_ge'):
-        ok_src = dict(serve={'serve'}, attack={'attack'}, serve_or_attack={'serve', 'attack'})[c['of']]
-        if T['src'] not in ok_src: return False
+        if c['of'] != 'any':
+            ok_src = dict(serve={'serve'}, attack={'attack'}, serve_or_attack={'serve', 'attack'})[c['of']]
+            if T['src'] not in ok_src: return False
         return T['op_in'] <= c['n'] if t == 'opp_op_le' else T['op_in'] >= c['n']
     if t == 'opp_hand_le': return len(opp.hand) <= c['n']
     if t == 'self_is_role': return True
@@ -151,6 +152,15 @@ def cond_ok(c, P, T):
     if t == 'event_zone_count_le': return sum(1 for e in P.evz if e.name == c['card_name']) <= c['n']
     if t == 'event_zone_phase_count_ge':
         ph = set(c['phases']); return sum(1 for e in opp.evz if e.phases & ph) >= c['n']
+    if t == 'captured_school':
+        cap = T.get('captured', {}).get(c['key'])
+        if cap is None or c['school'] not in cap.school: return False
+        return c.get('category') != 'CHARACTER' or not cap.ev
+    if t == 'entered_from_hand': return T.get('entering_from_hand', False)
+    if t == 'all_own_chars_school':
+        tops = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st]
+        return all(c['school'] in x.school for x in tops)
+    if t == 'zone_guts_odd': return (len(P.zones[c['zone']]) - 1) % 2 == 1
     raise ValueError(t)
 
 
@@ -165,15 +175,31 @@ def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
         if t == 'guts' and len(P.zones[zone]) - 1 < c['n']: return False
+        if t == 'guts_multi' and sum(max(0, len(P.zones[z]) - 1) for z in c['zones']) < c['n']: return False
         if t == 'mill' and not P.deck: return False
         if t == 'discard_hand' and len(P.hand) < c['n']: return False
+        if t == 'discard_named' and sum(1 for x in P.hand if x.name == c['name']) < c['n']: return False
+        if t == 'drop_block_char':
+            st = P.zones['block']
+            if not st or c['school'] not in st[-1].school: return False
     for c in costs:
         t = c['type']
         if t == 'guts': P.pay_guts(zone, c['n'])
-        elif t == 'mill': P.drop.append(P.deck.pop(0))
+        elif t == 'guts_multi':  # 跨區合計付 Guts：先付舉球區，再付攻擊區
+            left = c['n']
+            for z in c['zones']:
+                k = min(left, max(0, len(P.zones[z]) - 1)); P.pay_guts(z, k); left -= k
+        elif t == 'mill':
+            m = P.deck.pop(0); P.drop.append(m)
+            if c.get('capture'): T.setdefault('captured', {})[c['capture']] = m
         elif t == 'discard_hand':
             for _ in range(c['n']):
                 w = pick_discard(P, T); P.hand.remove(w); P.drop.append(w)
+        elif t == 'discard_named':
+            for _ in range(c['n']):
+                w = min([x for x in P.hand if x.name == c['name']], key=keep_value); P.hand.remove(w); P.drop.append(w)
+        elif t == 'drop_block_char':
+            P.drop.append(P.zones['block'].pop())
     return True
 
 
@@ -199,7 +225,18 @@ def apply_effects(effs, P, T, zone):
             if st and 'S' in st[-1].pos: T['set_toss'] = e['value']; T['mod']['toss'] = 0
         elif t == 'stat_cap': T['toss_cap'] = e['below'] - 1
         elif t == 'keyword':
-            if e['name'] == 'Aパス': T['mod']['toss'] = T['mod'].get('toss', 0) + CFG['a_pass_as_toss']
+            if e['name'] == 'Aパス': T['mod']['toss'] = T['mod'].get('toss', 0) + e['n']
+            elif e['name'] == 'ワンタッチ': T['onetouch'] = e['n']; P.bump('一觸')
+            elif e['name'] == 'ツーアタック': T['two_attack'] = e['n']; P.bump('二段攻擊')
+        elif t == 'mill':
+            if P.deck and (not e.get('up_to') or T.get('allow_optional')):
+                m = P.deck.pop(0); P.drop.append(m)
+                if e.get('capture'): T.setdefault('captured', {})[e['capture']] = m
+        elif t == 'optional':
+            if T.get('allow_optional') and cost_pay(e.get('cost', []), P, T, zone):
+                apply_effects(e['effects'], P, T, zone)
+        elif t == 'opp_op_add':
+            if T['src'] == 'attack': T['op_in'] += e['n']; P.bump('對手攻擊減值')
         elif t == 'reveal_top_take':
             if P.deck:
                 top = P.deck.pop(0); P.bump('影山檢索')
@@ -208,7 +245,8 @@ def apply_effects(effs, P, T, zone):
         elif t == 'aura_on_enter': T['aura'] = (e['name'], e['n'])
         elif t == 'drop_to_hand':
             f = e['filter']
-            cands = [c for c in P.drop if not c.ev and (not f.get('school') or f['school'] in c.school)]
+            cands = [c for c in P.drop if not c.ev and (not f.get('school') or f['school'] in c.school)
+                     and (not f.get('name') or c.name == f['name'])]
             if cands:
                 best = max(cands, key=keep_value); P.drop.remove(best); P.add_nondraw(best); P.bump('棄牌區撈回')
         elif t == 'restrict_opp': T['locks'].append(dict(e)); P.bump('封鎖:' + e['rule'])
@@ -252,13 +290,18 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False):
         T['mod'][zone] = 0
         if zone == 'toss': T['set_toss'] = None; T['toss_cap'] = None
     T['names'][zone] = card.name
+    T['entering_from_hand'] = from_hand
     if zone == 'attack' and T.get('aura') and card.name == T['aura'][0]:
         T['mod']['attack'] = T['mod'].get('attack', 0) + T['aura'][1]
+    if zone == 'block' and not as_side_blocker:  # 對手 PR-031：中間攔網登場時攔網值 −2
+        for l in P.restrict:
+            if l['rule'] == 'center_blocker_blk_add': T['mod']['block'] = T['mod'].get('block', 0) + l['n']
     for s in card.skills:
         if s['timing'] != 'on_enter' or zone not in s.get('zones', []): continue
         if not all(cond_ok(c, P, T) for c in s.get('conditions', [])): continue
         costs = s.get('cost', [])
-        if any(c['type'] == 'discard_hand' for c in costs) and not T.get('allow_discard_cost'): continue
+        if any(c['type'] == 'discard_hand' for c in costs) and not (
+                T.get('allow_discard_cost') or (zone == 'receive' and card.b['rcv'] < T['op_in'])): continue
         if not cost_pay(costs, P, T, zone): continue
         P.bump('技能:' + card.no)
         apply_effects(s['effects'], P, T, zone)
@@ -290,6 +333,11 @@ def play_event(P, T, ev, zone_hint):
                 if s['timing'] == 'trigger' and tr and tr['event'] == 'play_event':
                     T['mod']['toss'] = T['mod'].get('toss', 0) + 1; T['toss_cap'] = 3; P.bump('影山P03-047觸發')
     for s in ev.skills:
+        if s.get('part_of_same_card') and any(c['type'] == 'drop_block_char' for c in s.get('cost', [])):
+            # P01-091：接不住時才棄置攔網角色換對手攻擊 −1
+            if T['src'] == 'attack' and cur_stat(P, T, 'receive') < T['op_in'] and cost_pay(s['cost'], P, T, zone_hint):
+                apply_effects(s['effects'], P, T, zone_hint)
+            continue
         if s.get('part_of_same_card'):
             has_atk_ev_in_hand = any(c.ev and c.phases == {'attack'} for c in P.hand)
             if ev in P.evz and any(c.phases == {'attack'} for c in P.evz) and not has_atk_ev_in_hand:
@@ -325,6 +373,25 @@ def rcv_potential(opp, c):
     return v
 
 
+def onetouch_n(c):
+    for s in c.skills:
+        if s['timing'] == 'on_enter' and 'block' in s.get('zones', []):
+            for e in s['effects']:
+                if e['type'] == 'keyword' and e['name'] == 'ワンタッチ': return e['n']
+    return 0
+
+
+def _can_receive(opp, chars, op):
+    enosh = 2 if any(c.no == 'HV-P01-013' for c in opp.hand) else 0
+    for r in chars:
+        if not can_enter(opp, 'receive', r): continue
+        if rcv_potential(opp, r) + (enosh if '烏野' in r.school else 0) < op: continue
+        rest = [c for c in chars if c is not r]
+        if any(t.name != r.name and any(a is not t and a.name != t.name for a in rest) for t in rest):
+            return True
+    return False
+
+
 def response_cost(opp, op, locks, trap):
     """對手要淨花幾張牌才接得住；接不住回傳 None。"""
     restrict = opp.restrict  # 暫存：用我施加的限制來判斷
@@ -338,13 +405,13 @@ def response_cost(opp, op, locks, trap):
             if len({c.name for c in comb}) < k: continue
             if sum(c.b['blk'] for c in comb) >= op: found = True; break
         if found: best = k; break
-    enosh = 2 if any(c.no == 'HV-P01-013' for c in opp.hand) else 0
-    for r in chars:
-        if not can_enter(opp, 'receive', r): continue
-        if rcv_potential(opp, r) + (enosh if '烏野' in r.school else 0) < op: continue
-        rest = [c for c in chars if c is not r]
-        if any(t.name != r.name and any(a is not t and a.name != t.name for a in rest) for t in rest):
-            best = 2 if best is None else min(best, 2); break
+    if _can_receive(opp, chars, op):
+        best = 2 if best is None else min(best, 2)
+    elif op >= 4:  # 一觸：1 張中間攔網削弱後再接球（淨花 3 張）
+        for c in chars:
+            n = onetouch_n(c)
+            if n and _can_receive(opp, [x for x in chars if x is not c], op - n):
+                best = 3 if best is None else min(best, 3); break
     opp.restrict = restrict
     if op == 0 and CFG['freeball_receive'] and best is not None:
         # 0 點球：對手能接就一定接（淨花 2 張），接不了才用 1 張攔網
@@ -371,20 +438,50 @@ def do_receive_line(P, T, r, t, a, aggressive):
             if '烏野' in P.zones['receive'][-1].school and cur_stat(P, T, 'receive') + 2 >= T['op_in']:
                 P.hand.remove(h); P.drop.append(h); T['mod']['receive'] = T['mod'].get('receive', 0) + 2; P.bump('緣下手坑'); break
     if cur_stat(P, T, 'receive') < T['op_in']: return None
-    if t not in P.hand or a not in P.hand: return None
+    if t not in P.hand or (a is not None and a not in P.hand): return None
     if not name_ok(T, 'toss', t.name): return None
     T['phase'] = 'toss'
-    P.hand.remove(t); enter(P, T, 'toss', t, from_hand=True)
+    P.hand.remove(t); T['allow_optional'] = aggressive == 'two'
+    enter(P, T, 'toss', t, from_hand=True)
+    if T.get('two_attack') is not None:  # 二段攻擊：進攻值固定 N，跳到結束階段，對手下回合不能攔網
+        T['locks'].append(dict(rule='max_enter', role='block', max=0, duration='next_opp_turn'))
+        return T['two_attack']
+    if aggressive == 'two': return None
     for ev in [e for e in P.hand if e.ev and 'toss' in e.phases]:
         if 'S' in t.pos and cur_stat(P, T, 'toss') < 2: play_event(P, T, ev, 'toss')
     if a not in P.hand or not name_ok(T, 'attack', a.name): return None
     T['phase'] = 'attack'
-    P.hand.remove(a); T['allow_discard_cost'] = aggressive
+    P.hand.remove(a); T['allow_discard_cost'] = bool(aggressive)
     enter(P, T, 'attack', a, from_hand=True)
     if aggressive:
         for ev in sorted([e for e in P.hand if e.ev and 'attack' in e.phases], key=lambda e: e.name != 'オープン攻撃'):
             if ev in P.hand: play_event(P, T, ev, 'attack')
     return cur_stat(P, T, 'toss') + cur_stat(P, T, 'attack')
+
+
+def receive_best(Pd, opp, op_in, src):
+    """已抽完牌的狀態下，列舉接球→舉球→攻擊的所有組合，回傳最佳 (評分, P, 進攻值, src, locks, trap, 行動)。"""
+    dchars = [c for c in Pd.hand if not c.ev]
+    rec_best = None
+    if len(dchars) < 2: return None
+    rcands = [c for c in dchars if can_enter(Pd, 'receive', c)]
+    rcands.sort(key=lambda c: (keep_value(c), -c.b['rcv']))
+    two_ok = any(any(e['type'] == 'optional' for e in s['effects']) for c in dchars for s in c.skills
+                 if s['timing'] == 'on_enter' and 'toss' in s.get('zones', []))
+    for r in rcands[:5]:
+        for t in dchars:
+            if t is r or t.name == r.name: continue
+            modes = [('two', None)] if two_ok else []
+            modes += [(m, a) for a in dchars if a is not r and a is not t and a.name != t.name for m in (True, False)]
+            for aggressive, a in modes:
+                P2 = Pd.clone(); T = newT(opp, op_in, src)
+                op = do_receive_line(P2, T, r, t, a, aggressive)
+                if op is None: continue
+                v = evaluate(P2, op, T['locks'], T['trap'], opp)
+                act = 'receive2' if aggressive == 'two' else 'receive'
+                if rec_best is None or v > rec_best[0]:
+                    rec_best = (v, P2, op, 'attack', T['locks'], T['trap'], act)
+    return rec_best
 
 
 def take_turn(P, opp, op_in, src):
@@ -402,13 +499,26 @@ def take_turn(P, opp, op_in, src):
     # 攔網（不抽牌）
     freeball = op_in == 0 and CFG['freeball_receive']
     mb = max_blockers(P.restrict)
+    adj = sum(l['n'] for l in P.restrict if l['rule'] == 'center_blocker_blk_add')
     blocks = []
     for k in range(1, mb + 1):
         for comb in itertools.combinations(chars, k):
             if len({c.name for c in comb}) < k: continue
-            if sum(c.b['blk'] for c in comb) >= op_in:
+            if sum(c.b['blk'] for c in comb) + adj >= op_in:
                 blocks.append(comb)
         if len(blocks) >= 6: break
+    # 一觸：只放 1 張中間攔網，觸發後直接抽牌、接球（使用者確認）
+    if mb >= 1 and not freeball:
+        for c in {x.no: x for x in chars if onetouch_n(x)}.values():
+            P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'
+            P2.hand.remove(c); enter(P2, T, 'block', c, from_hand=True)
+            if T.get('onetouch'):
+                P2.draw(1)
+                rb = receive_best(P2, opp, op_in - T['onetouch'], src)
+                if rb and (best is None or rb[0] > best[0]):
+                    best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'onetouch')
+            elif c.b['blk'] + adj >= op_in:
+                consider(P2, 0, CFG['blocked_ball_src'], T['locks'], T['trap'], 'block1')
     blocks.sort(key=lambda cb: (len(cb), sum(keep_value(c) for c in cb)))
     for comb in blocks[:4]:
         P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'
@@ -418,27 +528,9 @@ def take_turn(P, opp, op_in, src):
             enter(P2, T, 'block', c, from_hand=True, as_side_blocker=c is not center)
         P2.drop += P2.zones.pop('_side', [])
         consider(P2, 0, CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb))
-    block_best = best
     # 接球（抽 1）
     Pd = P.clone(); Pd.draw(1)
-    dchars = [c for c in Pd.hand if not c.ev]
-    rec_best = None
-    if len(dchars) >= 3:
-        rcands = [c for c in dchars if can_enter(Pd, 'receive', c)]
-        rcands.sort(key=lambda c: (keep_value(c), -c.b['rcv']))
-        for r in rcands[:5]:
-            for t in dchars:
-                if t is r or t.name == r.name: continue
-                for a in dchars:
-                    if a is r or a is t or a.name == t.name: continue
-                    for aggressive in (True, False):
-                        P2 = Pd.clone(); T = newT(opp, op_in, src)
-                        # 同一張實體卡在 clone 中仍是同一物件
-                        op = do_receive_line(P2, T, r, t, a, aggressive)
-                        if op is None: continue
-                        v = evaluate(P2, op, T['locks'], T['trap'], opp)
-                        if rec_best is None or v > rec_best[0]:
-                            rec_best = (v, P2, op, 'attack', T['locks'], T['trap'], 'receive')
+    rec_best = receive_best(Pd, opp, op_in, src)
     if freeball and rec_best is not None:
         best = rec_best
     elif rec_best is not None and (best is None or rec_best[0] > best[0]):
