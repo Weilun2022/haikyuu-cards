@@ -12,6 +12,7 @@ CFG = dict(
     blocked_ball_src='block',  # 攔回來的球不算「發球」也不算「攻擊」（赤木、澤村條件不成立）【判斷】
     a_pass_as_toss=1,          # Aパス(1) 當作本回合舉球 +1【假設，待第 9 章】
     max_turns_per_set=80,
+    fetch_then_attack=True,    # 赤葦 P01-045 撿回木兎後，同一拍可以拿來攻擊；付 Guts 時調成奇數（2026-10-11 修正）
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
 )
 ZSTAT = dict(serve='srv', block='blk', receive='rcv', toss='tos', attack='atk')
@@ -112,6 +113,8 @@ def newT(opp, op_in, src):
 
 def cloneT(T):
     t = dict(T); t['mod'] = dict(T['mod']); t['locks'] = [dict(l) for l in T['locks']]; t['names'] = dict(T['names'])
+    if 'negated' in T: t['negated'] = set(T['negated'])
+    if 'captured' in T: t['captured'] = dict(T['captured'])
     return t
 
 
@@ -225,6 +228,13 @@ def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
         if t == 'guts': P.pay_guts(zone, c['n'])
+        elif t == 'guts_multi' and T.get('aim_odd_attack') and set(c['zones']) == {'toss', 'attack'}:
+            # 赤葦 P01-045：調整從攻擊區付的張數，讓之後出場的木兎 P01-043 底下 Guts 為奇數
+            L = len(P.zones['attack']); gt = max(0, len(P.zones['toss']) - 1); ga = max(0, L - 1)
+            ks = [k for k in range(max(0, c['n'] - gt), min(c['n'], ga) + 1) if (L - k) % 2 == 1]
+            k = min(ks) if ks else c['n'] - min(c['n'], gt)
+            if ks: P.bump('調奇數')
+            P.pay_guts('toss', c['n'] - k); P.pay_guts('attack', k)
         elif t == 'guts_multi':  # 跨區合計付 Guts：先付舉球區，再付攻擊區
             left = c['n']
             for z in c['zones']:
@@ -504,12 +514,18 @@ def evaluate(P, op_sent, locks, trap, opp):
 
 
 # ── 一個回合 ──────────────────────────────────────────
-def do_receive_line(P, T, r, t, a, aggressive):
+def wants_odd(c): return any(cd['type'] == 'zone_guts_odd' for s in c.skills for cd in s.get('conditions', []))
+
+
+def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
     T['phase'] = 'receive'
     ln = line_names(r, t, a)
     if ln is None: return None
     nr, nt, na = ln
     T['plan_attack'] = (a, na) if a is not None else None
+    if a is not None: T['aim_odd_attack'] = wants_odd(a)
+    elif stop_after_toss:  # 攻擊手等舉球後再決定：手牌、棄牌區或攻擊區 Guts 有 P01-043 這類卡就調奇數
+        T['aim_odd_attack'] = any(wants_odd(c) for c in P.hand + P.drop + P.zones['attack'] if c is not r and c is not t)
     P.hand.remove(r); enter(P, T, 'receive', r, from_hand=True, name=nr)
     for ev in [e for e in P.hand if e.ev and 'receive' in e.phases]:
         play_event(P, T, ev, 'receive')
@@ -529,6 +545,11 @@ def do_receive_line(P, T, r, t, a, aggressive):
     if aggressive == 'two': return None
     for ev in [e for e in P.hand if e.ev and 'toss' in e.phases]:
         if 'S' in t.pos and cur_stat(P, T, 'toss') < 2: play_event(P, T, ev, 'toss')
+    if stop_after_toss: return 'TOSSED'
+    return attack_part(P, T, a, na, aggressive)
+
+
+def attack_part(P, T, a, na, aggressive):
     if a not in P.hand or not name_ok(T, 'attack', na): return None
     T['phase'] = 'attack'
     P.hand.remove(a); T['allow_discard_cost'] = bool(aggressive)
@@ -561,7 +582,26 @@ def receive_best(Pd, opp, op_in, src):
                 act = 'receive2' if aggressive == 'two' else 'receive'
                 if rec_best is None or v > rec_best[0]:
                     rec_best = (v, P2, op, 'attack', T['locks'], T['trap'], act)
+            if CFG['fetch_then_attack'] and has_fetch(t):
+                P2 = Pd.clone(); T = newT(opp, op_in, src)
+                if do_receive_line(P2, T, r, t, None, False, stop_after_toss=True) != 'TOSSED': continue
+                for a in {id(c): c for c in P2.hand if not c.ev}.values():
+                    if not alt_ok(T, 'attack', a): continue
+                    for aggressive in (True, False):
+                        P3 = P2.clone(); T3 = cloneT(T)
+                        op = attack_part(P3, T3, a, choose_name(T3, 'attack', a), aggressive)
+                        if op is None: continue
+                        v = evaluate(P3, op, T3['locks'], T3['trap'], opp)
+                        if rec_best is None or v > rec_best[0]:
+                            P3.bump('舉球後選攻擊手')
+                            if any(a is c for c in Pd.drop + Pd.zones['attack'] + Pd.zones['toss']): P3.bump('撿回立刻攻擊')
+                            rec_best = (v, P3, op, 'attack', T3['locks'], T3['trap'], 'receive')
     return rec_best
+
+
+def has_fetch(t):
+    return any(e['type'] == 'drop_to_hand' for s in t.skills if s['timing'] == 'on_enter' and 'toss' in s.get('zones', [])
+               for e in s['effects'])
 
 
 def take_turn(P, opp, op_in, src):
