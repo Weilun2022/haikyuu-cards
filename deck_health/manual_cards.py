@@ -196,3 +196,48 @@ MANUAL_PROVISIONAL = {
                       note='策略：手牌夠 2 張就一定棄（模擬器假設）')])],
 }
 MANUAL.update(MANUAL_PROVISIONAL)
+
+# ── 梟谷第二批（2026-10-11 草稿，待使用者驗收反向翻譯）─────────
+# 規則確認（使用者 2026-10-11）：PR-062 音駒・梟谷算梟谷角色；P01-090 抽到 7 張後局間只補不棄；
+# P01-090「全部是梟谷」在打出當下判斷。
+# 未驗收前預設不啟用；設環境變數 DH_PENDING=1 才會載入（只能用來測程式，不能下結論）。
+NAME_CHOICE_PENDING = {
+    'HV-PR-013': ['木兎 光太郎', '赤葦 京治'],    # 木兎・赤葦：出場時選名字，到回合結束有效；其他時候叫「木兎・赤葦」
+    'HV-PR-062': ['灰羽 リエーフ', '木兎 光太郎'],  # 灰羽・木兎
+}
+MANUAL_PENDING = {
+    'HV-PR-026': [dict(  # 猿杙大和：接球區登場，付 4 Guts，接球 +4
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='guts', n=4)],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=4)])],
+
+    'HV-P01-047': [dict(  # 木葉秋紀：此攻擊角色上有梟谷角色登場時，棄手牌 1 張，那個角色攻擊 +1
+        timing='trigger', trigger=dict(event='enter_on_top', zone='attack', school='梟谷'),
+        cost=[dict(type='discard_hand', n=1)],
+        effects=[dict(type='stat_add', target='that', stat='atk', n=1)])],
+
+    'HV-P02-066': [dict(  # 赤葦京治：舉球區登場，棄自己牌庫頂 3 張＋付 2 Guts，舉球 +2，本回合自己的木兎技能無效
+        timing='on_enter', zones=['toss'],
+        cost=[dict(type='mill', who='self', n=3, note='QA 1335：棄不滿 3 張就沒有效果'),
+              dict(type='guts', n=2)],
+        effects=[dict(type='stat_add', target='this', stat='tos', n=2),
+                 dict(type='negate_skills', name='木兎 光太郎', duration='this_turn')])],
+
+    'HV-P01-089': [dict(  # 闇路建行：看牌庫頂 3 張，梟谷牌最多 1 張加入手牌，其餘放牌庫底
+        timing='event', phases=['draw', 'receive'],
+        effects=[dict(type='look_top_take', n=3, school='梟谷', max=1, rest='deck_bottom',
+                      note='QA 1240：可以不拿；不是抽牌（二口陷阱會觸發）')])],
+
+    'HV-P01-090': [dict(  # 「その瞬間」：抽 1、梟谷角色攻擊 +1；全員梟谷時，對手下回合 LOSS 時自己抽到 7 張
+        timing='event', phases=['attack'],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target=dict(who='self', count=1, school='梟谷'), stat='atk', n=1),
+                 dict(type='restrict_opp', who='opp', rule='owner_draw_to_on_loss', n=7, duration='next_opp_turn',
+                      note='QA 1241：對手主動宣告 LOSS 也算',
+                      **{'if': [dict(type='all_own_chars_school', school='梟谷')]})])],
+}
+import os as _os
+NAME_CHOICE = {}
+if _os.environ.get('DH_PENDING') == '1':
+    MANUAL.update(MANUAL_PENDING)
+    NAME_CHOICE.update(NAME_CHOICE_PENDING)
