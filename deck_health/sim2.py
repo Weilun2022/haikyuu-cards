@@ -13,6 +13,7 @@ CFG = dict(
     a_pass_as_toss=1,          # Aパス(1) 當作本回合舉球 +1【假設，待第 9 章】
     max_turns_per_set=80,
     fetch_then_attack=True,    # 赤葦 P01-045 撿回木兎後，同一拍可以拿來攻擊；付 Guts 時調成奇數（2026-10-11 修正）
+    li_restrict=True,          # 數值為「-」的區域不能登場（Li 不能發球、攔網）【使用者 2026-10-11】
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
 )
 ZSTAT = dict(serve='srv', block='blk', receive='rcv', toss='tos', attack='atk')
@@ -28,7 +29,7 @@ def load_cards(path):
 
 
 class Card:
-    __slots__ = ('no', 'name', 'ev', 'pos', 'school', 'b', 'skills', 'phases', 'alts')
+    __slots__ = ('no', 'name', 'ev', 'pos', 'school', 'b', 'skills', 'phases', 'alts', 'nozones', 'aff', 'noskill')
 
     def __init__(self, raw):
         self.no = raw['card_no']; self.name = raw['name']; self.ev = raw['category'] == 'EVENT'
@@ -38,6 +39,10 @@ class Card:
         self.skills = MANUAL.get(self.no, [])
         self.phases = set(p for s in self.skills for p in s.get('phases', [])) if self.ev else set()
         self.alts = NAME_CHOICE.get(self.no, [self.name])  # 雙名卡：出場時可選的名字
+        self.nozones = {z for z, k in (('serve', 'srv'), ('block', 'blk'), ('receive', 'rcv'), ('toss', 'tos'), ('attack', 'atk'))
+                        if raw.get(k) is None} if not self.ev else set()  # 數值為「-」的區域
+        self.aff = raw.get('affiliation') or ''
+        self.noskill = (raw.get('skill_jp') or '-').strip() in ('', '-')
 
     def __repr__(self): return self.no
 
@@ -119,8 +124,11 @@ def cloneT(T):
 
 
 # ── 限制（對手施加在我身上的）────────────────────────────
-def can_enter(P, zone, card):
+def can_enter(P, zone, card, from_hand=True):
+    if CFG['li_restrict'] and zone in card.nozones: return False
     for l in P.restrict:
+        if (l['rule'] == 'cannot_enter_pos_from_hand' and from_hand and l['role'] == zone
+                and l['position'] in card.pos): return False
         if l['rule'] == 'cannot_enter' and l['role'] == zone and card.b['rcv'] >= l['base_rcv_ge']: return False
     return True
 
@@ -204,6 +212,17 @@ def cond_ok(c, P, T):
         tops = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st]
         return all(c['school'] in x.school for x in tops)
     if t == 'zone_guts_odd': return (len(P.zones[c['zone']]) - 1) % 2 == 1
+    if t == 'paid_guts_all_pos':
+        pg = T.get('paid_guts') or []
+        return bool(pg) and all(c['position'] in x.pos for x in pg)
+    if t == 'enter_on_top_school':
+        u = T.get('under'); return u is not None and c['school'] in u.school
+    if t == 'self_role_school_pos':
+        st = P.zones[c['role']]
+        return bool(st) and c['school'] in st[-1].school and c['position'] in st[-1].pos
+    if t == 'self_role_base':
+        st = P.zones[c['role']]
+        return bool(st) and st[-1].b[c['stat']] == c['n']
     raise ValueError(t)
 
 
@@ -214,6 +233,16 @@ def pick_discard(P, T):
     return max(P.hand, key=lambda c: hand_score([x for x in P.hand if x is not c]))
 
 
+def filt_ok(x, f):
+    if f.get('category') == 'CHARACTER' and x.ev: return False
+    if f.get('school') and f['school'] not in x.school: return False
+    if f.get('no_skill') and not x.noskill: return False
+    if f.get('affiliation') and f['affiliation'] not in x.aff.split('/'): return False
+    if f.get('exclude_name') and x.name == f['exclude_name']: return False
+    if f.get('name') and x.name != f['name']: return False
+    return True
+
+
 def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
@@ -222,12 +251,21 @@ def cost_pay(costs, P, T, zone):
         if t == 'mill' and len(P.deck) < c.get('n', 1): return False
         if t == 'discard_hand' and len(P.hand) < c['n']: return False
         if t == 'discard_named' and sum(1 for x in P.hand if x.name == c['name']) < c['n']: return False
+        if t == 'discard_filtered' and sum(1 for x in P.hand if filt_ok(x, c['filter'])) < c['n']: return False
         if t == 'drop_block_char':
             st = P.zones['block']
             if not st or c['school'] not in st[-1].school: return False
     for c in costs:
         t = c['type']
-        if t == 'guts': P.pay_guts(zone, c['n'])
+        if t == 'guts':
+            st = P.zones[zone]; pos = T.get('prefer_guts_pos')
+            if pos:  # 白布：優先付 S 的 Guts（付的全是 S 才有追加效果）
+                g = st[:-1]; g.sort(key=lambda x: pos not in x.pos); st[:-1] = g
+            T['paid_guts'] = st[:c['n']]
+            P.pay_guts(zone, c['n'])
+        elif t == 'discard_filtered':
+            for _ in range(c['n']):
+                w = min([x for x in P.hand if filt_ok(x, c['filter'])], key=keep_value); P.hand.remove(w); P.drop.append(w)
         elif t == 'guts_multi' and T.get('aim_odd_attack') and set(c['zones']) == {'toss', 'attack'}:
             # 赤葦 P01-045：調整從攻擊區付的張數，讓之後出場的木兎 P01-043 底下 Guts 為奇數
             L = len(P.zones['attack']); gt = max(0, len(P.zones['toss']) - 1); ga = max(0, L - 1)
@@ -284,7 +322,8 @@ def apply_effects(effs, P, T, zone):
                 m = P.deck.pop(0); P.drop.append(m)
                 if e.get('capture'): T.setdefault('captured', {})[e['capture']] = m
         elif t == 'optional':
-            if T.get('allow_optional') and cost_pay(e.get('cost', []), P, T, zone):
+            need_rcv = T.get('phase') == 'receive' and cur_stat(P, T, 'receive') < T['op_in']
+            if (T.get('allow_optional') or need_rcv) and cost_pay(e.get('cost', []), P, T, zone):
                 apply_effects(e['effects'], P, T, zone)
         elif t == 'optional_discard_else_zero':
             if len(P.hand) >= e['n']:
@@ -305,18 +344,30 @@ def apply_effects(effs, P, T, zone):
         elif t == 'aura_on_enter': T['aura'] = (e['name'], e['n'])
         elif t == 'drop_to_hand':
             f = e['filter']
-            cands = [c for c in P.drop if not c.ev and (not f.get('school') or f['school'] in c.school)
-                     and (not f.get('name') or c.name == f['name'])]
+            cands = [c for c in P.drop if not c.ev and filt_ok(c, f)]
             if cands:
                 best = max(cands, key=keep_value); P.drop.remove(best); P.add_nondraw(best); P.bump('棄牌區撈回')
         elif t == 'restrict_opp': T['locks'].append(dict(e)); P.bump('封鎖:' + e['rule'])
         elif t == 'on_opp_non_draw_add_mill': T['trap'] = True; P.bump('二口陷阱')
+        elif t == 'guts_to_zone' and e.get('filter', {}).get('name'):  # P02-096：攻擊區 Guts 的牛島拉上場（比現在強才拉）
+            z = e['zone']
+            g = [c for c in P.guts(z) if not c.ev and c.name == e['filter']['name'] and alt_ok(T, z, c)
+                 and can_enter(P, z, c, from_hand=False)]
+            if g:
+                best = max(g, key=lambda c: summon_value(P, c, z) + 1)
+                if summon_value(P, best, z) - 1 + 1 > cur_stat(P, T, z):
+                    P.zones[z].remove(best); enter(P, T, z, best, from_hand=False); P.bump('Guts拉牛島')
+                    if e.get('then'): apply_effects([e['then']], P, T, z)
         elif t == 'guts_to_zone':
             g = [c for c in P.guts(e['zone']) if not c.ev and (not e.get('filter') or e['filter'].get('position', '') in c.pos)
-                 and alt_ok(T, e['zone'], c) and can_enter(P, e['zone'], c)]
+                 and alt_ok(T, e['zone'], c) and can_enter(P, e['zone'], c, from_hand=False)]
             if g:
                 best = max(g, key=lambda c: c.b[ZSTAT[e['zone']]])
                 P.zones[e['zone']].remove(best); enter(P, T, e['zone'], best, from_hand=False); P.bump('Guts拉上場')
+        elif t == 'event_to_hand' and 'exclude_name' in e['filter']:  # P03-090：Event 區這張以外的事件 1 張回手牌
+            cands = [c for c in P.evz if c.name != e['filter']['exclude_name']]
+            if cands:
+                best = max(cands, key=event_value); P.evz.remove(best); P.add_nondraw(best); P.bump('回收事件')
         elif t == 'event_to_hand':
             cands = [c for c in P.evz if c.phases == {e['filter']['only_phase']}]
             if cands:
@@ -337,8 +388,28 @@ def apply_effects(effs, P, T, zone):
             best = max(hs, key=lambda c: summon_value(P, c, e['zone']))
             P.drop.remove(best); enter(P, T, e['zone'], best, from_hand=False); P.bump('高球特召')
             if e.get('then'): apply_effects([e['then']], P, T, e['zone'])
+        elif t == 'guts_move_to_zone':  # 白布：自己場上任一區的白鳥沢 Guts 1 張移到攻擊區當 Guts
+            dst = P.zones[e['to']]
+            if not dst: continue
+            for z in ('block', 'serve', 'receive', 'toss'):
+                g = [c for c in P.guts(z) if not c.ev and e['school'] in c.school]
+                if g:
+                    P.zones[z].remove(g[0]); dst.insert(0, g[0]); P.bump('白布搬Guts'); break
+        elif t == 'drop_opp_zone_guts':  # 牛島 P02-046：對手接球區 Guts 最多 n 張（對手回合開始前執行）
+            T['locks'].append(dict(rule='drop_zone_guts', zone=e['zone'], n=e['max'], duration='now'))
+            P.bump('棄對手接球Guts')
+        elif t == 'drop_opp_event_chars':  # P03-099：對手 Event 區的角色牌（模擬中不會出現）
+            k = sum(1 for c in T['opp'].evz if not c.ev)
+            if k:
+                T['locks'].append(dict(rule='drop_event_chars', duration='now'))
+                if k >= e['bonus_if_ge']: apply_effects([e['then']], P, T, zone)
         else:
             raise ValueError(t)
+
+
+def event_value(c):
+    """回收事件時的偏好：攻擊事件（可打 8 點）> 接球事件 > 其他。"""
+    return (2 if 'attack' in c.phases else 1 if 'receive' in c.phases else 0) + 0.1 * len(c.skills)
 
 
 def summon_value(P, c, zone):
@@ -356,6 +427,7 @@ def has_attack_skill(card):
 
 def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None):
     nm = name or choose_name(T, zone, card)
+    under = None
     if as_side_blocker:
         P.zones.setdefault('_side', []).append(card)
     else:
@@ -372,6 +444,10 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None):
                     P.bump('木葉觸發'); apply_effects(s['effects'], P, T, zone)
     T['names'][zone] = nm
     T['entering_from_hand'] = from_hand
+    T['under'] = under if not as_side_blocker else None
+    if zone == 'receive' and 'Li' in card.pos:  # 對手瀬見 P03-072：Li 接球角色每次出場 −1
+        for l in P.restrict:
+            if l['rule'] == 'li_receive_add': T['mod']['receive'] = T['mod'].get('receive', 0) + l['n']; P.bump('Li被瀬見減值')
     if nm in T.get('negated', ()):
         P.bump('技能被無效'); return
     if zone == 'attack' and T.get('aura') and nm == T['aura'][0]:
@@ -383,6 +459,9 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None):
         if s['timing'] != 'on_enter' or zone not in s.get('zones', []): continue
         if not all(cond_ok(c, P, T) for c in s.get('conditions', [])): continue
         costs = s.get('cost', [])
+        T['paid_guts'] = None
+        T['prefer_guts_pos'] = next((c['position'] for e in s['effects'] for c in e.get('if', [])
+                                     if c['type'] == 'paid_guts_all_pos'), None)
         if any(c['type'] == 'discard_hand' for c in costs) and not (
                 T.get('allow_discard_cost') or (zone == 'receive' and card.b['rcv'] < T['op_in'])): continue
         neg = [e['name'] for e in s['effects'] if e['type'] == 'negate_skills']
@@ -410,6 +489,10 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None):
 
 
 def play_event(P, T, ev, zone_hint):
+    if any(s.get('once_per_turn') for s in ev.skills):
+        used = T.setdefault('once_used', set())
+        if ev.name in used: return
+        used.add(ev.name)
     P.hand.remove(ev); P.evz.append(ev)
     if T['phase'] == 'attack':  # P03-047 影山：攻擊階段從手牌打出事件時
         st = P.zones['toss']
@@ -469,9 +552,10 @@ def onetouch_n(c):
 
 def _can_receive(opp, chars, op):
     enosh = 2 if any(c.no == 'HV-P01-013' for c in opp.hand) else 0
+    li = sum(l['n'] for l in opp.restrict if l['rule'] == 'li_receive_add')
     for r in chars:
         if not can_enter(opp, 'receive', r): continue
-        if rcv_potential(opp, r) + (enosh if '烏野' in r.school else 0) < op: continue
+        if rcv_potential(opp, r) + (enosh if '烏野' in r.school else 0) + (li if 'Li' in r.pos else 0) < op: continue
         rest = [c for c in chars if c is not r]
         if any(can_differ(t, r) and any(a is not t and can_differ(a, t) for a in rest) for t in rest):
             return True
@@ -488,7 +572,7 @@ def response_cost(opp, op, locks, trap):
     for k in range(1, mb + 1):
         found = False
         for comb in itertools.combinations(chars, k):
-            if assign_distinct(comb) is None: continue
+            if assign_distinct(comb) is None or not all(can_enter(opp, 'block', c) for c in comb): continue
             if sum(c.b['blk'] for c in comb) >= op: found = True; break
         if found: best = k; break
     if _can_receive(opp, chars, op):
@@ -496,7 +580,7 @@ def response_cost(opp, op, locks, trap):
     elif op >= 4:  # 一觸：1 張中間攔網削弱後再接球（淨花 3 張）
         for c in chars:
             n = onetouch_n(c)
-            if n and _can_receive(opp, [x for x in chars if x is not c], op - n):
+            if n and can_enter(opp, 'block', c) and _can_receive(opp, [x for x in chars if x is not c], op - n):
                 best = 3 if best is None else min(best, 3); break
     opp.restrict = restrict
     if op == 0 and CFG['freeball_receive'] and best is not None:
@@ -604,6 +688,27 @@ def has_fetch(t):
                for e in s['effects'])
 
 
+def draw_phase_events(P, opp, op_in, src):
+    """抽牌階段只能打的事件（P03-090）：Event 區有可回收的事件時才打。"""
+    T = newT(opp, op_in, src); T['phase'] = 'draw'
+    for ev in [e for e in P.hand if e.ev and e.phases == {'draw'}]:
+        if ev in P.hand and any(c.name != ev.name for c in P.evz): play_event(P, T, ev, 'draw')
+
+
+def apply_now(locks, target):
+    """立即生效的效果（對手區域的 Guts、Event 區角色牌），回傳剩下的持續效果。"""
+    rest = []
+    for l in locks:
+        if l['rule'] == 'drop_zone_guts':
+            st = target.zones[l['zone']]
+            for _ in range(min(l['n'], max(0, len(st) - 1))): target.drop.append(st.pop(0))
+        elif l['rule'] == 'drop_event_chars':
+            ch = [c for c in target.evz if not c.ev]
+            for c in ch: target.evz.remove(c); target.drop.append(c)
+        else: rest.append(l)
+    return rest
+
+
 def take_turn(P, opp, op_in, src):
     """回傳 ('loss', P) 或 ('ok', P_after, op_sent, src_sent, locks, trap, action)"""
     P.restrict, P.trap = P.pending_restrict, P.pending_trap
@@ -622,18 +727,18 @@ def take_turn(P, opp, op_in, src):
     adj = sum(l['n'] for l in P.restrict if l['rule'] == 'center_blocker_blk_add')
     blocks = []
     for k in range(1, mb + 1):
-        for comb in itertools.combinations(chars, k):
+        for comb in itertools.combinations([c for c in chars if can_enter(P, 'block', c)], k):
             if assign_distinct(comb) is None: continue
             if sum(c.b['blk'] for c in comb) + adj >= op_in:
                 blocks.append(comb)
         if len(blocks) >= 6: break
     # 一觸：只放 1 張中間攔網，觸發後直接抽牌、接球（使用者確認）
     if mb >= 1 and not freeball:
-        for c in {x.no: x for x in chars if onetouch_n(x)}.values():
+        for c in {x.no: x for x in chars if onetouch_n(x) and can_enter(P, 'block', x)}.values():
             P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'
             P2.hand.remove(c); enter(P2, T, 'block', c, from_hand=True)
             if T.get('onetouch'):
-                P2.draw(1)
+                P2.draw(1); draw_phase_events(P2, opp, op_in - T['onetouch'], src)
                 rb = receive_best(P2, opp, op_in - T['onetouch'], src)
                 if rb and (best is None or rb[0] > best[0]):
                     best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'onetouch')
@@ -650,7 +755,7 @@ def take_turn(P, opp, op_in, src):
         if T.get('zeroed'): continue  # 有角色數值歸 0，原本的攔網合計不成立
         consider(P2, 0, CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb))
     # 接球（抽 1）
-    Pd = P.clone(); Pd.draw(1)
+    Pd = P.clone(); Pd.draw(1); draw_phase_events(Pd, opp, op_in, src)
     rec_best = receive_best(Pd, opp, op_in, src)
     if freeball and rec_best is not None:
         best = rec_best
@@ -667,7 +772,7 @@ def serve_turn(P, opp):
     P.restrict, P.trap = P.pending_restrict, P.pending_trap
     P.pending_restrict, P.pending_trap = [], False
     best = None
-    for c in [x for x in P.hand if not x.ev]:
+    for c in [x for x in P.hand if not x.ev and can_enter(P, 'serve', x)]:
         P2 = P.clone(); T = newT(opp, 0, None); T['phase'] = 'serve'
         P2.hand.remove(c); enter(P2, T, 'serve', c, from_hand=True)
         op = cur_stat(P2, T, 'serve')
@@ -700,7 +805,7 @@ def play_game(cardsA, cardsB, rng, log=None):
         if res[0] == 'loss': loser = cur
         else:
             _, pl[cur], op, src, locks, trap, act = res
-            pl[other(cur)].pending_restrict, pl[other(cur)].pending_trap = locks, trap
+            pl[other(cur)].pending_restrict, pl[other(cur)].pending_trap = apply_now(locks, pl[other(cur)]), trap
             beats = 0
             while True:
                 cur = other(cur); beats += 1
@@ -711,7 +816,7 @@ def play_game(cardsA, cardsB, rng, log=None):
                 turns_log.append(dict(set=set_no, beat=beats, who=cur, act=act, op=op))
                 if log is not None:
                     log.append((set_no, beats, cur, act, op, len(pl[cur].hand), len(pl[cur].deck)))
-                pl[other(cur)].pending_restrict, pl[other(cur)].pending_trap = locks, trap
+                pl[other(cur)].pending_restrict, pl[other(cur)].pending_trap = apply_now(locks, pl[other(cur)]), trap
             turns_log.append(dict(set=set_no, beat=beats, who=cur, act='LOSS', op=0))
         winner = other(loser); sets[winner] += 1
         if any(l['rule'] == 'owner_draw_to_on_loss' for l in pl[loser].restrict):  # P01-090：對手 LOSS 時抽到 7 張
