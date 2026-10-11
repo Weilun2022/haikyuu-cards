@@ -235,6 +235,15 @@ def apply_effects(effs, P, T, zone):
         elif t == 'optional':
             if T.get('allow_optional') and cost_pay(e.get('cost', []), P, T, zone):
                 apply_effects(e['effects'], P, T, zone)
+        elif t == 'optional_discard_else_zero':
+            if len(P.hand) >= e['n']:
+                for _ in range(e['n']):
+                    w = pick_discard(P, T); P.hand.remove(w); P.drop.append(w)
+                P.bump('棄2維持數值')
+            else:
+                T['zeroed'] = True
+                st = P.zones.get(zone) or []
+                if st: T['mod'][zone] = T['mod'].get(zone, 0) - st[-1].b[ZSTAT[zone]]
         elif t == 'opp_op_add':
             if T['src'] == 'attack': T['op_in'] += e['n']; P.bump('對手攻擊減值')
         elif t == 'reveal_top_take':
@@ -523,10 +532,11 @@ def take_turn(P, opp, op_in, src):
     for comb in blocks[:4]:
         P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'
         center = min(comb, key=keep_value)
+        for c in comb: P2.hand.remove(c)  # 同時登場：先全部拿出手牌，再依序處理登場效果
         for c in comb:
-            P2.hand.remove(c)
             enter(P2, T, 'block', c, from_hand=True, as_side_blocker=c is not center)
         P2.drop += P2.zones.pop('_side', [])
+        if T.get('zeroed'): continue  # 有角色數值歸 0，原本的攔網合計不成立
         consider(P2, 0, CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb))
     # 接球（抽 1）
     Pd = P.clone(); Pd.draw(1)

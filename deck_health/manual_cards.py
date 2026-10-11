@@ -187,3 +187,12 @@ MANUAL_FUKURODANI = {
                                 dict(type='self_role_name', role='attack', name='木兎 光太郎')]})])],
 }
 MANUAL.update(MANUAL_FUKURODANI)
+
+# ── 暫定（未經使用者驗收，只用於比較測試）──────────────────
+MANUAL_PROVISIONAL = {
+    'HV-P02-064': [dict(  # 木兎光太郎：登場到任一區時，可以從手牌棄 2 張；沒棄的話所有數值變 0
+        timing='on_enter', zones=['serve', 'block', 'receive', 'toss', 'attack'],
+        effects=[dict(type='optional_discard_else_zero', n=2,
+                      note='策略：手牌夠 2 張就一定棄（模擬器假設）')])],
+}
+MANUAL.update(MANUAL_PROVISIONAL)
