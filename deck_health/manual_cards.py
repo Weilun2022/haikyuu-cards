@@ -241,3 +241,85 @@ NAME_CHOICE = {}
 if _os.environ.get('DH_PENDING') == '1':
     MANUAL.update(MANUAL_PENDING)
     NAME_CHOICE.update(NAME_CHOICE_PENDING)
+
+# ── 白鳥沢（2026-10-11 草稿，待使用者驗收反向翻譯）──────────────
+# 未驗收前預設不啟用；設環境變數 DH_SHIRA=1 才會載入（只能用來測程式，不能下結論）。
+MANUAL_SHIRATORIZAWA = {
+    'HV-P02-049': [dict(  # 天童覚：攔網區登場，對手進攻值 ≥4 時，一觸(2)
+        timing='on_enter', zones=['block'],
+        conditions=[dict(type='opp_op_ge', n=4, of='any', note='原文未限定，發球、攔網、攻擊三種進攻值都適用（同鷲尾 QA）')],
+        effects=[dict(type='keyword', name='ワンタッチ', n=2,
+                      note='QA 1320：之後接球可再出另一張天童')])],
+
+    'HV-P03-071': [dict(  # 山形隼人：接球區登場，雙方 Set 合計 ≤1，付 3 Guts：接球 +2，撈回山形以外的白鳥沢 3 年角色 1 張
+        timing='on_enter', zones=['receive'],
+        conditions=[dict(type='set_total_le', n=1)],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=2),
+                 dict(type='drop_to_hand', who='self', max=1,
+                      filter=dict(affiliation='白鳥沢·3年', exclude_name='山形 隼人', category='CHARACTER'),
+                      note='QA 1816：剛支付的 Guts 也可以拿；QA 1817：所屬字串要完全一致')])],
+
+    'HV-P02-050': [dict(  # 白布賢二郎：舉球區登場，自己角色全部白鳥沢，付 2 Guts：舉球 +2；付的 Guts 全是 S 時，白鳥沢 Guts 1 張移到攻擊區當 Guts
+        timing='on_enter', zones=['toss'],
+        conditions=[dict(type='all_own_chars_school', school='白鳥沢', note='QA 1321：看場上各區最上面的角色')],
+        cost=[dict(type='guts', n=2)],
+        effects=[dict(type='stat_add', target='this', stat='tos', n=2),
+                 dict(type='guts_move_to_zone', who='self', school='白鳥沢', to='attack', max=1,
+                      note='QA 1322：可從自己場上任一區的 Guts 拿',
+                      **{'if': [dict(type='paid_guts_all_pos', position='S')]})])],
+
+    'HV-P03-072': [dict(  # 瀬見英太：發球區登場，疊在白鳥沢角色上時：發球 +3，對手下回合 Li 接球角色每次出場接球 −1
+        timing='on_enter', zones=['serve'],
+        conditions=[dict(type='enter_on_top_school', school='白鳥沢')],
+        effects=[dict(type='stat_add', target='this', stat='srv', n=3),
+                 dict(type='restrict_opp', who='opp', rule='li_receive_add', n=-1, duration=TO)])],
+
+    'HV-P02-046': [dict(  # 牛島若利：攻擊區登場，舉球角色是白鳥沢的 S，付 3 Guts：攻擊 +3，棄對手接球區 Guts 最多 2 張
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='self_role_school_pos', role='toss', school='白鳥沢', position='S')],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=3),
+                 dict(type='drop_opp_zone_guts', who='opp', zone='receive', max=2, note='QA 1317：由使用技能的一方選')])],
+
+    'HV-P02-094': [  # 鷲匠鍛治：接球階段，抽 1、白鳥沢角色接球 +1；可棄手牌中無技能的白鳥沢角色 1 張，再 +2
+        dict(timing='event', phases=['receive'],
+             effects=[dict(type='draw', who='self', n=1),
+                      dict(type='stat_add', target=dict(who='self', count=1, school='白鳥沢'), stat='rcv', n=1),
+                      dict(type='optional', cost=[dict(type='discard_filtered', n=1,
+                                                       filter=dict(school='白鳥沢', category='CHARACTER', no_skill=True))],
+                           effects=[dict(type='stat_add', target='same', stat='rcv', n=2)])])],
+
+    'HV-P02-096': [  # 道を空けろ：攻擊階段、每回合 1 次，抽 1、白鳥沢角色攻擊 +1；舉球是白布且攻擊角色原本攻擊 3 時，攻擊區 Guts 的牛島 1 張登場到攻擊區並攻擊 +1
+        dict(timing='event', phases=['attack'], once_per_turn=True,
+             effects=[dict(type='draw', who='self', n=1),
+                      dict(type='stat_add', target=dict(who='self', count=1, school='白鳥沢'), stat='atk', n=1),
+                      dict(type='guts_to_zone', who='self', zone='attack', filter=dict(name='牛島 若利'), max=1,
+                           then=dict(type='stat_add', target='that', stat='atk', n=1),
+                           note='QA 1381：進攻值看最後的攻擊角色；QA 1382：看「原本」攻擊值',
+                           **{'if': [dict(type='self_role_name', role='toss', name='白布 賢二郎'),
+                                     dict(type='self_role_base', role='attack', stat='atk', n=3)]})])],
+
+    'HV-P02-097': [  # クソかっけえええ：攻擊階段，抽 1、白鳥沢角色攻擊 +1；攻擊角色是牛島時，對手下回合不能從手牌出 MB 攔網角色
+        dict(timing='event', phases=['attack'],
+             effects=[dict(type='draw', who='self', n=1),
+                      dict(type='stat_add', target=dict(who='self', count=1, school='白鳥沢'), stat='atk', n=1),
+                      dict(type='restrict_opp', who='opp', rule='cannot_enter_pos_from_hand', role='block', position='MB',
+                           duration=TO, note='QA 1383：雙名卡含 MB 也不行；QA 1384：用技能從別區移過來可以',
+                           **{'if': [dict(type='self_role_name', role='attack', name='牛島 若利')]})])],
+
+    'HV-P03-090': [  # おれにバレーボール教えてくれて ありがとう（音駒）：抽牌階段、每回合 1 次，從 Event 區拿這張以外的事件 1 張回手牌
+        dict(timing='event', phases=['draw'], once_per_turn=True,
+             effects=[dict(type='event_to_hand', who='self', max=1,
+                           filter=dict(exclude_name='おれにバレーボール教えてくれて ありがとう'))])],
+
+    'HV-P03-099': [  # それでお前は何をやっている：攻擊階段，抽 1、白鳥沢攻擊角色攻擊 +1；是牛島時，棄對手 Event 區所有角色牌，棄 2 張以上再 +1
+        dict(timing='event', phases=['attack'],
+             effects=[dict(type='draw', who='self', n=1),
+                      dict(type='stat_add', target=dict(who='self', count=1, school='白鳥沢', role='attack'), stat='atk', n=1),
+                      dict(type='drop_opp_event_chars', who='opp', bonus_if_ge=2,
+                           then=dict(type='stat_add', target='same', stat='atk', n=1),
+                           **{'if': [dict(type='self_role_name', role='attack', name='牛島 若利')]})])],
+}
+if _os.environ.get('DH_SHIRA') == '1':
+    MANUAL.update(MANUAL_SHIRATORIZAWA)
