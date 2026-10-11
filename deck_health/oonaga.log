@@ -1,0 +1,7 @@
+{"v": "尾長×1 換 猿杙×1", "win": 0.5152, "se": 0.0065, "n": 6000, "sec": 190}
+{"v": "尾長×3 換 猿杙×3", "win": 0.518, "se": 0.0065, "n": 6000, "sec": 188}
+{"v": "尾長×4 換 猿杙×4", "win": 0.5192, "se": 0.0065, "n": 6000, "sec": 197}
+{"deck": "fuku_v3_cand.json", "opp": "deck.json", "win": 0.5442, "se": 0.0064, "n": 6000}
+{"deck": "fuku_op8_v2.json", "opp": "deck.json", "win": 0.5375, "se": 0.0064, "n": 6000}
+{"deck": "fuku_v3_cand.json", "opp": "fuku.json", "win": 0.6575, "se": 0.0061, "n": 6000}
+{"deck": "fuku_op8_v2.json", "opp": "fuku.json", "win": 0.659, "se": 0.0061, "n": 6000}

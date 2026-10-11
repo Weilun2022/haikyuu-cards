@@ -35,7 +35,8 @@ if __name__ == '__main__':
     with mp.Pool(2, initializer=init, initargs=(path,)) as pool, open(outf, 'a', encoding='utf-8') as fo:
         for name, v in V.items():
             t0 = time.time(); d = apply(base, v)
-            res = pool.map(job, [(d, base, N // 2, 11), (d, base, N - N // 2, 23)])
+            so = int(os.environ.get('DH_SEED_OFFSET', '0'))  # 換一組種子做獨立複驗；預設 0 = 舊結果可重現
+            res = pool.map(job, [(d, base, N // 2, 11 + so), (d, base, N - N // 2, 23 + so)])
             w = sum(r[0] for r in res); n = sum(r[1] for r in res)
             p = w / n; se = (p * (1 - p) / n) ** 0.5
             rec = dict(v=name, win=round(p, 4), se=round(se, 4), n=n, sec=round(time.time() - t0))
