@@ -320,6 +320,16 @@ MANUAL_SHIRATORIZAWA = {
                       dict(type='drop_opp_event_chars', who='opp', bonus_if_ge=2,
                            then=dict(type='stat_add', target='same', stat='atk', n=1),
                            **{'if': [dict(type='self_role_name', role='attack', name='牛島 若利')]})])],
+
+    'HV-P03-067': [  # 牛島若利：接球區登場，付 2 Guts 接球 +4；對手攻擊角色原本攻擊 ≤1 時，可棄自己的白鳥沢攔網角色 1 人，對手攻擊進攻值 −2
+        dict(timing='on_enter', zones=['receive'],
+             cost=[dict(type='guts', n=2)],
+             effects=[dict(type='stat_add', target='this', stat='rcv', n=4)]),
+        dict(timing='on_enter', zones=['receive'],
+             conditions=[dict(type='opp_role_base_le', role='attack', stat='atk', n=1,
+                              note='只看對手「攻擊」的進攻值；與付 Guts 的部分各自獨立（各有「使える」）')],
+             cost=[dict(type='drop_block_char', who='self', school='白鳥沢', n=1)],
+             effects=[dict(type='opp_op_add', n=-2, note='策略：只有接不住時才棄攔網角色')])],
 }
 if _os.environ.get('DH_SHIRA') == '1':
     MANUAL.update(MANUAL_SHIRATORIZAWA)

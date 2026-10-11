@@ -95,4 +95,20 @@ ok('天童 一觸 2', T.get('onetouch') == 2)
 P = player(); T = newT(opp, 3, 'attack'); enter(P, T, 'block', C('HV-P02-049'), True)
 ok('進攻 3 不觸發', not T.get('onetouch'))
 
+# 牛島 P03-067：付 2 Guts 接球 2+4=6；對手攻擊角色原本攻擊 ≤1、接不住時棄白鳥沢攔網角色，對手攻擊 −2
+O = player(); O.zones['attack'] = [C('HV-P01-002')]       # 日向 P01-002 原本攻擊 1
+P = player(); P.zones['receive'] = [C('HV-P02-053')] * 2; P.zones['block'] = [C('HV-P03-068')]
+T = newT(O, 8, 'attack'); enter(P, T, 'receive', C('HV-P03-067'), True)
+ok('P03-067 接球 6、對手進攻 8→6、棄攔網角色', cur_stat(P, T, 'receive') == 6 and T['op_in'] == 6 and not P.zones['block'])
+P = player(); P.zones['receive'] = [C('HV-P02-053')] * 2; P.zones['block'] = [C('HV-P03-068')]
+T = newT(O, 5, 'attack'); enter(P, T, 'receive', C('HV-P03-067'), True)
+ok('P03-067 接得住就不棄攔網角色', T['op_in'] == 5 and len(P.zones['block']) == 1)
+O2 = player(); O2.zones['attack'] = [C('HV-P02-047')]      # 原本攻擊 3
+P = player(); P.zones['receive'] = [C('HV-P02-053')] * 2; P.zones['block'] = [C('HV-P03-068')]
+T = newT(O2, 8, 'attack'); enter(P, T, 'receive', C('HV-P03-067'), True)
+ok('P03-067 對手攻擊 3 不能減', T['op_in'] == 8 and len(P.zones['block']) == 1)
+P = player(); T = newT(O, 8, 'serve'); P.zones['block'] = [C('HV-P03-068')]
+enter(P, T, 'receive', C('HV-P03-067'), True)
+ok('P03-067 對手是發球不能減、沒 Guts 接球 2', T['op_in'] == 8 and cur_stat(P, T, 'receive') == 2)
+
 print('FAILED:', FAIL if FAIL else 'none')

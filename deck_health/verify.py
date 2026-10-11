@@ -51,6 +51,7 @@ def cond(c):
     if t == 'paid_guts_all_pos': return f"剛支付的 Guts 全部是 {c['position']}"
     if t == 'enter_on_top_school': return f"此角色是疊在{c['school']}角色上面登場"
     if t == 'self_role_school_pos': return f"自己的舉球角色是{c['school']}的 {c['position']}"
+    if t == 'opp_role_base_le': return f"對手的攻擊角色原本的{STAT[c['stat']]} ≤{c['n']}（對手這一拍是攻擊）"
     if t == 'self_role_base':
         return f"自己的{'攻擊' if c['role']=='attack' else c['role']}角色原本的{STAT[c['stat']]} = {c['n']}"
     return json.dumps(c, ensure_ascii=False)
@@ -63,6 +64,7 @@ def cost(c):
     if t == 'discard_hand': return f"從手牌棄置 {c['n']} 張"
     if t == 'discard_this_from_hand': return '從手牌棄置此卡'
     if t == 'this_to_deck_bottom': return '此卡放到自己牌庫底'
+    if t == 'drop_block_char': return f"棄置自己的{c['school']}攔網角色 {c['n']} 人"
     if t == 'discard_filtered':
         f = c['filter']; return f"從手牌棄置{'沒有技能的' if f.get('no_skill') else ''}{f.get('school','')}角色牌 {c['n']} 張"
     return json.dumps(c, ensure_ascii=False)
@@ -103,6 +105,7 @@ def eff(e):
         else: s = f"{DUR[e['duration']]}，對手最多只能出場 {e['max']} 名{role}角色"
     elif t == 'on_opp_non_draw_add_mill': s = f"{DUR[e['duration']]}，每當對手以抽牌以外的方式把牌加入手牌，棄置對手牌庫頂 {e['n']} 張"
     elif t == 'keyword': s = f"［{e['name']}({e['n']})］"
+    elif t == 'opp_op_add': s = f"對手的攻擊進攻值 {e['n']:+d}"
     elif t == 'optional': s = '可選擇：' + '，'.join(cost(c) for c in e['cost']) + '，則 ' + '；'.join(eff(x) for x in e['effects'])
     elif t == 'guts_move_to_zone': s = f"將自己場上任一區的{e['school']}角色 Guts 最多 {e['max']} 張移到{ZONE[e['to']]}當 Guts"
     elif t == 'drop_opp_zone_guts': s = f"從對手的{ZONE[e['zone']]}棄置 Guts 最多 {e['max']} 張（由自己選）"

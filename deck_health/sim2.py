@@ -220,6 +220,9 @@ def cond_ok(c, P, T):
     if t == 'self_role_school_pos':
         st = P.zones[c['role']]
         return bool(st) and c['school'] in st[-1].school and c['position'] in st[-1].pos
+    if t == 'opp_role_base_le':  # P03-067：對手攻擊角色原本攻擊值 ≤n（只在對手這一拍是攻擊時）
+        st = opp.zones[c['role']]
+        return T['src'] == 'attack' and bool(st) and st[-1].b[c['stat']] <= c['n']
     if t == 'self_role_base':
         st = P.zones[c['role']]
         return bool(st) and st[-1].b[c['stat']] == c['n']
@@ -467,6 +470,8 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None):
         neg = [e['name'] for e in s['effects'] if e['type'] == 'negate_skills']
         pa = T.get('plan_attack')
         if neg and pa and pa[1] in neg and has_attack_skill(pa[0]): continue  # 會廢掉本回合木兎攻擊技能時不用
+        if (any(c['type'] == 'drop_block_char' for c in costs) and zone == 'receive'
+                and cur_stat(P, T, 'receive') >= T['op_in']): continue  # P03-067：接得住就不棄攔網角色
         if not cost_pay(costs, P, T, zone): continue
         P.bump('技能:' + card.no)
         apply_effects(s['effects'], P, T, zone)
