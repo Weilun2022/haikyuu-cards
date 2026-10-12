@@ -242,12 +242,12 @@ if _os.environ.get('DH_PENDING') == '1':
     MANUAL.update(MANUAL_PENDING)
     NAME_CHOICE.update(NAME_CHOICE_PENDING)
 
-# ── 白鳥沢（2026-10-11 草稿，待使用者驗收反向翻譯）──────────────
-# 未驗收前預設不啟用；設環境變數 DH_SHIRA=1 才會載入（只能用來測程式，不能下結論）。
+# ── 白鳥沢（使用者 2026-10-12 驗收，含修正：天童只對攻擊一觸、白布付 Guts 不挑 S、P03-067 要先付 Guts 才能 −2）──
+# 預設載入。
 MANUAL_SHIRATORIZAWA = {
     'HV-P02-049': [dict(  # 天童覚：攔網區登場，對手進攻值 ≥4 時，一觸(2)
         timing='on_enter', zones=['block'],
-        conditions=[dict(type='opp_op_ge', n=4, of='any', note='原文未限定，發球、攔網、攻擊三種進攻值都適用（同鷲尾 QA）')],
+        conditions=[dict(type='opp_op_ge', n=4, of='attack', note='使用者 2026-10-12：只有對手「攻擊」可以一觸，發球、攔網回來的球不行')],
         effects=[dict(type='keyword', name='ワンタッチ', n=2,
                       note='QA 1320：之後接球可再出另一張天童')])],
 
@@ -266,7 +266,7 @@ MANUAL_SHIRATORIZAWA = {
         cost=[dict(type='guts', n=2)],
         effects=[dict(type='stat_add', target='this', stat='tos', n=2),
                  dict(type='guts_move_to_zone', who='self', school='白鳥沢', to='attack', max=1,
-                      note='QA 1322：可從自己場上任一區的 Guts 拿',
+                      note='QA 1322：可從自己場上任一區的 Guts 拿；付 Guts 不刻意挑 S，依實際疊的順序（使用者 2026-10-12）',
                       **{'if': [dict(type='paid_guts_all_pos', position='S')]})])],
 
     'HV-P03-072': [dict(  # 瀬見英太：發球區登場，疊在白鳥沢角色上時：發球 +3，對手下回合 Li 接球角色每次出場接球 −1
@@ -321,18 +321,16 @@ MANUAL_SHIRATORIZAWA = {
                            then=dict(type='stat_add', target='same', stat='atk', n=1),
                            **{'if': [dict(type='self_role_name', role='attack', name='牛島 若利')]})])],
 
-    'HV-P03-067': [  # 牛島若利：接球區登場，付 2 Guts 接球 +4；對手攻擊角色原本攻擊 ≤1 時，可棄自己的白鳥沢攔網角色 1 人，對手攻擊進攻值 −2
-        dict(timing='on_enter', zones=['receive'],
-             cost=[dict(type='guts', n=2)],
-             effects=[dict(type='stat_add', target='this', stat='rcv', n=4)]),
-        dict(timing='on_enter', zones=['receive'],
-             conditions=[dict(type='opp_role_base_le', role='attack', stat='atk', n=1,
-                              note='只看對手「攻擊」的進攻值；與付 Guts 的部分各自獨立（各有「使える」）')],
-             cost=[dict(type='drop_block_char', who='self', school='白鳥沢', n=1)],
-             effects=[dict(type='opp_op_add', n=-2, note='策略：只有接不住時才棄攔網角色')])],
+    'HV-P03-067': [dict(  # 牛島若利：接球區登場，付 2 Guts 接球 +4；有付的話，對手攻擊角色原本攻擊 ≤1 時可棄自己白鳥沢攔網角色 1 人，對手攻擊 −2
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='guts', n=2)],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=4),
+                 dict(type='optional', cost=[dict(type='drop_block_char', who='self', school='白鳥沢', n=1)],
+                      effects=[dict(type='opp_op_add', n=-2)],
+                      note='使用者 2026-10-12：要先付 2 Guts 才能用這段；只有接不住時才棄攔網角色',
+                      **{'if': [dict(type='opp_role_base_le', role='attack', stat='atk', n=1)]})])],
 }
-if _os.environ.get('DH_SHIRA') == '1':
-    MANUAL.update(MANUAL_SHIRATORIZAWA)
+MANUAL.update(MANUAL_SHIRATORIZAWA)
 
 # ── 稲荷崎（2026-10-12 使用者驗收通過）──────────────
 NAME_CHOICE_INARIZAKI = {

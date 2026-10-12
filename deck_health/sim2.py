@@ -267,10 +267,8 @@ def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
         if t == 'guts':
-            st = P.zones[zone]; pos = T.get('prefer_guts_pos')
-            if pos:  # 白布：優先付 S 的 Guts（付的全是 S 才有追加效果）
-                g = st[:-1]; g.sort(key=lambda x: pos not in x.pos); st[:-1] = g
-            T['paid_guts'] = st[:c['n']]
+            st = P.zones[zone]
+            T['paid_guts'] = st[:c['n']]  # 白布：依實際疊的順序付，不刻意挑 S（使用者 2026-10-12）
             P.pay_guts(zone, c['n'])
         elif t == 'discard_filtered':
             for _ in range(c['n']):
@@ -526,8 +524,6 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
         if not all(cond_ok(c, P, T) for c in s.get('conditions', [])): continue
         costs = s.get('cost', [])
         T['paid_guts'] = None
-        T['prefer_guts_pos'] = next((c['position'] for e in s['effects'] for c in e.get('if', [])
-                                     if c['type'] == 'paid_guts_all_pos'), None)
         if any(c['type'] in ('discard_hand', 'hand_to_deck_bottom') for c in costs) and not (
                 T.get('allow_discard_cost') or (zone == 'receive' and card.b['rcv'] < T['op_in'])
                 or any(e['type'] == 'event_to_hand' and 'school' in e['filter']

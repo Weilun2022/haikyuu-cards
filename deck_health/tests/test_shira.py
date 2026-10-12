@@ -27,8 +27,13 @@ P.zones['attack'] = [C('HV-P02-047')]
 P.zones['toss'] = [C('HV-P03-068'), C('HV-P02-055'), C('HV-P02-050')]   # Guts：天童(MB)、瀬見(S)；最上面白布
 enter(P, T, 'toss', C('HV-P02-050'), True)   # 疊上新的白布，Guts = 天童、瀬見、白布 → 優先付 2 張 S
 ok('白布 舉球 3', cur_stat(P, T, 'toss') == 3)
-ok('白布 付的是 S', all('S' in x.pos for x in T['paid_guts']))
-ok('白布 搬 Guts 到攻擊區（攻擊區 1→2 張）', len(P.zones['attack']) == 2 and len(P.zones['block']) == 1)
+ok('白布 依疊的順序付（天童、瀬見），不挑 S', [x.no for x in T['paid_guts']] == ['HV-P03-068', 'HV-P02-055'])
+ok('白布 付的不全是 S → 不搬 Guts', len(P.zones['attack']) == 1 and len(P.zones['block']) == 2)
+P3 = player(); T3 = newT(opp, 5, 'attack')
+P3.zones['receive'] = [C('HV-P02-053')]; P3.zones['block'] = [C('HV-P03-068'), C('HV-P02-049')]; P3.zones['attack'] = [C('HV-P02-047')]
+P3.zones['toss'] = [C('HV-P02-055'), C('HV-P02-050'), C('HV-P02-050')]
+enter(P3, T3, 'toss', C('HV-P02-050'), True)
+ok('白布 付的全是 S → 搬 Guts 到攻擊區', len(P3.zones['attack']) == 2 and len(P3.zones['block']) == 1)
 
 # 牛島 P02-046：舉球白鳥沢 S，付 3 Guts，攻擊 2+3=5；棄對手接球區 Guts 2 張
 P.zones['attack'] = [C('HV-P02-047')] * 3
@@ -94,21 +99,28 @@ P = player(); T = newT(opp, 4, 'attack'); enter(P, T, 'block', C('HV-P02-049'), 
 ok('天童 一觸 2', T.get('onetouch') == 2)
 P = player(); T = newT(opp, 3, 'attack'); enter(P, T, 'block', C('HV-P02-049'), True)
 ok('進攻 3 不觸發', not T.get('onetouch'))
+P = player(); T = newT(opp, 6, 'serve'); enter(P, T, 'block', C('HV-P02-049'), True)
+ok('天童 對發球不能一觸', not T.get('onetouch'))
+P = player(); T = newT(opp, 6, 'block'); enter(P, T, 'block', C('HV-P02-049'), True)
+ok('天童 對攔網回來的球不能一觸', not T.get('onetouch'))
 
 # 牛島 P03-067：付 2 Guts 接球 2+4=6；對手攻擊角色原本攻擊 ≤1、接不住時棄白鳥沢攔網角色，對手攻擊 −2
 O = player(); O.zones['attack'] = [C('HV-P01-002')]       # 日向 P01-002 原本攻擊 1
 P = player(); P.zones['receive'] = [C('HV-P02-053')] * 2; P.zones['block'] = [C('HV-P03-068')]
-T = newT(O, 8, 'attack'); enter(P, T, 'receive', C('HV-P03-067'), True)
+T = newT(O, 8, 'attack'); T['phase'] = 'receive'; enter(P, T, 'receive', C('HV-P03-067'), True)
 ok('P03-067 接球 6、對手進攻 8→6、棄攔網角色', cur_stat(P, T, 'receive') == 6 and T['op_in'] == 6 and not P.zones['block'])
 P = player(); P.zones['receive'] = [C('HV-P02-053')] * 2; P.zones['block'] = [C('HV-P03-068')]
-T = newT(O, 5, 'attack'); enter(P, T, 'receive', C('HV-P03-067'), True)
+T = newT(O, 5, 'attack'); T['phase'] = 'receive'; enter(P, T, 'receive', C('HV-P03-067'), True)
 ok('P03-067 接得住就不棄攔網角色', T['op_in'] == 5 and len(P.zones['block']) == 1)
 O2 = player(); O2.zones['attack'] = [C('HV-P02-047')]      # 原本攻擊 3
 P = player(); P.zones['receive'] = [C('HV-P02-053')] * 2; P.zones['block'] = [C('HV-P03-068')]
-T = newT(O2, 8, 'attack'); enter(P, T, 'receive', C('HV-P03-067'), True)
+T = newT(O2, 8, 'attack'); T['phase'] = 'receive'; enter(P, T, 'receive', C('HV-P03-067'), True)
 ok('P03-067 對手攻擊 3 不能減', T['op_in'] == 8 and len(P.zones['block']) == 1)
 P = player(); T = newT(O, 8, 'serve'); P.zones['block'] = [C('HV-P03-068')]
 enter(P, T, 'receive', C('HV-P03-067'), True)
 ok('P03-067 對手是發球不能減、沒 Guts 接球 2', T['op_in'] == 8 and cur_stat(P, T, 'receive') == 2)
+P = player(); P.zones['block'] = [C('HV-P03-068')]
+T = newT(O, 8, 'attack'); T['phase'] = 'receive'; enter(P, T, 'receive', C('HV-P03-067'), True)
+ok('P03-067 沒付 Guts 就不能減', T['op_in'] == 8 and len(P.zones['block']) == 1)
 
 print('FAILED:', FAIL if FAIL else 'none')
