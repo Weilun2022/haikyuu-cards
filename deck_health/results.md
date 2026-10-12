@@ -436,3 +436,9 @@ compare2.py 新增 DH_SEED_OFFSET 環境變數：換一組種子做獨立複驗�
 | 烏野 deck.json | 54.3% | 54.9% | 無差異 |
 | 梟谷 V2 | 53.5% | 50.6% | 變強 |
 結論：鷲尾可以拔 1 張；換成第 5 張赤葦 P01-045 最好（梟谷內戰 +3%，對烏野無差異）。尾長、P02-065 不要再加。
+
+## 2026-10-12 使用者實際 B（分享連結解碼，fuku_user_B.json）與分享連結工具
+- 連結解碼後發現使用者的 B 是赤葦 P01-046×2、P02-067×2（fuku_B.json 是 P01-046×3、P02-067×1），其餘相同
+- 對建議版 fuku_B_045.json（DH_SEED_OFFSET=5000，各 6000 場，±0.65%）：使用者實際 B 48.3%（變差）、使用者實際 B＋鷲尾×1→P01-045 48.5%（變差）
+- 新增 share_link.js：牌組 JSON ⇄ 網站 ?deck= 連結（LZString 壓縮 {n, c:[[圖檔,張數]], k:{圖檔:{free,receive,set,attack}}}），與 index.html encodeDeck/decodeDeck 同格式
+- 建議版連結：fuku_B_045_link.txt（已用本機網站＋Playwright 實際匯入確認 40 張、13 種卡、11 種卡有顏色）
