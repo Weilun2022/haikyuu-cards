@@ -333,3 +333,77 @@ MANUAL_SHIRATORIZAWA = {
 }
 if _os.environ.get('DH_SHIRA') == '1':
     MANUAL.update(MANUAL_SHIRATORIZAWA)
+
+# ── 稲荷崎（2026-10-12 草稿，待使用者驗收反向翻譯）──────────────
+# 未驗收前預設不啟用；設環境變數 DH_INARI=1 才會載入（只能用來測程式，不能下結論）。
+NAME_CHOICE_INARIZAKI = {
+    'HV-P02-077': ['宮 侑', '宮 治'],  # 宮兄弟：出場時選名字，到回合結束有效（QA 1344/1346：可當侑和另一張治一起攔網）
+}
+MANUAL_INARIZAKI = {
+    'HV-D03-011': [dict(  # 赤木路成（Li）：接球區登場，付 2 Guts，接球 +2
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='guts', n=2)],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=2)])],
+
+    'HV-P02-024': [dict(  # 北信介：接球區登場，棄手牌 1 張＋付 3 Guts，接球 +1，Event 區的稲荷崎牌 1 張回手牌
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='discard_hand', n=1), dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=1),
+                 dict(type='event_to_hand', who='self', max=1, filter=dict(school='稲荷崎'),
+                      note='QA 1285：不必是最上面那張')])],
+
+    'HV-P02-016': [dict(  # 宮侑：舉球區登場，付 3 Guts，抽 1、舉球 +2；若是由「どん ぴしゃり」登場，對手下回合一觸與「接球階段・手牌」技能無效
+        timing='on_enter', zones=['toss'],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target='this', stat='tos', n=2),
+                 dict(type='restrict_opp', who='opp', rule='nullify_onetouch_and_receive_hand', duration=TO,
+                      note='QA 1273：一觸(2)(3) 都無效；QA 1274：例如成田 P02-011',
+                      **{'if': [dict(type='entered_by', card_name='どん ぴしゃり')]})])],
+
+    'HV-P03-021': [dict(  # 宮侑（Li）：舉球區登場，付 3 Guts，舉球 +2，棄牌區的「ユース」事件最多 1 張回手牌；有拿就從手牌棄 1
+        timing='on_enter', zones=['toss'],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='tos', n=2),
+                 dict(type='drop_to_hand', who='self', max=1, filter=dict(affiliation='ユース', category='EVENT'),
+                      then=dict(type='discard_hand', who='self', n=1),
+                      note='QA 1781：所屬字串要完全一致；本牌組沒有ユース事件，這段不會發生')])],
+
+    'HV-D03-002': [dict(  # 宮治：攻擊區登場，舉球角色是宮侑時，手牌 1 張放牌庫底，攻擊 +2
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='self_role_name', role='toss', name='宮 侑', note='QA 1251：宮兄弟選「宮 侑」也算')],
+        cost=[dict(type='hand_to_deck_bottom', n=1, note='QA 1252：牌庫 0 張也能用')],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=2)])],
+
+    'HV-P02-020': [dict(  # 宮治：攻擊區登場，付 3 Guts，攻擊 +3；若是由「どん ぴしゃり」登場，再 +1，對手下回合從手牌最多只能出 2 名攔網角色
+        timing='on_enter', zones=['attack'],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=3),
+                 dict(type='stat_add', target='this', stat='atk', n=1,
+                      **{'if': [dict(type='entered_by', card_name='どん ぴしゃり')]}),
+                 dict(type='restrict_opp', who='opp', rule='max_block_from_hand', role='block', max=2, duration=TO,
+                      **{'if': [dict(type='entered_by', card_name='どん ぴしゃり')]})])],
+
+    'HV-P02-084': [dict(  # 黒須法宗：接球階段，抽 1、稲荷崎角色接球 +1；Event 區可在發球／舉球／攻擊打出的稲荷崎牌合計 ≥2 張時再 +1
+        timing='event', phases=['receive'],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target=dict(who='self', count=1, school='稲荷崎'), stat='rcv', n=1),
+                 dict(type='stat_add', target='same', stat='rcv', n=1,
+                      note='QA 1363：多個圖示的事件算 1 張',
+                      **{'if': [dict(type='event_zone_phase_count_ge', who='self', phases=['serve', 'toss', 'attack'], n=2, school='稲荷崎')]})])],
+
+    'HV-P02-087': [dict(  # どん ぴしゃり：攻擊階段，抽 1；舉球侑＋攻擊治時：任一區 Guts 的侑→舉球區、治→攻擊區，稲荷崎角色任一數值 +1
+        timing='event', phases=['attack'],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='guts_any_to_zone', who='self', zone='toss', filter=dict(name='宮 侑'), max=1,
+                      note='QA 1370：任一區的 Guts 都可以',
+                      **{'if': [dict(type='self_role_name', role='toss', name='宮 侑'), dict(type='self_role_name', role='attack', name='宮 治')]}),
+                 dict(type='guts_any_to_zone', who='self', zone='attack', filter=dict(name='宮 治'), max=1,
+                      **{'if': [dict(type='self_role_name', role='toss', name='宮 侑'), dict(type='self_role_name', role='attack', name='宮 治')]}),
+                 dict(type='stat_add', target=dict(who='self', count=1, school='稲荷崎'), stat='any', n=1,
+                      note='QA 1368：這張全部解決完，才解決叫出來的侑／治的登場技能；QA 1371：加給被蓋掉的角色會失效',
+                      **{'if': [dict(type='self_role_name', role='toss', name='宮 侑'), dict(type='self_role_name', role='attack', name='宮 治')]})])],
+}
+if _os.environ.get('DH_INARI') == '1':
+    MANUAL.update(MANUAL_INARIZAKI)
+    NAME_CHOICE.update(NAME_CHOICE_INARIZAKI)

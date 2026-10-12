@@ -46,12 +46,14 @@ def cond(c):
     if t == 'event_zone_count_le':
         return f"{WHO[c['who']]} Event 區的「{c['card_name']}」≤{c['n']} 張" + ('（含這張）' if c.get('includes_self') else '')
     if t == 'event_zone_phase_count_ge':
-        return f"{WHO[c['who']]} Event 區可在{'/'.join(PHASE[p] for p in c['phases'])}打出的牌合計 ≥{c['n']} 張"
+        return f"{WHO[c['who']]} Event 區{c.get('school','')}的牌中，可在{'/'.join(PHASE[p] for p in c['phases'])}打出的合計 ≥{c['n']} 張" if c.get('school') else f"{WHO[c['who']]} Event 區可在{'/'.join(PHASE[p] for p in c['phases'])}打出的牌合計 ≥{c['n']} 張"
     if t == 'all_own_chars_school': return f"自己場上的角色全部是{c['school']}"
     if t == 'paid_guts_all_pos': return f"剛支付的 Guts 全部是 {c['position']}"
     if t == 'enter_on_top_school': return f"此角色是疊在{c['school']}角色上面登場"
     if t == 'self_role_school_pos': return f"自己的舉球角色是{c['school']}的 {c['position']}"
     if t == 'opp_role_base_le': return f"對手的攻擊角色原本的{STAT[c['stat']]} ≤{c['n']}（對手這一拍是攻擊）"
+    if t == 'entered_by': return f"此角色是由「{c['card_name']}」的技能登場"
+    if t == 'event_zone_phase_count_ge' and c.get('school'): pass
     if t == 'self_role_base':
         return f"自己的{'攻擊' if c['role']=='attack' else c['role']}角色原本的{STAT[c['stat']]} = {c['n']}"
     return json.dumps(c, ensure_ascii=False)
@@ -64,6 +66,7 @@ def cost(c):
     if t == 'discard_hand': return f"從手牌棄置 {c['n']} 張"
     if t == 'discard_this_from_hand': return '從手牌棄置此卡'
     if t == 'this_to_deck_bottom': return '此卡放到自己牌庫底'
+    if t == 'hand_to_deck_bottom': return f"從手牌把 {c['n']} 張放到牌庫底"
     if t == 'drop_block_char': return f"棄置自己的{c['school']}攔網角色 {c['n']} 人"
     if t == 'discard_filtered':
         f = c['filter']; return f"從手牌棄置{'沒有技能的' if f.get('no_skill') else ''}{f.get('school','')}角色牌 {c['n']} 張"
@@ -85,7 +88,8 @@ def eff(e):
         f = e['filter']
         s = (f"從{WHO[e['who']]}棄牌區將" + (f"「{f['exclude_name']}」以外的" if f.get('exclude_name') else '')
              + f"{f.get('affiliation', f.get('school',''))}{('「'+f['name']+'」') if f.get('name') else ''}"
-             + f"{'角色' if f.get('category')=='CHARACTER' else ''}牌最多 {e['max']} 張加入手牌")
+             + f"{'角色' if f.get('category')=='CHARACTER' else '事件' if f.get('category')=='EVENT' else ''}牌最多 {e['max']} 張加入手牌")
+        if e.get('then'): s += '；有加入的話，' + eff(e['then'])
     elif t == 'drop_to_zone':
         s = f"從{WHO[e['who']]}棄牌區使「{e['name']}」{e['max']} 張出場至{ZONE[e['zone']]}" + ('（強制）' if e.get('mandatory') else '')
         if e.get('then'): s += '，' + eff(e['then'])
@@ -93,6 +97,10 @@ def eff(e):
         f = e.get('filter', {})
         s = f"{WHO[e['who']]}{ZONE[e['zone']]}的 Guts 中{f.get('position','')}{('「'+f['name']+'」') if f.get('name') else ''} {'最多 ' if not e.get('exact') else ''}{e['max']} 張出場至{ZONE[e['zone']]}"
         if e.get('then'): s += '，' + eff(e['then'])
+    elif t == 'guts_any_to_zone':
+        s = f"{WHO[e['who']]}場上任一區的 Guts 中「{e['filter']['name']}」最多 {e['max']} 張出場至{ZONE[e['zone']]}"
+    elif t == 'event_to_hand' and e['filter'].get('school'):
+        s = f"從{WHO[e['who']]} Event 區將{e['filter']['school']}的牌最多 {e['max']} 張加入手牌"
     elif t == 'event_to_hand':
         f = e['filter']
         if 'only_phase' in f: s = f"從{WHO[e['who']]} Event 區將只能在{PHASE[f['only_phase']]}打出的牌最多 {e['max']} 張加入手牌"
@@ -101,6 +109,8 @@ def eff(e):
         role = {'receive': '接球', 'block': '攔網'}.get(e.get('role'), '')
         if e['rule'] == 'li_receive_add': s = f"{DUR[e['duration']]}，每當對手的 Li 接球角色出場，該角色接球值 {e['n']}"
         elif e['rule'] == 'cannot_enter_pos_from_hand': s = f"{DUR[e['duration']]}，對手不能從手牌出場 {e['position']} 的{role}角色"
+        elif e['rule'] == 'nullify_onetouch_and_receive_hand': s = f"{DUR[e['duration']]}，對手的［一觸(N)］與「接球階段・手牌」可用的技能無效"
+        elif e['rule'] == 'max_block_from_hand': s = f"{DUR[e['duration']]}，對手從手牌最多只能出場 {e['max']} 名攔網角色"
         elif e['rule'] == 'cannot_enter': s = f"{DUR[e['duration']]}，對手不能出場原本{STAT['rcv']} ≥{e['base_rcv_ge']} 的{role}角色"
         else: s = f"{DUR[e['duration']]}，對手最多只能出場 {e['max']} 名{role}角色"
     elif t == 'on_opp_non_draw_add_mill': s = f"{DUR[e['duration']]}，每當對手以抽牌以外的方式把牌加入手牌，棄置對手牌庫頂 {e['n']} 張"
