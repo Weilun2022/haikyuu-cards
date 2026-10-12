@@ -26,7 +26,8 @@ if __name__ == '__main__':
             d = apply(base, v)
             for of in opps:
                 t0 = time.time(); o = json.load(open(of))
-                res = pool.map(job, [(d, o, N // 2, 31), (d, o, N - N // 2, 47)])
+                so = int(os.environ.get('DH_SEED_OFFSET', '0'))  # 換種子複驗；預設 0 = 舊結果可重現
+                res = pool.map(job, [(d, o, N // 2, 31 + so), (d, o, N - N // 2, 47 + so)])
                 w = sum(r[0] for r in res); n = sum(r[1] for r in res); p = w / n
                 rec = dict(v=name, opp=of, win=round(p, 4), se=round((p * (1 - p) / n) ** 0.5, 4), n=n, sec=round(time.time() - t0))
                 fo.write(json.dumps(rec, ensure_ascii=False) + '\n'); fo.flush()
