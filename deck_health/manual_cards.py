@@ -334,8 +334,7 @@ MANUAL_SHIRATORIZAWA = {
 if _os.environ.get('DH_SHIRA') == '1':
     MANUAL.update(MANUAL_SHIRATORIZAWA)
 
-# ── 稲荷崎（2026-10-12 草稿，待使用者驗收反向翻譯）──────────────
-# 未驗收前預設不啟用；設環境變數 DH_INARI=1 才會載入（只能用來測程式，不能下結論）。
+# ── 稲荷崎（2026-10-12 使用者驗收通過）──────────────
 NAME_CHOICE_INARIZAKI = {
     'HV-P02-077': ['宮 侑', '宮 治'],  # 宮兄弟：出場時選名字，到回合結束有效（QA 1344/1346：可當侑和另一張治一起攔網）
 }
@@ -404,6 +403,7 @@ MANUAL_INARIZAKI = {
                       note='QA 1368：這張全部解決完，才解決叫出來的侑／治的登場技能；QA 1371：加給被蓋掉的角色會失效',
                       **{'if': [dict(type='self_role_name', role='toss', name='宮 侑'), dict(type='self_role_name', role='attack', name='宮 治')]})])],
 }
-if _os.environ.get('DH_INARI') == '1':
+# 2026-10-12 使用者驗收通過 → 預設啟用（DH_INARI=0 可關閉）
+if _os.environ.get('DH_INARI', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI)
     NAME_CHOICE.update(NAME_CHOICE_INARIZAKI)
