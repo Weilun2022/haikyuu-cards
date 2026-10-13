@@ -123,4 +123,11 @@ P = player(); P.zones['block'] = [C('HV-P03-068')]
 T = newT(O, 8, 'attack'); T['phase'] = 'receive'; enter(P, T, 'receive', C('HV-P03-067'), True)
 ok('P03-067 沒付 Guts 就不能減', T['op_in'] == 8 and len(P.zones['block']) == 1)
 
+# 一觸只對攻擊（所有卡通用，使用者 2026-10-13）：梟谷鷲尾 P01-051
+from sim2 import response_cost
+P = player(); P.deck = [C('HV-P01-051')] * 5; T = newT(opp, 6, 'serve'); enter(P, T, 'block', C('HV-P01-051'), True)
+ok('鷲尾 對發球不能一觸', not T.get('onetouch'))
+P = player(); P.deck = [C('HV-P01-051')] * 5; T = newT(opp, 6, 'attack'); enter(P, T, 'block', C('HV-P01-051'), True)
+ok('鷲尾 對攻擊可以一觸', T.get('onetouch') == 3)
+
 print('FAILED:', FAIL if FAIL else 'none')

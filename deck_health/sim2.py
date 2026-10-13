@@ -13,6 +13,7 @@ CFG = dict(
     a_pass_as_toss=1,          # Aパス(1) 當作本回合舉球 +1【假設，待第 9 章】
     max_turns_per_set=80,
     fetch_then_attack=True,    # 赤葦 P01-045 撿回木兎後，同一拍可以拿來攻擊；付 Guts 時調成奇數（2026-10-11 修正）
+    onetouch_attack_only=True, # 一觸只能減對手「攻擊」的進攻值，發球、攔網回來的球不行（所有卡通用）【使用者 2026-10-13】
     li_restrict=True,          # 數值為「-」的區域不能登場（Li 不能發球、攔網）【使用者 2026-10-11】
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
 )
@@ -330,7 +331,8 @@ def apply_effects(effs, P, T, zone):
         elif t == 'stat_cap': T['toss_cap'] = e['below'] - 1
         elif t == 'keyword':
             if e['name'] == 'Aパス': T['mod']['toss'] = T['mod'].get('toss', 0) + e['n']
-            elif e['name'] == 'ワンタッチ': T['onetouch'] = e['n']; P.bump('一觸')
+            elif e['name'] == 'ワンタッチ':
+                if not CFG['onetouch_attack_only'] or T['src'] == 'attack': T['onetouch'] = e['n']; P.bump('一觸')
             elif e['name'] == 'ツーアタック': T['two_attack'] = e['n']; P.bump('二段攻擊')
         elif t == 'mill':
             if P.deck and (not e.get('up_to') or T.get('allow_optional')):
@@ -653,7 +655,7 @@ def _can_receive(opp, chars, op):
     return False
 
 
-def response_cost(opp, op, locks, trap):
+def response_cost(opp, op, locks, trap, src='attack'):
     """對手要淨花幾張牌才接得住；接不住回傳 None。"""
     restrict = opp.restrict  # 暫存：用我施加的限制來判斷
     opp.restrict = locks
@@ -668,7 +670,7 @@ def response_cost(opp, op, locks, trap):
         if found: best = k; break
     if _can_receive(opp, chars, op):
         best = 2 if best is None else min(best, 2)
-    elif op >= 4 and not nullified(locks):  # 一觸：1 張中間攔網削弱後再接球（淨花 3 張）
+    elif op >= 4 and not nullified(locks) and (src == 'attack' or not CFG['onetouch_attack_only']):  # 一觸：1 張中間攔網削弱後再接球（淨花 3 張）
         for c in chars:
             n = onetouch_n(c)
             if n and can_enter(opp, 'block', c) and _can_receive(opp, [x for x in chars if x is not c], op - n):
@@ -681,8 +683,8 @@ def response_cost(opp, op, locks, trap):
     return best
 
 
-def evaluate(P, op_sent, locks, trap, opp):
-    cost = response_cost(opp, op_sent, locks, trap)
+def evaluate(P, op_sent, locks, trap, opp, src='attack'):
+    cost = response_cost(opp, op_sent, locks, trap, src)
     s = hand_score(P.hand)
     if cost is None: return 1000 + s
     return s + CFG['w_cost'] * cost + CFG['w_op'] * op_sent
@@ -808,7 +810,7 @@ def take_turn(P, opp, op_in, src):
 
     def consider(P2, op_sent, src_sent, locks, trap, action):
         nonlocal best
-        v = evaluate(P2, op_sent, locks, trap, opp)
+        v = evaluate(P2, op_sent, locks, trap, opp, src_sent)
         if best is None or v > best[0]: best = (v, P2, op_sent, src_sent, locks, trap, action)
 
     chars = [c for c in P.hand if not c.ev]
@@ -867,7 +869,7 @@ def serve_turn(P, opp):
         P2 = P.clone(); T = newT(opp, 0, None); T['phase'] = 'serve'
         P2.hand.remove(c); enter(P2, T, 'serve', c, from_hand=True)
         op = cur_stat(P2, T, 'serve')
-        v = evaluate(P2, op, T['locks'], T['trap'], opp)
+        v = evaluate(P2, op, T['locks'], T['trap'], opp, 'serve')
         if best is None or v > best[0]: best = (v, P2, op, T['locks'], T['trap'])
     if best is None: return ('loss', P)
     _, P2, op, locks, trap = best

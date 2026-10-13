@@ -125,8 +125,8 @@ MANUAL = {
 MANUAL_FUKURODANI = {
     'HV-P01-051': [dict(  # 鷲尾辰生
         timing='on_enter', zones=['block'],
-        conditions=[dict(type='opp_op_ge', n=4, of='any',
-                         note='QA（PR-022/PR-023）：進攻值有發球、攔網、攻擊三種；原文未限定，三種都適用')],
+        conditions=[dict(type='opp_op_ge', n=4, of='attack',
+                         note='使用者 2026-10-13：一觸只能減對手「攻擊」，不管哪張卡都一樣（原本依 QA 三種進攻都算）')],
         cost=[dict(type='mill', who='self', n=1, capture='milled')],
         effects=[dict(type='keyword', name='ワンタッチ', n=3,
                       **{'if': [dict(type='captured_school', key='milled', school='梟谷')]},
