@@ -107,3 +107,18 @@ if 'HV-P03-093' in sim2.MANUAL:
     sim2.play_event(P, T, P.hand[0], 'attack')
     ok('雙子速攻：攻擊 3+1=4、封鎖攔網事件', sim2.cur_stat(P, T, 'attack') == 4
        and any(l['rule'] == 'no_block_events' for l in T['locks']) and len(P.hand) == 1)
+    # 13. 宮治 P03-041：どんぴしゃり 叫出、手牌 ≤3 → 攻擊 2+2，再 +1
+    P, T = setup('HV-D03-004', 'HV-P02-022', [FILL], [FILL, 'HV-P03-041'])
+    P.hand = [C('HV-P02-087')]
+    sim2.play_event(P, T, P.hand[0], 'attack')
+    ok('P03-041 叫出：攻擊 2+2，加上 +1（實得 %d，預期 5 或舉球 +1）' % (sim2.cur_stat(P, T, 'attack') + sim2.cur_stat(P, T, 'toss')),
+       P.zones['attack'][-1].no == 'HV-P03-041' and sim2.cur_stat(P, T, 'attack') + sim2.cur_stat(P, T, 'toss') == 2 + 4 + 1)
+    # 14. 手牌 4 張以上 → 沒有 +2，比治 P02-022（攻 3）低就不叫
+    P, T = setup('HV-D03-004', 'HV-P02-022', [FILL], [FILL, 'HV-P03-041'])
+    P.hand = [C('HV-P02-087'), C(FILL), C(FILL), C(FILL), C(FILL)]
+    sim2.play_event(P, T, P.hand[0], 'attack')
+    ok('P03-041：手牌 >3 不叫出', P.zones['attack'][-1].no == 'HV-P02-022')
+    # 15. 從手牌出場（非技能登場）→ 沒有 +2
+    P, T = setup('HV-D03-004', 'HV-P02-022', [FILL], [FILL]); P.hand = []
+    sim2.enter(P, T, 'attack', C('HV-P03-041'), from_hand=True, name='宮 治')
+    ok('P03-041 從手牌出場沒有 +2（攻擊 %d）' % sim2.cur_stat(P, T, 'attack'), sim2.cur_stat(P, T, 'attack') == 2)

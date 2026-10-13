@@ -209,6 +209,8 @@ def cond_ok(c, P, T):
         ph = set(c['phases']); ez = P.evz if c.get('who') == 'self' else opp.evz
         return sum(1 for e in ez if e.phases & ph and (not c.get('school') or c['school'] in e.school)) >= c['n']
     if t == 'entered_by': return T.get('entered_by') == c['card_name']
+    if t == 'entered_by_skill': return T.get('entered_by') is not None
+    if t == 'self_hand_le': return len(P.hand) <= c['n']
     if t == 'captured_school':
         cap = T.get('captured', {}).get(c['key'])
         if cap is None or c['school'] not in cap.school: return False
@@ -363,6 +365,7 @@ def apply_effects(effs, P, T, zone):
                 if e.get('then'): apply_effects([e['then']], P, T, zone)
         elif t == 'restrict_opp': T['locks'].append(dict(e)); P.bump('封鎖:' + e['rule'])
         elif t == 'on_opp_non_draw_add_mill': T['trap'] = True; P.bump('二口陷阱')
+        elif t == 'no_stat_minus': pass  # P03-041：此回合數值不會被減（模擬中沒有對手在我方回合減攻擊值）
         elif t == 'choose_one':  # P03-093：接球 +1 或 接球區 Guts 的北叫出（北比「現在 +1」高才叫）
             pick = 0
             for i, opt in enumerate(e['options']):
@@ -479,6 +482,7 @@ def pulled_value(P, T, c, zone, under):
     v = c.b[ZSTAT[zone]]; extra = 0
     for s in c.skills:
         if s['timing'] != 'on_enter' or zone not in s.get('zones', []): continue
+        if not all(c['type'] in ('entered_by', 'entered_by_skill') or cond_ok(c, P, T) for c in s.get('conditions', [])): continue
         ok = True
         for co in s.get('cost', []):
             if co['type'] == 'guts' and under < co['n']: ok = False

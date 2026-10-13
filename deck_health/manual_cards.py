@@ -423,6 +423,13 @@ MANUAL_INARIZAKI2 = {
                  dict(type='choose_one', options=[
                      [dict(type='stat_add', target=dict(who='self', count=1, school='稲荷崎'), stat='rcv', n=1)],
                      [dict(type='guts_to_zone', who='self', zone='receive', filter=dict(name='北 信介'), max=1)]])])],
+
+    'HV-P03-041': [dict(  # 宮治：攻擊區登場，由技能登場且自己手牌 ≤3 張時，攻擊 +2，此回合此角色數值不會被減
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='entered_by_skill'), dict(type='self_hand_le', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=2),
+                 dict(type='no_stat_minus', duration='this_turn',
+                      note='目前模擬中沒有對手在我方回合減攻擊值的效果，此半段不影響結果')])],
 }
 if _os.environ.get('DH_INARI2') == '1':
     MANUAL.update(MANUAL_INARIZAKI2)
