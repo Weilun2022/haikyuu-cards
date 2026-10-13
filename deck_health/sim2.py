@@ -703,7 +703,7 @@ def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
         T['aim_odd_attack'] = any(wants_odd(c) for c in P.hand + P.drop + P.zones['attack'] if c is not r and c is not t)
     P.hand.remove(r); enter(P, T, 'receive', r, from_hand=True, name=nr)
     for ev in [e for e in P.hand if e.ev and 'receive' in e.phases]:
-        play_event(P, T, ev, 'receive')
+        if ev in P.hand: play_event(P, T, ev, 'receive')  # 絶望叫出的北可能棄掉手牌中的其他接球事件
     if cur_stat(P, T, 'receive') < T['op_in'] and not nullified(P.restrict):
         for h in [x for x in P.hand if x.no == 'HV-P01-013']:
             if '烏野' in P.zones['receive'][-1].school and cur_stat(P, T, 'receive') + 2 >= T['op_in']:
