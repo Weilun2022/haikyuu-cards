@@ -405,3 +405,24 @@ MANUAL_INARIZAKI = {
 if _os.environ.get('DH_INARI', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI)
     NAME_CHOICE.update(NAME_CHOICE_INARIZAKI)
+
+# ── 稲荷崎第 2 批（2026-10-13 草稿，待使用者驗收反向翻譯）──────────────
+# 未驗收前預設不啟用；設環境變數 DH_INARI2=1 才會載入（只能用來測程式，不能下結論）。
+MANUAL_INARIZAKI2 = {
+    'HV-P02-088': [dict(  # 双子速攻 マイナス・テンポ"裏"：攻擊階段，抽 1、稲荷崎角色攻擊 +1；舉球治＋攻擊侑時，對手下回合不能打出攔網階段事件
+        timing='event', phases=['attack'],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target=dict(who='self', count=1, school='稲荷崎'), stat='atk', n=1),
+                 dict(type='restrict_opp', who='opp', rule='no_block_events', duration=TO,
+                      note='QA：只禁止「打出」，仍可把事件放到 Event 區（月島 P02-003）；目前三副對手牌組沒有攔網事件',
+                      **{'if': [dict(type='self_role_name', role='toss', name='宮 治'), dict(type='self_role_name', role='attack', name='宮 侑')]})])],
+
+    'HV-P03-093': [dict(  # 絶望の継続や：接球階段，抽 1，二選一：稲荷崎角色接球 +1／接球區 Guts 的北信介 1 張登場到接球區
+        timing='event', phases=['receive'],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='choose_one', options=[
+                     [dict(type='stat_add', target=dict(who='self', count=1, school='稲荷崎'), stat='rcv', n=1)],
+                     [dict(type='guts_to_zone', who='self', zone='receive', filter=dict(name='北 信介'), max=1)]])])],
+}
+if _os.environ.get('DH_INARI2') == '1':
+    MANUAL.update(MANUAL_INARIZAKI2)

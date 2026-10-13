@@ -363,6 +363,25 @@ def apply_effects(effs, P, T, zone):
                 if e.get('then'): apply_effects([e['then']], P, T, zone)
         elif t == 'restrict_opp': T['locks'].append(dict(e)); P.bump('封鎖:' + e['rule'])
         elif t == 'on_opp_non_draw_add_mill': T['trap'] = True; P.bump('二口陷阱')
+        elif t == 'choose_one':  # P03-093：接球 +1 或 接球區 Guts 的北叫出（北比「現在 +1」高才叫）
+            pick = 0
+            for i, opt in enumerate(e['options']):
+                o = opt[0]
+                if o['type'] == 'guts_to_zone' and o['zone'] == 'receive':
+                    g = [c for c in P.guts('receive') if not c.ev and c.name == o['filter']['name']
+                         and can_enter(P, 'receive', c, from_hand=False)]
+                    if g:
+                        under = len(P.zones['receive']) - 1
+                        T2 = dict(T); T2['allow_discard_cost'] = True
+                        best = max(g, key=lambda c: pulled_value(P, T2, c, 'receive', under)[0])
+                        if pulled_value(P, T2, best, 'receive', under)[0] > cur_stat(P, T, 'receive') + 1:
+                            pick = i; e = dict(e); e['_best'] = best
+            opt = e['options'][pick]
+            if opt[0]['type'] == 'guts_to_zone':
+                b = e['_best']; P.zones['receive'].remove(b)
+                enter(P, T, 'receive', b, from_hand=False, name=b.name); P.bump('絶望叫出北')
+            else:
+                apply_effects(opt, P, T, zone)
         elif t == 'guts_to_zone' and e.get('filter', {}).get('name'):  # P02-096：攻擊區 Guts 的牛島拉上場（比現在強才拉）
             z = e['zone']
             g = [c for c in P.guts(z) if not c.ev and c.name == e['filter']['name'] and alt_ok(T, z, c)

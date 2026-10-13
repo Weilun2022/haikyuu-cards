@@ -97,6 +97,7 @@ def eff(e):
         f = e.get('filter', {})
         s = f"{WHO[e['who']]}{ZONE[e['zone']]}的 Guts 中{f.get('position','')}{('「'+f['name']+'」') if f.get('name') else ''} {'最多 ' if not e.get('exact') else ''}{e['max']} 張出場至{ZONE[e['zone']]}"
         if e.get('then'): s += '，' + eff(e['then'])
+    elif t == 'choose_one': s = '以下選 1 個：' + ' ／ '.join('▶' + '；'.join(eff(x) for x in o) for o in e['options'])
     elif t == 'guts_any_to_zone':
         s = f"{WHO[e['who']]}場上任一區的 Guts 中「{e['filter']['name']}」最多 {e['max']} 張出場至{ZONE[e['zone']]}"
     elif t == 'event_to_hand' and e['filter'].get('school'):
@@ -110,6 +111,7 @@ def eff(e):
         if e['rule'] == 'li_receive_add': s = f"{DUR[e['duration']]}，每當對手的 Li 接球角色出場，該角色接球值 {e['n']}"
         elif e['rule'] == 'cannot_enter_pos_from_hand': s = f"{DUR[e['duration']]}，對手不能從手牌出場 {e['position']} 的{role}角色"
         elif e['rule'] == 'nullify_onetouch_and_receive_hand': s = f"{DUR[e['duration']]}，對手的［一觸(N)］與「接球階段・手牌」可用的技能無效"
+        elif e['rule'] == 'no_block_events': s = f"{DUR[e['duration']]}，對手不能打出可在攔網階段打出的事件牌"
         elif e['rule'] == 'max_block_from_hand': s = f"{DUR[e['duration']]}，對手從手牌最多只能出場 {e['max']} 名攔網角色"
         elif e['rule'] == 'cannot_enter': s = f"{DUR[e['duration']]}，對手不能出場原本{STAT['rcv']} ≥{e['base_rcv_ge']} 的{role}角色"
         else: s = f"{DUR[e['duration']]}，對手最多只能出場 {e['max']} 名{role}角色"

@@ -85,3 +85,25 @@ P = sim2.Player([C(FILL)] * 5, rng, 'A'); T = sim2.newT(opp, 7, 'attack'); T['ph
 P.zones['receive'] = [C(FILL)]; P.evz = [C('HV-P02-087'), C('HV-P02-087')]; P.hand = [C('HV-P02-084')]
 sim2.play_event(P, T, P.hand[0], 'receive')
 ok('黒須：接球 5+2=7（實得 %d）' % sim2.cur_stat(P, T, 'receive'), sim2.cur_stat(P, T, 'receive') == 7)
+
+# ── 第 2 批（DH_INARI2=1 才會載入）──
+if 'HV-P03-093' in sim2.MANUAL:
+    # 10. 絶望の継続や：接球區 Guts 有北 P02-024（底下 4 Guts 可付）→ 叫出北，接球 5+1=6 > 現在的接球 1+1（同分時選 +1）
+    P = sim2.Player([C(FILL)] * 5, rng, 'A'); opp = sim2.Player([C(FILL)] * 5, rng, 'B')
+    T = sim2.newT(opp, 6, 'attack'); T['phase'] = 'receive'
+    P.zones['receive'] = [C(FILL), C(FILL), C(FILL), C(FILL), C('HV-P02-024'), C('HV-D03-002')]
+    P.hand = [C('HV-P03-093'), C(FILL)]; P.evz = [C('HV-P02-087')]
+    sim2.play_event(P, T, P.hand[0], 'receive')
+    ok('絶望：叫出北 P02-024，接球 %d（預期 6）' % sim2.cur_stat(P, T, 'receive'),
+       P.zones['receive'][-1].no == 'HV-P02-024' and sim2.cur_stat(P, T, 'receive') == 6)
+    # 11. Guts 沒有北 → 接球 +1
+    P = sim2.Player([C(FILL)] * 5, rng, 'A'); T = sim2.newT(opp, 6, 'attack'); T['phase'] = 'receive'
+    P.zones['receive'] = [C(FILL), C('HV-P02-034')]; P.hand = [C('HV-P03-093')]
+    sim2.play_event(P, T, P.hand[0], 'receive')
+    ok('絶望：沒有北就接球 +1（實得 %d）' % sim2.cur_stat(P, T, 'receive'), sim2.cur_stat(P, T, 'receive') == 7)
+    # 12. 雙子速攻：抽 1、攻擊 +1；舉球治＋攻擊侑時封鎖攔網事件
+    P, T = setup('HV-P02-077', 'HV-D03-004', [FILL], [FILL])
+    T['names']['toss'] = '宮 治'; T['names']['attack'] = '宮 侑'; P.hand = [C('HV-P02-088')]
+    sim2.play_event(P, T, P.hand[0], 'attack')
+    ok('雙子速攻：攻擊 3+1=4、封鎖攔網事件', sim2.cur_stat(P, T, 'attack') == 4
+       and any(l['rule'] == 'no_block_events' for l in T['locks']) and len(P.hand) == 1)
