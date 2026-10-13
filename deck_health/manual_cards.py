@@ -406,8 +406,7 @@ if _os.environ.get('DH_INARI', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI)
     NAME_CHOICE.update(NAME_CHOICE_INARIZAKI)
 
-# ── 稲荷崎第 2 批（2026-10-13 草稿，待使用者驗收反向翻譯）──────────────
-# 未驗收前預設不啟用；設環境變數 DH_INARI2=1 才會載入（只能用來測程式，不能下結論）。
+# ── 稲荷崎第 2 批（2026-10-13 使用者驗收通過）──────────────
 MANUAL_INARIZAKI2 = {
     'HV-P02-088': [dict(  # 双子速攻 マイナス・テンポ"裏"：攻擊階段，抽 1、稲荷崎角色攻擊 +1；舉球治＋攻擊侑時，對手下回合不能打出攔網階段事件
         timing='event', phases=['attack'],
@@ -431,5 +430,6 @@ MANUAL_INARIZAKI2 = {
                  dict(type='no_stat_minus', duration='this_turn',
                       note='目前模擬中沒有對手在我方回合減攻擊值的效果，此半段不影響結果')])],
 }
-if _os.environ.get('DH_INARI2') == '1':
+# 2026-10-13 使用者驗收通過 → 預設啟用（DH_INARI2=0 可關閉）
+if _os.environ.get('DH_INARI2', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI2)
