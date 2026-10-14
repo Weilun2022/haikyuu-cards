@@ -241,6 +241,8 @@ NAME_CHOICE = {}
 if _os.environ.get('DH_PENDING') == '1':
     MANUAL.update(MANUAL_PENDING)
     NAME_CHOICE.update(NAME_CHOICE_PENDING)
+# 2026-10-14 使用者驗收通過 → 預設啟用：闇路 P01-089（其餘 6 張仍待驗收）
+MANUAL['HV-P01-089'] = MANUAL_PENDING['HV-P01-089']
 
 # ── 白鳥沢（使用者 2026-10-12 驗收，含修正：天童只對攻擊一觸、白布付 Guts 不挑 S、P03-067 要先付 Guts 才能 −2）──
 # 預設載入。
