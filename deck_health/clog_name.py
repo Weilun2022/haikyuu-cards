@@ -8,7 +8,7 @@ _tt = sim2.take_turn; _mull = sim2.mulligan
 
 
 def tt(P, opp, op_in, src):
-    k = min(sum(1 for c in P.hand if c.name == NAME), 4)
+    k = min(sum(1 for c in P.hand if (c.no if NAME.startswith('HV') else c.name) == NAME), 4)  # DH_CARDNO：人名或卡號
     res = _tt(P, opp, op_in, src)
     Pn = res[1]; Pn.bump('拍:%d' % k)
     if res[0] == 'loss': Pn.bump('LOSS:%d' % k)
@@ -16,7 +16,7 @@ def tt(P, opp, op_in, src):
 
 
 def mull(P):
-    _mull(P); P.bump('開局:%d' % min(sum(1 for c in P.hand if c.name == NAME), 4))
+    _mull(P); P.bump('開局:%d' % min(sum(1 for c in P.hand if (c.no if NAME.startswith('HV') else c.name) == NAME), 4))
 
 
 sim2.take_turn = tt; sim2.mulligan = mull
