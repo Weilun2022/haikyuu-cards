@@ -786,6 +786,11 @@ def draw_phase_events(P, opp, op_in, src):
     T = newT(opp, op_in, src); T['phase'] = 'draw'
     for ev in [e for e in P.hand if e.ev and e.phases == {'draw'}]:
         if ev in P.hand and any(c.name != ev.name for c in P.evz): play_event(P, T, ev, 'draw')
+    # 闇路 P01-089 這類「看牌庫頂撿牌」且抽牌階段可打的事件：抽完牌就先打，撿到的牌本回合的接球／舉球／攻擊都能用
+    # （使用者 2026-10-14 指出；原本被延到接球階段，撿到的牌這拍用不到）
+    for ev in [e for e in P.hand if e.ev and 'draw' in e.phases and e.phases != {'draw'}
+               and any(x['type'] == 'look_top_take' for s in e.skills for x in s['effects'])]:
+        if ev in P.hand: play_event(P, T, ev, 'draw')
 
 
 def apply_now(locks, target):
