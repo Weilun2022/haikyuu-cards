@@ -1,48 +1,77 @@
 {
-  "說明": "雲端 Claude 寫入工作，本機 runner.py 每 5 分鐘自動執行還沒完成的工作。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
-  "jobs": [
-    {
-      "id": "J001",
-      "note": "連線與多核心測試：重跑梟谷 A/B/C 方案（舊結果 60.0/60.4/65.8%）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku.json",
-        "fuku_variants.json",
-        2000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 30
-    },
-    {
-      "id": "INARI-001",
-      "note": "稲荷崎定版大樣本：v2／v4b／v4b+治P03-041×1 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v2.json",
-        "ina_final_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "INARI-002",
-      "note": "稲荷崎定版大樣本：v4b、v4b+治P03-041×1 直接對打 v2（各 20000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "ina_v2.json",
-        "ina_final_h2h.json",
-        20000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    }
-  ]
+ "說明": "雲端 Claude 寫入工作，本機 runner.py 每 5 分鐘自動執行還沒完成的工作。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
+ "jobs": [
+  {
+   "id": "J001",
+   "note": "連線與多核心測試：重跑梟谷 A/B/C 方案（舊結果 60.0/60.4/65.8%）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku.json",
+    "fuku_variants.json",
+    2000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 30
+  },
+  {
+   "id": "INARI-001",
+   "note": "稲荷崎定版大樣本：v2／v4b／v4b+治P03-041×1 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v2.json",
+    "ina_final_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "INARI-002",
+   "note": "稲荷崎定版大樣本：v4b、v4b+治P03-041×1 直接對打 v2（各 20000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "ina_v2.json",
+    "ina_final_h2h.json",
+    20000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "SHIRA-001",
+   "note": "白鳥沢定案 換卡篩選：5 張無技能白鳥沢卡（川西、由良、五色×3）各換掉定案版每一種卡（2 張，單張的換 1），對定案版直接對打",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "shira_final.json",
+    "shira_swap1.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "SHIRA-002",
+   "note": "同 SHIRA-001 的 76 個方案，對烏野、梟谷 V2、梟谷目前版、稲荷崎 v4b",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "shira_final.json",
+    "shira_swap1.json",
+    "deck.json,fuku_op8_v2.json,fuku_B_045_z.json,ina_v4b.json",
+    3000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 120
+  }
+ ]
 }
