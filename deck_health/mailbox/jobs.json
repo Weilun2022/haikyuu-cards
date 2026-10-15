@@ -165,6 +165,69 @@
    ],
    "workers": 16,
    "timeout_min": 60
+  },
+  {
+   "id": "FUKU-007",
+   "note": "梟谷組合方案（A 猿杙→PR-026、B P01-044→P01-043、C、D 及組合）對 PR-026 版，新種子各 6000 場",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "2000"
+   },
+   "workers": 16,
+   "timeout_min": 60,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-008",
+   "note": "梟谷組合方案 vs 烏野（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    "deck.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-009",
+   "note": "梟谷組合方案 vs 白鳥沢定案（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    "shira_final.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-010",
+   "note": "梟谷組合方案 vs 稲荷崎 v4b（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    "ina_v4b.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
   }
  ]
 }

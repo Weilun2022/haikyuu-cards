@@ -3,7 +3,7 @@ variants.json 格式同 compare2.py；每組 (方案, 對手) 用 2 個 process�
 import sys, os, json, time, multiprocessing as mp
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import sim2, parallel
-from compare2 import apply
+from compare2 import apply, set_cards
 
 U = None
 
@@ -21,6 +21,7 @@ def job(args):
 if __name__ == '__main__':
     path, basef, varf, opps, N, outf = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4].split(','), int(sys.argv[5]), sys.argv[6]
     base = json.load(open(basef)); V = json.load(open(varf))
+    set_cards(path); [apply(base, v) for v in V.values()]  # 開跑前先檢查全部方案合法（40 張、事件 ≤8）
     with mp.Pool(parallel.workers(), initializer=init, initargs=(path,)) as pool, open(outf, 'a', encoding='utf-8') as fo:
         for name, v in V.items():
             d = apply(base, v)

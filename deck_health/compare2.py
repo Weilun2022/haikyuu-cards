@@ -19,6 +19,14 @@ def job(args):
     return sum(g['winner'] == 'A' for g in gs), n, sum(g['deck_left']['A'] for g in gs)
 
 
+EVENTS = None  # 事件卡號；set_cards() 載入後 apply() 會檢查事件 ≤8【總則 4-1-2】
+
+
+def set_cards(path):
+    global EVENTS
+    EVENTS = {no for no, c in sim2.load_cards(path).items() if c['category'] == 'EVENT'}
+
+
 def apply(base, v):
     d = dict(base)
     for k, n in v.get('out', {}).items():
@@ -26,12 +34,16 @@ def apply(base, v):
         if d[k] == 0: d.pop(k)
     for k, n in v.get('in', {}).items(): d[k] = d.get(k, 0) + n
     assert sum(d.values()) == 40, (v, sum(d.values()))
+    if EVENTS is not None:
+        ne = sum(n for k, n in d.items() if k in EVENTS)
+        assert ne <= 8, f'事件 {ne} 張超過 8 張上限：{v}'
     return d
 
 
 if __name__ == '__main__':
     path, basef, varf, N, outf = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), sys.argv[5]
     base = json.load(open(basef)); V = json.load(open(varf))
+    set_cards(path); [apply(base, v) for v in V.values()]  # 開跑前先檢查全部方案合法（40 張、事件 ≤8）
     with mp.Pool(parallel.workers(), initializer=init, initargs=(path,)) as pool, open(outf, 'a', encoding='utf-8') as fo:
         for name, v in V.items():
             t0 = time.time(); d = apply(base, v)
