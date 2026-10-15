@@ -28,26 +28,35 @@ cd deck_health
 ## 執行（Windows，在 deck_health 資料夾內）
 ```
 set PYTHONIOENCODING=utf-8
-python -I template.py vs 2000 out.jsonl <基準配比> <配比1> <配比2> ...
+python -I -X utf8 template.py vs 2000 out.jsonl <基準配比> <配比1> <配比2> ...
 ```
 需要卡片資料的指令（compare2.py、待辦 3）用 `..\cards_data.js`。
 配比格式：`事件,接球,舉球,攻擊[,接球6張數,舉球2張數]`，例如 `8,11,9,12,2,4`。
 `vs` 模式 = 第一個配比當基準，其餘各自與基準對打；`duel` 模式 = 兩兩對打。
 2000 場約 35 秒（2 核心）。實際牌組請改 `compare2.py ..\cards_data.js deck.json variants.json 2000 out.jsonl`。
 
-## 大樣本運算：GitHub Actions（2026-10-15 定案，所有對話都要遵守）
+## 大樣本運算：本機排程優先、GitHub Actions 備援（2026-10-15 17:50 定案，所有對話都要遵守）
 詳見 Project 文件 claude/健檢系統_本機運算分工.md。重點：
-- Weilun 只用雲端 Claude Code，不在本機打指令；本機電腦不再負責運算
-- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push 到 deck-health
-  → GitHub Actions（.github/workflows/deck-health-jobs.yml）自動為每個未完成工作開一台 4 核機器執行
-  → 結果自動推回 deck_health/mailbox/results/<工作編號>/（status.json、log.txt、out.jsonl）
-- 查進度：`gh run list -R Weilun2022/haikyuu-cards --branch deck-health -L 5`；拿結果：`git pull`
-- 工作編號加主題前綴、不可重複（FUKU-001、SHIRA-001、INARI-001…）；加工作前先 git pull
-- 已有 status.json 的工作不會重跑；要重跑請用新編號
-- 工作加 `"where": "local"` 就改由 Weilun 電腦上的「本機運算」對話執行（GitHub 會跳過）；要等 Weilun 叫那個對話「跑本機工作」
+- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push 到 deck-health（加工作前先 git pull）
+- 兩條執行路線，看工作單有沒有 `"where": "local"`：
+  - **本機（有 local）**：Weilun 的 Windows 電腦（20 邏輯核，用 16 程序）上的排程 HaikyuuDeckRunner 每 5 分鐘執行
+    `deck_compute\haikyuu-cards\deck_health\runner.py`：對齊遠端 → 跑 local 且無 status.json 的工作 → 結果自動 commit 並推回。電腦關機時不會跑
+  - **GitHub（沒有 where）**：.github/workflows/deck-health-jobs.yml 為每個工作開一台 4 核機器，平行執行
+- 實測速度（compare2 fuku 5 組×2000 場＝1 萬場）：本機 16 程序 36.5 秒（約 270 場/秒）；GitHub 每台 185 秒（約 54 場/秒）。本機單機約為 GitHub 一台的 5 倍
+- 怎麼選：
+  - 能確認電腦開著（例如這個對話連得到 Weilun 的電腦）→ 標 local
+  - 確認不了 → 不加 where，交給 GitHub，不用問 Weilun
+  - 一批很多工作時可以拆：一部分 local、一部分 GitHub 同時跑（GitHub 開 5 台以上才會比本機一台快）
+  - 標 local 後 15 分鐘還沒出現 results/<編號>/ → 視為電腦沒開，改新編號、不加 where 交給 GitHub
+- 結果都在 deck_health/mailbox/results/<工作編號>/（status.json、log.txt、out.jsonl）；本機結果的 commit 作者是 deck-runner
+- 查進度：GitHub 用 `gh run list -R Weilun2022/haikyuu-cards --branch deck-health -L 5`；本機看 results/ 有沒有新 commit；拿結果：`git pull`
+- 工作編號加主題前綴、不可重複（FUKU-001、SHIRA-001、INARI-001…）；已有 status.json 的工作不會重跑，要重跑請用新編號
 - 參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）
-- workers 照寫 16 即可（實際用機器的 4 核）；timeout_min 照 16 核估，CI 會按比例放寬（上限 340 分鐘）
-- 單一工作建議 ≤ 100 萬場（約 2.5 小時）；更大的拆成多個工作，會平行跑在不同機器
+- workers 照寫 16（本機上限＝核心數−2＝18；GitHub 實際用 4 核）；timeout_min 照 16 核估，CI 會按比例放寬（上限 340 分鐘）
+- 單一工作建議 ≤ 100 萬場（本機約 1 小時、GitHub 約 5 小時）；更大的拆成多個工作
+- **安全**：本機排程會執行 deck-health 上最新的程式碼，能推送到這個分支就等於能在 Weilun 電腦上執行程式。只有 Weilun 能有推送權限；不要把 runner.py 改成會執行任意指令
+- 在 Windows 手動執行任何腳本都要加 `-X utf8`（否則以 cp950 讀 JSON 會 UnicodeDecodeError）；runner.py 已內建
+- 停用本機排程：Weilun 在 PowerShell 執行 `schtasks /Change /TN HaikyuuDeckRunner /DISABLE`
 - 只有本機能做的事（本機檔案、API key、Windows 環境）才另外寫提示詞給 Weilun 貼給本機 Claude
 
 jobs.json 範例：
