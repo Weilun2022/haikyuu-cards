@@ -35,16 +35,19 @@ python -I template.py vs 2000 out.jsonl <基準配比> <配比1> <配比2> ...
 `vs` 模式 = 第一個配比當基準，其餘各自與基準對打；`duel` 模式 = 兩兩對打。
 2000 場約 35 秒（2 核心）。實際牌組請改 `compare2.py ..\cards_data.js deck.json variants.json 2000 out.jsonl`。
 
-## 雲端與本機分工（2026-10-15 定案，所有對話都要遵守）
+## 大樣本運算：GitHub Actions（2026-10-15 定案，所有對話都要遵守）
 詳見 Project 文件 claude/健檢系統_本機運算分工.md。重點：
-- 程式只由雲端修改；本機（Weilun 的電腦，16 程序）只負責大樣本運算，不改程式
-- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push，請 Weilun 在本機 Claude Code 親自輸入
-  `! python -I "C:\Users\evils\Documents\Claude\deck_runner\deck_health\runner.py"`，再說「回報健檢結果」
-- 本機 Claude 不自行執行 repo 裡的程式（安全分類器會擋，也不應繞過），只讀結果回報
+- Weilun 只用雲端 Claude Code，不在本機打指令；本機電腦不再負責運算
+- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push 到 deck-health
+  → GitHub Actions（.github/workflows/deck-health-jobs.yml）自動為每個未完成工作開一台 4 核機器執行
+  → 結果自動推回 deck_health/mailbox/results/<工作編號>/（status.json、log.txt、out.jsonl）
+- 查進度：`gh run list -R Weilun2022/haikyuu-cards --branch deck-health -L 5`；拿結果：`git pull`
 - 工作編號加主題前綴、不可重複（FUKU-001、SHIRA-001、INARI-001…）；加工作前先 git pull
-- 參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）；workers 設 16
-- 結果在 deck_health/mailbox/results/<工作編號>/（status.json、log.txt、out.jsonl）
-- 只有本機能做的事（本機檔案、API key、Windows 環境）才另外寫提示詞給 Weilun 貼給本機
+- 已有 status.json 的工作不會重跑；要重跑請用新編號
+- 參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）
+- workers 照寫 16 即可（實際用機器的 4 核）；timeout_min 照 16 核估，CI 會按比例放寬（上限 340 分鐘）
+- 單一工作建議 ≤ 100 萬場（約 2.5 小時）；更大的拆成多個工作，會平行跑在不同機器
+- 只有本機能做的事（本機檔案、API key、Windows 環境）才另外寫提示詞給 Weilun 貼給本機 Claude
 
 jobs.json 範例：
 {"id": "FUKU-001", "note": "說明", "script": "compare2",
