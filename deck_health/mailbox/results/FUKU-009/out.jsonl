@@ -1,0 +1,10 @@
+{"v": "對照：PR-026版", "opp": "shira_final.json", "win": 0.5995, "se": 0.0063, "n": 6000, "sec": 97}
+{"v": "A：猿杙 P01-049×2 → PR-026×2", "opp": "shira_final.json", "win": 0.6137, "se": 0.0063, "n": 6000, "sec": 99}
+{"v": "B：木兎 P01-044×2 → P01-043×2", "opp": "shira_final.json", "win": 0.6195, "se": 0.0063, "n": 6000, "sec": 98}
+{"v": "A＋B", "opp": "shira_final.json", "win": 0.6292, "se": 0.0062, "n": 6000, "sec": 101}
+{"v": "A＋B 半（P01-044×1 → P01-043×1）", "opp": "shira_final.json", "win": 0.6237, "se": 0.0063, "n": 6000, "sec": 100}
+{"v": "猿杙 P01-049×2 → PR-026×1＋P01-043×1", "opp": "shira_final.json", "win": 0.604, "se": 0.0063, "n": 6000, "sec": 98}
+{"v": "C：猿杙 P01-049×2 → 木兎 PR-077×2", "opp": "shira_final.json", "win": 0.6198, "se": 0.0063, "n": 6000, "sec": 98}
+{"v": "D：鷲尾×2 → 小見 PR-047×2", "opp": "shira_final.json", "win": 0.6383, "se": 0.0062, "n": 6000, "sec": 98}
+{"v": "A＋D", "opp": "shira_final.json", "win": 0.6282, "se": 0.0062, "n": 6000, "sec": 102}
+{"v": "A＋B＋D", "opp": "shira_final.json", "win": 0.6512, "se": 0.0062, "n": 6000, "sec": 103}
