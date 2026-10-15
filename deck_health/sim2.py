@@ -546,6 +546,9 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
             if l['rule'] == 'center_blocker_blk_add': T['mod']['block'] = T['mod'].get('block', 0) + l['n']
     for s in card.skills:
         if s['timing'] != 'on_enter' or zone not in s.get('zones', []): continue
+        if zone == 'block' and (as_side_blocker or T.get('decline_onetouch')) and any(
+                e['type'] == 'keyword' and e['name'] == 'ワンタッチ' for e in s['effects']):
+            continue  # 一觸只能中間攔網用；多張一起攔網時不發動（會跳過攔網判定，白丟其他攔網角色）【使用者 2026-10-15】
         if not all(cond_ok(c, P, T) for c in s.get('conditions', [])): continue
         costs = s.get('cost', [])
         T['paid_guts'] = None
@@ -844,7 +847,7 @@ def take_turn(P, opp, op_in, src):
                 consider(P2, 0, CFG['blocked_ball_src'], T['locks'], T['trap'], 'block1')
     blocks.sort(key=lambda cb: (len(cb), sum(keep_value(c) for c in cb)))
     for comb in blocks[:4]:
-        P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'
+        P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True  # 這條路是靠攔網值合計攔下來
         center = min(comb, key=keep_value)
         for c in comb: P2.hand.remove(c)  # 同時登場：先全部拿出手牌，再依序處理登場效果
         for c, nm in zip(comb, assign_distinct(comb)):
