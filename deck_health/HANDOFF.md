@@ -35,6 +35,19 @@ python -I template.py vs 2000 out.jsonl <基準配比> <配比1> <配比2> ...
 `vs` 模式 = 第一個配比當基準，其餘各自與基準對打；`duel` 模式 = 兩兩對打。
 2000 場約 35 秒（2 核心）。實際牌組請改 `compare2.py ..\cards_data.js deck.json variants.json 2000 out.jsonl`。
 
+## 雲端與本機分工（2026-10-15 定案，所有對話都要遵守）
+詳見 Project 文件 claude/健檢系統_本機運算分工.md。重點：
+- 程式只由雲端修改；本機（Weilun 的電腦，16 程序）只負責大樣本運算，不改程式
+- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push，請 Weilun 對本機說「跑健檢工作」
+- 工作編號加主題前綴、不可重複（FUKU-001、SHIRA-001、INARI-001…）；加工作前先 git pull
+- 參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）；workers 設 16
+- 結果在 deck_health/mailbox/results/<工作編號>/（status.json、log.txt、out.jsonl）
+- 只有本機能做的事（本機檔案、API key、Windows 環境）才另外寫提示詞給 Weilun 貼給本機
+
+jobs.json 範例：
+{"id": "FUKU-001", "note": "說明", "script": "compare2",
+ "args": ["{cards}", "fuku_op8_v2.json", "variants.json", 6000, "{out}"], "workers": 16, "timeout_min": 30}
+
 ## 鐵則（違反就會重蹈舊系統的錯）
 1. 結論只能來自 sim2 對打勝率，並附場數 N 與標準誤 SE；差距 < 2×SE 一律寫「無差異」
 2. 不要用「起手 6 張超幾何機率」「死手率」「COPIES_RULES」當結論。所有角色都能接球／舉球／攻擊，只是數值不同；起手機率不含每拍手牌 −2、補牌、Guts、對手
