@@ -1,0 +1,18 @@
+{
+ "id": "FUKU-004",
+ "script": "gauntlet",
+ "args": [
+  "{cards}",
+  "fuku_v026.json",
+  "fuku_top1.json",
+  "deck.json",
+  6000,
+  "{out}"
+ ],
+ "workers": 4,
+ "started": "2026-10-15T12:07:36",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-15T12:37:14",
+ "seconds": 1777.7
+}
