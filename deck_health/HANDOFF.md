@@ -44,6 +44,7 @@ python -I template.py vs 2000 out.jsonl <基準配比> <配比1> <配比2> ...
 - 查進度：`gh run list -R Weilun2022/haikyuu-cards --branch deck-health -L 5`；拿結果：`git pull`
 - 工作編號加主題前綴、不可重複（FUKU-001、SHIRA-001、INARI-001…）；加工作前先 git pull
 - 已有 status.json 的工作不會重跑；要重跑請用新編號
+- 工作加 `"where": "local"` 就改由 Weilun 電腦上的「本機運算」對話執行（GitHub 會跳過）；要等 Weilun 叫那個對話「跑本機工作」
 - 參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）
 - workers 照寫 16 即可（實際用機器的 4 核）；timeout_min 照 16 核估，CI 會按比例放寬（上限 340 分鐘）
 - 單一工作建議 ≤ 100 萬場（約 2.5 小時）；更大的拆成多個工作，會平行跑在不同機器

@@ -7,7 +7,7 @@
 4. 結果寫進 deck_health/mailbox/results/<工作編號>/，commit 並 push
 
 安全設計：不執行任何任意指令；只跑白名單程式，參數逐一檢查。
-用法：python -I runner.py            （正常執行）
+用法：python -I runner.py            （本機：執行 "where": "local" 的未完成工作）
       python -I runner.py --dry-run  （只列出會執行的工作，不跑、不推）
       python -I runner.py --list-pending / --only <工作編號>（GitHub Actions 用）"""
 import json, os, re, subprocess, sys, time, datetime
@@ -139,18 +139,20 @@ def push(jid, status):
     raise RuntimeError(f'push 失敗多次：{err}')
 
 
-def pending_ids():
+def pending_ids(where='github'):
+    """還沒有 status.json 的工作。工作單 "where": "local" 只給本機跑，其餘（預設）給 GitHub Actions。"""
     if not os.path.isfile(JOBS):
         return []
     jobs = json.load(open(JOBS, encoding='utf-8')).get('jobs', [])
     return [str(j.get('id', '')) for j in jobs
-            if SAFE_NAME.fullmatch(str(j.get('id', ''))) and not os.path.isfile(os.path.join(RESULTS, str(j.get('id')), 'status.json'))]
+            if (j.get('where') == 'local') == (where == 'local')
+            and SAFE_NAME.fullmatch(str(j.get('id', ''))) and not os.path.isfile(os.path.join(RESULTS, str(j.get('id')), 'status.json'))]
 
 
 def run_one_ci(jid):
     """GitHub Actions 用：checkout 已經是最新內容，只執行指定的一個工作。"""
     jobs = {str(j.get('id')): j for j in json.load(open(JOBS, encoding='utf-8')).get('jobs', [])}
-    if jid not in jobs or jid not in pending_ids():
+    if jid not in jobs or jid not in pending_ids('local' if jobs[jid].get('where') == 'local' else 'github'):
         print(f'{jid} 不需要執行'); return
     try:
         st = run_job(jobs[jid])
@@ -174,8 +176,8 @@ def main(dry):
         jobs = json.load(open(JOBS, encoding='utf-8')).get('jobs', [])
         for job in jobs:
             jid = str(job.get('id', ''))
-            if os.path.isfile(os.path.join(RESULTS, jid, 'status.json')):
-                continue
+            if job.get('where') != 'local' or os.path.isfile(os.path.join(RESULTS, jid, 'status.json')):
+                continue  # 本機只跑標成 local 的工作
             if dry:
                 print('會執行：', json.dumps(job, ensure_ascii=False)); continue
             log(f'開始 {jid}')
