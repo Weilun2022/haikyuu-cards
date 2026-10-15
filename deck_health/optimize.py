@@ -5,7 +5,7 @@ config: {"school": "梟谷", "goal": {...}, "objective": "combo"|"mean_op",
 每一步：所有換法用 n_screen 場粗篩（共同亂數），前 4 名與目前牌組用 n_confirm 場複查，有進步才採用。"""
 import sys, os, json, time, multiprocessing as mp
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import sim2, solo
+import parallel, sim2, solo
 from manual_cards import MANUAL
 
 U = None
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     cfg = json.load(open(cfgf, encoding='utf-8')); deck = json.load(open(startf))
     Ul = sim2.load_cards(path); pool = pool_for(Ul, cfg['school'])
     goal = cfg['goal']
-    with mp.Pool(2, initializer=init, initargs=(path,)) as P, open(outf, 'a', encoding='utf-8') as fo:
+    with mp.Pool(parallel.workers(), initializer=init, initargs=(path,)) as P, open(outf, 'a', encoding='utf-8') as fo:
         base = P.map(ev, [(deck, goal, cfg['n_confirm'], 777)])[0]
         floor = base['rcv5'] - cfg['rcv5_floor_drop']
         cur, cur_m = deck, base

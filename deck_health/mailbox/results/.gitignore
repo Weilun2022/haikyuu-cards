@@ -1,0 +1,2 @@
+# 執行結果要納入版控（上層 .gitignore 排除了 *.jsonl）
+!*.jsonl

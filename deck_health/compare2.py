@@ -3,7 +3,7 @@ variants.json: {"方案名": {"out": {"卡號": 張數}, "in": {"卡號": 張數
 雙方先後手隨機；每個方案用 2 個 process 平行。"""
 import sys, os, json, time, multiprocessing as mp
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import sim2
+import sim2, parallel
 
 U = None
 
@@ -32,11 +32,11 @@ def apply(base, v):
 if __name__ == '__main__':
     path, basef, varf, N, outf = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4]), sys.argv[5]
     base = json.load(open(basef)); V = json.load(open(varf))
-    with mp.Pool(2, initializer=init, initargs=(path,)) as pool, open(outf, 'a', encoding='utf-8') as fo:
+    with mp.Pool(parallel.workers(), initializer=init, initargs=(path,)) as pool, open(outf, 'a', encoding='utf-8') as fo:
         for name, v in V.items():
             t0 = time.time(); d = apply(base, v)
             so = int(os.environ.get('DH_SEED_OFFSET', '0'))  # 換一組種子做獨立複驗；預設 0 = 舊結果可重現
-            res = pool.map(job, [(d, base, N // 2, 11 + so), (d, base, N - N // 2, 23 + so)])
+            res = pool.map(job, [(d, base, k, s) for k, s in parallel.chunks(N, 11 + so, 23 + so)])
             w = sum(r[0] for r in res); n = sum(r[1] for r in res)
             p = w / n; se = (p * (1 - p) / n) ** 0.5
             rec = dict(v=name, win=round(p, 4), se=round(se, 4), n=n, sec=round(time.time() - t0))

@@ -11,7 +11,7 @@ config 範例：
 最後一步之後，由使用者另外用大樣本複查。"""
 import sys, os, json, time, multiprocessing as mp
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import sim2, solo, optimize
+import parallel, sim2, solo, optimize
 
 U = None
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         res = P.map(ev_h2h, jobs)
         return [(res[2 * i][0] + res[2 * i + 1][0]) / g['n'] for i in range(len(decks))]
 
-    with mp.Pool(2, initializer=init, initargs=(path,)) as P, open(outf, 'a', encoding='utf-8') as fo:
+    with mp.Pool(parallel.workers(), initializer=init, initargs=(path,)) as P, open(outf, 'a', encoding='utf-8') as fo:
         cur = deck
         cur_m = P.map(ev_solo, [(cur, goal, cfg['n_confirm'], 777)])[0]
         cur_h = h2h(P, [cur], 900)[0]

@@ -1,0 +1,8 @@
+{
+  "說明": "雲端 Claude 寫入工作，本機 runner.py 每 5 分鐘自動執行還沒完成的工作。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
+  "jobs": [
+    {"id": "J001", "note": "連線與多核心測試：重跑梟谷 A/B/C 方案（舊結果 60.0/60.4/65.8%）",
+     "script": "compare2", "args": ["{cards}", "fuku.json", "fuku_variants.json", 2000, "{out}"],
+     "workers": 16, "timeout_min": 30}
+  ]
+}
