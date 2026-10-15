@@ -1,0 +1,18 @@
+{
+ "id": "FUKU-001",
+ "script": "compare2",
+ "args": [
+  "{cards}",
+  "fuku_v026.json",
+  "fuku_swap2.json",
+  3000,
+  "{out}"
+ ],
+ "workers": 16,
+ "started": "2026-10-15T17:57:38",
+ "ok": false,
+ "returncode": null,
+ "error": "超過時間上限 120 分鐘",
+ "finished": "2026-10-15T19:57:38",
+ "seconds": 7200.0
+}
