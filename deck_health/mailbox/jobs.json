@@ -1,5 +1,5 @@
 {
- "說明": "雲端 Claude 寫入工作並推到 deck-health 分支後，GitHub Actions（.github/workflows/deck-health-jobs.yml）自動執行還沒完成的工作，每個工作一台機器（4 核），結果推回 results/<工作編號>/。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
+ "說明": "雲端 Claude 寫入工作並推到 deck-health 分支後，GitHub Actions（.github/workflows/deck-health-jobs.yml）自動執行還沒完成的工作，每個工作一台機器（4 核），結果推回 results/<工作編號>/（推送失敗時另存為該次執行的 artifact）。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
  "jobs": [
   {
    "id": "J001",

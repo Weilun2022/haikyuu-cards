@@ -41,8 +41,11 @@ def log(msg):
         f.write(line + '\n')
 
 
+GIT_ID = ['-c', 'user.name=deck-runner', '-c', 'user.email=deck-runner@localhost']  # commit 與 rebase 都需要身分；GitHub 機器上沒有預設值
+
+
 def git(*args, check=True):
-    r = subprocess.run(['git', *args], cwd=ROOT, capture_output=True, text=True, encoding='utf-8', errors='replace', **NOWIN)
+    r = subprocess.run(['git', *GIT_ID, *args], cwd=ROOT, capture_output=True, text=True, encoding='utf-8', errors='replace', **NOWIN)
     if check and r.returncode != 0:
         raise RuntimeError(f"git {' '.join(args)} 失敗：{r.stderr.strip()[:500]}")
     return r.stdout.strip()
@@ -119,13 +122,21 @@ def run_job(job):
 def push(jid, status):
     git('add', os.path.join('deck_health', 'mailbox', 'results', jid))
     msg = f"chore(runner): {'完成' if status.get('ok') else '失敗'}工作 {jid}（{status.get('seconds')} 秒）"
-    git('-c', 'user.name=deck-runner', '-c', 'user.email=deck-runner@localhost', 'commit', '-q', '-m', msg)
-    for i in range(8):  # 多個工作同時推送時互相讓位
-        if subprocess.run(['git', 'push', '-q', 'origin', f'HEAD:{BRANCH}'], cwd=ROOT, **NOWIN).returncode == 0:
+    git('commit', '-q', '-m', msg)
+    run = lambda *a: subprocess.run(['git', *GIT_ID, *a], cwd=ROOT, capture_output=True, text=True,
+                                    encoding='utf-8', errors='replace', **NOWIN)
+    err = ''
+    for i in range(8):  # 多個工作同時推送時互相讓位：被拒就 rebase 到最新再推
+        r = run('push', '-q', 'origin', f'HEAD:{BRANCH}')
+        if r.returncode == 0:
             return
+        err = r.stderr.strip()[-300:]
         time.sleep(3 + 2 * i)
-        git('pull', '-q', '--rebase', 'origin', BRANCH)
-    raise RuntimeError('push 失敗多次')
+        p = run('pull', '-q', '--rebase', 'origin', BRANCH)
+        if p.returncode != 0:
+            err += ' | rebase：' + p.stderr.strip()[-300:]
+            run('rebase', '--abort')
+    raise RuntimeError(f'push 失敗多次：{err}')
 
 
 def pending_ids():
