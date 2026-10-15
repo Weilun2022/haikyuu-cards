@@ -8,7 +8,8 @@
 
 安全設計：不執行任何任意指令；只跑白名單程式，參數逐一檢查。
 用法：python -I runner.py            （正常執行）
-      python -I runner.py --dry-run  （只列出會執行的工作，不跑、不推）"""
+      python -I runner.py --dry-run  （只列出會執行的工作，不跑、不推）
+      python -I runner.py --list-pending / --only <工作編號>（GitHub Actions 用）"""
 import json, os, re, subprocess, sys, time, datetime
 
 HERE = os.path.dirname(os.path.abspath(__file__))          # .../deck_health
@@ -89,8 +90,11 @@ def run_job(job):
     out_path = os.path.join(rdir, 'out.jsonl')
     args = resolve_args(job, out_path)
     cpu = os.cpu_count() or 2
-    workers = max(1, min(int(job.get('workers', 2)), max(1, cpu - 2)))
+    cap = cpu if os.environ.get('GITHUB_ACTIONS') == 'true' else max(1, cpu - 2)  # GitHub 伺服器用全部核心；本機保留 2 核
+    workers = max(1, min(int(job.get('workers', 2)), cap))
     timeout = int(job.get('timeout_min', 120)) * 60
+    if os.environ.get('GITHUB_ACTIONS') == 'true':  # 工作單的時限是照本機 16 程序估的；核心較少時按比例放寬（上限 340 分鐘）
+        timeout = min(340 * 60, int(timeout * max(1.0, int(job.get('workers', 2)) / workers)))
     env = dict(os.environ, DH_WORKERS=str(workers))
     for k, v in (job.get('env') or {}).items():
         if not (re.fullmatch(r'DH_[A-Z0-9_]+', k) and re.fullmatch(r'[\w\-.]+', str(v))):
@@ -116,11 +120,36 @@ def push(jid, status):
     git('add', os.path.join('deck_health', 'mailbox', 'results', jid))
     msg = f"chore(runner): {'完成' if status.get('ok') else '失敗'}工作 {jid}（{status.get('seconds')} 秒）"
     git('-c', 'user.name=deck-runner', '-c', 'user.email=deck-runner@localhost', 'commit', '-q', '-m', msg)
-    for _ in range(3):
-        if subprocess.run(['git', 'push', '-q', 'origin', BRANCH], cwd=ROOT, **NOWIN).returncode == 0:
+    for i in range(8):  # 多個工作同時推送時互相讓位
+        if subprocess.run(['git', 'push', '-q', 'origin', f'HEAD:{BRANCH}'], cwd=ROOT, **NOWIN).returncode == 0:
             return
+        time.sleep(3 + 2 * i)
         git('pull', '-q', '--rebase', 'origin', BRANCH)
-    raise RuntimeError('push 失敗三次')
+    raise RuntimeError('push 失敗多次')
+
+
+def pending_ids():
+    if not os.path.isfile(JOBS):
+        return []
+    jobs = json.load(open(JOBS, encoding='utf-8')).get('jobs', [])
+    return [str(j.get('id', '')) for j in jobs
+            if SAFE_NAME.fullmatch(str(j.get('id', ''))) and not os.path.isfile(os.path.join(RESULTS, str(j.get('id')), 'status.json'))]
+
+
+def run_one_ci(jid):
+    """GitHub Actions 用：checkout 已經是最新內容，只執行指定的一個工作。"""
+    jobs = {str(j.get('id')): j for j in json.load(open(JOBS, encoding='utf-8')).get('jobs', [])}
+    if jid not in jobs or jid not in pending_ids():
+        print(f'{jid} 不需要執行'); return
+    try:
+        st = run_job(jobs[jid])
+    except Exception as e:
+        rdir = os.path.join(RESULTS, jid); os.makedirs(rdir, exist_ok=True)
+        st = dict(id=jid, ok=False, error=str(e))
+        with open(os.path.join(rdir, 'status.json'), 'w', encoding='utf-8') as f:
+            json.dump(st, f, ensure_ascii=False, indent=1)
+    push(jid, st)
+    print(json.dumps(st, ensure_ascii=False))
 
 
 def main(dry):
@@ -161,4 +190,9 @@ def main(dry):
 
 
 if __name__ == '__main__':
-    main('--dry-run' in sys.argv)
+    if '--list-pending' in sys.argv:
+        print(json.dumps(pending_ids()))
+    elif '--only' in sys.argv:
+        run_one_ci(sys.argv[sys.argv.index('--only') + 1])
+    else:
+        main('--dry-run' in sys.argv)

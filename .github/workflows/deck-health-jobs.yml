@@ -1,0 +1,45 @@
+# 卡組健檢：雲端 Claude 把工作寫進 deck_health/mailbox/jobs.json 並推到 deck-health 分支，
+# GitHub 就自動開機器，每個還沒完成的工作各用一台執行，結果推回 deck_health/mailbox/results/<工作編號>/。
+# 只執行 runner.py 白名單裡的分析程式；不需要任何人操作電腦。
+name: deck-health jobs
+
+on:
+  push:
+    branches: [deck-health]
+    paths: ['deck_health/mailbox/jobs.json']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deck-health-jobs
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      ids: ${{ steps.p.outputs.ids }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: deck-health
+      - id: p
+        run: echo "ids=$(python3 -I deck_health/runner.py --list-pending)" >> "$GITHUB_OUTPUT"
+
+  run:
+    needs: plan
+    if: needs.plan.outputs.ids != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        id: ${{ fromJSON(needs.plan.outputs.ids) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: deck-health
+      - name: 執行 ${{ matrix.id }}
+        run: python3 -I deck_health/runner.py --only "${{ matrix.id }}"
