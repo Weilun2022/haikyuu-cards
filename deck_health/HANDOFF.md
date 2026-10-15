@@ -43,6 +43,8 @@ python -I -X utf8 template.py vs 2000 out.jsonl <基準配比> <配比1> <配比
     `deck_compute\haikyuu-cards\deck_health\runner.py`：對齊遠端 → 跑 local 且無 status.json 的工作 → 結果自動 commit 並推回。電腦關機時不會跑
   - **GitHub（沒有 where）**：.github/workflows/deck-health-jobs.yml 為每個工作開一台 4 核機器，平行執行
 - 實測速度（compare2 fuku 5 組×2000 場＝1 萬場）：本機 16 程序 36.5 秒（約 270 場/秒）；GitHub 每台 185 秒（約 54 場/秒）。本機單機約為 GitHub 一台的 5 倍
+- **速度依牌組差很多**：梟谷 PR-026 版內戰本機只有約 110 場/秒（FUKU-001：3000 場×300 方案，120 分鐘逾時只跑完 258 個）。timeout_min 要用目標牌組的實測速度估，再留 50% 餘裕；大批篩選拆成多個工作
+- 產生換卡方案時，角色換事件會讓事件超過 8 張上限【總則 4-1-2】；compare2／gauntlet 開跑前會檢查並直接報錯（2026-10-15 起）
 - 怎麼選：
   - 能確認電腦開著（例如這個對話連得到 Weilun 的電腦）→ 標 local
   - 確認不了 → 不加 where，交給 GitHub，不用問 Weilun
