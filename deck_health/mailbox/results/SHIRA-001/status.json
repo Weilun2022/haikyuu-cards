@@ -1,0 +1,17 @@
+{
+ "id": "SHIRA-001",
+ "script": "compare2",
+ "args": [
+  "{cards}",
+  "shira_final.json",
+  "shira_swap1.json",
+  6000,
+  "{out}"
+ ],
+ "workers": 4,
+ "started": "2026-10-15T05:21:48",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-15T06:50:14",
+ "seconds": 5306.4
+}
