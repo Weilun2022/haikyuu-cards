@@ -228,6 +228,96 @@
    ],
    "workers": 16,
    "timeout_min": 60
+  },
+  {
+   "id": "FUKU-011",
+   "note": "梟谷定案確認：A＋B、A＋B＋D 對 PR-026 版（新種子，各 6000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-012",
+   "note": "梟谷定案確認：A＋B＋D 直接對打 A＋B（各 6000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_ab.json",
+    "fuku_ab_d.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-013",
+   "note": "梟谷定案確認：A＋B、A＋B＋D vs 烏野（新種子，各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    "deck.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 40
+  },
+  {
+   "id": "FUKU-014",
+   "note": "梟谷定案確認：A＋B、A＋B＋D vs 白鳥沢定案（新種子，各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    "shira_final.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 40
+  },
+  {
+   "id": "FUKU-015",
+   "note": "梟谷定案確認：A＋B、A＋B＋D vs 稲荷崎 v4b（新種子，各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    "ina_v4b.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 40
   }
  ]
 }
