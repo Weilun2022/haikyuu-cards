@@ -15,3 +15,13 @@
 - 只允許白名單程式（compare2、gauntlet、vs_deck、optimize、optimize_guard、solo、template），參數只能是數字、deck_health 內的檔名、{cards}、{out}
 - 程序數用工作的 workers 欄位指定（上限為本機核心數 −2）
 - 本機日誌 runner.log 只留在 deck_runner 資料夾，不上傳
+
+## 用中文控制自動執行器（對本機 Claude Code 說）
+| 說法 | 指令 |
+|---|---|
+| 暫停自動執行 | `schtasks /Change /TN HaikyuuDeckRunner /DISABLE` |
+| 恢復自動執行 | `schtasks /Change /TN HaikyuuDeckRunner /ENABLE` |
+| 立刻執行一次 | `schtasks /Run /TN HaikyuuDeckRunner` |
+| 查看狀態 | `schtasks /Query /TN HaikyuuDeckRunner /V /FO LIST`（看「狀態」「上次執行時間」「上次結果」） |
+| 看執行紀錄 | 讀 `C:\Users\evils\Documents\Claude\deck_runner\runner.log` 最後 20 行 |
+| 完全移除 | `schtasks /Delete /TN HaikyuuDeckRunner /F`（移除前先確認） |
