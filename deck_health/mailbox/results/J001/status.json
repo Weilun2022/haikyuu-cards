@@ -1,0 +1,17 @@
+{
+ "id": "J001",
+ "script": "compare2",
+ "args": [
+  "{cards}",
+  "fuku.json",
+  "fuku_variants.json",
+  2000,
+  "{out}"
+ ],
+ "workers": 4,
+ "started": "2026-10-15T03:54:24",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-15T03:57:29",
+ "seconds": 184.6
+}
