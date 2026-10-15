@@ -72,6 +72,21 @@
    ],
    "workers": 16,
    "timeout_min": 120
+  },
+  {
+   "id": "FUKU-001",
+   "note": "梟谷 PR-026 版換卡篩選：26 種梟谷卡各換掉每一種卡 2 張，共 300 方案＋對照，對 PR-026 版直接對打",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_swap2.json",
+    3000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 120,
+   "where": "local"
   }
  ]
 }
