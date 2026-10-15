@@ -38,7 +38,9 @@ python -I template.py vs 2000 out.jsonl <基準配比> <配比1> <配比2> ...
 ## 雲端與本機分工（2026-10-15 定案，所有對話都要遵守）
 詳見 Project 文件 claude/健檢系統_本機運算分工.md。重點：
 - 程式只由雲端修改；本機（Weilun 的電腦，16 程序）只負責大樣本運算，不改程式
-- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push，請 Weilun 對本機說「跑健檢工作」
+- 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push，請 Weilun 在本機 Claude Code 親自輸入
+  `! python -I "C:\Users\evils\Documents\Claude\deck_runner\deck_health\runner.py"`，再說「回報健檢結果」
+- 本機 Claude 不自行執行 repo 裡的程式（安全分類器會擋，也不應繞過），只讀結果回報
 - 工作編號加主題前綴、不可重複（FUKU-001、SHIRA-001、INARI-001…）；加工作前先 git pull
 - 參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）；workers 設 16
 - 結果在 deck_health/mailbox/results/<工作編號>/（status.json、log.txt、out.jsonl）

@@ -25,3 +25,8 @@
 | 查看狀態 | `schtasks /Query /TN HaikyuuDeckRunner /V /FO LIST`（看「狀態」「上次執行時間」「上次結果」） |
 | 看執行紀錄 | 讀 `C:\Users\evils\Documents\Claude\deck_runner\runner.log` 最後 20 行 |
 | 完全移除 | `schtasks /Delete /TN HaikyuuDeckRunner /F`（移除前先確認） |
+
+## 執行方式（2026-10-15 更新）
+- 不排程。需要跑時由 Weilun 在本機 Claude Code 親自輸入：
+  `! python -I "C:\Users\evils\Documents\Claude\deck_runner\deck_health\runner.py"`
+- 本機 Claude 只負責讀 results/ 回報，不自行執行 repo 裡的程式
