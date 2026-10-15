@@ -1,0 +1,18 @@
+{
+ "id": "SHIRA-002",
+ "script": "gauntlet",
+ "args": [
+  "{cards}",
+  "shira_final.json",
+  "shira_swap1.json",
+  "deck.json,fuku_op8_v2.json,fuku_B_045_z.json,ina_v4b.json",
+  3000,
+  "{out}"
+ ],
+ "workers": 4,
+ "started": "2026-10-15T05:21:47",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-15T09:16:46",
+ "seconds": 14099.3
+}
