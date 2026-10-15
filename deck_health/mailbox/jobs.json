@@ -87,6 +87,84 @@
    "workers": 16,
    "timeout_min": 120,
    "where": "local"
+  },
+  {
+   "id": "FUKU-002",
+   "note": "FUKU-001 逾時沒跑完的 42 個方案（同設定 3000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_swap2_rest.json",
+    3000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 90,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-003",
+   "note": "FUKU-001 前 13 名複驗：新種子、各 6000 場對 PR-026 版",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "1000"
+   },
+   "workers": 16,
+   "timeout_min": 90,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-004",
+   "note": "FUKU-001 前 13 名 vs 烏野（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    "deck.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-005",
+   "note": "FUKU-001 前 13 名 vs 白鳥沢定案（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    "shira_final.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-006",
+   "note": "FUKU-001 前 13 名 vs 稲荷崎 v4b（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    "ina_v4b.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
   }
  ]
 }
