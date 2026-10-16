@@ -1705,24 +1705,9 @@ def _name_zh_value(jp, fallback):
 
 
 # ── 主處理 ─────────────────────────────────────────────────────────
-def dedupe_variants(raw: list) -> list:
-    """同一 card_no+image_end 只留 ID 最大的一筆（保留首次出現的位置）。
-
-    官方 API 會把既有卡重新登錄成新 ID（2026-10 的 HV-PR-074~079，修正所屬/收錄），
-    舊筆不下架；網站以 image_file 為鍵，不去重同一張卡會出現兩次。
-    """
-    by_key: dict = {}
-    for c in raw:
-        key = (c.get('card_no', ''), c.get('image_end', ''))
-        prev = by_key.get(key)
-        if prev is None or int(c.get('ID') or 0) > int(prev.get('ID') or 0):
-            by_key[key] = c
-    return list(by_key.values())
-
-
 def main():
     with open(ALL_CARDS_JSON, 'r', encoding='utf-8') as f:
-        raw = dedupe_variants(json.load(f))
+        raw = json.load(f)
 
     # 建立動態事件牌名清單（取自 all_cards.json 的 EVENT 卡 name 欄位）
     global _EVENT_NAMES
