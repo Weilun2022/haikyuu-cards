@@ -35,6 +35,15 @@
      這個值讓白字與深底對比度都維持和舊紫色 #6c63ff 同一水準（白字 4.27、--bg 上 4.54） */
   --accent:       #C85A0C;
   --accent-rgb:   200,90,12;   /* 給 rgba(var(--accent-rgb),α) 用，換主色時跟著改 */
+  --accent-hi:    #E06A12;     /* 漸層亮端 */
+  --accent-deep:  #9A430A;     /* 漸層暗端／發光外圈 */
+  --accent-deep-rgb: 154,67,10;
+  /* 琥珀金：css/theme.css 註解裡官方導覽列指示色，用在復原鈕，和橘色結束回合鈕區分 */
+  --gold:         #EDA613;
+  --gold-rgb:     237,166,19;
+  --gold-text:    #F6C24A;
+  /* 數值被手動調整過的標記：刻意不用主色，否則會和發球格的橘色底撞色 */
+  --adjusted:     #6c63ff;
   --accent2:      #ff6584;
   --green:        #4ade80;
   --orange:       #fb923c;
@@ -93,7 +102,7 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 .btn.sm { padding: 5px 11px; font-size: 12px; }
 .btn.xs { padding: 2px 8px; font-size: 11px; }
 .btn.end-turn {
-  background: linear-gradient(135deg, var(--accent) 0%, #9A430A 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
   border-color: transparent;
   color: #fff;
   font-weight: 700;
@@ -104,8 +113,8 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 
 /* ── Hand-area End Turn Button ── */
 @keyframes endTurnPulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(var(--accent-rgb),.5), 0 4px 22px rgba(154,67,10,.35); }
-  50%       { box-shadow: 0 0 26px rgba(var(--accent-rgb),.9), 0 6px 36px rgba(154,67,10,.6); transform: translateY(-1px); }
+  0%, 100% { box-shadow: 0 0 10px rgba(var(--accent-rgb),.5), 0 4px 22px rgba(var(--accent-deep-rgb),.35); }
+  50%       { box-shadow: 0 0 26px rgba(var(--accent-rgb),.9), 0 6px 36px rgba(var(--accent-deep-rgb),.6); transform: translateY(-1px); }
 }
 @keyframes endTurnShimmer {
   0%, 55%, 100% { left: -70%; opacity: 0; }
@@ -123,7 +132,7 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: linear-gradient(155deg, #E06A12 0%, #C85A0C 55%, #9A430A 100%);
+  background: linear-gradient(155deg, var(--accent-hi) 0%, var(--accent) 55%, var(--accent-deep) 100%);
   color: #fff;
   font-family: inherit;
   cursor: pointer;
@@ -164,8 +173,8 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 
 /* ── Hand-area Undo Button ── */
 @keyframes undoPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(237,166,19,.45), inset 0 0 8px rgba(237,166,19,.1); }
-  50%       { box-shadow: 0 0 22px rgba(245,184,46,.8), inset 0 0 14px rgba(245,184,46,.18); }
+  0%, 100% { box-shadow: 0 0 8px rgba(var(--gold-rgb),.45), inset 0 0 8px rgba(var(--gold-rgb),.1); }
+  50%       { box-shadow: 0 0 22px rgba(var(--gold-rgb),.8), inset 0 0 14px rgba(var(--gold-rgb),.18); }
 }
 @keyframes undoGlitch {
   0%, 88%, 100% { transform: none; }
@@ -198,12 +207,12 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 }
 .hand-undo-btn:disabled { opacity: .3; cursor: not-allowed; }
 
-/* 有可復原步驟時的發光狀態——用全站琥珀金（css/theme.css 註解裡官方導覽列指示色 #EDA613），跟橘色結束回合鈕區分 */
+/* 有可復原步驟時的發光狀態（--gold） */
 .hand-undo-btn.has-undo {
   background: linear-gradient(160deg, #1f1503 0%, #2e1f04 55%, #1f1503 100%);
-  border: 1.5px solid #EDA613;
-  color: #F6C24A;
-  text-shadow: 0 0 8px rgba(245,184,46,.85);
+  border: 1.5px solid var(--gold);
+  color: var(--gold-text);
+  text-shadow: 0 0 8px rgba(var(--gold-rgb),.85);
   animation: undoPulse 2.2s ease-in-out infinite, undoGlitch 7s ease-in-out infinite;
 }
 .hand-undo-btn.has-undo:hover:not(:disabled) {
@@ -212,7 +221,7 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
   border-color: #F5B82E;
   color: #FBD77A;
   text-shadow: 0 0 12px rgba(251,215,122,.95);
-  box-shadow: 0 0 24px rgba(237,166,19,.55), 0 4px 18px rgba(237,166,19,.25);
+  box-shadow: 0 0 24px rgba(var(--gold-rgb),.55), 0 4px 18px rgba(var(--gold-rgb),.25);
 }
 .hand-undo-btn .undo-icon { font-size: 17px; line-height: 1; }
 .hand-undo-btn .undo-lbl  { font-size: 9px; font-weight: 600; letter-spacing: .8px; }
@@ -1421,7 +1430,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 10px;
   font-weight: 700;
   line-height: 16px;
-  color: #0d0d14;
+  color: var(--bg);
 }
 .log-line.log-key-turn  { border-left-color: var(--blue);   background: rgba(96,165,250,.08); }
 .log-line.log-key-turn  .lk { background: var(--blue); }
@@ -2574,7 +2583,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #mobile-topbar .mtb-item { display: flex; align-items: center; gap: 4px; color: var(--text-dim); }
 #mobile-topbar .mtb-val  { color: var(--text); font-weight: 700; font-size: 13px; }
 #mobile-topbar .mtb-spacer { flex: 1; }
-/* 輪到誰：膠囊標籤。顏色依「是否我的回合」而非階段色——currentAction/phase 目前不會被設定（issue #54），階段色恆為發球橘 */
+/* 輪到誰：膠囊標籤，依「是否我的回合」配色而非階段色——階段色來自 currentAction/phase，兩者沒被設定時恆為發球橘、看不出差別（見 issue #54）。
+   寬度上限從 90px 放寬到 110px：375px 寬實測左側三項 + spacer 仍有餘裕，且膠囊多了左右 padding */
 #mobile-topbar .mtb-turn {
   display: inline-block;
   max-width: 110px;
@@ -2712,6 +2722,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #mobile-drawer-content .drawer-scores > summary { cursor: pointer; list-style: none; margin: 0 12px 6px; }
 #mobile-drawer-content .drawer-scores > summary::-webkit-details-marker { display: none; }
 #mobile-drawer-content .drawer-scores > summary::after { content: ' ▸'; }
+/* 抽屜裡可點開的標題要達 44px 觸控高度（桌機側邊欄維持原本小標題） */
+#mobile-drawer-content summary.sb-title { display: flex; align-items: center; min-height: 44px; margin-bottom: 0; }
 #mobile-drawer-content .drawer-scores[open] > summary::after { content: ' ▾'; }
 </style>
 </head>
@@ -3244,7 +3256,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   <div id="gen-confirm-box" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 28px 22px;max-width:360px;width:90%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.7)" onclick="event.stopPropagation()">
     <div id="gen-confirm-icon" style="font-size:32px;margin-bottom:10px">⚠️</div>
     <div id="gen-confirm-title" style="font-size:16px;font-weight:700;margin-bottom:8px"></div>
-    <div id="gen-confirm-body"  style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6"></div>
+    <div id="gen-confirm-body"  style="font-size:13px;color:var(--text-dim);margin-bottom:20px;line-height:1.6;white-space:pre-line"></div>
     <div style="display:flex;gap:10px;justify-content:center">
       <button class="btn" id="gen-confirm-cancel-btn" onclick="_genConfirmClose(false)" style="flex:1;max-width:120px">取消</button>
       <button class="btn primary" id="gen-confirm-ok-btn" onclick="_genConfirmClose(true)" style="flex:1;max-width:160px">確認</button>
@@ -3943,6 +3955,8 @@ async function rejoinRoom() {
 
   document.getElementById('rejoin-banner').style.display = 'none';
   L.undoStack = [];
+  // 開局中重新整理也要接回開局輔助：自己場上（含棄牌）沒牌、SET 池也空，就視為還在開局
+  setOpeningPhase(!collectCardsFromZones(data?.players?.[myRole]?.zones || emptyZones()).length && !L.setPool.length);
   showScreen('game');
   renderBoard(data);
   syncPileCount();
@@ -4438,25 +4452,26 @@ function selectAction(action) {
 }
 
 // 換到我的回合時的過場：沿用 #phase-flash（pointer-events:none，不擋操作）
-function flashTurn(text) {
+// #phase-flash 是共用的全畫面閃字（pointer-events:none，不擋操作）；連續觸發時重設計時，避免前一個的 timeout 提早收掉後一個
+let _flashTimer = null;
+function showFlash(bg, color, text, ms) {
   const overlay = document.getElementById('phase-flash');
   const el = document.getElementById('phase-flash-text');
-  overlay.style.background = 'rgba(var(--accent-rgb),.10)';
-  el.style.color = 'var(--accent)';
+  overlay.style.background = bg;
+  el.style.color = color;
   el.textContent = text;
   overlay.classList.add('show');
-  setTimeout(() => overlay.classList.remove('show'), 900);
+  clearTimeout(_flashTimer);
+  _flashTimer = setTimeout(() => overlay.classList.remove('show'), ms);
+}
+
+function flashTurn(text) {
+  showFlash('rgba(var(--accent-rgb),.10)', 'var(--accent)', text, 900);
 }
 
 function flashPhase(phase) {
   const meta = PHASE_META[phase] || PHASE_META.serve;
-  const overlay = document.getElementById('phase-flash');
-  const text = document.getElementById('phase-flash-text');
-  overlay.style.background = meta.bg;
-  text.style.color = meta.color;
-  text.textContent = meta.icon + ' ' + meta.label;
-  overlay.classList.add('show');
-  setTimeout(() => overlay.classList.remove('show'), 800);
+  showFlash(meta.bg, meta.color, meta.icon + ' ' + meta.label, 800);
 }
 
 // ══════════════════════════════════════════════════════
@@ -4689,8 +4704,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           const total = baseVal + dVal;
 
           // Unified badge: whole overlay gets zone color as background
-          // 手動調整過的數值刻意保留紫色：它是「被改過」的標記，不能跟發球格的橘色底撞色
-          const badgeBg  = dVal !== 0 ? '#6c63ff' : si.bg;
+          const badgeBg  = dVal !== 0 ? 'var(--adjusted)' : si.bg;
           const textCol  = (dVal !== 0 || !si.textDark) ? '#fff' : '#1a1200';
           const sepColor = si.textDark && dVal === 0 ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.25)';
 
@@ -5259,6 +5273,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
 
   L.hand.splice(handIdx, 1);
   _turnLastZoneType = baseZone;
+  setOpeningPhase(false); // 第一張牌上場 = 開局結束，之後手牌少於 6 張不再出現「補到 6 張」
   // Optimistic UI: update hand and zone display immediately, before Firebase awaits
   renderHand();
   renderZones('self', zones, false);
@@ -5564,6 +5579,7 @@ function drawToSix() {
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
   renderHand();
+  if (L.pile.length <= 5) toast(`⚠️ 牌庫剩 ${L.pile.length} 張！`);
 }
 
 function returnHandToPile(idx, position) {
@@ -6299,6 +6315,7 @@ async function addToSetPool() {
   syncPileCount();
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
   addLog(L.name, `組數補牌 +2（組數：${cnt}，牌庫剩 ${L.pile.length}）`);
+  setOpeningPhase(false); // 開局步驟 7：先攻方補 SET 池就進入第一回合
 }
 
 async function loseRallySetPool() {
@@ -6345,9 +6362,9 @@ async function loseRallySetPool() {
     });
     L.undoStack = [];
     updateUndoBtn();
-    setOpeningPhase(false);
     addLog(L.name, '回合結束（輸一球）');
   }
+  setOpeningPhase(false);
 }
 
 function openOppStack(zoneName) {
@@ -7392,11 +7409,14 @@ function cancelPreview() {
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
   if (!document.getElementById('screen-game').classList.contains('active')) return;
+  // 確認框開著時，Enter 是「確認」、其他快捷鍵不作用——否則 Enter 會在框還開著時結束回合、D 在背後抽牌
+  if (document.getElementById('gen-confirm-overlay')?.style.display === 'flex') {
+    if (e.key === 'Enter') { e.preventDefault(); _genConfirmClose(true); }
+    else if (e.key === 'Escape') _genConfirmClose(false);
+    return;
+  }
   if (e.key === 'd' || e.key === 'D') { e.preventDefault(); drawCard(); }
   if (e.key === 'Escape') {
-    // Close gen-confirm if open
-    const gc = document.getElementById('gen-confirm-overlay');
-    if (gc?.style.display === 'flex') { _genConfirmClose(false); return; }
     closeCtx();
     closeDetail();
     closeDropViewer();
