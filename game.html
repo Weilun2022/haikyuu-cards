@@ -2701,6 +2701,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
   z-index: 499;
 }
 #mobile-drawer-overlay.open { display: block; }
+/* 抽屜重排後的區塊（buildDrawerContent） */
+#mobile-drawer-content .drawer-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+#mobile-drawer-content .drawer-tools .sb-title { grid-column: 1 / -1; margin-bottom: 0; }
+#mobile-drawer-content .drawer-tools .btn { margin-top: 0 !important; min-height: 44px; padding: 6px 4px; font-size: 12px; white-space: normal; line-height: 1.25; }
+#mobile-drawer-content .drawer-scores { border-top: 1px solid var(--border); padding: 8px 0 4px; }
+#mobile-drawer-content .drawer-scores > summary { cursor: pointer; list-style: none; margin: 0 12px 6px; }
+#mobile-drawer-content .drawer-scores > summary::-webkit-details-marker { display: none; }
+#mobile-drawer-content .drawer-scores > summary::after { content: ' ▸'; }
+#mobile-drawer-content .drawer-scores[open] > summary::after { content: ' ▾'; }
 </style>
 </head>
 <body>
@@ -7916,6 +7925,7 @@ function closeMobileDrawer() {
     syncTopbar();
   }
 
+  let _drawerScoresOpen = false;   // 抽屜每次打開都重建，記住使用者有沒有展開計分區
   function buildDrawerContent() {
     const sb = document.getElementById('sidebar');
     const dc = document.getElementById('mobile-drawer-content');
@@ -7923,6 +7933,11 @@ function closeMobileDrawer() {
     dc.innerHTML = '';
     const clone = sb.cloneNode(true);
     clone.removeAttribute('id');
+    // 拿掉 id 前先抓出各區塊，下面依手機使用頻率重排
+    const pick = id => clone.querySelector('#' + id);
+    const tools = pick('sb-actions'), setup = pick('sb-setup'), log = pick('log-wrap');
+    const logTitle = log && log.previousElementSibling;
+    const scoreSections = ['sb-score', 'sb-hand', 'sb-atk'].map(pick).filter(Boolean);
     // 移除 clone 內所有 id，防止 getElementById 優先抓到 clone 而非原版
     // （#mobile-drawer-content 在 DOM 中比 #sidebar 更早，id 重複時 clone 排第一）
     clone.querySelectorAll('[id]').forEach(el => {
@@ -7930,6 +7945,22 @@ function closeMobileDrawer() {
       el.removeAttribute('id');
     });
     clone.style.cssText = 'display:block;width:100%';
+    // 手機頂部列已經顯示局數／攻擊值／手牌數，抽屜改成：工具 → 開局步驟 → 行動記錄 → 計分調整（收合）
+    if (tools) { tools.classList.add('drawer-tools'); clone.prepend(tools); }
+    if (setup && tools) tools.after(setup);
+    if (scoreSections.length) {
+      const scores = document.createElement('details');
+      scores.className = 'drawer-scores';
+      scores.open = _drawerScoresOpen;
+      scores.addEventListener('toggle', () => { _drawerScoresOpen = scores.open; });
+      const sum = document.createElement('summary');
+      sum.className = 'sb-title';
+      sum.textContent = '📊 計分與手牌（調整用）';
+      scores.appendChild(sum);
+      scoreSections.forEach(s => scores.appendChild(s));
+      clone.appendChild(scores);
+    }
+    if (logTitle && log && setup) { setup.after(logTitle); logTitle.after(log); }
     dc.appendChild(clone);
     // 初始化 drawer log：複製原版 log 的當前內容
     const srcLog = document.getElementById('log-wrap');
