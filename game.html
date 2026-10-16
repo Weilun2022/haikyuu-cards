@@ -1408,6 +1408,26 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .log-line .lp { color: var(--accent); font-weight: 700; }
 .log-line.opp .lp { color: var(--accent2); }
 .log-line .lt { color: var(--border); float: right; font-size: 10px; }
+/* 關鍵事件（LOG_KEY_EVENTS）：小標籤 + 左邊色條，讓長串記錄裡一眼找到換回合／失分／重置 */
+.log-line.log-key { color: var(--text); font-weight: 600; border-left-width: 3px; }
+.log-line.log-key .lk {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  color: #0d0d14;
+}
+.log-line.log-key-turn  { border-left-color: var(--blue);   background: rgba(96,165,250,.08); }
+.log-line.log-key-turn  .lk { background: var(--blue); }
+.log-line.log-key-point { border-left-color: #f87171;       background: rgba(248,113,113,.10); }
+.log-line.log-key-point .lk { background: #f87171; }
+.log-line.log-key-reset { border-left-color: var(--orange); background: rgba(251,146,60,.10); }
+.log-line.log-key-reset .lk { background: var(--orange); }
+.log-line.log-key-score { border-left-color: #facc15;       background: rgba(250,204,21,.08); }
+.log-line.log-key-score .lk { background: #facc15; }
 
 /* card-preview removed */
 
@@ -6086,16 +6106,26 @@ async function addLog(player, action) {
 
 let _logRenderedKeys = new Set();
 
+// log 只存純文字（舊版頁面寫的記錄也要能認），所以用文字開頭比對；順序有意義，先比對的優先
+const LOG_KEY_EVENTS = [
+  { type: 'point', label: '失分', test: a => a.startsWith('輸一球') },
+  { type: 'turn',  label: '換手', test: a => a.startsWith('回合結束') },
+  { type: 'reset', label: '重置', test: a => a.includes('重置本局') },
+  { type: 'score', label: '局數', test: a => a.startsWith('🏆 局數調整') },
+];
+
 function _makeLogLine(e) {
   const d = document.createElement('div');
   const isSys = e.player === 'system';
   const isOpp = !isSys && e.player && e.player !== L.name;
-  d.className = 'log-line' + (isOpp ? ' opp' : '') + (isSys ? ' sys' : '');
+  const key = isSys ? null : LOG_KEY_EVENTS.find(k => k.test(String(e.action || '')));
+  d.className = 'log-line' + (isOpp ? ' opp' : '') + (isSys ? ' sys' : '') + (key ? ` log-key log-key-${key.type}` : '');
   const t = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}) : '';
+  const tag = key ? `<span class="lk">${key.label}</span>` : '';
   if (isSys) {
     d.innerHTML = `${esc(e.action)} <span class="lt">${t}</span>`;
   } else {
-    d.innerHTML = `<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
+    d.innerHTML = `${tag}<span class="lp${isOpp?' opp':''}">${esc(e.player)}</span> ${esc(e.action)} <span class="lt">${t}</span>`;
   }
   return d;
 }
