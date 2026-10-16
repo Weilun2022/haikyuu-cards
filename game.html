@@ -2542,6 +2542,34 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #mobile-topbar .mtb-item { display: flex; align-items: center; gap: 4px; color: var(--text-dim); }
 #mobile-topbar .mtb-val  { color: var(--text); font-weight: 700; font-size: 13px; }
 #mobile-topbar .mtb-spacer { flex: 1; }
+/* 輪到誰：膠囊標籤。顏色依「是否我的回合」而非階段色——currentAction/phase 目前不會被設定（issue #54），階段色恆為發球橘 */
+#mobile-topbar .mtb-turn {
+  display: inline-block;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 2px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface3);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 700;
+}
+#mobile-topbar .mtb-turn.is-my {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(108,99,255,.14);
+  animation: mtbTurnPulse 1.8s ease-in-out infinite;
+}
+@keyframes mtbTurnPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(108,99,255,0); }
+  50%      { box-shadow: 0 0 9px 1px rgba(108,99,255,.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #mobile-topbar .mtb-turn.is-my { animation: none; }
+}
 
 /* ── Mobile Slot Modal（格子放大移動）── */
 #msm { display: none; position: fixed; inset: 0; z-index: 4000; flex-direction: column; align-items: center; justify-content: flex-end; }
@@ -2773,7 +2801,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   <div class="mtb-item">⚡ <span class="mtb-val" id="mtb-atk">0</span></div>
   <div class="mtb-item">🃏 <span class="mtb-val" id="mtb-hand">0</span></div>
   <div class="mtb-spacer"></div>
-  <div class="mtb-item" id="mtb-turn" style="color:var(--accent);font-weight:700;font-size:11px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+  <div class="mtb-item"><span id="mtb-turn" class="mtb-turn">—</span></div>
 </div>
 <!-- ── MOBILE: Drawer overlay ── -->
 <div id="mobile-drawer-overlay" onclick="closeMobileDrawer()"></div>
@@ -7765,7 +7793,8 @@ function closeMobileDrawer() {
       if (srcTurn && mtbTurn) {
         const t = srcTurn.textContent || '';
         mtbTurn.textContent = t.length > 14 ? t.slice(0, 14) + '…' : t;
-        mtbTurn.style.color = window.getComputedStyle(srcTurn).color;
+        // turn-indicator 的 class 是 updatePhaseUI 設的（'my' = 我的回合）；換人時文字一定跟著變，所以 observer 會觸發
+        mtbTurn.classList.toggle('is-my', srcTurn.classList.contains('my'));
       }
     }
     const obs = new MutationObserver(syncTopbar);
