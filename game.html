@@ -2605,6 +2605,31 @@ input[type=text]::placeholder { color: var(--text-dim); }
   color: rgba(255,255,255,.7); font-size: 14px; cursor: pointer;
 }
 
+/* ── 手機長按倒數環（只有觸控長按流程會建立 .lp-ring）── */
+.lp-ring {
+  position: fixed;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0;
+  animation: lpRingAppear 0s linear 120ms forwards;
+}
+.lp-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+.lp-ring-track { fill: rgba(13,13,20,.55); stroke: rgba(255,255,255,.25); stroke-width: 3; }
+.lp-ring-fill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: lpRingFill 380ms linear 120ms forwards;
+}
+@keyframes lpRingAppear { to { opacity: 1; } }
+@keyframes lpRingFill   { to { stroke-dashoffset: 0; } }
+
 /* ── Mobile FAB（電腦版隱藏）── */
 #mobile-fab {
   display: none;
@@ -7569,19 +7594,35 @@ function closeMobileDrawer() {
     if (el) { el.classList.add('lp-fire'); setTimeout(() => el.classList.remove('lp-fire'), 200); }
     if ('vibrate' in navigator) { try { navigator.vibrate(20); } catch (_) {} }  // iOS 無效，Android 有效，純選配
   }
-  function _lpStart(getFilename, feedbackEl) {
+  // 長按倒數環：讓玩家知道「按住會有事發生」。畫在指尖上方（被手指蓋住就沒意義），
+  // CSS 延遲 120ms 才浮現，一般 tap 不會閃一下；動畫總長 = LONGPRESS_MS
+  let _lpRing = null;
+  function _lpRingShow(x, y) {
+    _lpRingHide();
+    _lpRing = document.createElement('div');
+    _lpRing.className = 'lp-ring';
+    _lpRing.style.left = x + 'px';
+    _lpRing.style.top  = Math.max(24, y - 46) + 'px';   // 對手區靠頂端時別畫出畫面外
+    _lpRing.innerHTML = '<svg viewBox="0 0 36 36"><circle class="lp-ring-track" cx="18" cy="18" r="15"/><circle class="lp-ring-fill" cx="18" cy="18" r="15" pathLength="100"/></svg>';
+    document.body.appendChild(_lpRing);
+  }
+  function _lpRingHide() { if (_lpRing) { _lpRing.remove(); _lpRing = null; } }
+  function _lpStart(getFilename, feedbackEl, x, y) {
     _lpFired = false; clearTimeout(_lpTimer);
+    _lpRingShow(x, y);
     _lpTimer = setTimeout(() => {
+      _lpRingHide();
       const fn = getFilename();
       if (fn && typeof showDetail === 'function') { _lpFired = true; showDetail(fn); _lpFeedback(feedbackEl); }
     }, LONGPRESS_MS);
   }
   // 通用 action 版長按（複用同一 _lpFired，讓既有 window capture 吞掉隨後 click）。用於牌組長按→翻牌頂
-  function _lpStartAction(action, feedbackEl) {
+  function _lpStartAction(action, feedbackEl, x, y) {
     _lpFired = false; clearTimeout(_lpTimer);
-    _lpTimer = setTimeout(() => { _lpFired = true; action(); _lpFeedback(feedbackEl); }, LONGPRESS_MS);
+    _lpRingShow(x, y);
+    _lpTimer = setTimeout(() => { _lpRingHide(); _lpFired = true; action(); _lpFeedback(feedbackEl); }, LONGPRESS_MS);
   }
-  function _lpCancel() { clearTimeout(_lpTimer); }
+  function _lpCancel() { clearTimeout(_lpTimer); _lpRingHide(); }
   function _lpFilenameFromImg(im) {
     const s = im.getAttribute('src') || im.src || '';
     const base = s.split('/').pop();           // showDetail 的 key 是「含副檔名」的檔名（allCards[img]），勿去副檔名
@@ -7627,7 +7668,7 @@ function closeMobileDrawer() {
         const pileTile = e.target.closest('#pile-tile');
         if (pileTile) {   // 牌組長按 → 翻牌頂 openPeekSetup；短按仍由 _onPileTileClick 處理（抽牌/放回），_lpFired 會吞掉該 click
           _lpSX = e.clientX; _lpSY = e.clientY;
-          _lpStartAction(() => { if (typeof openPeekSetup === 'function') openPeekSetup(); }, pileTile);
+          _lpStartAction(() => { if (typeof openPeekSetup === 'function') openPeekSetup(); }, pileTile, e.clientX, e.clientY);
           return;
         }
         const hcard = e.target.closest('.z-hstack-card');
@@ -7638,9 +7679,9 @@ function closeMobileDrawer() {
         // 非頂牌 guts：長按 → showGutsAction（modal）；其他 → showDetail
         if (hcard && hcard._gutsActionData && document.contains(hcard)) {
           const d = hcard._gutsActionData;
-          _lpStartAction(() => { if (document.contains(hcard)) showDetail(d.img); }, hcard);
+          _lpStartAction(() => { if (document.contains(hcard)) showDetail(d.img); }, hcard, e.clientX, e.clientY);
         } else {
-          _lpStart(() => _lpFilenameFromImg(im), hcard || slot);
+          _lpStart(() => _lpFilenameFromImg(im), hcard || slot, e.clientX, e.clientY);
         }
       }, { passive: true });
       board.addEventListener('pointermove', e => {
@@ -7666,7 +7707,7 @@ function closeMobileDrawer() {
     mDragStartX = e.clientX; mDragStartY = e.clientY;
     mDragging = false;
     // 長按 → 詳情；手牌檔名優先用 data-img（含副檔名），退回 L.hand[idx]
-    _lpStart(() => card.dataset.img || ((typeof L !== 'undefined' && L.hand) ? L.hand[parseInt(mDragCardIdx)] : null), card);
+    _lpStart(() => card.dataset.img || ((typeof L !== 'undefined' && L.hand) ? L.hand[parseInt(mDragCardIdx)] : null), card, e.clientX, e.clientY);
     e.preventDefault();
   }
   function onPM(e) {
