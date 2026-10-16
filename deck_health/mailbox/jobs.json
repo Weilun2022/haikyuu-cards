@@ -443,6 +443,81 @@
       "workers": 16,
       "timeout_min": 20,
       "where": "local"
+    },
+    {
+      "id": "INARI-011",
+      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對冠軍（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_vs_champ_var.json",
+        "champ.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-012",
+      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對烏野（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_vs_champ_var.json",
+        "deck.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-013",
+      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對梟谷V2（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_vs_champ_var.json",
+        "fuku_op8_v2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-014",
+      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對白鳥沢（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_vs_champ_var.json",
+        "shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-015",
+      "note": "（INARI-010 改交 GitHub）冠軍對烏野、梟谷V2、白鳥沢（各 12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "champ.json",
+        "champ_self_var.json",
+        "deck.json,fuku_op8_v2.json,shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
     }
   ]
 }
