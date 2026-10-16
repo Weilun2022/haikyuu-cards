@@ -5202,7 +5202,7 @@ async function discardFromZone(zoneName, cardData) {
   _turnLastZoneType = zoneName.split(':')[0];
   if (!zones.drop) zones.drop = [];
   zones.drop.push(cardData.img);
-  if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
+  attachedGuts(zoneName, cardData).forEach(g => zones.drop.push(g));
   const card = allCards[cardData.img];
   await pushZones(zones);
   updateDropImg(zones);
@@ -5383,7 +5383,7 @@ async function returnToPile(fromZone, cardData, position) {
   const zones = myZonesCopy();
   removeFromZone(zones, fromZone, cardData.img);
   zones.drop = zones.drop || [];
-  if (cardData.guts?.length) cardData.guts.forEach(g => zones.drop.push(g));
+  attachedGuts(fromZone, cardData).forEach(g => zones.drop.push(g));
   if (position === 'top') {
     L.pile.push(cardData.img);
   } else {
@@ -7009,6 +7009,13 @@ function getZoneCard(zones, zoneName) {
     return { img: evts[evts.length - 1], guts: evts.slice(0, -1) };
   }
   return zones[zoneName] || null;
+}
+
+// 整疊移走時要跟著頂牌一起處理的 guts。事件區的 getZoneCard 為了顯示/排序把其他事件卡
+// 包成 guts，但它們是各自獨立的卡、不附屬於頂牌：移走一張事件卡時其餘事件卡要留在事件區，
+// 否則會同時留在事件區又被送去棄牌區而複製。
+function attachedGuts(zoneName, cardData) {
+  return zoneName === 'event' ? [] : (cardData.guts || []);
 }
 
 function setZoneCard(zones, zoneName, val) {
