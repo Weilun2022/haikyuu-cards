@@ -52,6 +52,7 @@ def cond(c):
     if t == 'enter_on_top_school': return f"此角色是疊在{c['school']}角色上面登場"
     if t == 'self_role_school_pos': return f"自己的舉球角色是{c['school']}的 {c['position']}"
     if t == 'opp_role_base_le': return f"對手的攻擊角色原本的{STAT[c['stat']]} ≤{c['n']}（對手這一拍是攻擊）"
+    if t == 'self_role_name_in': return f"自己的舉球角色是「{'」或「'.join(c['names'])}」"
     if t == 'entered_by_skill': return '此角色是由技能登場'
     if t == 'self_hand_le': return f"自己手牌 ≤{c['n']} 張"
     if t == 'entered_by': return f"此角色是由「{c['card_name']}」的技能登場"
@@ -103,6 +104,10 @@ def eff(e):
     elif t == 'choose_one': s = '以下選 1 個：' + ' ／ '.join('▶' + '；'.join(eff(x) for x in o) for o in e['options'])
     elif t == 'guts_any_to_zone':
         s = f"{WHO[e['who']]}場上任一區的 Guts 中「{e['filter']['name']}」最多 {e['max']} 張出場至{ZONE[e['zone']]}"
+    elif t == 'event_to_hand' and e['filter'].get('name'):
+        s = f"從{WHO[e['who']]} Event 區將「{e['filter']['name']}」最多 {e['max']} 張加入手牌"
+        if e.get('then'): s += '；有加入的話，' + eff(e['then'])
+    elif t == 'hand_to_deck_bottom': s = f"{WHO[e['who']]}從手牌把 {e['n']} 張放到牌庫底"
     elif t == 'event_to_hand' and e['filter'].get('school'):
         s = f"從{WHO[e['who']]} Event 區將{e['filter']['school']}的牌最多 {e['max']} 張加入手牌"
     elif t == 'event_to_hand':

@@ -122,3 +122,26 @@ if 'HV-P03-093' in sim2.MANUAL:
     P, T = setup('HV-D03-004', 'HV-P02-022', [FILL], [FILL]); P.hand = []
     sim2.enter(P, T, 'attack', C('HV-P03-041'), from_hand=True, name='宮 治')
     ok('P03-041 從手牌出場沒有 +2（攻擊 %d）' % sim2.cur_stat(P, T, 'attack'), sim2.cur_stat(P, T, 'attack') == 2)
+
+# ── 第 3 批（DH_INARI3=1 才會載入）──
+if 'HV-D03-013' in sim2.MANUAL:
+    # 16. 侑 D03-001 從手牌登場到舉球區：付 2 Guts 舉球 2，撈回今日、放 1 張到牌庫底，同一拍再打出今日：抽 1、舉球 +1
+    P = sim2.Player([C(FILL)] * 5, rng, 'A'); P.deck = [C(FILL) for _ in range(10)]
+    opp = sim2.Player([C(FILL)] * 5, rng, 'B'); opp.hand = [C(FILL) for _ in range(6)]
+    T = sim2.newT(opp, 3, 'attack'); T['phase'] = 'toss'
+    P.zones['receive'] = [C('HV-P02-034')]; T['names']['receive'] = '赤木 路成'
+    P.zones['toss'] = [C(FILL), C(FILL), C(FILL)]; P.evz = [C('HV-D03-013')]
+    P.hand = [C('HV-D03-001'), C('HV-P02-020'), C('HV-P02-077')]; d0 = len(P.deck)
+    t = P.hand[0]; P.hand.remove(t); sim2.enter(P, T, 'toss', t, from_hand=True, name='宮 侑')
+    ok('D03-001：舉球 1+1=2（實得 %d），撈回今日，1 張放到牌庫底' % sim2.cur_stat(P, T, 'toss'),
+       sim2.cur_stat(P, T, 'toss') == 2 and any(c.no == 'HV-D03-013' for c in P.hand) and not P.evz and len(P.deck) == d0 + 1)
+    ev = next(c for c in P.hand if c.no == 'HV-D03-013'); h0 = len(P.hand)
+    sim2.play_event(P, T, ev, 'toss')
+    ok('今日：舉球 2+1=3（實得 %d）、抽 1' % sim2.cur_stat(P, T, 'toss'), sim2.cur_stat(P, T, 'toss') == 3 and len(P.hand) == h0)
+    # 17. 舉球不是侑／治（宮兄弟未選名＝本回合沒登場、名字是宮兄弟）→ 不能打
+    P = sim2.Player([C(FILL)] * 5, rng, 'A'); T = sim2.newT(opp, 3, 'attack'); T['phase'] = 'toss'
+    P.zones['toss'] = [C('HV-P02-077')]; P.hand = [C('HV-D03-013')]
+    sim2.play_event(P, T, P.hand[0], 'toss')
+    ok('今日：舉球是「宮兄弟」不能打', len(P.hand) == 1 and not P.evz)
+    T['names']['toss'] = '宮 治'; sim2.play_event(P, T, P.hand[0], 'toss')
+    ok('今日：宮兄弟選成治就能打', any(c.no == 'HV-D03-013' for c in P.evz) and not any(c.no == 'HV-D03-013' for c in P.hand))

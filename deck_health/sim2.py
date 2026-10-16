@@ -210,6 +210,9 @@ def cond_ok(c, P, T):
         ph = set(c['phases']); ez = P.evz if c.get('who') == 'self' else opp.evz
         return sum(1 for e in ez if e.phases & ph and (not c.get('school') or c['school'] in e.school)) >= c['n']
     if t == 'entered_by': return T.get('entered_by') == c['card_name']
+    if t == 'self_role_name_in':
+        st = P.zones[c['role']]
+        return bool(st) and T['names'].get(c['role'], st[-1].name) in c['names']
     if t == 'entered_by_skill': return T.get('entered_by') is not None
     if t == 'self_hand_le': return len(P.hand) <= c['n']
     if t == 'captured_school':
@@ -402,6 +405,18 @@ def apply_effects(effs, P, T, zone):
             if g:
                 best = max(g, key=lambda c: c.b[ZSTAT[e['zone']]])
                 P.zones[e['zone']].remove(best); enter(P, T, e['zone'], best, from_hand=False); P.bump('Guts拉上場')
+        elif t == 'event_to_hand' and 'name' in e['filter']:  # 侑 D03-001：Event 區指定卡名 1 張回手牌，有拿就手牌 1 張放牌庫底
+            cands = [c for c in P.evz if c.name == e['filter']['name']]
+            if cands:
+                P.evz.remove(cands[0]); P.add_nondraw(cands[0]); P.bump('撈回:' + e['filter']['name'])
+                T['_keep'] = cands[0]  # 剛撈回的牌不放回牌庫底
+                if e.get('then'): apply_effects([e['then']], P, T, zone)
+                T['_keep'] = None
+        elif t == 'hand_to_deck_bottom':  # 放最不需要的牌
+            for _ in range(min(e['n'], len(P.hand))):
+                cands = [x for x in P.hand if x is not T.get('_keep')] or P.hand
+                w = max(cands, key=lambda c: hand_score([x for x in P.hand if x is not c]))
+                P.hand.remove(w); P.deck.append(w)
         elif t == 'event_to_hand' and 'school' in e['filter']:  # 北 P02-024：Event 區的稲荷崎牌 1 張回手牌（不必是最上面）
             cands = [c for c in P.evz if e['filter']['school'] in c.school]
             if cands:
@@ -583,7 +598,13 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
                             P.bump('研磨拉Guts打手')
 
 
+def event_playable(P, T, ev):
+    """事件的「使える」條件（例：今日 何をする？ 要舉球是侑或治）。"""
+    return all(cond_ok(c, P, T) for s in ev.skills if not s.get('part_of_same_card') for c in s.get('conditions', []))
+
+
 def play_event(P, T, ev, zone_hint):
+    if not event_playable(P, T, ev): return
     if any(s.get('once_per_turn') for s in ev.skills):
         used = T.setdefault('once_used', set())
         if ev.name in used: return
@@ -724,7 +745,8 @@ def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
         return T['two_attack']
     if aggressive == 'two': return None
     for ev in [e for e in P.hand if e.ev and 'toss' in e.phases]:
-        if 'S' in t.pos and cur_stat(P, T, 'toss') < 2: play_event(P, T, ev, 'toss')
+        cantrip = any(e['type'] == 'draw' for sk in ev.skills for e in sk['effects'])  # 今日 何をする？：會抽牌的舉球事件一律打
+        if ev in P.hand and (cantrip or ('S' in t.pos and cur_stat(P, T, 'toss') < 2)): play_event(P, T, ev, 'toss')
     if stop_after_toss: return 'TOSSED'
     return attack_part(P, T, a, na, aggressive)
 
