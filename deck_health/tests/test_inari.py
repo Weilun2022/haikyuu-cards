@@ -154,3 +154,10 @@ if 'HV-D03-013' in sim2.MANUAL:
     T['names']['toss'] = '宮 侑'; P.hand = [C('HV-P02-087')]
     sim2.play_event(P, T, P.hand[0], 'attack')
     ok('どんぴしゃり：Event 區沒有今日時不叫出 D03-001', P.zones['toss'][-1].no == 'HV-D03-004')
+
+# 19. will_be_replaced：手上有どんぴしゃり、Guts 有付得起的治 P02-020（6）→ D03-002（2+2=4）會被蓋掉
+P, T = setup('HV-D03-004', 'HV-P02-022', [FILL, FILL, FILL], [FILL, FILL, FILL, 'HV-P02-020'])
+T['names']['toss'] = '宮 侑'; T['names']['attack'] = '宮 治'; P.hand = [C('HV-P02-087')]
+ok('D03-002 會被どんぴしゃり叫出的治蓋掉', sim2.will_be_replaced(P, T, 'attack', 4))
+P.hand = []
+ok('手上沒有どんぴしゃり → 不會被蓋掉', not sim2.will_be_replaced(P, T, 'attack', 4))

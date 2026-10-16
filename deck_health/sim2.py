@@ -16,6 +16,7 @@ CFG = dict(
     onetouch_attack_only=True, # 一觸只能減對手「攻擊」的進攻值，發球、攔網回來的球不行（所有卡通用）【使用者 2026-10-13】
     li_restrict=True,          # 數值為「-」的區域不能登場（Li 不能發球、攔網）【使用者 2026-10-11】
     hand_bottom_policy='default',  # 「手牌放牌庫底」代價（治 D03-002）的打法，只套用在 A 方：default／lethal（付了能讓對手接不起來才付）／never
+                                   # ／smart（同拍會被どんぴしゃり叫出的治蓋掉就不付）／lethal_smart（兩個條件都要）
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
 )
 ZSTAT = dict(serve='srv', block='blk', receive='rcv', toss='tos', attack='atk')
@@ -535,6 +536,24 @@ def pulled_value(P, T, c, zone, under):
     return v, extra
 
 
+def will_be_replaced(P, T, zone, v_after):
+    """同一拍手上有能叫出攻擊手的事件（どん ぴしゃり），而 Guts 裡有叫出來會比 v_after 高的角色 → 這張會被蓋掉、加值消失。"""
+    for ev in P.hand:
+        if not ev.ev: continue
+        for sk in ev.skills:
+            for e in sk['effects']:
+                if e['type'] != 'guts_any_to_zone' or e['zone'] != zone: continue
+                if e.get('if') and not all(c['type'] == 'self_role_name' or cond_ok(c, P, T) for c in e['if']): continue
+                nm = e['filter']['name']
+                for zz, st in P.zones.items():
+                    if zz not in ZSTAT: continue
+                    for c in st[:-1]:
+                        if not c.ev and c.name == nm:
+                            under = len(P.zones[zone]) - (1 if zz == zone else 0)
+                            if pulled_value(P, T, c, zone, under)[0] > v_after: return True
+    return False
+
+
 def has_attack_skill(card):
     return any(s['timing'] == 'on_enter' and 'attack' in s.get('zones', []) for s in card.skills)
 
@@ -546,6 +565,7 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None, defer=N
         P.zones.setdefault('_side', []).append(card)
     else:
         under = P.zones[zone][-1] if P.zones[zone] else None
+        if under is not None and under is T.get('bottom_paid_on'): P.bump('D03-002加值被蓋掉')
         P.zones[zone].append(card)
         T['mod'][zone] = 0
         if zone == 'toss': T['set_toss'] = None; T['toss_cap'] = None
@@ -597,16 +617,19 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
                        and any(e['filter']['school'] in x.school and 'attack' in x.phases for x in P.evz)
                        for e in s['effects'])): continue
         if any(c['type'] == 'hand_to_deck_bottom' for c in costs) and P.label == 'A' and CFG['hand_bottom_policy'] != 'default':
-            if CFG['hand_bottom_policy'] == 'never': continue
+            pol = CFG['hand_bottom_policy']
+            if pol == 'never': continue
             gain = sum(e['n'] for e in s['effects'] if e['type'] == 'stat_add' and e['target'] == 'this')
+            if pol in ('smart', 'lethal_smart') and will_be_replaced(P, T, zone, cur_stat(P, T, zone) + gain): continue
             op_if = cur_stat(P, T, 'toss') + cur_stat(P, T, 'attack') + gain
-            if response_cost(T['opp'], op_if, T['locks'], False, attacker=P) is not None: continue
+            if pol in ('lethal', 'lethal_smart') and response_cost(T['opp'], op_if, T['locks'], False, attacker=P) is not None: continue
         neg = [e['name'] for e in s['effects'] if e['type'] == 'negate_skills']
         pa = T.get('plan_attack')
         if neg and pa and pa[1] in neg and has_attack_skill(pa[0]): continue  # 會廢掉本回合木兎攻擊技能時不用
         if (any(c['type'] == 'drop_block_char' for c in costs) and zone == 'receive'
                 and cur_stat(P, T, 'receive') >= T['op_in']): continue  # P03-067：接得住就不棄攔網角色
         if not cost_pay(costs, P, T, zone): continue
+        if any(c['type'] == 'hand_to_deck_bottom' for c in costs): T['bottom_paid_on'] = card
         P.bump('技能:' + card.no)
         apply_effects(s['effects'], P, T, zone)
     if zone == 'attack' and from_hand:  # 研磨：自己從手牌出場原本攻擊值 3 的攻擊角色時
