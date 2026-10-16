@@ -15,6 +15,7 @@ CFG = dict(
     fetch_then_attack=True,    # 赤葦 P01-045 撿回木兎後，同一拍可以拿來攻擊；付 Guts 時調成奇數（2026-10-11 修正）
     onetouch_attack_only=True, # 一觸只能減對手「攻擊」的進攻值，發球、攔網回來的球不行（所有卡通用）【使用者 2026-10-13】
     li_restrict=True,          # 數值為「-」的區域不能登場（Li 不能發球、攔網）【使用者 2026-10-11】
+    hand_bottom_policy='default',  # 「手牌放牌庫底」代價（治 D03-002）的打法，只套用在 A 方：default／lethal（付了能讓對手接不起來才付）／never
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
 )
 ZSTAT = dict(serve='srv', block='blk', receive='rcv', toss='tos', attack='atk')
@@ -595,6 +596,11 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
                 or any(e['type'] == 'event_to_hand' and 'school' in e['filter']
                        and any(e['filter']['school'] in x.school and 'attack' in x.phases for x in P.evz)
                        for e in s['effects'])): continue
+        if any(c['type'] == 'hand_to_deck_bottom' for c in costs) and P.label == 'A' and CFG['hand_bottom_policy'] != 'default':
+            if CFG['hand_bottom_policy'] == 'never': continue
+            gain = sum(e['n'] for e in s['effects'] if e['type'] == 'stat_add' and e['target'] == 'this')
+            op_if = cur_stat(P, T, 'toss') + cur_stat(P, T, 'attack') + gain
+            if response_cost(T['opp'], op_if, T['locks'], False, attacker=P) is not None: continue
         neg = [e['name'] for e in s['effects'] if e['type'] == 'negate_skills']
         pa = T.get('plan_attack')
         if neg and pa and pa[1] in neg and has_attack_skill(pa[0]): continue  # 會廢掉本回合木兎攻擊技能時不用

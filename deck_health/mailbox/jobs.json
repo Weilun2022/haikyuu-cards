@@ -380,6 +380,22 @@
       "workers": 16,
       "timeout_min": 40,
       "where": "local"
+    },
+    {
+      "id": "INARI-007",
+      "note": "稲荷崎降速：v4b、D03-002 只在致命時付／永遠不付、D03-002×3→治 P01-064×3，對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_slow_var.json",
+        "deck.json,fuku_op8_v2.json,shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 40,
+      "where": "local"
     }
   ]
 }
