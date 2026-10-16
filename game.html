@@ -31,7 +31,10 @@
   --border:       #2a2a3e;
   --text:         #e8e8f2;
   --text-dim:     #6868a0;
-  --accent:       #6c63ff;
+  /* 主色：全站官方橘（css/theme.css 的 #BE520B）在深色棋盤上的對應色。#BE520B 放在深底上對比度不到 4,
+     這個值讓白字與深底對比度都維持和舊紫色 #6c63ff 同一水準（白字 4.27、--bg 上 4.54） */
+  --accent:       #C85A0C;
+  --accent-rgb:   200,90,12;   /* 給 rgba(var(--accent-rgb),α) 用，換主色時跟著改 */
   --accent2:      #ff6584;
   --green:        #4ade80;
   --orange:       #fb923c;
@@ -90,19 +93,19 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 .btn.sm { padding: 5px 11px; font-size: 12px; }
 .btn.xs { padding: 2px 8px; font-size: 11px; }
 .btn.end-turn {
-  background: linear-gradient(135deg, var(--accent) 0%, #5045cc 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, #9A430A 100%);
   border-color: transparent;
   color: #fff;
   font-weight: 700;
   letter-spacing: .3px;
 }
-.btn.end-turn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(108,99,255,.4); }
+.btn.end-turn:hover:not(:disabled) { opacity: .9; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(var(--accent-rgb),.4); }
 .btn.end-turn.opp-turn { background: var(--surface2); color: var(--text-dim); transform: none; box-shadow: none; }
 
 /* ── Hand-area End Turn Button ── */
 @keyframes endTurnPulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(108,99,255,.5), 0 4px 22px rgba(147,51,234,.35); }
-  50%       { box-shadow: 0 0 26px rgba(108,99,255,.9), 0 6px 36px rgba(147,51,234,.6); transform: translateY(-1px); }
+  0%, 100% { box-shadow: 0 0 10px rgba(var(--accent-rgb),.5), 0 4px 22px rgba(154,67,10,.35); }
+  50%       { box-shadow: 0 0 26px rgba(var(--accent-rgb),.9), 0 6px 36px rgba(154,67,10,.6); transform: translateY(-1px); }
 }
 @keyframes endTurnShimmer {
   0%, 55%, 100% { left: -70%; opacity: 0; }
@@ -120,7 +123,7 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
   align-items: center;
   justify-content: center;
   gap: 2px;
-  background: linear-gradient(155deg, #6c63ff 0%, #9333ea 55%, #c026d3 100%);
+  background: linear-gradient(155deg, #E06A12 0%, #C85A0C 55%, #9A430A 100%);
   color: #fff;
   font-family: inherit;
   cursor: pointer;
@@ -145,7 +148,7 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
   animation: none;
   opacity: .88;
   transform: translateY(-2px);
-  box-shadow: 0 8px 36px rgba(108,99,255,.65);
+  box-shadow: 0 8px 36px rgba(var(--accent-rgb),.65);
 }
 #hand-area #end-turn-btn.opp-turn {
   background: var(--surface2);
@@ -161,8 +164,8 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 
 /* ── Hand-area Undo Button ── */
 @keyframes undoPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(192,38,211,.45), inset 0 0 8px rgba(192,38,211,.1); }
-  50%       { box-shadow: 0 0 22px rgba(224,64,251,.8), inset 0 0 14px rgba(224,64,251,.18); }
+  0%, 100% { box-shadow: 0 0 8px rgba(237,166,19,.45), inset 0 0 8px rgba(237,166,19,.1); }
+  50%       { box-shadow: 0 0 22px rgba(245,184,46,.8), inset 0 0 14px rgba(245,184,46,.18); }
 }
 @keyframes undoGlitch {
   0%, 88%, 100% { transform: none; }
@@ -195,21 +198,21 @@ body.game-lock, html:has(body.game-lock) { overflow: hidden; height: 100%; }
 }
 .hand-undo-btn:disabled { opacity: .3; cursor: not-allowed; }
 
-/* CYBER active state — shown when undoStack has entries */
+/* 有可復原步驟時的發光狀態——用全站琥珀金（css/theme.css 註解裡官方導覽列指示色 #EDA613），跟橘色結束回合鈕區分 */
 .hand-undo-btn.has-undo {
-  background: linear-gradient(160deg, #1a0025 0%, #2e0042 55%, #1a0030 100%);
-  border: 1.5px solid #c026d3;
-  color: #e879f9;
-  text-shadow: 0 0 8px rgba(224,64,251,.85);
+  background: linear-gradient(160deg, #1f1503 0%, #2e1f04 55%, #1f1503 100%);
+  border: 1.5px solid #EDA613;
+  color: #F6C24A;
+  text-shadow: 0 0 8px rgba(245,184,46,.85);
   animation: undoPulse 2.2s ease-in-out infinite, undoGlitch 7s ease-in-out infinite;
 }
 .hand-undo-btn.has-undo:hover:not(:disabled) {
   animation: none;
-  background: linear-gradient(160deg, #2e0042 0%, #3d0058 55%, #280040 100%);
-  border-color: #e040fb;
-  color: #f0abfc;
-  text-shadow: 0 0 12px rgba(240,171,252,.95);
-  box-shadow: 0 0 24px rgba(192,38,211,.55), 0 4px 18px rgba(192,38,211,.25);
+  background: linear-gradient(160deg, #2e1f04 0%, #3d2a06 55%, #2a1c04 100%);
+  border-color: #F5B82E;
+  color: #FBD77A;
+  text-shadow: 0 0 12px rgba(251,215,122,.95);
+  box-shadow: 0 0 24px rgba(237,166,19,.55), 0 4px 18px rgba(237,166,19,.25);
 }
 .hand-undo-btn .undo-icon { font-size: 17px; line-height: 1; }
 .hand-undo-btn .undo-lbl  { font-size: 9px; font-weight: 600; letter-spacing: .8px; }
@@ -282,7 +285,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(108,99,255,.15) 0%, transparent 70%);
+  background: radial-gradient(ellipse 70% 100% at 50% 0%, rgba(var(--accent-rgb),.15) 0%, transparent 70%);
   pointer-events: none;
 }
 .lobby-hero::after {
@@ -306,11 +309,11 @@ input[type=text]::placeholder { color: var(--text-dim); }
   animation: heroFloat 4s ease-in-out infinite;
   position: relative;
   z-index: 1;
-  filter: drop-shadow(0 0 20px rgba(108,99,255,.5));
+  filter: drop-shadow(0 0 20px rgba(var(--accent-rgb),.5));
 }
 .hero-icon-2 {
   animation-delay: -1.8s;
-  filter: drop-shadow(0 0 16px rgba(108,99,255,.35));
+  filter: drop-shadow(0 0 16px rgba(var(--accent-rgb),.35));
 }
 @keyframes heroFloat {
   0%, 100% { transform: translateY(0) rotate(-3deg); }
@@ -366,7 +369,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   flex-shrink: 0;
 }
 .avatar-opt:hover { border-color: var(--accent); transform: scale(1.08); }
-.avatar-opt.sel { border-color: var(--accent); background: rgba(108,99,255,.12); box-shadow: 0 0 0 3px rgba(108,99,255,.15); }
+.avatar-opt.sel { border-color: var(--accent); background: rgba(var(--accent-rgb),.12); box-shadow: 0 0 0 3px rgba(var(--accent-rgb),.15); }
 
 /* Setup fields */
 .setup-row { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -479,8 +482,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   display: flex;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(135deg, rgba(99,102,241,.15), rgba(99,102,241,.08));
-  border: 1px solid rgba(99,102,241,.4);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),.15), rgba(var(--accent-rgb),.08));
+  border: 1px solid rgba(var(--accent-rgb),.4);
   border-radius: 12px;
   padding: 12px 14px;
 }
@@ -526,7 +529,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   letter-spacing: 12px;
   font-family: monospace;
   padding: 14px 0;
-  text-shadow: 0 0 30px rgba(108,99,255,.4);
+  text-shadow: 0 0 30px rgba(var(--accent-rgb),.4);
 }
 
 /* QR code */
@@ -707,8 +710,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   transition: border-color .4s, box-shadow .4s;
 }
 .player-area.my-turn-glow {
-  border-color: rgba(108,99,255,.35);
-  box-shadow: inset 0 0 24px rgba(108,99,255,.06), 0 0 0 1px rgba(108,99,255,.1);
+  border-color: rgba(var(--accent-rgb),.35);
+  box-shadow: inset 0 0 24px rgba(var(--accent-rgb),.06), 0 0 0 1px rgba(var(--accent-rgb),.1);
 }
 
 .area-name {
@@ -725,7 +728,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   letter-spacing: .3px;
   font-weight: 600;
 }
-.area-name.self { color: var(--accent); border-color: rgba(108,99,255,.4); }
+.area-name.self { color: var(--accent); border-color: rgba(var(--accent-rgb),.4); }
 
 /* ── Board layout ── */
 .board-side { display: flex; flex-direction: column; gap: 5px; flex-shrink: 0; width: 54px; }
@@ -751,7 +754,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   content: '';
   position: absolute;
   left: 0; right: 0; height: 50%;
-  background: rgba(108,99,255,.28);
+  background: rgba(var(--accent-rgb),.28);
   pointer-events: none;
   z-index: 1;
 }
@@ -779,7 +782,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #fff;
   pointer-events: none; z-index: 2;
 }
-#pile-tile.pile-return-mode::before { content: '牌頂'; left: 0;  background: rgba(108,99,255,.82); border-right: 1px solid rgba(255,255,255,.6); border-radius: 6px 0 0 6px; }
+#pile-tile.pile-return-mode::before { content: '牌頂'; left: 0;  background: rgba(var(--accent-rgb),.82); border-right: 1px solid rgba(255,255,255,.6); border-radius: 6px 0 0 6px; }
 #pile-tile.pile-return-mode::after  { content: '牌底'; right: 0; background: rgba(255,107,165,.82); border-radius: 0 6px 6px 0; }
 #pile-tile.pile-return-mode .t-label,
 #pile-tile.pile-return-mode .t-val { opacity: .22; }
@@ -792,7 +795,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   font-size: 11px; font-weight: 800; letter-spacing: 1px; color: #fff;
   pointer-events: none; z-index: 2;
 }
-#pile-tile.pile-dt-split::before { content: '牌頂'; top: 0;    background: rgba(108,99,255,.82); border-bottom: 1px solid rgba(255,255,255,.6); border-radius: 6px 6px 0 0; }
+#pile-tile.pile-dt-split::before { content: '牌頂'; top: 0;    background: rgba(var(--accent-rgb),.82); border-bottom: 1px solid rgba(255,255,255,.6); border-radius: 6px 6px 0 0; }
 #pile-tile.pile-dt-split::after  { content: '牌底'; bottom: 0; background: rgba(255,107,165,.82); border-radius: 0 0 6px 6px; }
 #pile-tile.pile-dt-split .t-label,
 #pile-tile.pile-dt-split .t-val { opacity: .22; }
@@ -809,7 +812,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   pointer-events: none; z-index: 6;   /* 高於 stat 計數器 overlay(z-index:5)，確保兩半標籤都不被蓋住 */
 }
 .z-slot.zone-split-hint::before { content: 'Guts' !important; left: 0;  background: rgba(74,222,128,.55); border-right: 2px solid rgba(255,255,255,.85); border-radius: 6px 0 0 6px; }
-.z-slot.zone-split-hint::after  { content: '角色' !important; left: auto !important; right: 0; background: rgba(108,99,255,.55); border-radius: 0 6px 6px 0; }
+.z-slot.zone-split-hint::after  { content: '角色' !important; left: auto !important; right: 0; background: rgba(var(--accent-rgb),.55); border-radius: 0 6px 6px 0; }
 /* 移動模式占用格：隱藏 +/− stat 計數器（z-5 彩色塊會遮蔽右半「角色」），專注顯示左右切。退出移動模式 class 移除即恢復。四方協作R17 */
 .z-slot.zone-split-hint .z-stat-overlay { display: none !important; }
 
@@ -1372,7 +1375,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   padding: 5px 8px;
   text-align: center;
 }
-.set-box.active { border-color: rgba(108,99,255,.4); background: rgba(108,99,255,.06); }
+.set-box.active { border-color: rgba(var(--accent-rgb),.4); background: rgba(var(--accent-rgb),.06); }
 .set-box .sb-av { font-size: 12px; margin-bottom: 1px; }
 .set-box .sb-name { font-size: 10px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .set-box .sb-num { font-size: 22px; font-weight: 900; color: var(--accent); line-height: 1.1; }
@@ -1725,7 +1728,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* Move-mode target highlights */
 .info-tile.move-target-tile {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(108,99,255,.45);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb),.45);
   cursor: pointer;
 }
 #hand-area.move-target-hand {
@@ -1810,7 +1813,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   border: 2px solid var(--border); background: var(--surface2); color: var(--text);
   transition: border-color .15s, background .15s;
 }
-.dice-pick-btn:hover { border-color: var(--accent); background: rgba(108,99,255,.12); }
+.dice-pick-btn:hover { border-color: var(--accent); background: rgba(var(--accent-rgb),.12); }
 #dice-face { font-size: 80px; line-height: 1; user-select: none; }
 #dice-result-text { font-size: 14px; color: var(--text-dim); min-height: 20px; }
 #dice-winner-text { font-size: 15px; font-weight: 700; }
@@ -1885,8 +1888,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 ══════════════════════════════════════ */
 #move-banner {
   flex-shrink: 0;
-  background: linear-gradient(135deg, rgba(108,99,255,.13), rgba(108,99,255,.05));
-  border-top: 2px solid rgba(108,99,255,.65);
+  background: linear-gradient(135deg, rgba(var(--accent-rgb),.13), rgba(var(--accent-rgb),.05));
+  border-top: 2px solid rgba(var(--accent-rgb),.65);
   padding: 7px 16px;
   display: none;
   align-items: center;
@@ -1973,7 +1976,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .peek-mode-btn.active {
   border-color: var(--accent);
-  background: rgba(108,99,255,.15);
+  background: rgba(var(--accent-rgb),.15);
   color: var(--text);
 }
 .peek-mode-desc { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.5; width: 100%; }
@@ -2425,8 +2428,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
   #self-area.my-turn-glow {
     /* 回合指示改「底邊光條」而非整框 2px 內環——避免看起來像被選取（四方共識，使用者回報 R12）*/
     border-color: transparent !important;
-    box-shadow: inset 0 -4px 10px rgba(108,99,255,.22),
-                inset 0 -2px 0   rgba(108,99,255,.55) !important;
+    box-shadow: inset 0 -4px 10px rgba(var(--accent-rgb),.22),
+                inset 0 -2px 0   rgba(var(--accent-rgb),.55) !important;
   }
 
   /* ── 自己區：court 優先，board-sides 移到後面 ── */
@@ -2589,12 +2592,12 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #mobile-topbar .mtb-turn.is-my {
   color: var(--accent);
   border-color: var(--accent);
-  background: rgba(108,99,255,.14);
+  background: rgba(var(--accent-rgb),.14);
   animation: mtbTurnPulse 1.8s ease-in-out infinite;
 }
 @keyframes mtbTurnPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(108,99,255,0); }
-  50%      { box-shadow: 0 0 9px 1px rgba(108,99,255,.55); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb),0); }
+  50%      { box-shadow: 0 0 9px 1px rgba(var(--accent-rgb),.55); }
 }
 @media (prefers-reduced-motion: reduce) {
   #mobile-topbar .mtb-turn.is-my { animation: none; }
@@ -2675,7 +2678,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   align-items: center;
   justify-content: center;
   z-index: 200;
-  box-shadow: 0 4px 14px rgba(108,99,255,.5);
+  box-shadow: 0 4px 14px rgba(var(--accent-rgb),.5);
 }
 
 /* ── Mobile Drawer（電腦版隱藏）── */
@@ -4438,7 +4441,7 @@ function selectAction(action) {
 function flashTurn(text) {
   const overlay = document.getElementById('phase-flash');
   const el = document.getElementById('phase-flash-text');
-  overlay.style.background = 'rgba(108,99,255,.10)';
+  overlay.style.background = 'rgba(var(--accent-rgb),.10)';
   el.style.color = 'var(--accent)';
   el.textContent = text;
   overlay.classList.add('show');
@@ -4686,6 +4689,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
           const total = baseVal + dVal;
 
           // Unified badge: whole overlay gets zone color as background
+          // 手動調整過的數值刻意保留紫色：它是「被改過」的標記，不能跟發球格的橘色底撞色
           const badgeBg  = dVal !== 0 ? '#6c63ff' : si.bg;
           const textCol  = (dVal !== 0 || !si.textDark) ? '#fff' : '#1a1200';
           const sepColor = si.textDark && dVal === 0 ? 'rgba(0,0,0,.2)' : 'rgba(255,255,255,.25)';
@@ -7864,10 +7868,10 @@ function closeMobileDrawer() {
   // R3（四方共識）：選中手牌原本 translateY(-8px) 會被 #hand-area overflow:hidden 裁掉、
   //   outline 在 z-slot 也會被祖先 overflow 裁切。改用 scale + box-shadow 環，不位移、不被裁。
   mStyle.textContent =
-    '.mobile-drop-target{outline:2px dashed var(--accent)!important;background:rgba(108,99,255,.18)!important}' +
+    '.mobile-drop-target{outline:2px dashed var(--accent)!important;background:rgba(var(--accent-rgb),.18)!important}' +
     '.mobile-tap-selected{transform:scale(1.06)!important;z-index:10!important;box-shadow:0 0 0 2px var(--accent2),0 4px 14px rgba(255,107,165,.45)!important;filter:brightness(1.06)!important}' +
-    '.lp-fire{transform:scale(1.08)!important;filter:brightness(1.18)!important;box-shadow:0 0 14px rgba(108,99,255,.75)!important;z-index:20!important}' +
-    '@media(pointer:coarse){.z-slot.target,.z-slot.guts-target{outline:2px dashed var(--accent)!important;background:rgba(108,99,255,.18)!important;border-color:transparent!important;animation:none!important}}';
+    '.lp-fire{transform:scale(1.08)!important;filter:brightness(1.18)!important;box-shadow:0 0 14px rgba(var(--accent-rgb),.75)!important;z-index:20!important}' +
+    '@media(pointer:coarse){.z-slot.target,.z-slot.guts-target{outline:2px dashed var(--accent)!important;background:rgba(var(--accent-rgb),.18)!important;border-color:transparent!important;animation:none!important}}';
   document.head.appendChild(mStyle);
 
   function init() {
