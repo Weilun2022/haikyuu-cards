@@ -463,3 +463,46 @@ MANUAL_INARIZAKI3 = {
 # 2026-10-16 使用者驗收通過 → 預設啟用（DH_INARI3=0 可關閉）
 if _os.environ.get('DH_INARI3', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI3)
+
+# ── 冠軍稲荷崎（雙子+6人）用卡（2026-10-16 草稿，待使用者驗收反向翻譯）──────────────
+# 未驗收前預設不啟用；設環境變數 DH_CHAMP=1 才會載入（只能用來測程式，不能下結論）。
+MANUAL_CHAMP = {
+    'HV-P02-003': [dict(  # 月島蛍（烏野）：攔網區登場，對手 Event 區 ≥2 張時，手牌事件 1 張放進自己 Event 區：抽 1、攔網 +6
+        timing='on_enter', zones=['block'],
+        conditions=[dict(type='opp_event_count_ge', n=2)],
+        cost=[dict(type='event_hand_to_evz', n=1, note='放進 Event 區不算「打出」（雙子速攻 QA）')],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target='this', stat='blk', n=6,
+                      note='側邊攔網也能發動攔網區登場技能（規則庫，使用者 2026-10-15）')])],
+
+    'HV-P02-035': [dict(  # 小作裕渡：接球階段，從手牌棄這張：稲荷崎角色 1 人接球 +2（原文「稲荷埼」視為錯字）
+        timing='from_hand', phases=['receive'],
+        cost=[dict(type='discard_this_from_hand')],
+        effects=[dict(type='stat_add', target=dict(who='self', count=1, school='稲荷崎'), stat='rcv', n=2)])],
+
+    'HV-P03-045': [dict(  # 尾白アラン：接球區或攻擊區登場，棄手牌中稲荷崎的牌 1 張：此角色任一數值 +2
+        timing='on_enter', zones=['receive', 'attack'],
+        cost=[dict(type='discard_hand_filtered', n=1, filter=dict(school='稲荷崎'))],
+        effects=[dict(type='stat_add', target='this', stat='any', n=2, note='模擬：接球區加接球、攻擊區加攻擊')])],
+
+    'HV-P02-017': [dict(  # 宮侑：舉球區登場，付 3 Guts；棄牌區不同卡名的稲荷崎角色卡 ≥6 種時：舉球 +2，棄牌區稲荷崎 WS／MB 角色 1 張回手牌
+        timing='on_enter', zones=['toss'],
+        conditions=[dict(type='drop_distinct_names_ge', school='稲荷崎', n=6, note='模擬：條件不成立就不付 Guts')],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='tos', n=2),
+                 dict(type='drop_to_hand', who='self', max=1,
+                      filter=dict(school='稲荷崎', category='CHARACTER', positions=['WS', 'MB']))])],
+
+    'HV-P02-027': [dict(  # 角名倫太郎：攻擊區登場，棄牌區不同卡名的稲荷崎角色卡 ≥6 種時，斜放此卡：攻擊 +2，對手下回合中間攔網的攔網值當作沒有
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='drop_distinct_names_ge', school='稲荷崎', n=6)],
+        cost=[dict(type='tap', note='斜放沒有其他影響（使用者 2026-10-16）')],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=2),
+                 dict(type='restrict_opp', who='opp', rule='center_no_blk', duration=TO)])],
+
+    'HV-P02-089': [dict(  # どや俺の仲間すごいやろって…：抽牌階段，棄牌區「宮 侑」「宮 治」「宮兄弟」各最多 1 張回手牌；3 張都拿到則棄手牌 1 張
+        timing='event', phases=['draw'],
+        effects=[dict(type='drop_names_to_hand', who='self', names=['宮 侑', '宮 治', '宮兄弟'])])],
+}
+if _os.environ.get('DH_CHAMP') == '1':
+    MANUAL.update(MANUAL_CHAMP)

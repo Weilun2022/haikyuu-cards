@@ -52,6 +52,8 @@ def cond(c):
     if t == 'enter_on_top_school': return f"此角色是疊在{c['school']}角色上面登場"
     if t == 'self_role_school_pos': return f"自己的舉球角色是{c['school']}的 {c['position']}"
     if t == 'opp_role_base_le': return f"對手的攻擊角色原本的{STAT[c['stat']]} ≤{c['n']}（對手這一拍是攻擊）"
+    if t == 'opp_event_count_ge': return f"對手 Event 區的牌 ≥{c['n']} 張"
+    if t == 'drop_distinct_names_ge': return f"自己棄牌區不同卡名的{c['school']}角色卡 ≥{c['n']} 種"
     if t == 'self_role_name_in': return f"自己的舉球角色是「{'」或「'.join(c['names'])}」"
     if t == 'entered_by_skill': return '此角色是由技能登場'
     if t == 'self_hand_le': return f"自己手牌 ≤{c['n']} 張"
@@ -69,6 +71,9 @@ def cost(c):
     if t == 'discard_hand': return f"從手牌棄置 {c['n']} 張"
     if t == 'discard_this_from_hand': return '從手牌棄置此卡'
     if t == 'this_to_deck_bottom': return '此卡放到自己牌庫底'
+    if t == 'event_hand_to_evz': return f"從手牌把事件牌 {c['n']} 張放進自己 Event 區"
+    if t == 'discard_hand_filtered': return f"從手牌棄置{c['filter'].get('school','')}的牌 {c['n']} 張"
+    if t == 'tap': return '把此卡斜放'
     if t == 'hand_to_deck_bottom': return f"從手牌把 {c['n']} 張放到牌庫底"
     if t == 'drop_block_char': return f"棄置自己的{c['school']}攔網角色 {c['n']} 人"
     if t == 'discard_filtered':
@@ -90,7 +95,7 @@ def eff(e):
     elif t == 'drop_to_hand':
         f = e['filter']
         s = (f"從{WHO[e['who']]}棄牌區將" + (f"「{f['exclude_name']}」以外的" if f.get('exclude_name') else '')
-             + f"{f.get('affiliation', f.get('school',''))}{('「'+f['name']+'」') if f.get('name') else ''}"
+             + f"{f.get('affiliation', f.get('school',''))}{'/'.join(f.get('positions', []))}{('「'+f['name']+'」') if f.get('name') else ''}"
              + f"{'角色' if f.get('category')=='CHARACTER' else '事件' if f.get('category')=='EVENT' else ''}牌最多 {e['max']} 張加入手牌")
         if e.get('then'): s += '；有加入的話，' + eff(e['then'])
     elif t == 'drop_to_zone':
@@ -101,6 +106,8 @@ def eff(e):
         s = f"{WHO[e['who']]}{ZONE[e['zone']]}的 Guts 中{f.get('position','')}{('「'+f['name']+'」') if f.get('name') else ''} {'最多 ' if not e.get('exact') else ''}{e['max']} 張出場至{ZONE[e['zone']]}"
         if e.get('then'): s += '，' + eff(e['then'])
     elif t == 'no_stat_minus': s = f"{DUR[e['duration']]}，此角色的數值不會被減少"
+    elif t == 'drop_names_to_hand':
+        s = f"從{WHO[e['who']]}棄牌區將" + '、'.join('「' + n + '」最多 1 張' for n in e['names']) + f"加入手牌；{len(e['names'])} 張都加入的話，從手牌棄置 1 張"
     elif t == 'choose_one': s = '以下選 1 個：' + ' ／ '.join('▶' + '；'.join(eff(x) for x in o) for o in e['options'])
     elif t == 'guts_any_to_zone':
         s = f"{WHO[e['who']]}場上任一區的 Guts 中「{e['filter']['name']}」最多 {e['max']} 張出場至{ZONE[e['zone']]}"
@@ -118,6 +125,7 @@ def eff(e):
         role = {'receive': '接球', 'block': '攔網'}.get(e.get('role'), '')
         if e['rule'] == 'li_receive_add': s = f"{DUR[e['duration']]}，每當對手的 Li 接球角色出場，該角色接球值 {e['n']}"
         elif e['rule'] == 'cannot_enter_pos_from_hand': s = f"{DUR[e['duration']]}，對手不能從手牌出場 {e['position']} 的{role}角色"
+        elif e['rule'] == 'center_no_blk': s = f"{DUR[e['duration']]}，對手中間攔網角色的攔網值當作沒有"
         elif e['rule'] == 'nullify_onetouch_and_receive_hand': s = f"{DUR[e['duration']]}，對手的［一觸(N)］與「接球階段・手牌」可用的技能無效"
         elif e['rule'] == 'no_block_events': s = f"{DUR[e['duration']]}，對手不能打出可在攔網階段打出的事件牌"
         elif e['rule'] == 'max_block_from_hand': s = f"{DUR[e['duration']]}，對手從手牌最多只能出場 {e['max']} 名攔網角色"
