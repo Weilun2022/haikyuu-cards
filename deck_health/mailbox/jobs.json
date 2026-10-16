@@ -349,6 +349,37 @@
       "workers": 16,
       "timeout_min": 30,
       "where": "local"
+    },
+    {
+      "id": "INARI-005",
+      "note": "稲荷崎 v5 拆解：B2（循環、赤木不動、どん6）、C2（v5 赤木不動）、C（v5 原樣）直接對打 v4b（各 20000 場）",
+      "script": "compare2",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_v5BC_h2h.json",
+        20000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 30,
+      "where": "local"
+    },
+    {
+      "id": "INARI-006",
+      "note": "稲荷崎 v5 拆解：B2、C2、C 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_v5BC_var.json",
+        "deck.json,fuku_op8_v2.json,shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 40,
+      "where": "local"
     }
   ]
 }

@@ -443,8 +443,7 @@ MANUAL_INARIZAKI2 = {
 if _os.environ.get('DH_INARI2', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI2)
 
-# ── 稲荷崎第 3 批（2026-10-16 草稿，待使用者驗收反向翻譯）──────────────
-# 未驗收前預設不啟用；設環境變數 DH_INARI3=1 才會載入（只能用來測程式，不能下結論）。
+# ── 稲荷崎第 3 批（2026-10-16 使用者驗收通過，含打法：D03-001 只在 Event 區有今日時舉球）──────────────
 MANUAL_INARIZAKI3 = {
     'HV-D03-001': [dict(  # 宮侑：舉球區登場，付 2 Guts，舉球 +1，Event 區「今日 何をする？」最多 1 張回手牌；有拿就把手牌 1 張放牌庫底
         timing='on_enter', zones=['toss'],
@@ -461,5 +460,6 @@ MANUAL_INARIZAKI3 = {
         effects=[dict(type='draw', who='self', n=1),
                  dict(type='stat_add', target=dict(who='self', count=1, role='toss'), stat='tos', n=1)])],
 }
-if _os.environ.get('DH_INARI3') == '1':
+# 2026-10-16 使用者驗收通過 → 預設啟用（DH_INARI3=0 可關閉）
+if _os.environ.get('DH_INARI3', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI3)
