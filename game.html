@@ -3249,6 +3249,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
       </div>
     </div>
     <div class="tut-footer">
+      <label class="tut-no-show">
+        <input type="checkbox" id="tut-no-show-chk" onchange="saveTutorialDismissed(this.checked)"> 下次進入不再自動顯示
+      </label>
       <button class="btn primary" onclick="closeTutorial()" style="margin-left:auto;padding:10px 28px;font-size:14px;border-radius:10px">
         了解了！開始對戰 ▶
       </button>
@@ -3331,6 +3334,8 @@ const DECK_KEY     = 'hv_decks';
 const NAME_KEY     = 'hv_player_name';
 const AVATAR_KEY   = 'hv_avatar';
 const SESSION_KEY  = 'hv_game_session';
+// 刻意不沿用 5 月移除的舊 key 'hv_no_tutorial'：當時勾過的人瀏覽器可能還留著 '1'，沿用會讓他們突然看不到說明
+const TUTORIAL_KEY = 'hv_tutorial_dismissed';
 const STALE_MS         = 4 * 60 * 60 * 1000; // 4 hours — playing room cleanup + session expiry
 const WAITING_STALE_MS = 30 * 60 * 1000;    // 30 min — waiting/ready room cleanup
 
@@ -3798,7 +3803,7 @@ async function rejoinRoom() {
   renderHand();
   updatePhaseUI(data?.phase || 'serve', data?.turn);
   toast(`重新加入房間 #${roomId}`);
-  setTimeout(showTutorial, 600);
+  autoShowTutorial(600); // 略過時不補操作提示，避免蓋掉上面的重新加入 toast
 }
 
 function showWaitingScreen(id) {
@@ -4159,8 +4164,7 @@ function enterGame() {
   saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
   updatePhaseUI(gameState?.phase || 'serve', gameState?.turn);
-  // Always show tutorial on game entry
-  setTimeout(showTutorial, 400);
+  if (!autoShowTutorial(400)) setTimeout(showControlsHint, 800);
 }
 
 // ══════════════════════════════════════════════════════
@@ -7059,8 +7063,35 @@ function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;'
 // ══════════════════════════════════════════════════════
 // TUTORIAL MODAL
 // ══════════════════════════════════════════════════════
+// 讀不到 storage（隱私模式等）時當作沒勾，寧可多跳說明也不要讓側邊欄「遊戲說明」按鈕失效
+function loadTutorialDismissed() {
+  try { return localStorage.getItem(TUTORIAL_KEY) === '1'; } catch { return false; }
+}
+
+function saveTutorialDismissed(dismissed) {
+  try {
+    if (dismissed) localStorage.setItem(TUTORIAL_KEY, '1');
+    else localStorage.removeItem(TUTORIAL_KEY);
+  } catch {}
+}
+
 function showTutorial() {
+  const chk = document.getElementById('tut-no-show-chk');
+  if (chk) chk.checked = loadTutorialDismissed();
   document.getElementById('tutorial-overlay').style.display = 'flex';
+}
+
+// 回傳是否有排程顯示說明，讓呼叫端決定略過時要不要補操作提示
+function autoShowTutorial(delay) {
+  if (loadTutorialDismissed()) return false;
+  setTimeout(showTutorial, delay);
+  return true;
+}
+
+function showControlsHint() {
+  toast(window.matchMedia('(pointer:coarse)').matches
+    ? '🏐 對戰開始！點牌組抽牌，長按卡片看詳情'
+    : '🏐 對戰開始！按 D 鍵抽牌，右鍵手牌查看更多操作');
 }
 
 function closeTutorial() {
