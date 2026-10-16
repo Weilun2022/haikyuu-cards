@@ -1323,6 +1323,37 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #sb-atk   .sb-title  { border-left-color: var(--orange); color: var(--orange); }
 #sb-actions .sb-title { border-left-color: var(--text-dim); }
 
+/* 開局步驟（clone 進手機抽屜時 id 會被拿掉，所以用 class 掛樣式） */
+.sb-setup summary { cursor: pointer; list-style: none; margin-bottom: 0; border-left-color: var(--green); color: var(--green); }
+.sb-setup summary::-webkit-details-marker { display: none; }
+.sb-setup summary::after { content: ' ▸'; }
+.sb-setup[open] summary::after { content: ' ▾'; }
+.sb-setup ol { margin: 6px 0 2px; padding-left: 20px; font-size: 11px; line-height: 1.6; color: var(--text); }
+.sb-setup li::marker { color: var(--text-dim); }
+
+/* 開局「補到 6 張」：只在開局階段、手牌不滿 6 張時出現 */
+.fill-hand-btn {
+  align-self: stretch;
+  flex-shrink: 0;
+  min-width: 64px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--green);
+  background: rgba(74,222,128,.08);
+  color: var(--green);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.fill-hand-btn .fill-hand-icon { font-size: 18px; line-height: 1; }
+.fill-hand-btn:hover { background: rgba(74,222,128,.16); }
+
 /* Score grid */
 .sets-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .set-box {
@@ -2289,6 +2320,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
   /* hand 區 label / meta / undo 全隱藏 */
   .hand-lbl, #hand-meta { display: none !important; }
   #hand-area #undo-btn   { display: none !important; }
+  /* 開局補牌鈕：只在手牌 <6 時出現，此時手牌列有空位，縮成窄直條即可 */
+  .fill-hand-btn { min-width: 46px; padding: 0 4px; font-size: 9px; border-radius: 8px; }
+  .fill-hand-btn .fill-hand-icon { font-size: 16px; }
   /* END TURN 按鈕：右側緊湊 */
   #hand-area #end-turn-btn {
     flex: 0 0 60px !important;
@@ -2858,6 +2892,19 @@ input[type=text]::placeholder { color: var(--text-dim); }
 
     <!-- Sidebar -->
     <div id="sidebar">
+      <!-- 開局步驟：開局階段展開，第一次結束回合後自動收起（setOpeningPhase） -->
+      <details class="sb-section sb-setup" id="sb-setup">
+        <summary class="sb-title">🧭 開局步驟</summary>
+        <ol>
+          <li>🎲 擲骰決定先攻後攻</li>
+          <li>雙方各補到 6 張手牌</li>
+          <li>討論各自要放回幾張</li>
+          <li>選牌放回牌庫頂／底</li>
+          <li>🔀 洗牌</li>
+          <li>再補到 6 張</li>
+          <li>先攻方點 SET 補 2 張，開始第一回合</li>
+        </ol>
+      </details>
       <!-- 局數戰績 -->
       <div class="sb-section" id="sb-score">
         <div class="sb-title">🏆 局數戰績</div>
@@ -2956,6 +3003,9 @@ input[type=text]::placeholder { color: var(--text-dim); }
        ondrop="event.preventDefault(); this.classList.remove('move-target-hand'); handleDrop('hand',false)">
     <div class="hand-lbl">手牌</div>
     <div id="hand-cards"></div>
+    <button id="fill-hand-btn" class="fill-hand-btn" onclick="drawToSix()" style="display:none" title="從牌庫頂一次補到 6 張手牌">
+      <span class="fill-hand-icon">＋</span><span>補到 6 張</span>
+    </button>
     <div id="hand-meta"></div>
     <button id="undo-btn" class="hand-undo-btn" onclick="undoLastAction()" disabled title="復原上一步操作（每回合最多 10 步）">
       <span class="undo-icon">↩</span>
@@ -3360,6 +3410,9 @@ let myRole     = null;
 let roomId     = null;
 let isSpectator = false;
 let gameState  = null;
+// 開局階段：進場或重置本局後為 true，第一次結束回合（含輸一球）後為 false。
+// 只用來決定要不要顯示開局輔助 UI（setOpeningPhase），不影響任何規則判斷。
+let _openingPhase = false;
 let gameRef    = null;
 let lastLogKey = null;
 let _qrInstance = null;
@@ -3935,6 +3988,7 @@ async function performLocalRoundCollect() {
     L.hand    = [];
     L.setPool = [];
     shuffle(L.pile);
+    setOpeningPhase(true); // 重置本局 = 重新開局
     await pushZones(emptyZones());
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-set').textContent  = 0;
@@ -4143,6 +4197,7 @@ function enterGame() {
   L.setPool = [];
   L.setCards = 0;
   L.undoStack = [];
+  setOpeningPhase(true);
 
   // Cancel waiting-phase onDisconnects (presence system takes over from here)
   db.ref(`rooms/${roomId}`).onDisconnect().cancel();
@@ -4270,6 +4325,7 @@ async function endTurn() {
     return; // 寫入失敗、回合其實沒結束，_turnLastZoneType 留著給下一次真正 endTurn 用
   }
   _turnLastZoneType = null; // 回合真的結束了才清空，供下一輪重新追蹤
+  setOpeningPhase(false);
   addLog(L.name, `回合結束 — ${actionLabel}`);
   // Clear undo stack at end of turn (no going back across turns)
   L.undoStack = [];
@@ -4751,6 +4807,7 @@ function renderHand() {
       wrap.appendChild(e);
     }
     updateHandMeta();
+    updateFillHandBtn();
     const sbElEmpty = document.getElementById(`sb-hand-${myRole}-val`);
     if (sbElEmpty) sbElEmpty.textContent = 0;
     syncHandCount(); saveSession();
@@ -4784,6 +4841,7 @@ function renderHand() {
   while (wrap.children.length > placed.length) wrap.removeChild(wrap.lastChild);
 
   updateHandMeta();
+  updateFillHandBtn();
   // Update sidebar hand count immediately (no need to wait for Firebase round-trip)
   const sbEl = document.getElementById(`sb-hand-${myRole}-val`);
   if (sbEl) sbEl.textContent = L.hand.length;
@@ -5365,6 +5423,34 @@ function drawFromPile() {
   const img = L.pile.pop();
   L.hand.push(img);
   return img;
+}
+
+function setOpeningPhase(on) {
+  _openingPhase = on;
+  const guide = document.getElementById('sb-setup');
+  if (guide) guide.open = on;
+  updateFillHandBtn();
+}
+
+function updateFillHandBtn() {
+  const btn = document.getElementById('fill-hand-btn');
+  if (!btn) return;
+  const show = _openingPhase && !isSpectator && L.hand.length < 6 && L.pile.length > 0;
+  btn.style.display = show ? '' : 'none';
+}
+
+// 一次補到 6 張：不重複呼叫 drawCard()，否則每張都存一次復原點（吃掉 10 步上限）、各寫一筆 log
+function drawToSix() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (moveMode) exitMoveMode();
+  const need = Math.min(6 - L.hand.length, L.pile.length);
+  if (need <= 0) { updateFillHandBtn(); return; }
+  saveUndo();
+  for (let i = 0; i < need; i++) drawFromPile();
+  addLog(L.name, `補牌 ${need} 張（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
+  document.getElementById('self-deck').textContent = L.pile.length;
+  syncPileCount();
+  renderHand();
 }
 
 function returnHandToPile(idx, position) {
@@ -6122,6 +6208,7 @@ async function loseRallySetPool() {
     });
     L.undoStack = [];
     updateUndoBtn();
+    setOpeningPhase(false);
     addLog(L.name, '回合結束（輸一球）');
   }
 }
