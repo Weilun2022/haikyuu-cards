@@ -145,3 +145,12 @@ if 'HV-D03-013' in sim2.MANUAL:
     ok('今日：舉球是「宮兄弟」不能打', len(P.hand) == 1 and not P.evz)
     T['names']['toss'] = '宮 治'; sim2.play_event(P, T, P.hand[0], 'toss')
     ok('今日：宮兄弟選成治就能打', any(c.no == 'HV-D03-013' for c in P.evz) and not any(c.no == 'HV-D03-013' for c in P.hand))
+    # 18. 打法：Event 區沒有今日時，D03-001 不拿來舉球（也不會被どんぴしゃり叫到舉球區）
+    P = sim2.Player([C(FILL)] * 5, rng, 'A')
+    ok('D03-001：Event 區沒有今日 → 不舉球', not sim2.toss_allowed(P, C('HV-D03-001')))
+    P.evz = [C('HV-D03-013')]
+    ok('D03-001：Event 區有今日 → 可以舉球', sim2.toss_allowed(P, C('HV-D03-001')))
+    P, T = setup('HV-D03-004', 'HV-P02-022', [FILL, FILL, 'HV-D03-001'], [FILL])
+    T['names']['toss'] = '宮 侑'; P.hand = [C('HV-P02-087')]
+    sim2.play_event(P, T, P.hand[0], 'attack')
+    ok('どんぴしゃり：Event 區沒有今日時不叫出 D03-001', P.zones['toss'][-1].no == 'HV-D03-004')

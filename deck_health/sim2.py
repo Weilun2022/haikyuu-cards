@@ -425,7 +425,7 @@ def apply_effects(effs, P, T, zone):
             z = e['zone']; nm = e['filter']['name']
             if not name_ok(T, z, nm): continue
             g = [(zz, c) for zz, st in P.zones.items() if zz in ZSTAT for c in st[:-1]
-                 if not c.ev and c.name == nm and can_enter(P, z, c, from_hand=False)]
+                 if not c.ev and c.name == nm and can_enter(P, z, c, from_hand=False) and (z != 'toss' or toss_allowed(P, c))]
             if not g: continue
             def proj(item):
                 zz, c = item
@@ -596,6 +596,15 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
                         if summon_value(P, best, 'attack') + aura(best) > cur_stat(P, T, 'attack'):
                             P.zones['attack'].remove(best); enter(P, T, 'attack', best, from_hand=False)
                             P.bump('研磨拉Guts打手')
+
+
+# 使用者打法：某些卡只在條件成立時才拿來舉球（2026-10-16：侑 D03-001 只在 Event 區有「今日 何をする？」時才用）
+TOSS_ONLY_IF_EVZ = {'HV-D03-001': '今日 何をする？'}
+
+
+def toss_allowed(P, c):
+    need = TOSS_ONLY_IF_EVZ.get(c.no)
+    return need is None or any(e.name == need for e in P.evz)
 
 
 def event_playable(P, T, ev):
@@ -773,7 +782,7 @@ def receive_best(Pd, opp, op_in, src):
                  if s['timing'] == 'on_enter' and 'toss' in s.get('zones', []))
     for r in rcands[:5]:
         for t in dchars:
-            if t is r or not can_differ(t, r): continue
+            if t is r or not can_differ(t, r) or not toss_allowed(Pd, t): continue
             modes = [('two', None)] if two_ok else []
             modes += [(m, a) for a in dchars if a is not r and a is not t and can_differ(a, t) for m in (True, False)]
             for aggressive, a in modes:
