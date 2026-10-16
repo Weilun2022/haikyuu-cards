@@ -1030,6 +1030,15 @@ input[type=text]::placeholder { color: var(--text-dim); }
   transition: transform .15s, z-index 0s;
   z-index: 1;
 }
+/* 出牌落定：用獨立的 scale/translate 屬性，不蓋掉 hover 等既有 transform；只動合成層屬性，不用 backdrop-filter */
+.z-hstack-card.card-land { animation: cardLand .24s cubic-bezier(.2,.9,.3,1.25) both; }
+@keyframes cardLand {
+  from { scale: 1.18; translate: 0 -8px; opacity: .35; }
+  to   { scale: 1;    translate: 0 0;    opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .z-hstack-card.card-land { animation: none; }
+}
 /* margin-left for stacking is computed in JS (layoutHstack) based on actual card width */
 .z-hstack-card.reorder-before { box-shadow: -4px 0 0 2px var(--accent), 3px 4px 14px rgba(0,0,0,.85); z-index: 20; }
 .z-hstack-card.reorder-after  { box-shadow:  4px 0 0 2px var(--accent), 3px 4px 14px rgba(0,0,0,.85); z-index: 20; }
@@ -3999,6 +4008,8 @@ function syncUI(data, prev) {
   if (document.getElementById('screen-game').classList.contains('active')) {
     renderBoard(data);
     if (!isSpectator) {
+      // prev 為 null（進場首次同步）時不播，避免一進場就閃
+      if (prev?.started && prev.turn !== myRole && data.turn === myRole) flashTurn('🏐 輪到你了');
       detectOppActions(data, prev);
       handleDiceRollUpdate(data);
       handleRoundReset(data);
@@ -4394,6 +4405,17 @@ function selectAction(action) {
   db.ref(`games/${roomId}/currentAction`).set(next);
 }
 
+// 換到我的回合時的過場：沿用 #phase-flash（pointer-events:none，不擋操作）
+function flashTurn(text) {
+  const overlay = document.getElementById('phase-flash');
+  const el = document.getElementById('phase-flash-text');
+  overlay.style.background = 'rgba(108,99,255,.10)';
+  el.style.color = 'var(--accent)';
+  el.textContent = text;
+  overlay.classList.add('show');
+  setTimeout(() => overlay.classList.remove('show'), 900);
+}
+
 function flashPhase(phase) {
   const meta = PHASE_META[phase] || PHASE_META.serve;
   const overlay = document.getElementById('phase-flash');
@@ -4575,6 +4597,10 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
   }
   if (slot.dataset.fillKey === _key) return;
   slot.dataset.fillKey = _key;
+  // 頂牌換了才播落定動畫；topImg 尚未記錄（進場第一次 render）時不播，避免整個盤面一起跳
+  const _prevTop = slot.dataset.topImg;
+  slot.dataset.topImg = cardData?.img || '';
+  const _landed = _prevTop !== undefined && !!cardData?.img && _prevTop !== cardData.img;
 
   slot.classList.remove('filled', 'opp');
   if (isOpp) slot.classList.add('opp');
@@ -4594,6 +4620,7 @@ function fillSlot(slot, cardData, isOpp, zoneName) {
       const isTop = i === allImgs.length - 1;
       const cardEl = document.createElement('div');
       cardEl.className = 'z-hstack-card';
+      if (isTop && _landed) cardEl.classList.add('card-land');
       cardEl.style.zIndex = i + 1;
 
       const cardImg = document.createElement('img');
