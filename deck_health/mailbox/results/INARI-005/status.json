@@ -1,0 +1,17 @@
+{
+ "id": "INARI-005",
+ "script": "compare2",
+ "args": [
+  "{cards}",
+  "ina_v4b.json",
+  "ina_v5BC_h2h.json",
+  20000,
+  "{out}"
+ ],
+ "workers": 16,
+ "started": "2026-10-16T10:17:38",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-16T10:25:27",
+ "seconds": 468.4
+}
