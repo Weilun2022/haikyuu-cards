@@ -296,7 +296,10 @@ def _hardcoded_name_replacement_violations(source: str, name_entries) -> list[tu
                 jp_compact = jp.replace('　', '').replace(' ', '')
                 hit = (jp in literal1) or (jp_compact in literal1)
                 if len(jp_compact) <= 15:
-                    hit = hit or (literal1 in jp) or (literal1 in jp_compact)
+                    # 反向只認「literal1 是 jp 的一個完整詞（以空白分隔）或整個 jp」——
+                    # 「この位置 頃合い この角度」這種短台詞裡夾的助詞「この」不算
+                    tokens = jp.replace('　', ' ').split()
+                    hit = hit or (literal1 in tokens) or (literal1 == jp_compact)
                 if hit:
                     violations.append((lineno, line.strip(), jp))
     return violations
@@ -323,6 +326,15 @@ def test_hardcoded_name_replacement_scan_ignores_unrelated_short_particle_in_lon
     fake_entries = [{'jp': '俺のサーブの邪魔すんなや この喧しブタ', 'zh': '別妨礙我發球啦，你這吵死人的豬', 'status': 'high'}]
     violations = _hardcoded_name_replacement_violations(fake_source, fake_entries)
     assert not violations, '長台詞裡的常見助詞子字串不該被誤判成寫死翻譯繞過查表'
+
+
+def test_hardcoded_name_replacement_scan_ignores_particle_inside_short_quote_word():
+    # 假陽性回歸測試（2026-10 第四彈）：短台詞「この位置 頃合い この角度」的詞裡夾著「この」，
+    # 不是一個獨立的詞，不該被誤判。
+    fake_source = "t = t.replace('この','此')\n"
+    fake_entries = [{'jp': 'この位置 頃合い この角度', 'zh': '這個位置 這個時機 這個角度', 'status': 'draft'}]
+    violations = _hardcoded_name_replacement_violations(fake_source, fake_entries)
+    assert not violations, '短台詞詞內的助詞子字串不該被誤判成寫死翻譯繞過查表'
 
 
 def test_build_data_source_has_no_hardcoded_name_replacements():
