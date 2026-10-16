@@ -3448,7 +3448,10 @@ function loadDecks() {
   try { myDecks = JSON.parse(localStorage.getItem(DECK_KEY) || '[]'); } catch { myDecks = []; }
   const sel = document.getElementById('deck-select');
   sel.innerHTML = '<option value="">— 請選擇牌組 —</option>';
-  myDecks.filter(d => d.id !== 'dk_quick').forEach(d => {
+  // 排序規則與卡牌資料庫（index.html renderDeckSwitcher）一致：依名稱 zh-Hant 排序
+  myDecks.filter(d => d.id !== 'dk_quick')
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-Hant'))
+    .forEach(d => {
     const total = d.cards?.reduce((s,c) => s + (c.count||1), 0) || 0;
     const opt = document.createElement('option');
     opt.value = d.id;
