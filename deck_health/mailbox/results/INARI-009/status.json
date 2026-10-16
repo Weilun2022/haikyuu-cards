@@ -1,0 +1,18 @@
+{
+ "id": "INARI-009",
+ "script": "gauntlet",
+ "args": [
+  "{cards}",
+  "ina_v4b.json",
+  "ina_vs_champ_var.json",
+  "champ.json,deck.json,fuku_op8_v2.json,shira_067x2.json",
+  12000,
+  "{out}"
+ ],
+ "workers": 16,
+ "started": "2026-10-16T14:37:39",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-16T15:07:37",
+ "seconds": 1798.1
+}
