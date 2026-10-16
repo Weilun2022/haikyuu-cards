@@ -411,6 +411,38 @@
       ],
       "workers": 16,
       "timeout_min": 40
+    },
+    {
+      "id": "INARI-009",
+      "note": "稲荷崎 vs 冠軍：v4b、v4b(D03-002致命才付)、v2、v5 對冠軍、烏野、梟谷V2、白鳥沢（各 12000 場；手坑改為可多張後重測）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_vs_champ_var.json",
+        "champ.json,deck.json,fuku_op8_v2.json,shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 40,
+      "where": "local"
+    },
+    {
+      "id": "INARI-010",
+      "note": "冠軍稲荷崎對烏野、梟谷V2、白鳥沢（各 12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "champ.json",
+        "champ_self_var.json",
+        "deck.json,fuku_op8_v2.json,shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20,
+      "where": "local"
     }
   ]
 }

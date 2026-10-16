@@ -69,3 +69,13 @@ ok('角名：攻擊 2+2=4、封鎖中間攔網', sim2.cur_stat(P, T, 'attack') =
 P = pl(); P.hand = [C('HV-P02-089'), C(F)]; P.drop = [C('HV-D03-004'), C('HV-P02-020'), C('HV-P02-077')]
 sim2.draw_phase_events(P, opp, 3, 'attack')
 ok('P02-089：拿 3 張、棄 1（手牌 %d 張）' % len(P.hand), not any(c.no == 'HV-P02-089' for c in P.hand) and len(P.hand) == 3 and len(P.drop) == 1)
+
+# 8. 手坑有幾張用幾張：2 張小作 → +4
+B = pl(); B.hand = [C('HV-P02-035'), C('HV-P02-035')]
+ok('小作 ×2：預估 +4（實得 %d）' % sim2.trap_bonus(B, C('HV-P02-034')), sim2.trap_bonus(B, C('HV-P02-034')) == 4)
+P = pl(); P.deck = [C(F) for _ in range(5)]; opp = pl()
+T = sim2.newT(opp, 10, 'attack')
+P.hand = [C('HV-P02-034'), C('HV-D03-004'), C('HV-P02-022'), C('HV-P02-035'), C('HV-P02-035')]
+r, t, a = P.hand[0], P.hand[1], P.hand[2]
+op = sim2.do_receive_line(P, T, r, t, a, False)
+ok('小作 ×2：接球 6+2+2=10 接住 10 點（實得接球 %d）' % sim2.cur_stat(P, T, 'receive'), op is not None and sim2.cur_stat(P, T, 'receive') == 10 and P.stats.get('手坑:HV-P02-035') == 2)

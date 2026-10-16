@@ -464,8 +464,7 @@ MANUAL_INARIZAKI3 = {
 if _os.environ.get('DH_INARI3', '1') == '1':
     MANUAL.update(MANUAL_INARIZAKI3)
 
-# ── 冠軍稲荷崎（雙子+6人）用卡（2026-10-16 草稿，待使用者驗收反向翻譯）──────────────
-# 未驗收前預設不啟用；設環境變數 DH_CHAMP=1 才會載入（只能用來測程式，不能下結論）。
+# ── 冠軍稲荷崎（雙子+6人）用卡（2026-10-16 使用者驗收通過）──────────────
 MANUAL_CHAMP = {
     'HV-P02-003': [dict(  # 月島蛍（烏野）：攔網區登場，對手 Event 區 ≥2 張時，手牌事件 1 張放進自己 Event 區：抽 1、攔網 +6
         timing='on_enter', zones=['block'],
@@ -504,5 +503,6 @@ MANUAL_CHAMP = {
         timing='event', phases=['draw'],
         effects=[dict(type='drop_names_to_hand', who='self', names=['宮 侑', '宮 治', '宮兄弟'])])],
 }
-if _os.environ.get('DH_CHAMP') == '1':
+# 2026-10-16 使用者驗收通過 → 預設啟用（DH_CHAMP=0 可關閉）
+if _os.environ.get('DH_CHAMP', '1') == '1':
     MANUAL.update(MANUAL_CHAMP)

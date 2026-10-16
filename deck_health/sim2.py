@@ -717,10 +717,9 @@ def hand_trap(c):
 
 
 def trap_bonus(P, r):
-    """手牌中可用在接球角色 r 的手坑加值（只用 1 張，與既有縁下處理一致）。"""
+    """手牌中可用在接球角色 r 的手坑加值合計：手坑沒特別註明就能有幾張用幾張（使用者 2026-10-16）。"""
     if nullified(P.restrict): return 0
-    # 與舊版縁下估計一致：不排除接球角色本身（已知小誤差，保留以免改變既有結果）
-    return max([ht[1] for c in P.hand for ht in [hand_trap(c)] if ht and (ht[0] is None or ht[0] in r.school)] or [0])
+    return sum(ht[1] for c in P.hand if c is not r for ht in [hand_trap(c)] if ht and (ht[0] is None or ht[0] in r.school))
 
 
 def _can_receive(opp, chars, op):
@@ -814,11 +813,18 @@ def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
     for ev in [e for e in P.hand if e.ev and 'receive' in e.phases]:
         if ev in P.hand: play_event(P, T, ev, 'receive')  # 絶望叫出的北可能棄掉手牌中的其他接球事件
     if cur_stat(P, T, 'receive') < T['op_in'] and not nullified(P.restrict):
-        for h in [x for x in P.hand if hand_trap(x)]:
-            sch, n = hand_trap(h)
-            if (sch is None or sch in P.zones['receive'][-1].school) and cur_stat(P, T, 'receive') + n >= T['op_in']:
-                P.hand.remove(h); P.drop.append(h); T['mod']['receive'] = T['mod'].get('receive', 0) + n
-                P.bump('緣下手坑' if h.no == 'HV-P01-013' else '手坑:' + h.no); break
+        # 手坑可以有幾張用幾張（使用者 2026-10-16）；用到剛好接得住為止，接不住就一張都不用
+        rc = P.zones['receive'][-1]
+        traps = [h for h in P.hand if hand_trap(h) and (hand_trap(h)[0] is None or hand_trap(h)[0] in rc.school)]
+        traps.sort(key=lambda h: -hand_trap(h)[1])
+        need = T['op_in'] - cur_stat(P, T, 'receive'); use = []
+        for h in traps:
+            if need <= 0: break
+            use.append(h); need -= hand_trap(h)[1]
+        if need <= 0:
+            for h in use:
+                P.hand.remove(h); P.drop.append(h); T['mod']['receive'] = T['mod'].get('receive', 0) + hand_trap(h)[1]
+                P.bump('緣下手坑' if h.no == 'HV-P01-013' else '手坑:' + h.no)
     if cur_stat(P, T, 'receive') < T['op_in']: return None
     if t not in P.hand or (a is not None and a not in P.hand): return None
     if not name_ok(T, 'toss', nt): return None
