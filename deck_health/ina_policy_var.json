@@ -1,0 +1,1 @@
+{"現行打法": {}, "致命才付": {"cfg": {"hand_bottom_policy": "lethal"}}, "會被蓋掉就不付": {"cfg": {"hand_bottom_policy": "smart"}}, "致命才付＋會被蓋掉就不付": {"cfg": {"hand_bottom_policy": "lethal_smart"}}}

@@ -518,6 +518,66 @@
       ],
       "workers": 16,
       "timeout_min": 20
+    },
+    {
+      "id": "INARI-016",
+      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對冠軍（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_policy_var.json",
+        "champ.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-017",
+      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對烏野（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_policy_var.json",
+        "deck.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-018",
+      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對梟谷V2（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_policy_var.json",
+        "fuku_op8_v2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
+    },
+    {
+      "id": "INARI-019",
+      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對白鳥沢（12000 場）",
+      "script": "gauntlet",
+      "args": [
+        "{cards}",
+        "ina_v4b.json",
+        "ina_policy_var.json",
+        "shira_067x2.json",
+        12000,
+        "{out}"
+      ],
+      "workers": 16,
+      "timeout_min": 20
     }
   ]
 }
