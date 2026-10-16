@@ -772,7 +772,7 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "松川 一静",
-        "zh": "松川一静",
+        "zh": "松川一靜",
         "kind": "person",
         "status": "auto",
         "note": "",
@@ -835,10 +835,10 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "滝ノ上 祐輔",
-        "zh": "滝之上祐輔",
+        "zh": "瀧之上祐輔",
         "kind": "person",
-        "status": "draft",
-        "note": "ノ→之；滝/瀧用字待確認，暫不轉繁體",
+        "status": "auto",
+        "note": "ノ→之；滝→瀧繁體正字（2026-10 第四彈翻譯審查定案）",
     },
     {
         "jp": "潜 尚保",
@@ -1059,7 +1059,7 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "縁下 力",
-        "zh": "縁下力",
+        "zh": "緣下力",
         "kind": "person",
         "status": "auto",
         "note": "",
@@ -1073,7 +1073,7 @@ NAME_ZH_ENTRIES = [
     },
     {
         "jp": "花巻 貴大",
-        "zh": "花巻貴大",
+        "zh": "花卷貴大",
         "kind": "person",
         "status": "auto",
         "note": "",
