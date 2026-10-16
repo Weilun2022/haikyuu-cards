@@ -225,6 +225,11 @@ def cond_ok(c, P, T):
         if cap is None or c['school'] not in cap.school: return False
         return c.get('category') != 'CHARACTER' or not cap.ev
     if t == 'entered_from_hand': return T.get('entering_from_hand', False)
+    if t == 'event_zone_school_count_ge':  # 北 P04-070：自己 Event 區某校的牌 ≥n 張
+        ez = P.evz if c.get('who', 'self') == 'self' else opp.evz
+        return sum(1 for e in ez if c['school'] in e.school) >= c['n']
+    if t == 'enter_on_top_name':  # 侑 P04-068：疊在某人名角色上登場
+        u = T.get('under'); return u is not None and not u.ev and u.name == c['name']
     if t == 'all_own_chars_school':
         tops = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st]
         return all(c['school'] in x.school for x in tops)
@@ -473,9 +478,9 @@ def apply_effects(effs, P, T, zone):
                 P.evz.remove(best); P.add_nondraw(best); P.bump('回收攻擊事件')
         elif t == 'negate_skills':  # 赤葦 P02-066：本回合自己的某人名角色技能無效
             T.setdefault('negated', set()).add(e['name']); P.bump('木兎技能無效')
-        elif t == 'look_top_take':  # 闇路 P01-089：看牌庫頂 n 張，挑某校最多 max 張，其餘放牌庫底
+        elif t == 'look_top_take':  # 闇路 P01-089（某校）／P04-099（指定卡名）：看牌庫頂 n 張，挑最多 max 張，其餘放牌庫底
             top = P.deck[:e['n']]; del P.deck[:e['n']]
-            cands = [c for c in top if e['school'] in c.school]
+            cands = [c for c in top if (c.name in e['names'] if e.get('names') else e['school'] in c.school)]
             if cands:
                 best = max(cands, key=keep_value); top.remove(best); P.add_nondraw(best); P.bump('闇路檢索命中')
             P.deck += top
@@ -593,6 +598,9 @@ def run_deferred(P, T):
 def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     T['entering_from_hand'] = from_hand
     T['under'] = under
+    if zone == 'toss' and from_hand and 'S' in card.pos:  # 對手侑 P04-068：從手牌出場 S 的舉球角色，舉球 −1
+        for l in P.restrict:
+            if l['rule'] == 'opp_s_toss_add': T['mod']['toss'] = T['mod'].get('toss', 0) + l['n']; P.bump('S舉球被侑P04-068減值')
     if zone == 'receive' and 'Li' in card.pos:  # 對手瀬見 P03-072：Li 接球角色每次出場 −1
         for l in P.restrict:
             if l['rule'] == 'li_receive_add': T['mod']['receive'] = T['mod'].get('receive', 0) + l['n']; P.bump('Li被瀬見減值')

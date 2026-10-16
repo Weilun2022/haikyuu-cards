@@ -506,3 +506,30 @@ MANUAL_CHAMP = {
 # 2026-10-16 使用者驗收通過 → 預設啟用（DH_CHAMP=0 可關閉）
 if _os.environ.get('DH_CHAMP', '1') == '1':
     MANUAL.update(MANUAL_CHAMP)
+
+# ── 第四彈稲荷崎（2026-10-17 草稿，待使用者驗收反向翻譯）──────────────
+# 未驗收前預設不啟用；設環境變數 DH_P04=1 才會載入（只能用來測程式，不能下結論）。
+MANUAL_P04_INARI = {
+    'HV-P04-099': [dict(  # この位置 頃合い この角度：舉球階段、每回合 1 次，舉球角色是宮侑時：抽 1、舉球 +1；看牌庫頂 3 張，「どん ぴしゃり」最多 1 張公開加入手牌，其餘依任意順序放牌庫底
+        timing='event', phases=['toss'], once_per_turn=True,
+        conditions=[dict(type='self_role_name', role='toss', name='宮 侑')],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target=dict(who='self', count=1, role='toss'), stat='tos', n=1),
+                 dict(type='look_top_take', who='self', n=3, names=['どん ぴしゃり'], max=1, rest='deck_bottom')])],
+
+    'HV-P04-070': [dict(  # 北信介：接球區登場，自己 Event 區稲荷崎的牌 ≥3 張時，棄手牌中稲荷崎的牌 1 張：接球 +2，此回合自己的稲荷崎角色數值不會被減
+        timing='on_enter', zones=['receive'],
+        conditions=[dict(type='event_zone_school_count_ge', who='self', school='稲荷崎', n=3)],
+        cost=[dict(type='discard_hand_filtered', n=1, filter=dict(school='稲荷崎'))],
+        effects=[dict(type='stat_add', target='this', stat='rcv', n=2),
+                 dict(type='no_stat_minus', target=dict(who='self', school='稲荷崎'), duration='this_turn', note='模擬中沒有對手在我方回合減數值的效果')])],
+
+    'HV-P04-068': [dict(  # 宮侑：發球區登場，自己角色全部是稲荷崎、且此角色疊在角色「宮 侑」上登場時：抽 1，對手下回合每當從手牌出場 S 的舉球角色，該角色舉球 −1
+        timing='on_enter', zones=['serve'],
+        conditions=[dict(type='all_own_chars_school', school='稲荷崎'),
+                    dict(type='enter_on_top_name', name='宮 侑')],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='restrict_opp', who='opp', rule='opp_s_toss_add', n=-1, duration=TO)])],
+}
+if _os.environ.get('DH_P04') == '1':
+    MANUAL.update(MANUAL_P04_INARI)

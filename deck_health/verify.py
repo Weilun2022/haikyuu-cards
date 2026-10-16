@@ -52,6 +52,8 @@ def cond(c):
     if t == 'enter_on_top_school': return f"此角色是疊在{c['school']}角色上面登場"
     if t == 'self_role_school_pos': return f"自己的舉球角色是{c['school']}的 {c['position']}"
     if t == 'opp_role_base_le': return f"對手的攻擊角色原本的{STAT[c['stat']]} ≤{c['n']}（對手這一拍是攻擊）"
+    if t == 'event_zone_school_count_ge': return f"自己 Event 區{c['school']}的牌 ≥{c['n']} 張"
+    if t == 'enter_on_top_name': return f"此角色是疊在角色「{c['name']}」上面登場"
     if t == 'opp_event_count_ge': return f"對手 Event 區的牌 ≥{c['n']} 張"
     if t == 'drop_distinct_names_ge': return f"自己棄牌區不同卡名的{c['school']}角色卡 ≥{c['n']} 種"
     if t == 'self_role_name_in': return f"自己的舉球角色是「{'」或「'.join(c['names'])}」"
@@ -88,6 +90,8 @@ def eff(e):
     elif t == 'stat_add': s = f"{tgt(e['target'])}的{STAT[e['stat']]} +{e['n']}"
     elif t == 'stat_set': s = f"{tgt(e['target'])}的{STAT[e['stat']]}設為 {e['value']}"
     elif t == 'stat_cap': s = f"{DUR[e['duration']]}，此角色的{STAT[e['stat']]}不會因技能達到 {e['below']} 以上"
+    elif t == 'look_top_take' and e.get('names'):
+        s = f"看{WHO[e['who']]}牌庫頂 {e['n']} 張，其中「{'」或「'.join(e['names'])}」最多 {e['max']} 張公開並加入手牌，其餘放牌庫底"
     elif t == 'reveal_top_take':
         s = f"公開{WHO[e['who']]}牌庫頂 {e['n']} 張，其中「{'」或「'.join(e['names'])}」最多 {e['max']} 張加入手牌，其餘放牌庫底"
     elif t == 'aura_on_enter':
@@ -105,7 +109,7 @@ def eff(e):
         f = e.get('filter', {})
         s = f"{WHO[e['who']]}{ZONE[e['zone']]}的 Guts 中{f.get('position','')}{('「'+f['name']+'」') if f.get('name') else ''} {'最多 ' if not e.get('exact') else ''}{e['max']} 張出場至{ZONE[e['zone']]}"
         if e.get('then'): s += '，' + eff(e['then'])
-    elif t == 'no_stat_minus': s = f"{DUR[e['duration']]}，此角色的數值不會被減少"
+    elif t == 'no_stat_minus': s = f"{DUR[e['duration']]}，" + (f"自己的{e['target']['school']}角色" if isinstance(e.get('target'), dict) else '此角色') + "的數值不會被減少"
     elif t == 'drop_names_to_hand':
         s = f"從{WHO[e['who']]}棄牌區將" + '、'.join('「' + n + '」最多 1 張' for n in e['names']) + f"加入手牌；{len(e['names'])} 張都加入的話，從手牌棄置 1 張"
     elif t == 'choose_one': s = '以下選 1 個：' + ' ／ '.join('▶' + '；'.join(eff(x) for x in o) for o in e['options'])
@@ -125,6 +129,7 @@ def eff(e):
         role = {'receive': '接球', 'block': '攔網'}.get(e.get('role'), '')
         if e['rule'] == 'li_receive_add': s = f"{DUR[e['duration']]}，每當對手的 Li 接球角色出場，該角色接球值 {e['n']}"
         elif e['rule'] == 'cannot_enter_pos_from_hand': s = f"{DUR[e['duration']]}，對手不能從手牌出場 {e['position']} 的{role}角色"
+        elif e['rule'] == 'opp_s_toss_add': s = f"{DUR[e['duration']]}，每當對手從手牌出場 S 的舉球角色，該角色舉球值 {e['n']}"
         elif e['rule'] == 'center_no_blk': s = f"{DUR[e['duration']]}，對手中間攔網角色的攔網值當作沒有"
         elif e['rule'] == 'nullify_onetouch_and_receive_hand': s = f"{DUR[e['duration']]}，對手的［一觸(N)］與「接球階段・手牌」可用的技能無效"
         elif e['rule'] == 'no_block_events': s = f"{DUR[e['duration']]}，對手不能打出可在攔網階段打出的事件牌"
