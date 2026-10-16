@@ -6026,7 +6026,21 @@ async function declareLost() {
 async function adjustSets(role, delta) {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
   const cur = gameState?.setScore?.[role] ?? 0;
-  await db.ref(`games/${roomId}/setScore/${role}`).set(Math.max(0, cur + delta));
+  const next = Math.max(0, cur + delta);
+  if (next === cur) return;
+  const ownerName = gameState?.players?.[role]?.name || (role === myRole ? L.name : '對手');
+  // 雙方都按得到兩邊的局數：改對手的分數或扣分最容易是誤觸／有爭議，先確認
+  if (role !== myRole || delta < 0) {
+    const ok = await showConfirm({
+      icon: '🏆',
+      title: role !== myRole ? `調整對手「${ownerName}」的局數？` : '扣除自己的局數？',
+      body: `${ownerName} 的局數 ${cur} → ${next}\n這筆變更會記在行動記錄裡，雙方都看得到。`,
+      okText: '確認調整',
+    });
+    if (!ok) return;
+  }
+  await db.ref(`games/${roomId}/setScore/${role}`).set(next);
+  addLog(L.name, `🏆 局數調整：${ownerName} ${cur} → ${next}`);
 }
 
 function forcePhase(v) {
