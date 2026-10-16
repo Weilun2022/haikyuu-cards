@@ -1,0 +1,18 @@
+{
+ "id": "INARI-018",
+ "script": "gauntlet",
+ "args": [
+  "{cards}",
+  "ina_v4b.json",
+  "ina_policy_var.json",
+  "fuku_op8_v2.json",
+  12000,
+  "{out}"
+ ],
+ "workers": 4,
+ "started": "2026-10-16T19:18:19",
+ "ok": true,
+ "returncode": 0,
+ "finished": "2026-10-16T19:35:12",
+ "seconds": 1013.0
+}
