@@ -344,3 +344,15 @@ def test_build_data_source_has_no_hardcoded_name_replacements():
     source = inspect.getsource(bd)
     violations = _hardcoded_name_replacement_violations(source, bd.NAME_ZH_ENTRIES)
     assert not violations, f'發現寫死翻譯繞過查表：{violations}'
+
+
+def test_dedupe_variants_keeps_highest_id_per_image_file():
+    # 2026-10 官方 API 把 HV-PR-074~079 重新登錄一次（新 ID、修正後的所屬/收錄），
+    # 舊筆沒下架；網站以 image_file 為鍵，不去重會在卡表出現兩張同卡
+    raw = [
+        {'ID': '1045', 'card_no': 'HV-PR-075', 'image_end': 'P', 'package': '最強ジャンプ12月号'},
+        {'ID': '1001', 'card_no': 'HV-P04-001', 'image_end': 'S'},
+        {'ID': '1057', 'card_no': 'HV-PR-075', 'image_end': 'P', 'package': '最強ジャンプ11月号'},
+    ]
+    result = bd.dedupe_variants(raw)
+    assert [(c['card_no'], c['ID']) for c in result] == [('HV-PR-075', '1057'), ('HV-P04-001', '1001')]
