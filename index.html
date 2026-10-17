@@ -1616,6 +1616,9 @@
       <option value="元監督">前任監督</option>
       <option value="マネージャー">球隊經理</option>
       <option value="応援団長">啦啦隊長</option>
+      <option value="応援団">啦啦隊</option>
+      <option value="ボール拾い">撿球員</option>
+      <option value="マスコット">吉祥物</option>
     </select>
   </div>
 
@@ -2801,7 +2804,8 @@ function applyFilters(state = filterState) {
     if (state.school && !(c.school_tags || [c.school]).includes(state.school)) return false;
     if (state.category && c.category !== state.category) return false;
     if (state.rarity && c.rarity !== state.rarity && c.rarity !== state.rarity + 'P') return false;
-    if (state.position && c.position !== state.position) return false;
+    // 雙位置卡的 position 是逗號串接（如 'MB,S'、'ボール拾い,WS'），任一位置符合就算
+    if (state.position && !(c.position || '').split(',').includes(state.position)) return false;
     if (state.favoriteOnly && !isFavorite(c.image_file)) return false;
     if (state.search) {
       const stats = [
