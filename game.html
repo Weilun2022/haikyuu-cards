@@ -3550,6 +3550,12 @@ async function init() {
   if (saved) {
     try { startFirebase(JSON.parse(saved)); return; } catch {}
   }
+  const localCfg = await loadLocalDevFirebaseConfig();
+  if (localCfg) {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(localCfg));
+    startFirebase(localCfg);
+    return;
+  }
   showScreen('config');
 }
 
@@ -3570,6 +3576,24 @@ function buildAvatarPicker() {
     });
     row.appendChild(el);
   });
+}
+
+// 本機測試（電腦 localhost／手機連同一個 Wi-Fi 的 192.168.*）每台裝置都要手貼設定太麻煩，
+// 改讀專案根目錄的 firebase-config.local.json（已 gitignore，不會進版控也不會部署）。
+// 只在本機網址才發請求：正式站完全不碰這個檔案，行為不變。
+function isLocalDevHost(hostname = location.hostname) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.');
+}
+
+// 讀不到、不是 JSON、缺 apiKey/databaseURL 都回傳 null，呼叫端照原本流程顯示設定畫面
+async function loadLocalDevFirebaseConfig() {
+  if (!isLocalDevHost()) return null;
+  try {
+    const res = await fetch('./firebase-config.local.json', { cache: 'no-store' });
+    if (!res.ok) return null;
+    const cfg = await res.json();
+    return (cfg && cfg.apiKey && cfg.databaseURL) ? cfg : null;
+  } catch { return null; }
 }
 
 function saveConfig() {
