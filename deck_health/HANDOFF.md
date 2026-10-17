@@ -37,6 +37,7 @@ python -I -X utf8 template.py vs 2000 out.jsonl <基準配比> <配比1> <配比
 
 ## 大樣本運算：本機排程優先、GitHub Actions 備援（2026-10-15 17:50 定案，所有對話都要遵守）
 詳見 Project 文件 claude/健檢系統_本機運算分工.md。重點：
+- **⏸ 2026-10-17 22:22 起本機排程已停用（Weilun 執行 schtasks /DISABLE）：所有工作都不加 where，交給 GitHub；Weilun 說重新啟用後才恢復標 local**
 - 雲端做小樣本驗證；大樣本工作寫進 deck_health/mailbox/jobs.json 並 push 到 deck-health（加工作前先 git pull）
 - 兩條執行路線，看工作單有沒有 `"where": "local"`：
   - **本機（有 local）**：Weilun 的 Windows 電腦（20 邏輯核，用 16 程序）上的排程 HaikyuuDeckRunner 每 5 分鐘執行

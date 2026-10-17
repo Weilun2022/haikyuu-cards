@@ -1,6 +1,7 @@
 # 信箱（工作單與結果）
 
 ## 大樣本運算（2026-10-15 17:50 起：本機排程優先、GitHub Actions 備援）
+- ⏸ 2026-10-17 22:22 起本機排程停用：工作一律不加 where，交給 GitHub，直到 Weilun 重新啟用
 - 雲端 Claude 把工作寫進 `jobs.json` 並 push 到 deck-health 分支（加工作前先 git pull）
 - 工作單有 `"where": "local"` → Weilun 電腦上的排程 HaikyuuDeckRunner（每 5 分鐘、16 程序）執行 `runner.py`，結果自動推回；電腦關機時不會跑
 - 沒有 where → GitHub Actions（`.github/workflows/deck-health-jobs.yml`）為每個工作開一台 4 核機器，平行執行
