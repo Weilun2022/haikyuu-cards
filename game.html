@@ -781,7 +781,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .set-pool-loss-btn { font-size: 9px !important; padding: 2px 6px !important; background: rgba(220,38,38,.15) !important; border-color: rgba(220,38,38,.4) !important; color: #f87171 !important; width: 100%; }
 /* R4（四方共識）：牌庫為 0 時視覺灰化提示（僅視覺，不擋 pointer-events，因牌組 tile 仍是「放回牌庫」的拖放目標）*/
 #pile-tile.deck-empty { opacity: .45; filter: grayscale(.7) brightness(.85); }
-/* 牌組對半提示：手機（左右切）由 setTapSelect 觸發；桌面（上下切）由 enterMoveMode 觸發。
+/* 牌組對半提示：依裝置分——觸控（左右切 .pile-return-mode）由 setTapSelect（點手牌）或觸控下的 enterMoveMode（點場上卡）觸發；
+   滑鼠（上下切 .pile-dt-split）由 enterMoveMode 觸發。
    與桌面拖曳的 .pile-top/.pile-bottom 是不同 class，不衝突。*/
 #pile-tile.pile-return-mode { position: relative; overflow: hidden; }
 #pile-tile.pile-return-mode::before,
@@ -5086,7 +5087,11 @@ function _pileDrop(e, tile) {
 function _onPileTileClick(e) {
   if (moveMode) {
     const tile = e.currentTarget;
-    const pos = e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom';
+    // 判斷方式跟畫面上的提示走：左右切看 clientX（不用 offsetX，e.target 可能是 .t-val 子元素），上下切看 offsetY
+    const rect = tile.getBoundingClientRect();
+    const pos = tile.classList.contains('pile-return-mode')
+      ? ((e.clientX - rect.left) < rect.width / 2 ? 'top' : 'bottom')
+      : (e.offsetY < tile.clientHeight / 2 ? 'top' : 'bottom');
     const m = moveMode;
     if (m.type === 'hand') {
       /* MULTI-SELECT DISABLED
@@ -6795,9 +6800,10 @@ function enterMoveMode(mode) {
       t.classList.add('move-target-tile');
     }
   });
-  // 桌面版：pile tile 顯示上=牌頂、下=牌底分割提示
+  // 牌組 tile 對半提示：手機點場上卡也會進 moveMode（ADR 0005），所以要依裝置選，
+  // 跟手機點手牌（setTapSelect）一致——觸控＝左右切 pile-return-mode，滑鼠＝上下切 pile-dt-split
   const _pt = document.getElementById('pile-tile');
-  if (_pt) _pt.classList.add('pile-dt-split');
+  if (_pt) _pt.classList.add(window.matchMedia('(pointer:coarse)').matches ? 'pile-return-mode' : 'pile-dt-split');
   // Show persistent move banner
   _updateMoveBanner();
 }
@@ -6813,9 +6819,12 @@ function exitMoveMode() {
   ha.classList.remove('move-target-hand');
   ha.onclick = null;
   document.querySelectorAll('.info-tile.move-target-tile').forEach(t => t.classList.remove('move-target-tile'));
-  // 桌面版：清除 pile tile 分割提示
+  // 清除 pile tile 分割提示；手機若還有選中的手牌（setTapSelect 也用 pile-return-mode），留給 clearTapSelect 清
   const _pt = document.getElementById('pile-tile');
-  if (_pt) _pt.classList.remove('pile-dt-split');
+  if (_pt) {
+    _pt.classList.remove('pile-dt-split');
+    if (!document.querySelector('.hand-card.mobile-tap-selected')) _pt.classList.remove('pile-return-mode');
+  }
   // Hide move banner
   const banner = document.getElementById('move-banner');
   if (banner) banner.classList.remove('show');
@@ -7885,6 +7894,8 @@ function closeMobileDrawer() {
   function setTapSelect(idx) {
     if (tapSelectedIdx !== null && String(tapSelectedIdx) === String(idx)) { clearTapSelect(); return; }
     clearTapSelect();
+    // 場上卡正在移動模式時改點手牌 = 改選這張手牌，先取消場上卡的選取，畫面上只會有一個選取
+    if (moveMode && typeof exitMoveMode === 'function') exitMoveMode();
     tapSelectedIdx = idx;
     const card = document.querySelector('.hand-card[data-idx="' + idx + '"]');
     if (card) card.classList.add('mobile-tap-selected');
