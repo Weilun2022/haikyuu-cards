@@ -1478,6 +1478,9 @@ def extract_school_tags(affiliation):
         remainder = affiliation.replace('疑似ユース', '')
     if 'ユース' in remainder:
         tags.append('ユース')
+    # 町内会：烏野/町内会 的卡要同時掛 町内会 與 烏野（技能會指定「すべてが町内会」）
+    if '町内会' in affiliation:
+        tags.append('町内会')
     for key, name in SCHOOL_KEYS:
         if key in affiliation and name not in tags:
             tags.append(name)

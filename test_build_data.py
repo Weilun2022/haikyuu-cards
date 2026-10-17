@@ -344,3 +344,14 @@ def test_build_data_source_has_no_hardcoded_name_replacements():
     source = inspect.getsource(bd)
     violations = _hardcoded_name_replacement_violations(source, bd.NAME_ZH_ENTRIES)
     assert not violations, f'發現寫死翻譯繞過查表：{violations}'
+
+
+def test_school_tags_chounaikai_is_dual_tagged_with_karasuno():
+    # 町内会是技能條件會指定的所屬（HV-P04-101「自分のキャラすべてが町内会の場合」），
+    # 要能單獨篩出來，但它們同時也是烏野，篩烏野時不能消失。
+    assert bd.extract_school_tags('烏野/町内会') == ['町内会', '烏野']
+    assert bd.extract_school('烏野/町内会') == '烏野'
+
+
+def test_school_tags_plain_karasuno_has_no_chounaikai():
+    assert bd.extract_school_tags('烏野·2年') == ['烏野']
