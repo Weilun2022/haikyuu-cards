@@ -2343,16 +2343,18 @@ function buildFilters() {
   const seriesSet = [...new Set(cards.map(c => c.product_type).filter(Boolean))];
   const seriesLabels = CARDS_DATA.product_labels || {};
   const seriesSel = document.getElementById('filter-series');
-  // Use CARDS_DATA product order
-  const seriesOrder = ['HV-P01','HV-P02','HV-P03','HV-D01','HV-D02','HV-D03','HVBP','HV-PR'];
-  seriesOrder.filter(s => seriesSet.includes(s)).forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s;
-    opt.textContent = seriesLabels[s] || s;
-    seriesSel.appendChild(opt);
-  });
-  // Any remaining
-  seriesSet.filter(s => !seriesOrder.includes(s)).forEach(s => {
+  // 自動排序：補充包 P → 起始牌組 D → 其他代碼（字母序），同類依編號
+  const SERIES_KIND_ORDER = ['P', 'D'];
+  const parseSeries = s => {
+    const m = /^HV-?([A-Z]+?)(\d*)$/.exec(s) || [];
+    const kind = m[1] || s;
+    const rank = SERIES_KIND_ORDER.indexOf(kind);
+    return { rank: rank < 0 ? SERIES_KIND_ORDER.length : rank, kind, num: parseInt(m[2], 10) || 0 };
+  };
+  seriesSet.sort((a, b) => {
+    const pa = parseSeries(a), pb = parseSeries(b);
+    return pa.rank - pb.rank || pa.kind.localeCompare(pb.kind) || pa.num - pb.num || a.localeCompare(b);
+  }).forEach(s => {
     const opt = document.createElement('option');
     opt.value = s;
     opt.textContent = seriesLabels[s] || s;
