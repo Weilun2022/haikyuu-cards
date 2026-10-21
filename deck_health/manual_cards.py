@@ -636,7 +636,7 @@ if _os.environ.get('DH_BATCH3', '1') == '1':
     from manual_batch3 import MANUAL_BATCH3, NAME_CHOICE_BATCH3
     MANUAL.update(MANUAL_BATCH3); NAME_CHOICE.update(NAME_CHOICE_BATCH3)
 
-# 混校研究 第 4 批（稲荷崎／伊達工業／白鳥沢）：使用者驗收前預設關閉（DH_BATCH4=1 啟用）
-if _os.environ.get('DH_BATCH4', '0') == '1':
+# 混校研究 第 4 批（稲荷崎／伊達工業／白鳥沢）：2026-10-21 使用者驗收通過 → 預設啟用（DH_BATCH4=0 可關閉）
+if _os.environ.get('DH_BATCH4', '1') == '1':
     from manual_batch4 import MANUAL_BATCH4, NAME_CHOICE_BATCH4
     MANUAL.update(MANUAL_BATCH4); NAME_CHOICE.update(NAME_CHOICE_BATCH4)
