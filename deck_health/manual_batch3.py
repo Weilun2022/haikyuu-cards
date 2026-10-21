@@ -46,7 +46,8 @@ MANUAL_BATCH3 = {
     # ※ 入畑 P01-085：「場上合計付 8 Guts → 本回合青葉城西角色登場各 +1」沒模擬（只算抽 1）
     'HV-P01-086': [dict(timing='event', phases=['draw', 'receive'], draw_policy='always', effects=[
         dict(type='drop_to_hand', who='self', filter=dict(school='青葉城西', category='CHARACTER'), max=1)])],
-    'HV-P01-087': [dict(timing='event', phases=['toss'], conditions=[dict(type='self_role_name', role='toss', name='及川 徹')], effects=[
+    'HV-P01-087': [dict(timing='event', phases=['toss'], conditions=[dict(type='any_of', conds=[
+        dict(type='self_role_name', role='toss', name='及川 徹'), dict(type='self_role_name', role='serve', name='及川 徹')])], effects=[
         dict(type='draw', who='self', n=1), S('tos', 1, dict(who='self', count=1, name='及川 徹'))])],
     # ※ P01-087：[サーブ] 階段用法與「對手以非抽牌方式加入手牌就要棄牌」沒模擬
     'HV-P01-088': [dict(timing='event', phases=['receive'], effects=[
@@ -65,7 +66,8 @@ MANUAL_BATCH3 = {
     'HV-P04-089': [dict(timing='event', phases=['receive'], once_per_turn=True, effects=[
         dict(type='draw', who='self', n=1), S('rcv', 1, dict(who='self', count=1, school='青葉城西', grade=3)),
         dict(type='optional', cost=[dict(type='discard_filtered', n=1, filter=dict(school='青葉城西', grade=3, category='CHARACTER'))],
-             effects=[dict(type='stat_add', target='same', stat='rcv', n=2)])])],
+             effects=[dict(type='stat_add', target='same', stat='rcv', n=2)],
+             **{'if': [dict(type='zone_char', zone='receive', school='青葉城西', grade=3)]})])],
     'HV-D04-012': [dict(timing='event', phases=['attack'], once_per_turn=True, effects=[
         S('atk', 1, dict(who='self', count=1, school='青葉城西')), dict(type='draw', who='self', n=1)])],
     # ※ D04-012：[サーブ] 階段用法沒模擬

@@ -285,6 +285,9 @@ def cond_ok(c, P, T):
             if any(sum(1 for x in g if sch in x.school) >= c['n'] for sch in {t2 for x in g for t2 in x.school}): return True
         return False
     if t == 'self_hand_ge': return len(P.hand) >= c['n']
+    if t == 'zone_char':  # 某區最上面的角色符合 school／grade／name
+        st = P.zones[c['zone']]
+        return bool(st) and (not c.get('school') or c['school'] in st[-1].school) and (not c.get('grade') or st[-1].aff.endswith('·%s年' % c['grade']))
     if t == 'zone_stat_ge': return cur_stat(P, T, c['zone']) >= c['n']  # 岩泉 P04-020、P04-088：這區現在的數值 ≥n
     if t == 'evz_total_ge': return len(P.evz) >= c['n']  # 金田一 P03-005、国見 P03-007
     if t == 'self_set_fewer': return len(P.setz) < len(opp.setz)  # 岩泉 D04-002
@@ -398,7 +401,9 @@ def apply_effects(effs, P, T, zone):
         elif t == 'stat_add':
             tg = e['target']
             if tg in ('this', 'that'): z = zone
-            elif tg == 'same': z = T['last_target_zone'] or 'attack'
+            elif tg == 'same':
+                z = T['last_target_zone']
+                if z is None: continue  # 前面沒有選到角色 → 「さらに」的加值沒有對象
             elif e['stat'] == 'any':  # どん ぴしゃり：任一數值 +1 → 加在攻擊或舉球（都算進攻值）
                 z = next((z for z in ('attack', 'toss') if P.zones[z] and (not tg.get('school') or tg['school'] in P.zones[z][-1].school)), None)
                 if z is None: continue
@@ -634,7 +639,7 @@ def apply_effects(effs, P, T, zone):
             court = set()
             for z, st in P.zones.items():
                 if z in ZSTAT and st: court |= st[-1].affs
-            if e.get('school'): hit = (not top.ev) and e['school'] in top.affs  # 山口 P01-010：公開的牌所屬有某校（事件沒有所屬）
+            if e.get('school'): hit = e['school'] in top.affs  # 山口 P01-010：公開的牌是某校的卡（事件也有學校，例：烏野事件算烏野）
             else: hit = not (court & top.affs)  # 事件牌沒有所屬 → 一定成立（QA 1243、1245：公開到自己也成立）
             P.deck.append(top); P.bump('翻牌成立' if hit else '翻牌不成立')
             if hit: apply_effects(e['then'], P, T, zone)
@@ -836,7 +841,7 @@ def play_event(P, T, ev, zone_hint):
         used = T.setdefault('once_used', set())
         if ev.name in used: return
         used.add(ev.name)
-    P.hand.remove(ev); P.evz.append(ev); T['playing_ev'] = ev; T['took'] = False
+    P.hand.remove(ev); P.evz.append(ev); T['playing_ev'] = ev; T['took'] = False; T['last_target_zone'] = None  # 每張事件從頭算「同一個角色」
     if T['phase'] == 'attack':  # P03-047 影山：攻擊階段從手牌打出事件時
         st = P.zones['toss']
         if st:
