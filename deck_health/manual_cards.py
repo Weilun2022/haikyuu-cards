@@ -535,8 +535,8 @@ if _os.environ.get('DH_P04') == '1':
     MANUAL.update(MANUAL_P04_INARI)
 
 # ── 混校研究用卡（2026-10-21 草稿，待使用者驗收反向翻譯）──────────────
-# 未驗收前預設不啟用；設環境變數 DH_MIXED=1 才會載入（只能用來測程式，不能下結論）。
-# 假設（請驗收時一併確認）：
+# 使用者 2026-10-21 驗收通過，預設啟用。
+# 假設（驗收時已確認）：
 #  ‧「所屬」＝學校名稱字串（school_tags 的每一項），不含學年（QA 1817：字串完全一致才算同一所屬；QA 1189：4 人各取 1 個所屬後互不重複）
 #  ‧雙所屬卡（例：烏野／ユース、白水館／疑似ユース）可任選其一來湊「別々の所屬」；翻牌比對時，只要有任一所屬相同就算「有同所屬角色」
 #  ‧「自分のコート」＝自己各區最上面的角色（和既有 all_own_chars_school 一致）
@@ -617,5 +617,6 @@ MANUAL_MIXED = {
                             dict(type='restrict_opp', who='opp', rule='no_toss_attack_events', duration=TO,
                                  note='QA 1247：對手不能「打出」，但用技能放進 Event 區不受限（QA 1178）')])])],
 }
-if _os.environ.get('DH_MIXED') == '1':
+# 2026-10-21 使用者驗收通過 → 預設啟用（DH_MIXED=0 可關閉）
+if _os.environ.get('DH_MIXED', '1') == '1':
     MANUAL.update(MANUAL_MIXED)
