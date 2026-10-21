@@ -640,3 +640,8 @@ if _os.environ.get('DH_BATCH3', '1') == '1':
 if _os.environ.get('DH_BATCH4', '1') == '1':
     from manual_batch4 import MANUAL_BATCH4, NAME_CHOICE_BATCH4
     MANUAL.update(MANUAL_BATCH4); NAME_CHOICE.update(NAME_CHOICE_BATCH4)
+
+# 混校研究 第 5 批（雙名卡＋各校登場技／事件）：等使用者驗收，DH_BATCH5=1 才啟用
+if _os.environ.get('DH_BATCH5', '0') == '1':
+    from manual_batch5 import MANUAL_BATCH5, NAME_CHOICE_BATCH5
+    MANUAL.update(MANUAL_BATCH5); NAME_CHOICE.update(NAME_CHOICE_BATCH5)
