@@ -3,7 +3,7 @@
 - 之後每回合：攔網（不抽、出 1～3 張不同名、合計 ≥ 進攻值，成功則回 0 點球）或接球（抽 1 → 接球 → 舉球 → 攻擊）
 - LOSS → 局間：雙方補到 6 張，LOSS 方拿 1 張 Set 牌（沒有就輸掉比賽）；贏的一方下一局發球
 技能由 manual_cards.MANUAL 驅動。出牌決策是啟發式（見 evaluate），雙方使用同一套決策。"""
-import json, random, os, sys, itertools
+import json, random, os, sys, itertools, re
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from manual_cards import MANUAL, NAME_CHOICE
 
@@ -32,7 +32,7 @@ def load_cards(path):
 
 
 class Card:
-    __slots__ = ('no', 'name', 'ev', 'pos', 'school', 'b', 'skills', 'phases', 'alts', 'nozones', 'aff', 'noskill')
+    __slots__ = ('no', 'name', 'ev', 'pos', 'school', 'b', 'skills', 'phases', 'alts', 'nozones', 'aff', 'noskill', 'affs')
 
     def __init__(self, raw):
         self.no = raw['card_no']; self.name = raw['name']; self.ev = raw['category'] == 'EVENT'
@@ -45,6 +45,8 @@ class Card:
         self.nozones = {z for z, k in (('serve', 'srv'), ('block', 'blk'), ('receive', 'rcv'), ('toss', 'tos'), ('attack', 'atk'))
                         if raw.get(k) is None} if not self.ev else set()  # 數值為「-」的區域
         self.aff = raw.get('affiliation') or ''
+        # 所屬（QA 1189／1817）：affiliation 欄位去掉學年後依「/」拆開；school_tags 會漏掉像「町内会」這種所屬，別々の所屬與翻牌比對改用這個
+        self.affs = set(x for x in re.sub(r'[·・･]\d年$', '', self.aff).split('/') if x and x != '-')
         self.noskill = (raw.get('skill_jp') or '-').strip() in ('', '-')
 
     def __repr__(self): return self.no
@@ -231,6 +233,9 @@ def cond_ok(c, P, T):
         return sum(1 for e in ez if c['school'] in e.school) >= c['n']
     if t == 'enter_on_top_name':  # 侑 P04-068：疊在某人名角色上登場
         u = T.get('under'); return u is not None and not u.ev and u.name == c['name']
+    if t == 'all_own_chars_affil':  # 町内会 這類不在 school_tags 的所屬
+        tops = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st]
+        return all(c['affil'] in x.affs for x in tops)
     if t == 'all_own_chars_school':
         tops = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st]
         return all(c['school'] in x.school for x in tops)
@@ -252,12 +257,41 @@ def cond_ok(c, P, T):
     if t == 'any_of': return any(cond_ok(x, P, T) for x in c['conds'])  # 星海 P01-066：「全部鴎台」或「別々の所屬 4 人以上」
     if t == 'opp_hand_ge': return len(opp.hand) >= c['n']  # 及川 P01-033
     if t == 'distinct_affil_ge': return distinct_affil(P) >= c['n']  # 星海 P01-066、佐久早 P01-068（QA 1189／1193）
+    if t == 'court_has_name':  # 自分のコートに某人名的角色（山口 忠 等；用本回合登場時選定的名字）
+        return any(T['names'].get(z, st[-1].name) == c['name'] for z, st in P.zones.items() if z in ZSTAT and st)
+    if t == 'drop_has_name': return any(not x.ev and x.name == c['name'] for x in P.drop)
+    if t == 'paid_guts_all_school':
+        pg = T.get('paid_guts') or []
+        return bool(pg) and all(c['school'] in x.school for x in pg)
+    if t == 'paid_guts_distinct_school':  # 縁下 P04-007：付的 Guts 全是某校、且卡名各不相同
+        pg = T.get('paid_guts') or []
+        return bool(pg) and all(c['school'] in x.school for x in pg) and len({x.name for x in pg}) == len(pg)
+    if t == 'opp_court_has_grade':  # 對手場上有 N 年級的角色（所屬字串結尾「·2年」）
+        return any(st and st[-1].aff.endswith('·%s年' % c['grade']) for z, st in opp.zones.items() if z in ZSTAT)
+    if t == 'enter_on_top_school_pos':  # 西谷 P04-005：疊在烏野的 S 角色上登場
+        u = T.get('under'); return u is not None and not u.ev and c['school'] in u.school and c['position'] in u.pos
+    if t == 'event_zone_name_count_ge':
+        ez = P.evz if c.get('who', 'self') == 'self' else opp.evz
+        return sum(1 for e in ez if e.name == c['name']) >= c['n']
+    if t == 'zone_stat_le': return cur_stat(P, T, c['zone']) <= c['n']
+    if t == 'phase_is': return T.get('phase') == c['phase']
+    if t == 'receive_below_op': return cur_stat(P, T, 'receive') < T['op_in']  # 策略：接不住才用手牌代價
+    if t == 'allow_discard': return bool(T.get('allow_discard_cost'))  # 策略：攻擊階段（有打算進攻）才付手牌代價
+    if t == 'guts_has_name': return any((not x.ev) and x.name == c['name'] for x in P.guts(c['zone']))
+    if t == 'guts_pair_same_school':  # 策略：自己某一區的 Guts 有 n 張同所屬才打「がんばれ」
+        for zz, st in P.zones.items():
+            if zz not in ZSTAT: continue
+            g = [x for x in st[:-1] if not x.ev]
+            if any(sum(1 for x in g if sch in x.school) >= c['n'] for sch in {t2 for x in g for t2 in x.school}): return True
+        return False
+    if t == 'self_hand_ge': return len(P.hand) >= c['n']
+    if t == 'evz_total_le': return len(P.evz) <= c['n']
     raise ValueError(t)
 
 
 def distinct_affil(P):
     """自己場上（各區最上面的角色）可以選出幾人，使他們各取 1 個所屬後互不重複（QA 1189）。雙所屬卡可選其一。"""
-    court = [st[-1].school for z, st in P.zones.items() if z in ZSTAT and st]
+    court = [st[-1].affs for z, st in P.zones.items() if z in ZSTAT and st]
     match = {}  # 所屬 → 佔用它的角色編號
 
     def aug(i, seen):
@@ -363,10 +397,19 @@ def apply_effects(effs, P, T, zone):
             elif e['stat'] == 'any':  # どん ぴしゃり：任一數值 +1 → 加在攻擊或舉球（都算進攻值）
                 z = next((z for z in ('attack', 'toss') if P.zones[z] and (not tg.get('school') or tg['school'] in P.zones[z][-1].school)), None)
                 if z is None: continue
+            elif e['stat'] == 'any_phase':  # 清水 P01-075 等：任一數值 +1 → 加在本階段有意義的區（接球階段加接球、舉球階段加舉球、攻擊階段加攻擊）
+                order = dict(receive=('receive',), toss=('toss', 'attack'), attack=('attack', 'toss'),
+                             serve=('serve',), block=('block',)).get(T.get('phase'), ('attack', 'toss'))
+                z = next((z for z in order if P.zones[z] and (not tg.get('school') or tg['school'] in P.zones[z][-1].school)
+                          and (not tg.get('grade') or P.zones[z][-1].aff.endswith('·%s年' % tg['grade']))
+                          and (not tg.get('name') or T['names'].get(z, P.zones[z][-1].name) == tg['name'])), None)
+                if z is None: continue
             else:
                 z = dict(atk='attack', rcv='receive', tos='toss', blk='block', srv='serve')[e['stat']]
                 st = P.zones[z]
                 if not st or (tg.get('school') and tg['school'] not in st[-1].school): continue
+                if tg.get('name') and T['names'].get(z, st[-1].name) != tg['name']: continue
+                if tg.get('grade') and not st[-1].aff.endswith('·%s年' % tg['grade']): continue
             T['mod'][z] = T['mod'].get(z, 0) + e['n']; T['last_target_zone'] = z
         elif t == 'stat_set':
             st = P.zones['toss']
@@ -377,7 +420,9 @@ def apply_effects(effs, P, T, zone):
             elif e['name'] == 'ワンタッチ':
                 if not CFG['onetouch_attack_only'] or T['src'] == 'attack': T['onetouch'] = e['n']; P.bump('一觸')
             elif e['name'] == 'ツーアタック': T['two_attack'] = e['n']; P.bump('二段攻擊')
-            elif e['name'] == 'ドシャット': T['doshat'] = e['n']; P.bump('ドシャット')  # 9-2：攔網成功的回合結束時，回給對手的進攻值變 N
+            elif e['name'] == 'ドシャット':
+                if any(l['rule'] == 'nullify_doshat' for l in P.restrict): P.bump('ドシャット被無效')  # 東峰 P03-053
+                else: T['doshat'] = e['n']; P.bump('ドシャット')  # 9-2：攔網成功的回合結束時，回給對手的進攻值變 N
             elif e['name'] == 'ブロックアウト':  # 9-5：對手下回合出原本攔網值 ≤N 的攔網角色就 LOSS
                 T['locks'].append(dict(rule='blockout', n=e['n'], duration='next_opp_turn')); P.bump('ブロックアウト')
         elif t == 'mill':
@@ -502,9 +547,10 @@ def apply_effects(effs, P, T, zone):
             T.setdefault('negated', set()).add(e['name']); P.bump('木兎技能無效')
         elif t == 'look_top_take':  # 闇路 P01-089（某校）／P04-099（指定卡名）：看牌庫頂 n 張，挑最多 max 張，其餘放牌庫底
             top = P.deck[:e['n']]; del P.deck[:e['n']]
-            cands = [c for c in top if (c.name in e['names'] if e.get('names') else e['school'] in c.school)]
+            cands = [c for c in top if (c.name in e['names'] if e.get('names') else e['school'] in c.school)
+                     and (not e.get('event_only') or c.ev)]
             if cands:
-                best = max(cands, key=keep_value); top.remove(best); P.add_nondraw(best); P.bump('闇路檢索命中')
+                best = max(cands, key=keep_value); top.remove(best); P.add_nondraw(best); P.bump('闇路檢索命中'); T['took'] = True
             P.deck += top
         elif t == 'drop_to_zone':
             if not name_ok(T, e['zone'], e['name']): continue
@@ -525,6 +571,31 @@ def apply_effects(effs, P, T, zone):
             P.bump('棄對手接球Guts')
         elif t == 'opp_discard':  # 及川 P01-033：對手從手牌棄 1 張（對手自己選，立即生效）
             T['locks'].append(dict(rule='drop_hand_card', n=e['n'], duration='now')); P.bump('及川逼棄牌')
+        elif t == 'rcv_add_paid_blk':  # 縁下 P04-007：接球 + 付出的 Guts 的攔網值合計
+            T['mod'][zone] = T['mod'].get(zone, 0) + sum(x.b['blk'] for x in (T.get('paid_guts') or []))
+        elif t == 'guts_to_hand_same_school':  # 烏野 P01-076：自己某一區的 Guts 中，同所屬的 n 張加入手牌
+            best = None
+            for zz, st in P.zones.items():
+                if zz not in ZSTAT: continue
+                g = [c for c in st[:-1] if not c.ev]
+                for sch in {t2 for c in g for t2 in c.school}:
+                    cand = sorted([c for c in g if sch in c.school], key=keep_value, reverse=True)[:e['n']]
+                    if len(cand) == e['n'] and (best is None or sum(map(keep_value, cand)) > best[0]): best = (sum(map(keep_value, cand)), zz, cand)
+            if best:
+                for c in best[2]: P.zones[best[1]].remove(c); P.add_nondraw(c)
+                P.bump('Guts回手牌')
+        elif t == 'guts_grade_to_hand':  # 烏野 PR-078：自己某一區的某年級的 Guts 最多 n 張加入手牌
+            best = None
+            for zz, st in P.zones.items():
+                if zz not in ZSTAT: continue
+                g = sorted([x for x in st[:-1] if not x.ev and x.aff.endswith('·%s年' % e['grade'])], key=keep_value, reverse=True)[:e['n']]
+                if g and (best is None or sum(map(keep_value, g)) > best[0]): best = (sum(map(keep_value, g)), zz, g)
+            if best:
+                for c in best[2]: P.zones[best[1]].remove(c); P.add_nondraw(c)
+                P.bump('Guts回手牌')
+        elif t == 'this_event_to_hand_if_took':  # 清水 P03-094：有加入手牌的話，這張事件也回手牌
+            ev = T.get('playing_ev')
+            if T.get('took') and ev is not None and ev in P.evz: P.evz.remove(ev); P.add_nondraw(ev); P.bump('清水回手')
         elif t == 'draw_to':  # 国見 P02-058：抽到手牌剛好 n 張（已經 ≥n 張就不抽）
             P.draw(max(0, e['n'] - len(P.hand)))
         elif t == 'reveal_top_then':  # P01-092／093：公開牌庫頂；自己場上沒有與它同所屬的角色時，執行 then；公開的牌放牌庫底
@@ -532,8 +603,9 @@ def apply_effects(effs, P, T, zone):
             top = P.deck.pop(0)
             court = set()
             for z, st in P.zones.items():
-                if z in ZSTAT and st: court |= st[-1].school
-            hit = not (court & top.school)  # 事件牌沒有所屬 → 一定成立（QA 1243、1245：公開到自己也成立）
+                if z in ZSTAT and st: court |= st[-1].affs
+            if e.get('school'): hit = (not top.ev) and e['school'] in top.affs  # 山口 P01-010：公開的牌所屬有某校（事件沒有所屬）
+            else: hit = not (court & top.affs)  # 事件牌沒有所屬 → 一定成立（QA 1243、1245：公開到自己也成立）
             P.deck.append(top); P.bump('翻牌成立' if hit else '翻牌不成立')
             if hit: apply_effects(e['then'], P, T, zone)
         elif t == 'drop_opp_events_then':  # 星海 P01-066：對手 Event 區最多 n 張棄牌；之後剩 ≤max_left 張則執行 then
@@ -644,6 +716,12 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     if zone == 'receive' and 'Li' in card.pos:  # 對手瀬見 P03-072：Li 接球角色每次出場 −1
         for l in P.restrict:
             if l['rule'] == 'li_receive_add': T['mod']['receive'] = T['mod'].get('receive', 0) + l['n']; P.bump('Li被瀬見減值')
+    if zone == 'toss':  # 烏野 山口 P01-010／嶋田 P03-054
+        for l in P.restrict:
+            if l['rule'] == 'opp_toss_add': T['mod']['toss'] = T['mod'].get('toss', 0) + l['n']; P.bump('舉球被山口減值')
+            if l['rule'] == 'opp_s_toss_set' and from_hand and 'S' in card.pos: T['set_toss'] = l['value']; P.bump('S舉球被嶋田變1')
+    if zone == 'block' and not as_side_blocker and any(l['rule'] == 'nullify_center_skills' for l in P.restrict):
+        P.bump('中間攔網技能被無效'); return  # 東峰 P04-013
     if nm in T.get('negated', ()):
         P.bump('技能被無效'); return
     if zone == 'attack' and T.get('aura') and nm == T['aura'][0]:
@@ -657,6 +735,7 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
                 e['type'] == 'keyword' and e['name'] == 'ワンタッチ' for e in s['effects']):
             continue  # 一觸只能中間攔網用；多張一起攔網時不發動（會跳過攔網判定，白丟其他攔網角色）【使用者 2026-10-15】
         if not all(cond_ok(c, P, T) for c in s.get('conditions', [])): continue
+        if not all(cond_ok(c, P, T) for c in s.get('use_if', [])): continue  # 策略條件（不是卡片文字）：值得付代價才用
         costs = s.get('cost', [])
         T['paid_guts'] = None
         if any(c['type'] in ('discard_hand', 'hand_to_deck_bottom', 'discard_hand_filtered') for c in costs) and not (
@@ -710,7 +789,7 @@ def toss_allowed(P, c):
 def event_playable(P, T, ev):
     """事件的「使える」條件（例：今日 何をする？ 要舉球是侑或治）。"""
     if ev.phases & {'toss', 'attack'} and any(l['rule'] == 'no_toss_attack_events' for l in P.restrict): return False  # P01-093：QA 1247
-    return all(cond_ok(c, P, T) for s in ev.skills if not s.get('part_of_same_card') for c in s.get('conditions', []))
+    return all(cond_ok(c, P, T) for s in ev.skills if not s.get('part_of_same_card') for c in s.get('conditions', []) + s.get('use_if', []))
 
 
 def play_event(P, T, ev, zone_hint):
@@ -719,7 +798,7 @@ def play_event(P, T, ev, zone_hint):
         used = T.setdefault('once_used', set())
         if ev.name in used: return
         used.add(ev.name)
-    P.hand.remove(ev); P.evz.append(ev)
+    P.hand.remove(ev); P.evz.append(ev); T['playing_ev'] = ev; T['took'] = False
     if T['phase'] == 'attack':  # P03-047 影山：攻擊階段從手牌打出事件時
         st = P.zones['toss']
         if st:
@@ -973,6 +1052,9 @@ def draw_phase_events(P, opp, op_in, src):
     """抽牌階段只能打的事件（P03-090）：Event 區有可回收的事件時才打。"""
     T = newT(opp, op_in, src); T['phase'] = 'draw'
     for ev in [e for e in P.hand if e.ev and e.phases == {'draw'}]:
+        if any(s.get('draw_policy') == 'always' for s in ev.skills):  # 混校批次的抽牌階段事件：條件成立就打
+            if ev in P.hand: play_event(P, T, ev, 'draw')
+            continue
         dn = [x for s in ev.skills for x in s['effects'] if x['type'] == 'drop_names_to_hand']
         if dn:
             if ev in P.hand and any(not c.ev and c.name in dn[0]['names'] for c in P.drop): play_event(P, T, ev, 'draw')
