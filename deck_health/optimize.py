@@ -21,11 +21,16 @@ def ev(args):
     return solo.evaluate(U, deck, goal, n, seed)
 
 
-def pool_for(U, school):
+def pool_for(U, school, extra_no_skill=False):
+    """換牌候選卡池。school：單一學校（字串）、學校清單、或 '*'（全部學校）。
+    extra_no_skill=True：除了指定學校，再加入「所有學校的無技能卡」（混校用：無技能卡不需結構化，可直接跨校）。
+    技能卡必須已在 MANUAL（未結構化／未驗收的不放進搜尋；DH_MIXED、DH_P04 等環境變數載入的草稿卡只在該旗標開啟時才在 MANUAL）。"""
+    schools = None if school == '*' else ({school} if isinstance(school, str) else set(school))
     out = []
     for c in U.values():
-        if school not in (c.get('school_tags') or []): continue
         skilled = c['skill_jp'] not in ('-', '')
+        in_school = schools is None or bool(schools & set(c.get('school_tags') or []))
+        if not in_school and not (extra_no_skill and not skilled): continue
         if skilled and c['card_no'] not in MANUAL: continue  # 未結構化的技能卡不放進搜尋
         out.append(c['card_no'])
     return sorted(out)
@@ -52,7 +57,7 @@ def neighbors(deck, pool, U):
 if __name__ == '__main__':
     path, startf, cfgf, outf = sys.argv[1:5]
     cfg = json.load(open(cfgf, encoding='utf-8')); deck = json.load(open(startf))
-    Ul = sim2.load_cards(path); pool = pool_for(Ul, cfg['school'])
+    Ul = sim2.load_cards(path); pool = pool_for(Ul, cfg['school'], cfg.get('extra_no_skill', False))
     goal = cfg['goal']
     with mp.Pool(parallel.workers(), initializer=init, initargs=(path,)) as P, open(outf, 'a', encoding='utf-8') as fo:
         base = P.map(ev, [(deck, goal, cfg['n_confirm'], 777)])[0]

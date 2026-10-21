@@ -36,7 +36,7 @@ if __name__ == '__main__':
     path, startf, cfgf, outf = sys.argv[1:5]
     cfg = json.load(open(cfgf, encoding='utf-8')); deck = json.load(open(startf))
     opp = json.load(open(cfg['guard']['opponent']))
-    Ul = sim2.load_cards(path); pool = optimize.pool_for(Ul, cfg['school'])
+    Ul = sim2.load_cards(path); pool = optimize.pool_for(Ul, cfg['school'], cfg.get('extra_no_skill', False))
     goal, metric, g = cfg['goal'], cfg['metric'], cfg['guard']
 
     def h2h(P, decks, seed):

@@ -533,3 +533,89 @@ MANUAL_P04_INARI = {
 }
 if _os.environ.get('DH_P04') == '1':
     MANUAL.update(MANUAL_P04_INARI)
+
+# ── 混校研究用卡（2026-10-21 草稿，待使用者驗收反向翻譯）──────────────
+# 未驗收前預設不啟用；設環境變數 DH_MIXED=1 才會載入（只能用來測程式，不能下結論）。
+# 假設（請驗收時一併確認）：
+#  ‧「所屬」＝學校名稱字串（school_tags 的每一項），不含學年（QA 1817：字串完全一致才算同一所屬；QA 1189：4 人各取 1 個所屬後互不重複）
+#  ‧雙所屬卡（例：烏野／ユース、白水館／疑似ユース）可任選其一來湊「別々の所屬」；翻牌比對時，只要有任一所屬相同就算「有同所屬角色」
+#  ‧「自分のコート」＝自己各區最上面的角色（和既有 all_own_chars_school 一致）
+#  ‧事件沒有所屬 → 翻到事件一定「場上沒有同所屬角色」（QA 1243、1245：翻到自己也成立）
+#  ‧P01-093 的 [サーブ][ブロック]：模擬器目前沒有發球階段與攔網階段打事件的機制，只模擬攻擊階段；其餘階段的用法被低估
+MANUAL_MIXED = {
+    'HV-D02-009': [dict(  # 芝山優生：接球區登場，付 2 Guts：抽 1
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='guts', n=2)],
+        effects=[dict(type='draw', who='self', n=1)])],
+
+    'HV-P02-058': [dict(  # 国見英：接球區登場，付 2 Guts：抽牌直到自己手牌剛好 3 張
+        timing='on_enter', zones=['receive'],
+        cost=[dict(type='guts', n=2)],
+        effects=[dict(type='draw_to', who='self', n=3, note='手牌已經 ≥3 張就不抽（不用棄）')])],
+
+    'HV-P01-033': [dict(  # 及川徹：發球區或舉球區登場，從手牌棄青葉城西的牌 1 張：這個角色的任一數值 +1；對手手牌 ≥4 張時，對手從手牌棄 1 張
+        timing='on_enter', zones=['serve', 'toss'],
+        cost=[dict(type='discard_filtered', n=1, filter=dict(school='青葉城西'))],
+        effects=[dict(type='stat_add', target='this', stat='any', n=1, note='QA 1155：可以加在其他數值上，但只有該區自己的數值有意義'),
+                 dict(type='opp_discard', n=1, **{'if': [dict(type='opp_hand_ge', n=4)]})])],
+
+    'HV-D04-005': [dict(  # 金田一勇太郎：攔網區登場，對手進攻值 ≤2：ドシャット(6)（攔網成功的回合結束時，自己的進攻值變 6）
+        timing='on_enter', zones=['block'],
+        conditions=[dict(type='opp_op_le', n=2, of='any')],
+        effects=[dict(type='keyword', name='ドシャット', n=6)])],
+
+    'HV-P01-056': [dict(  # 牛島若利：發球區或攻擊區登場，從手牌把事件 1 張放進 Event 區：抽 1，這個角色的任一數值 +2
+        timing='on_enter', zones=['serve', 'attack'],
+        cost=[dict(type='event_hand_to_evz', n=1, note='QA 1176：放進去的事件不能用技能；QA 1178：不是「打出」，不受限制')],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target='this', stat='any', n=2, note='QA 1177：可以加在其他數值上')])],
+
+    'HV-P03-069': [dict(  # 白布賢二郎：舉球區登場，付 2 Guts：抽 1，舉球 +1
+        timing='on_enter', zones=['toss'],
+        cost=[dict(type='guts', n=2)],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target='this', stat='tos', n=1)])],
+
+    'HV-P03-052': [dict(  # 田中龍之介：發球區登場，從手牌把 1 張放牌庫底：抽 1，發球 +5
+        timing='on_enter', zones=['serve'], auto_cost=True,
+        cost=[dict(type='hand_to_deck_bottom', n=1)],
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target='this', stat='srv', n=5)])],
+
+    'HV-P01-066': [dict(  # 星海光來：攻擊區登場，「自己角色全部是鴎台」或「別々の所屬的角色 ≥4 人」，付 3 Guts：攻擊 +3；
+        # 接著對手 Event 區最多 2 張棄牌，之後該區 ≤2 張的話，攻擊再 +1
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='any_of', conds=[dict(type='all_own_chars_school', school='鴎台'),
+                                                dict(type='distinct_affil_ge', n=4)])],
+        cost=[dict(type='guts', n=3)],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=3),
+                 dict(type='drop_opp_events_then', n=2, max_left=2,
+                      then=[dict(type='stat_add', target='this', stat='atk', n=1)],
+                      note='QA 1190、1192：看對手 Event 區，由星海的使用者選要棄哪幾張')])],
+
+    'HV-P01-068': [dict(  # 佐久早聖臣：攻擊區登場，手牌 ≤3 張且別々の所屬的角色 ≥4 人：攻擊 +2，ブロックアウト(2)
+        timing='on_enter', zones=['attack'],
+        conditions=[dict(type='self_hand_le', n=3), dict(type='distinct_affil_ge', n=4)],
+        effects=[dict(type='stat_add', target='this', stat='atk', n=2),
+                 dict(type='keyword', name='ブロックアウト', n=2,
+                      note='9-5：對手下回合出原本攔網值 ≤2 的攔網角色就 LOSS；QA 1194：看原本攔網值')])],
+
+    'HV-P01-092': [dict(  # 今年は面白くなりそうだな：接球階段，每回合 1 次：抽 1，自己 1 個角色接球 +1；
+        # 公開牌庫頂，自己場上沒有同所屬的角色時，接球再 +1；公開的牌放牌庫底
+        timing='event', phases=['receive'], once_per_turn=True,
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='stat_add', target=dict(who='self', count=1), stat='rcv', n=1),
+                 dict(type='reveal_top_then', who='self',
+                      then=[dict(type='stat_add', target=dict(who='self', count=1), stat='rcv', n=1)])])],
+
+    'HV-P01-093': [dict(  # 誰だろうと受けて立つ：發球／攔網／攻擊階段，每回合 1 次：抽 1；公開牌庫頂，自己場上沒有同所屬的角色時：
+        # 自己 1 個角色的 1 個數值 +1，且對手下回合不能打出[=トス]或[=アタック]階段的事件；公開的牌放牌庫底
+        timing='event', phases=['serve', 'block', 'attack'], once_per_turn=True,
+        effects=[dict(type='draw', who='self', n=1),
+                 dict(type='reveal_top_then', who='self',
+                      then=[dict(type='stat_add', target=dict(who='self', count=1), stat='any', n=1),
+                            dict(type='restrict_opp', who='opp', rule='no_toss_attack_events', duration=TO,
+                                 note='QA 1247：對手不能「打出」，但用技能放進 Event 區不受限（QA 1178）')])])],
+}
+if _os.environ.get('DH_MIXED') == '1':
+    MANUAL.update(MANUAL_MIXED)
