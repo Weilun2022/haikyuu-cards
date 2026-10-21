@@ -17,6 +17,7 @@ CFG = dict(
     li_restrict=True,          # 數值為「-」的區域不能登場（Li 不能發球、攔網）【使用者 2026-10-11】
     hand_bottom_policy='default',  # 「手牌放牌庫底」代價（治 D03-002）的打法，只套用在 A 方：default／lethal（付了能讓對手接不起來才付）／never
                                    # ／smart（同拍會被どんぴしゃり叫出的治蓋掉就不付）／lethal_smart（兩個條件都要）
+    verify_block=True,         # 攔網組合選好後，用登場技能實際結算的攔網值驗證（付不起代價、條件不成立的加值不算）
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
 )
 ZSTAT = dict(serve='srv', block='blk', receive='rcv', toss='tos', attack='atk')
@@ -404,6 +405,9 @@ def apply_effects(effs, P, T, zone):
             elif tg == 'same':
                 z = T['last_target_zone']
                 if z is None: continue  # 前面沒有選到角色 → 「さらに」的加值沒有對象
+            elif e['stat'] == 'any' and T.get('phase') in ('serve', 'block'):  # 發球／攔網階段打的事件：任一數值 +1 → 加在該階段的區
+                z = 'serve' if T['phase'] == 'serve' else 'block'
+                if not P.zones[z] or (tg.get('school') and tg['school'] not in P.zones[z][-1].school): continue
             elif e['stat'] == 'any':  # どん ぴしゃり：任一數值 +1 → 加在攻擊或舉球（都算進攻值）
                 z = next((z for z in ('attack', 'toss') if P.zones[z] and (not tg.get('school') or tg['school'] in P.zones[z][-1].school)), None)
                 if z is None: continue
@@ -941,6 +945,32 @@ def blk_potential(B, c, attacker, events_free):
     return v, need
 
 
+def block_event_boost(B):
+    tot = 0
+    for ev in B.hand:
+        if not ev.ev or 'block' not in ev.phases: continue
+        for sk in ev.skills:
+            for e in sk['effects']:
+                if e['type'] == 'stat_add' and e.get('stat') in ('blk', 'any_phase', 'any') and isinstance(e.get('target'), dict): tot += e['n']
+    return tot
+
+
+def block_actual(P2, T):
+    """攔網區現在實際的攔網值合計：中間攔網（含技能加值）＋側邊攔網的原本攔網值。"""
+    return cur_stat(P2, T, 'block') + sum(x.b['blk'] for x in P2.zones.get('_side', []))
+
+
+def play_block_events(P2, T, need):
+    """登場後打攔網階段事件：會抽牌的事件一律打（手牌不變、多一個效果）；其他的只在還不夠擋時才打。"""
+    T['phase'] = 'block'
+    evs = [e for e in P2.hand if e.ev and 'block' in e.phases]
+    evs.sort(key=lambda e: not any(x['type'] == 'draw' for sk in e.skills for x in sk['effects']))
+    for ev in evs:
+        if ev not in P2.hand: continue
+        cantrip = any(x['type'] == 'draw' for sk in ev.skills for x in sk['effects'])
+        if cantrip or block_actual(P2, T) < need: play_event(P2, T, ev, 'block')
+
+
 def block_total(B, comb, attacker, restrict, include_adj=True):
     """一組攔網角色的攔網值合計與中間攔網人選。角名 P02-027 生效時，中間攔網的攔網值當作 0（選攔網值最低的當中間）。"""
     ev_free = sum(1 for x in B.hand if x.ev)
@@ -949,10 +979,11 @@ def block_total(B, comb, attacker, restrict, include_adj=True):
         v, need = blk_potential(B, c, attacker, ev_free) if attacker is not None else (c.b['blk'], 0)
         ev_free -= need; pots.append(v)
     adj = sum(l['n'] for l in restrict if l['rule'] == 'center_blocker_blk_add') if include_adj else 0
+    boost = block_event_boost(B)  # 手牌的攔網階段事件（最樂觀估計；真的組合會再驗證）
     if any(l['rule'] == 'center_no_blk' for l in restrict):
         i = min(range(len(comb)), key=lambda j: pots[j])
-        return sum(pots) - pots[i], comb[i]
-    return sum(pots) + adj, None
+        return sum(pots) - pots[i] + boost, comb[i]
+    return sum(pots) + adj + boost, None
 
 
 def response_cost(opp, op, locks, trap, src='attack', attacker=None):
@@ -1173,6 +1204,9 @@ def take_turn(P, opp, op_in, src):
         for c in comb: P2.hand.remove(c)  # 同時登場：先全部拿出手牌，再依序處理登場效果
         for c, nm in zip(comb, assign_distinct(comb)):
             enter(P2, T, 'block', c, from_hand=True, as_side_blocker=c is not center, name=nm)
+        if CFG['verify_block'] and not any(l['rule'] == 'center_no_blk' for l in P.restrict):
+            play_block_events(P2, T, op_in)
+            if block_actual(P2, T) < op_in: P2.zones.pop('_side', None); continue  # 技能沒發動成功，這個組合擋不住
         P2.drop += P2.zones.pop('_side', [])
         if T.get('zeroed'): continue  # 有角色數值歸 0，原本的攔網合計不成立
         consider(P2, T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb))
@@ -1197,9 +1231,16 @@ def serve_turn(P, opp):
     for c in [x for x in P.hand if not x.ev and can_enter(P, 'serve', x)]:
         P2 = P.clone(); T = newT(opp, 0, None); T['phase'] = 'serve'
         P2.hand.remove(c); enter(P2, T, 'serve', c, from_hand=True)
-        op = cur_stat(P2, T, 'serve')
-        v = evaluate(P2, op, T['locks'], T['trap'], opp, 'serve')
-        if best is None or v > best[0]: best = (v, P2, op, T['locks'], T['trap'])
+        variants = [(P2, T)]
+        for ev in {e.name: e for e in P2.hand if e.ev and 'serve' in e.phases}.values():  # 發球階段事件：打或不打，選評分高的
+            P3 = P2.clone(); T3 = cloneT(T); T3['phase'] = 'serve'
+            ev3 = next((x for x in P3.hand if x.name == ev.name), None)
+            if ev3 is not None:
+                play_event(P3, T3, ev3, 'serve'); variants.append((P3, T3))
+        for i, (Pv, Tv) in enumerate(variants):
+            op = cur_stat(Pv, Tv, 'serve')
+            v = evaluate(Pv, op, Tv['locks'], Tv['trap'], opp, 'serve')
+            if best is None or v > best[0] or (i > 0 and v >= best[0]): best = (v, Pv, op, Tv['locks'], Tv['trap'])  # 同分時打事件（會抽牌）
     if best is None: return ('loss', P)
     _, P2, op, locks, trap = best
     P2.restrict, P2.trap = [], False
