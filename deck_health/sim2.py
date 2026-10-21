@@ -147,6 +147,16 @@ def max_blockers(restrict):
     return m
 
 
+def onetouch_nullified(restrict):  # 一觸無效：稲荷崎 P02-016（連同接球手牌技能）或 P03-092／伊達工業 P03-009（只有一觸）
+    return any(l['rule'] in ('nullify_onetouch_and_receive_hand', 'nullify_onetouch') for l in restrict)
+
+
+def block_need(restrict, op):  # 伊達工業 二口 P02-039：攔網值 ≤n 時攔網失敗 → 需要 n+1
+    for l in restrict:
+        if l['rule'] == 'block_fail_le': op = max(op, l['n'] + 1)
+    return op
+
+
 def nullified(restrict):  # 稲荷崎 P02-016：一觸與「接球階段・手牌」技能無效
     return any(l['rule'] == 'nullify_onetouch_and_receive_hand' for l in restrict)
 
@@ -286,6 +296,13 @@ def cond_ok(c, P, T):
             if any(sum(1 for x in g if sch in x.school) >= c['n'] for sch in {t2 for x in g for t2 in x.school}): return True
         return False
     if t == 'self_hand_ge': return len(P.hand) >= c['n']
+    if t == 'paid_guts_name':  # 理石 P02-031：付出的 Guts 是某人名
+        pg = T.get('paid_guts') or []
+        return bool(pg) and all((not x.ev) and x.name == c['name'] for x in pg)
+    if t == 'block_comb_school_ge':  # 伊達工業：攔網區（含側邊攔網）有 n 個某校角色
+        comb = T.get('block_comb') or [x for z, st in P.zones.items() if z == 'block' for x in st[-1:]]
+        return sum(1 for x in comb if c['school'] in x.school) >= c['n']
+    if t == 'is_side_blocker': return bool(T.get('entering_side'))
     if t == 'zone_char':  # 某區最上面的角色符合 school／grade／name
         st = P.zones[c['zone']]
         return bool(st) and (not c.get('school') or c['school'] in st[-1].school) and (not c.get('grade') or st[-1].aff.endswith('·%s年' % c['grade']))
@@ -424,6 +441,7 @@ def apply_effects(effs, P, T, zone):
                 if not st or (tg.get('school') and tg['school'] not in st[-1].school): continue
                 if tg.get('name') and T['names'].get(z, st[-1].name) != tg['name']: continue
                 if tg.get('grade') and not st[-1].aff.endswith('·%s年' % tg['grade']): continue
+                if tg.get('base_eq') is not None and st[-1].b[ZSTAT[z]] != tg['base_eq']: continue  # 追分 P02-090：攔網值剛好 3 的角色
             T['mod'][z] = T['mod'].get(z, 0) + e['n']; T['last_target_zone'] = z
         elif t == 'stat_set':
             st = P.zones['toss']
@@ -467,9 +485,11 @@ def apply_effects(effs, P, T, zone):
         elif t == 'drop_to_hand':
             f = e['filter']
             cands = [c for c in P.drop if (c.ev if f.get('category') == 'EVENT' else not c.ev) and filt_ok(c, f)]
-            if cands:
-                best = max(cands, key=keep_value); P.drop.remove(best); P.add_nondraw(best); P.bump('棄牌區撈回')
-                if e.get('then'): apply_effects([e['then']], P, T, zone)
+            got = 0
+            while cands and got < e.get('max', 1):
+                best = max(cands, key=keep_value); cands.remove(best); P.drop.remove(best); P.add_nondraw(best); P.bump('棄牌區撈回'); got += 1
+                if got == 1 and e.get('then'): apply_effects([e['then']], P, T, zone)
+            T['took_n'] = got
         elif t == 'restrict_opp': T['locks'].append(dict(e)); P.bump('封鎖:' + e['rule'])
         elif t == 'on_opp_non_draw_add_mill': T['trap'] = True; P.bump('二口陷阱')
         elif t == 'no_stat_minus': pass  # P03-041：此回合數值不會被減（模擬中沒有對手在我方回合減攻擊值）
@@ -635,6 +655,39 @@ def apply_effects(effs, P, T, zone):
                 if e['school'] in top.school: P.add_nondraw(top); T['took'] = True
                 else: P.deck.append(top)
                 if top.ev: P.draw(1)
+        elif t == 'discard_if_took_n':  # 斉藤 P02-095：撈回了 n 張才要從手牌棄 1 張
+            if T.get('took_n', 0) >= e['n'] and P.hand:
+                w = pick_discard(P, T); P.hand.remove(w); P.drop.append(w)
+        elif t == 'stat_set_zone':  # P03-091：這區的角色數值直接變成 value（發球階段、發球角色是宮侑）
+            if P.zones[e['zone']]:
+                cur = cur_stat(P, T, e['zone']); T['mod'][e['zone']] = T['mod'].get(e['zone'], 0) + (e['value'] - cur)
+        elif t == 'coin':  # 天童 P02-048：丟硬幣，正面 heads、反面 tails
+            P.bump('擲硬幣')
+            apply_effects(e['heads'] if P.rng.random() < 0.5 else e['tails'], P, T, zone)
+        elif t == 'mill_n':  # 自己牌庫頂 n 張丟棄
+            for _ in range(min(e['n'], len(P.deck))): P.drop.append(P.deck.pop(0))
+        elif t == 'mill_take':  # 大平 P04-062：牌庫頂 n 張丟棄，其中符合 filter 的 1 張加入手牌
+            top = P.deck[:e['n']]; del P.deck[:e['n']]
+            cand = [x for x in top if filt_ok(x, e['filter'])]
+            for x in top: P.drop.append(x)
+            if cand:
+                best = max(cand, key=keep_value); P.drop.remove(best); P.add_nondraw(best); P.bump('丟牌撈回')
+        elif t == 'drop_distinct_school_to_hand':  # 滑津 P03-097：棄牌區卡名不同的某校角色 n 張加入手牌，再從手牌棄 1 張
+            seen, pick = set(), []
+            for x in sorted([x for x in P.drop if not x.ev and e['school'] in x.school], key=keep_value, reverse=True):
+                if x.name not in seen and len(pick) < e['n']: seen.add(x.name); pick.append(x)
+            for x in pick: P.drop.remove(x); P.add_nondraw(x)
+            if P.hand:
+                w = pick_discard(P, T); P.hand.remove(w); P.drop.append(w)
+        elif t == 'look_top_two_picks':  # 疑似ユース P03-079：看牌庫頂 n 張，取符合 first 的 1 張；有取到再從剩下的取符合 second 的 1 張
+            top = P.deck[:e['n']]; del P.deck[:e['n']]
+            c1 = [x for x in top if filt_ok(x, e['first'])]
+            if c1:
+                b1 = max(c1, key=keep_value); top.remove(b1); P.add_nondraw(b1)
+                c2 = [x for x in top if filt_ok(x, e['second'])]
+                if c2:
+                    b2 = max(c2, key=keep_value); top.remove(b2); P.add_nondraw(b2)
+            P.deck += top
         elif t == 'draw_to':  # 国見 P02-058：抽到手牌剛好 n 張（已經 ≥n 張就不抽）
             P.draw(max(0, e['n'] - len(P.hand)))
         elif t == 'reveal_top_then':  # P01-092／093：公開牌庫頂；自己場上沒有與它同所屬的角色時，執行 then；公開的牌放牌庫底
@@ -748,6 +801,7 @@ def run_deferred(P, T):
 
 def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     T['entering_from_hand'] = from_hand
+    T['entering_side'] = as_side_blocker
     T['under'] = under
     if zone == 'toss' and from_hand and 'S' in card.pos:  # 對手侑 P04-068：從手牌出場 S 的舉球角色，舉球 −1
         for l in P.restrict:
@@ -765,7 +819,11 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
         for l in P.restrict:
             if l['rule'] == 'opp_toss_add': T['mod']['toss'] = T['mod'].get('toss', 0) + l['n']; P.bump('舉球被山口減值')
             if l['rule'] == 'opp_s_toss_set' and from_hand and 'S' in card.pos: T['set_toss'] = l['value']; P.bump('S舉球被嶋田變1')
-    if zone in ('receive', 'toss') and any(l['rule'] == 'nullify_receive_toss_skills' for l in P.restrict):
+    if zone == 'receive' and card.noskill:  # 稲荷崎応援団 P02-086：沒有技能的接球角色每次登場 −1
+        for l in P.restrict:
+            if l['rule'] == 'opp_noskill_rcv_add': T['mod']['receive'] = T['mod'].get('receive', 0) + l['n']; P.bump('無技能接球被減值')
+    if (zone in ('receive', 'toss') and any(l['rule'] == 'nullify_receive_toss_skills' for l in P.restrict)) or (
+            zone == 'receive' and any(l['rule'] == 'nullify_receive_skills' for l in P.restrict)):
         P.bump('接球舉球技能被無效'); return  # 手白 P01-032
     if zone == 'block' and not as_side_blocker and any(l['rule'] == 'nullify_center_skills' for l in P.restrict):
         P.bump('中間攔網技能被無效'); return  # 東峰 P04-013
@@ -846,6 +904,8 @@ def play_event(P, T, ev, zone_hint):
         if ev.name in used: return
         used.add(ev.name)
     P.hand.remove(ev); P.evz.append(ev); T['playing_ev'] = ev; T['took'] = False; T['last_target_zone'] = None  # 每張事件從頭算「同一個角色」
+    if 'attack' in ev.phases and any(l['rule'] == 'nullify_attack_event_skills' for l in P.restrict):
+        P.bump('攻擊事件技能被無效'); return  # 伊達工業 青根 P03-063：事件放進 Event 區但技能無效
     if T['phase'] == 'attack':  # P03-047 影山：攻擊階段從手牌打出事件時
         st = P.zones['toss']
         if st:
@@ -997,11 +1057,11 @@ def response_cost(opp, op, locks, trap, src='attack', attacker=None):
         found = False
         for comb in itertools.combinations(chars, k):
             if assign_distinct(comb) is None or not all(can_enter(opp, 'block', c) for c in comb): continue
-            if block_total(opp, comb, attacker, locks, include_adj=False)[0] >= op: found = True; break  # 舊版估計不含 PR-031 調整，保留
+            if block_total(opp, comb, attacker, locks, include_adj=False)[0] >= block_need(locks, op): found = True; break  # 舊版估計不含 PR-031 調整，保留
         if found: best = k; break
     if _can_receive(opp, chars, op):
         best = 2 if best is None else min(best, 2)
-    elif op >= 4 and not nullified(locks) and (src == 'attack' or not CFG['onetouch_attack_only']):  # 一觸：1 張中間攔網削弱後再接球（淨花 3 張）
+    elif op >= 4 and not onetouch_nullified(locks) and (src == 'attack' or not CFG['onetouch_attack_only']):  # 一觸：1 張中間攔網削弱後再接球（淨花 3 張）
         for c in chars:
             n = onetouch_n(c)
             if n and can_enter(opp, 'block', c) and _can_receive(opp, [x for x in chars if x is not c], op - n):
@@ -1182,31 +1242,31 @@ def take_turn(P, opp, op_in, src):
         for comb in itertools.combinations([c for c in chars if can_enter(P, 'block', c)], k):
             if assign_distinct(comb) is None: continue
             tot, cen = block_total(P, comb, opp, P.restrict)
-            if tot >= op_in:
+            if tot >= block_need(P.restrict, op_in):
                 blocks.append(comb); centers[id(comb)] = cen
         if len(blocks) >= 6: break
     # 一觸：只放 1 張中間攔網，觸發後直接抽牌、接球（使用者確認）
-    if mb >= 1 and not freeball and not nullified(P.restrict):
+    if mb >= 1 and not freeball and not onetouch_nullified(P.restrict):
         for c in {x.no: x for x in chars if onetouch_n(x) and can_enter(P, 'block', x)}.values():
-            P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'
+            P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['block_comb'] = (c,)
             P2.hand.remove(c); enter(P2, T, 'block', c, from_hand=True)
             if T.get('onetouch'):
                 P2.draw(1); draw_phase_events(P2, opp, op_in - T['onetouch'], src)
                 rb = receive_best(P2, opp, op_in - T['onetouch'], src)
                 if rb and (best is None or rb[0] > best[0]):
                     best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'onetouch')
-            elif c.b['blk'] + adj >= op_in:
+            elif c.b['blk'] + adj >= block_need(P.restrict, op_in):
                 consider(P2, T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block1')
     blocks.sort(key=lambda cb: (len(cb), sum(keep_value(c) for c in cb)))
     for comb in blocks[:4]:
-        P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True  # 這條路是靠攔網值合計攔下來
+        P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = comb  # 這條路是靠攔網值合計攔下來
         center = centers.get(id(comb)) or min(comb, key=keep_value)
         for c in comb: P2.hand.remove(c)  # 同時登場：先全部拿出手牌，再依序處理登場效果
         for c, nm in zip(comb, assign_distinct(comb)):
             enter(P2, T, 'block', c, from_hand=True, as_side_blocker=c is not center, name=nm)
         if CFG['verify_block'] and not any(l['rule'] == 'center_no_blk' for l in P.restrict):
             play_block_events(P2, T, op_in)
-            if block_actual(P2, T) < op_in: P2.zones.pop('_side', None); continue  # 技能沒發動成功，這個組合擋不住
+            if block_actual(P2, T) < block_need(P.restrict, op_in): P2.zones.pop('_side', None); continue  # 技能沒發動成功，這個組合擋不住
         P2.drop += P2.zones.pop('_side', [])
         if T.get('zeroed'): continue  # 有角色數值歸 0，原本的攔網合計不成立
         consider(P2, T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb))

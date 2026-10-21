@@ -541,7 +541,7 @@ if _os.environ.get('DH_P04') == '1':
 #  ‧雙所屬卡（例：烏野／ユース、白水館／疑似ユース）可任選其一來湊「別々の所屬」；翻牌比對時，只要有任一所屬相同就算「有同所屬角色」
 #  ‧「自分のコート」＝自己各區最上面的角色（和既有 all_own_chars_school 一致）
 #  ‧事件沒有所屬 → 翻到事件一定「場上沒有同所屬角色」（QA 1243、1245：翻到自己也成立）
-#  ‧P01-093 的 [サーブ][ブロック]：模擬器目前沒有發球階段與攔網階段打事件的機制，只模擬攻擊階段；其餘階段的用法被低估
+#  ‧P01-093 的 [サーブ][ブロック]：2026-10-21 起模擬器會在發球階段、攔網階段打事件（先前只模擬攻擊階段，被低估）
 MANUAL_MIXED = {
     'HV-D02-009': [dict(  # 芝山優生：接球區登場，付 2 Guts：抽 1
         timing='on_enter', zones=['receive'],
@@ -635,3 +635,8 @@ if _os.environ.get('DH_BATCH2', '1') == '1':
 if _os.environ.get('DH_BATCH3', '1') == '1':
     from manual_batch3 import MANUAL_BATCH3, NAME_CHOICE_BATCH3
     MANUAL.update(MANUAL_BATCH3); NAME_CHOICE.update(NAME_CHOICE_BATCH3)
+
+# 混校研究 第 4 批（稲荷崎／伊達工業／白鳥沢）：使用者驗收前預設關閉（DH_BATCH4=1 啟用）
+if _os.environ.get('DH_BATCH4', '0') == '1':
+    from manual_batch4 import MANUAL_BATCH4, NAME_CHOICE_BATCH4
+    MANUAL.update(MANUAL_BATCH4); NAME_CHOICE.update(NAME_CHOICE_BATCH4)
