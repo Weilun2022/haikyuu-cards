@@ -621,7 +621,12 @@ MANUAL_MIXED = {
 if _os.environ.get('DH_MIXED', '1') == '1':
     MANUAL.update(MANUAL_MIXED)
 
-# 混校研究 第 1 批（烏野一線）：使用者驗收前預設關閉（DH_BATCH1=1 啟用）
-if _os.environ.get('DH_BATCH1', '0') == '1':
+# 混校研究 第 1 批（烏野一線）：2026-10-21 使用者驗收通過 → 預設啟用（DH_BATCH1=0 可關閉）
+if _os.environ.get('DH_BATCH1', '1') == '1':
     from manual_batch1 import MANUAL_BATCH1, NAME_CHOICE_BATCH1
     MANUAL.update(MANUAL_BATCH1); NAME_CHOICE.update(NAME_CHOICE_BATCH1)
+
+# 混校研究 第 2 批（音駒）：使用者驗收前預設關閉（DH_BATCH2=1 啟用）
+if _os.environ.get('DH_BATCH2', '0') == '1':
+    from manual_batch2 import MANUAL_BATCH2, NAME_CHOICE_BATCH2
+    MANUAL.update(MANUAL_BATCH2); NAME_CHOICE.update(NAME_CHOICE_BATCH2)

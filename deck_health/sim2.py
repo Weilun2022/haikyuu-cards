@@ -325,11 +325,11 @@ def filt_ok(x, f):
 def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
-        if t == 'guts' and len(P.zones[zone]) - 1 < c['n']: return False
+        if t == 'guts' and len(P.zones[c.get('zone', zone)]) - 1 < c['n']: return False
         if t == 'guts_multi' and sum(max(0, len(P.zones[z]) - 1) for z in c['zones']) < c['n']: return False
         if t == 'mill' and len(P.deck) < c.get('n', 1): return False
         if t in ('discard_hand', 'hand_to_deck_bottom') and len(P.hand) < c['n']: return False
-        if t == 'event_hand_to_evz' and sum(1 for x in P.hand if x.ev) < c['n']: return False
+        if t == 'event_hand_to_evz' and sum(1 for x in P.hand if x.ev and filt_ok(x, c.get('filter', {}))) < c['n']: return False
         if t == 'discard_hand_filtered' and sum(1 for x in P.hand if filt_ok(x, c['filter'])) < c['n']: return False
         if t == 'discard_named' and sum(1 for x in P.hand if x.name == c['name']) < c['n']: return False
         if t == 'discard_filtered' and sum(1 for x in P.hand if filt_ok(x, c['filter'])) < c['n']: return False
@@ -339,9 +339,10 @@ def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
         if t == 'guts':
-            st = P.zones[zone]
+            gz = c.get('zone', zone)  # 事件可指定從哪一區付（音駒 P01-081：接球區）
+            st = P.zones[gz]
             T['paid_guts'] = st[:c['n']]  # 白布：依實際疊的順序付，不刻意挑 S（使用者 2026-10-12）
-            P.pay_guts(zone, c['n'])
+            P.pay_guts(gz, c['n'])
         elif t == 'discard_filtered':
             for _ in range(c['n']):
                 w = min([x for x in P.hand if filt_ok(x, c['filter'])], key=keep_value); P.hand.remove(w); P.drop.append(w)
@@ -365,7 +366,7 @@ def cost_pay(costs, P, T, zone):
                 w = pick_discard(P, T); P.hand.remove(w); P.drop.append(w)
         elif t == 'event_hand_to_evz':  # 月島：手牌事件放進自己 Event 區（不是「打出」）
             for _ in range(c['n']):
-                w = min([x for x in P.hand if x.ev], key=keep_value); P.hand.remove(w); P.evz.append(w)
+                w = min([x for x in P.hand if x.ev and filt_ok(x, c.get('filter', {}))], key=keep_value); P.hand.remove(w); P.evz.append(w)
         elif t == 'discard_hand_filtered':  # 尾白：棄手牌中某校的牌
             for _ in range(c['n']):
                 cands = [x for x in P.hand if filt_ok(x, c['filter'])]
@@ -548,7 +549,7 @@ def apply_effects(effs, P, T, zone):
         elif t == 'look_top_take':  # 闇路 P01-089（某校）／P04-099（指定卡名）：看牌庫頂 n 張，挑最多 max 張，其餘放牌庫底
             top = P.deck[:e['n']]; del P.deck[:e['n']]
             cands = [c for c in top if (c.name in e['names'] if e.get('names') else e['school'] in c.school)
-                     and (not e.get('event_only') or c.ev)]
+                     and (not e.get('event_only') or c.ev) and (not e.get('char_only') or not c.ev)]
             if cands:
                 best = max(cands, key=keep_value); top.remove(best); P.add_nondraw(best); P.bump('闇路檢索命中'); T['took'] = True
             P.deck += top
@@ -579,11 +580,17 @@ def apply_effects(effs, P, T, zone):
                 if zz not in ZSTAT: continue
                 g = [c for c in st[:-1] if not c.ev]
                 for sch in {t2 for c in g for t2 in c.school}:
-                    cand = sorted([c for c in g if sch in c.school], key=keep_value, reverse=True)[:e['n']]
+                    cand = sorted([c for c in g if sch in c.school], key=keep_value, reverse=True)
+                    if e.get('distinct'):  # 音駒 P01-021、P03-088：卡名各不相同
+                        seen, uniq = set(), []
+                        for c in cand:
+                            if c.name not in seen: seen.add(c.name); uniq.append(c)
+                        cand = uniq
+                    cand = cand[:e['n']]
                     if len(cand) == e['n'] and (best is None or sum(map(keep_value, cand)) > best[0]): best = (sum(map(keep_value, cand)), zz, cand)
             if best:
                 for c in best[2]: P.zones[best[1]].remove(c); P.add_nondraw(c)
-                P.bump('Guts回手牌')
+                P.bump('Guts回手牌'); T['took'] = True
         elif t == 'guts_grade_to_hand':  # 烏野 PR-078：自己某一區的某年級的 Guts 最多 n 張加入手牌
             best = None
             for zz, st in P.zones.items():
@@ -596,6 +603,17 @@ def apply_effects(effs, P, T, zone):
         elif t == 'this_event_to_hand_if_took':  # 清水 P03-094：有加入手牌的話，這張事件也回手牌
             ev = T.get('playing_ev')
             if T.get('took') and ev is not None and ev in P.evz: P.evz.remove(ev); P.add_nondraw(ev); P.bump('清水回手')
+        elif t == 'drop_to_deck_bottom_if_took':  # 音駒 P03-088：（有加入手牌的話）棄牌區某校角色卡 1 張放牌庫底
+            if T.get('took'):
+                c2 = [x for x in P.drop if not x.ev and e['school'] in x.school]
+                if c2:
+                    w = min(c2, key=keep_value); P.drop.remove(w); P.deck.append(w); P.bump('棄牌區放牌庫底')
+        elif t == 'rcv_best_of':  # 音駒 P01-082：二選一——音駒接球角色接球 +1，或接球 ≥5 的音駒接球角色接球變 7（選比較高的）
+            st = P.zones['receive']
+            if st and e['school'] in st[-1].school:
+                cur = cur_stat(P, T, 'receive')
+                add = 7 - cur if cur >= 5 and 7 - cur > 1 else 1
+                T['mod']['receive'] = T['mod'].get('receive', 0) + add
         elif t == 'draw_to':  # 国見 P02-058：抽到手牌剛好 n 張（已經 ≥n 張就不抽）
             P.draw(max(0, e['n'] - len(P.hand)))
         elif t == 'reveal_top_then':  # P01-092／093：公開牌庫頂；自己場上沒有與它同所屬的角色時，執行 then；公開的牌放牌庫底
@@ -716,10 +734,15 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     if zone == 'receive' and 'Li' in card.pos:  # 對手瀬見 P03-072：Li 接球角色每次出場 −1
         for l in P.restrict:
             if l['rule'] == 'li_receive_add': T['mod']['receive'] = T['mod'].get('receive', 0) + l['n']; P.bump('Li被瀬見減值')
+    if zone == 'attack':  # 音駒 研磨 D02-001：對手的攻擊角色每次出場 −2
+        for l in P.restrict:
+            if l['rule'] == 'opp_atk_add': T['mod']['attack'] = T['mod'].get('attack', 0) + l['n']; P.bump('攻擊被研磨減值')
     if zone == 'toss':  # 烏野 山口 P01-010／嶋田 P03-054
         for l in P.restrict:
             if l['rule'] == 'opp_toss_add': T['mod']['toss'] = T['mod'].get('toss', 0) + l['n']; P.bump('舉球被山口減值')
             if l['rule'] == 'opp_s_toss_set' and from_hand and 'S' in card.pos: T['set_toss'] = l['value']; P.bump('S舉球被嶋田變1')
+    if zone in ('receive', 'toss') and any(l['rule'] == 'nullify_receive_toss_skills' for l in P.restrict):
+        P.bump('接球舉球技能被無效'); return  # 手白 P01-032
     if zone == 'block' and not as_side_blocker and any(l['rule'] == 'nullify_center_skills' for l in P.restrict):
         P.bump('中間攔網技能被無效'); return  # 東峰 P04-013
     if nm in T.get('negated', ()):
