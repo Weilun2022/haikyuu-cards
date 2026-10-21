@@ -285,6 +285,9 @@ def cond_ok(c, P, T):
             if any(sum(1 for x in g if sch in x.school) >= c['n'] for sch in {t2 for x in g for t2 in x.school}): return True
         return False
     if t == 'self_hand_ge': return len(P.hand) >= c['n']
+    if t == 'zone_stat_ge': return cur_stat(P, T, c['zone']) >= c['n']  # 岩泉 P04-020、P04-088：這區現在的數值 ≥n
+    if t == 'evz_total_ge': return len(P.evz) >= c['n']  # 金田一 P03-005、国見 P03-007
+    if t == 'self_set_fewer': return len(P.setz) < len(opp.setz)  # 岩泉 D04-002
     if t == 'evz_total_le': return len(P.evz) <= c['n']
     raise ValueError(t)
 
@@ -317,6 +320,7 @@ def filt_ok(x, f):
     if f.get('no_skill') and not x.noskill: return False
     if f.get('affiliation') and f['affiliation'] not in x.aff.split('/'): return False
     if f.get('exclude_name') and x.name == f['exclude_name']: return False
+    if f.get('grade') and not x.aff.endswith('·%s年' % f['grade']): return False
     if f.get('name') and x.name != f['name']: return False
     if f.get('positions') and not (x.pos & set(f['positions'])): return False
     return True
@@ -614,6 +618,14 @@ def apply_effects(effs, P, T, zone):
                 cur = cur_stat(P, T, 'receive')
                 add = 7 - cur if cur >= 5 and 7 - cur > 1 else 1
                 T['mod']['receive'] = T['mod'].get('receive', 0) + add
+        elif t == 'opp_reshuffle_draw':  # 及川 P01-034、PR-024：對手手牌全部洗回牌庫，再抽 n 張
+            o = T['opp']; o.deck += o.hand; o.hand = []; o.rng.shuffle(o.deck); o.draw(e['n']); P.bump('對手手牌洗回重抽')
+        elif t == 'reveal_top_take_school':  # 溫田 D04-013：公開牌庫頂，是某校就加入手牌（否則放牌庫底）；公開的是事件再抽 1
+            if P.deck:
+                top = P.deck.pop(0)
+                if e['school'] in top.school: P.add_nondraw(top); T['took'] = True
+                else: P.deck.append(top)
+                if top.ev: P.draw(1)
         elif t == 'draw_to':  # 国見 P02-058：抽到手牌剛好 n 張（已經 ≥n 張就不抽）
             P.draw(max(0, e['n'] - len(P.hand)))
         elif t == 'reveal_top_then':  # P01-092／093：公開牌庫頂；自己場上沒有與它同所屬的角色時，執行 then；公開的牌放牌庫底
@@ -737,6 +749,9 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     if zone == 'attack':  # 音駒 研磨 D02-001：對手的攻擊角色每次出場 −2
         for l in P.restrict:
             if l['rule'] == 'opp_atk_add': T['mod']['attack'] = T['mod'].get('attack', 0) + l['n']; P.bump('攻擊被研磨減值')
+    if zone == 'receive':  # 青葉城西 P04-088：對手的接球角色每次登場接球 −1
+        for l in P.restrict:
+            if l['rule'] == 'opp_rcv_add': T['mod']['receive'] = T['mod'].get('receive', 0) + l['n']; P.bump('接球被減值')
     if zone == 'toss':  # 烏野 山口 P01-010／嶋田 P03-054
         for l in P.restrict:
             if l['rule'] == 'opp_toss_add': T['mod']['toss'] = T['mod'].get('toss', 0) + l['n']; P.bump('舉球被山口減值')
