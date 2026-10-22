@@ -49,7 +49,7 @@ MANUAL_BATCH6 = {
     # 影山 P04-002：手牌登場「日向 翔陽」到攻擊區 → 舉球區與攻擊區各付 2 Guts，抽 1，棄牌區的日向 1 張登場、攻擊 +2
     'HV-P04-002': [W('enter', 'toss', ['attack'], ef=dict(name='日向 翔陽', from_hand=True),
                      cost=[dict(type='guts_each', zones=['toss', 'attack'], n=2)],
-                     effects=[DRAW(1), dict(type='drop_to_zone', zone='attack', name='日向 翔陽', then=S('atk', 2))])],
+                     effects=[DRAW(1), dict(type='drop_to_zone', zone='attack', name='日向 翔陽', by='影山 飛雄', then=S('atk', 2))])],
     # 菅原 P04-011：手牌登場非Li的烏野攻擊角色，Event 區 ≤5 張 → 同時多發位置差攻擊〈烏野〉(3)
     'HV-P04-011': [W('enter', 'toss', ['attack'], ef=dict(school='烏野', not_li=True, from_hand=True),
                      conditions=[dict(type='evz_total_le', n=5)], effects=[dict(type='synchro', school='烏野', n=3)])],

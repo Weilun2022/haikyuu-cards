@@ -111,7 +111,7 @@ MANUAL = {
     'HV-P02-083': [dict(  # 我要找人幫忙！！！
         timing='event', phases=['receive'],
         effects=[dict(type='draw', who='self', n=1),
-                 dict(type='guts_to_zone', who='self', zone='receive', filter=dict(position='Li'), max=1)])],
+                 dict(type='guts_to_zone', who='self', zone='receive', filter=dict(position='Li'), max=1, by='助けてもらう!!!')])],
 
     'HV-P03-086': [  # 你的打法倒是挺乖的嘛
         dict(timing='event', phases=['toss'],
@@ -650,3 +650,13 @@ if _os.environ.get('DH_BATCH5', '0') == '1':
 if _os.environ.get('DH_BATCH6', '0') == '1':
     from manual_batch6 import MANUAL_BATCH6, NAME_CHOICE_BATCH6
     MANUAL.update(MANUAL_BATCH6); NAME_CHOICE.update(NAME_CHOICE_BATCH6)
+
+# 混校研究 第 7 批（手牌技／ボール拾い／結束攔網／側邊攔網特召 19 張）：等使用者驗收，DH_BATCH7=1 才啟用
+if _os.environ.get('DH_BATCH7', '0') == '1':
+    from manual_batch7 import MANUAL_BATCH7, NAME_CHOICE_BATCH7
+    MANUAL.update(MANUAL_BATCH7); NAME_CHOICE.update(NAME_CHOICE_BATCH7)
+
+# 混校研究 第 8 批（フェイント／ユース組／對手加牌我抽／事件 14 張）：等使用者驗收，DH_BATCH8=1 才啟用
+if _os.environ.get('DH_BATCH8', '0') == '1':
+    from manual_batch8 import MANUAL_BATCH8, NAME_CHOICE_BATCH8
+    MANUAL.update(MANUAL_BATCH8); NAME_CHOICE.update(NAME_CHOICE_BATCH8)

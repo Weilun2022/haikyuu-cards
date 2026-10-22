@@ -93,11 +93,12 @@ class Player:
         k = 0
         for _ in range(n):
             if self.deck: self.hand.append(self.deck.pop(0)); k += 1
+        if k and self.restrict and any(l['rule'] == 'owner_draw_any' for l in self.restrict): self.owed += k  # 山口 P02-004：對方每加一張（含抽牌），施放者抽 1
         return k
 
     def add_nondraw(self, card):
         self.hand.append(card)
-        if self.restrict and any(l['rule'] == 'owner_draw_nondraw' for l in self.restrict): self.owed += 1  # 天童 P01-057／山口 P02-004：對方每加一張，施放者抽 1
+        if self.restrict and any(l['rule'] in ('owner_draw_nondraw', 'owner_draw_any') for l in self.restrict): self.owed += 1  # 天童 P01-057／山口 P02-004：對方每加一張，施放者抽 1
         if self.trap:  # 二口：對手下回合以抽牌以外方式加入手牌時，削牌庫頂 3 張
             for _ in range(3):
                 if self.deck: self.drop.append(self.deck.pop(0))
@@ -352,6 +353,8 @@ def filt_ok(x, f):
     if f.get('no_skill') and not x.noskill: return False
     if f.get('affiliation') and f['affiliation'] not in x.aff.split('/'): return False
     if f.get('exclude_name') and x.name == f['exclude_name']: return False
+    if f.get('affil') and f['affil'] not in x.affs: return False
+    if f.get('grades') and not any(x.aff.endswith('·%s年' % g) for g in f['grades']): return False
     if f.get('grade') and not x.aff.endswith('·%s年' % f['grade']): return False
     if f.get('name') and x.name != f['name']: return False
     if f.get('positions') and not (x.pos & set(f['positions'])): return False
@@ -464,6 +467,7 @@ def apply_effects(effs, P, T, zone):
                 if not st or (tg.get('school') and tg['school'] not in st[-1].school): continue
                 if tg.get('name') and T['names'].get(z, st[-1].name) != tg['name']: continue
                 if tg.get('grade') and not st[-1].aff.endswith('·%s年' % tg['grade']): continue
+                if tg.get('affil') and tg['affil'] not in st[-1].affs: continue
                 if tg.get('base_eq') is not None and st[-1].b[ZSTAT[z]] != tg['base_eq']: continue  # 追分 P02-090：攔網值剛好 3 的角色
             T['mod'][z] = T['mod'].get(z, 0) + e['n']; T['last_target_zone'] = z
         elif t == 'stat_set':
@@ -558,7 +562,10 @@ def apply_effects(effs, P, T, zone):
                  and alt_ok(T, e['zone'], c) and can_enter(P, e['zone'], c, from_hand=False)]
             if g:
                 best = max(g, key=lambda c: c.b[ZSTAT[e['zone']]])
-                P.zones[e['zone']].remove(best); enter(P, T, e['zone'], best, from_hand=False); P.bump('Guts拉上場')
+                P.zones[e['zone']].remove(best)
+                if e.get('by'): enter(P, T, e['zone'], best, from_hand=False, defer=e['by']); run_deferred(P, T)   # 西谷 P02-005：「助けてもらう!!!」叫出的
+                else: enter(P, T, e['zone'], best, from_hand=False)
+                P.bump('Guts拉上場')
         elif t == 'event_to_hand' and 'name' in e['filter']:  # 侑 D03-001：Event 區指定卡名 1 張回手牌，有拿就手牌 1 張放牌庫底
             cands = [c for c in P.evz if c.name == e['filter']['name']]
             if cands:
@@ -619,7 +626,10 @@ def apply_effects(effs, P, T, zone):
             hs = [c for c in P.drop if c.name == e['name']]
             if not hs: continue
             best = max(hs, key=lambda c: summon_value(P, c, e['zone']))
-            P.drop.remove(best); enter(P, T, e['zone'], best, from_hand=False); P.bump('高球特召')
+            P.drop.remove(best)
+            if e.get('by'): enter(P, T, e['zone'], best, from_hand=False, defer=e['by']); run_deferred(P, T)   # 日向 P04-001：記錄是誰的技能叫出來的
+            else: enter(P, T, e['zone'], best, from_hand=False)
+            P.bump('高球特召')
             if e.get('then'): apply_effects([e['then']], P, T, e['zone'])
         elif t == 'guts_move_to_zone':  # 白布：自己場上任一區的白鳥沢 Guts 1 張移到攻擊區當 Guts
             dst = P.zones[e['to']]
@@ -847,6 +857,11 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
         finally: P.restrict = saved
     else:
         _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
+    if zone == 'receive' and P.auras:  # 松川／千鹿谷／黒川：本回合接球角色登場加值
+        for a in P.auras:
+            if a['on'] == 'receive_enter' and (not a.get('school') or a['school'] in card.school) and (
+                    not a.get('grades') or any(card.aff.endswith('·%s年' % g) for g in a['grades'])):
+                T['mod']['receive'] = T['mod'].get('receive', 0) + a['n']; P.bump('接球登場加值')
     if zone == 'block':  # 川渡 P04-048：對手的「下個回合攔網角色登場就抽牌」
         for l in P.restrict:
             if l['rule'] == 'opp_block_draw' and card.b['blk'] >= l.get('base_ge', 0): P.gift += 1; P.bump('川渡讓對手抽牌')
@@ -854,6 +869,8 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
 
 
 def _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker):
+    T['entering_card'] = card
+    T['entering_zone'] = zone
     T['entering_from_hand'] = from_hand
     T['entering_side'] = as_side_blocker
     T['under'] = under
@@ -1000,6 +1017,17 @@ def cond_ext(c, P, T):
     if t == 'plan_attack_name':
         pa = T.get('plan_attack'); return bool(pa) and pa[1] == c['name']
     if t == 'never': return False
+    if t == 'entering_zone': return T.get('entering_zone') == c['zone']
+    if t == 'offense_below': return cur_stat(P, T, 'toss') + cur_stat(P, T, 'attack') < c['n']  # 佯攻用：比目前進攻值高才用
+    if t == 'evz_paid_ge': return T.get('evz_paid', 0) >= c['n']
+    if t == 'paid_guts_all_affil_pos':  # 星海 P04-076：付的 Guts 全是ユース的 S
+        pg = T.get('paid_guts') or []
+        return bool(pg) and all(c['affil'] in x.affs and c['position'] in x.pos for x in pg)
+    if t == 'opp_evz_phase_ge':  # 溫田 P04-031：對手 Event 區可在這些階段打的卡合計 ≥n 張
+        return sum(1 for e in opp.evz if e.phases & set(c['phases'])) >= c['n']
+    if t == 'no_side_blockers': return not P.zones.get('_side')
+    if t == 'attack_top_base':  # 山本 PR-082：攻擊角色是某校、原本攻擊值剛好 n
+        st = P.zones['attack']; return bool(st) and c['school'] in st[-1].school and st[-1].b['atk'] == c['atk']
     if t == 'backattack_user':  # 古森 P03-028 用：場上或接球區底下有會バックアタック的角色
         cards = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st] + list(P.guts('receive'))
         return any(e['type'] == 'back_attack' for x in cards for w in x.whens for e in w.get('effects', []))
@@ -1042,9 +1070,17 @@ def _ex_pay_hand_pos_to_evz(c, P, T, zone):
     w = next(x for x in P.hand if (not x.ev) and c['pos'] in x.pos); P.hand.remove(w); P.evz.append(w)
 
 
-EXT_COST_CHECK = dict(evz_drop=_ex_chk_evz_drop, guts_name_on_top=_ex_chk_guts_name_on_top,
+def _ex_chk_evz_drop_upto(c, P, T, zone): return sum(1 for e in P.evz if e.ev and evz_match(e, c)) >= 1
+def _ex_pay_evz_drop_upto(c, P, T, zone):
+    k = min(c['n'], sum(1 for e in P.evz if e.ev and evz_match(e, c)))
+    for _ in range(k):
+        w = min([e for e in P.evz if e.ev and evz_match(e, c)], key=event_value); P.evz.remove(w); P.drop.append(w)
+    T['evz_paid'] = k; P.bump('Event區棄置')
+
+
+EXT_COST_CHECK = dict(evz_drop_upto=_ex_chk_evz_drop_upto, evz_drop=_ex_chk_evz_drop, guts_name_on_top=_ex_chk_guts_name_on_top,
                       drop_holder=_ex_chk_drop_holder, hand_pos_to_evz=_ex_chk_hand_pos_to_evz)
-EXT_COST_PAY = dict(evz_drop=_ex_pay_evz_drop, guts_name_on_top=_ex_pay_guts_name_on_top,
+EXT_COST_PAY = dict(evz_drop_upto=_ex_pay_evz_drop_upto, evz_drop=_ex_pay_evz_drop, guts_name_on_top=_ex_pay_guts_name_on_top,
                     drop_holder=_ex_pay_drop_holder, hand_pos_to_evz=_ex_pay_hand_pos_to_evz)
 
 
@@ -1220,7 +1256,32 @@ def fx_draw_or_fetch(e, P, T, zone):
 def fx_on_loss_fetch(e, P, T, zone): pass  # 實際在 play_game 局間處理
 
 
-EXT_EFFECTS = dict(summon_from_guts=fx_summon_from_guts, holder_move=fx_holder_move, holder_to_hand=fx_holder_to_hand,
+def fx_side_self_to_bottom(e, P, T, zone):
+    """青根 P02-037：把這張（側邊攔網）放到牌庫底。"""
+    c = T.get('entering_card'); sd = P.zones.get('_side', [])
+    if c in sd: sd.remove(c); P.deck.append(c); P.bump('青根換手')
+
+
+def fx_feint(e, P, T, zone):
+    """フェイント(N)：回合結束時自己的進攻值變成 N，且對手下個回合不能登場攔網角色。"""
+    T['feint'] = e['n']; P.bump('フェイント')
+
+
+def fx_mill_feint(e, P, T, zone):
+    """東山 P04-043：牌庫頂最多 3 張丟棄；其中事件 1 張→フェイント(4)，2 張以上→フェイント(7)。"""
+    got = [P.deck.pop(0) for _ in range(min(e['n'], len(P.deck)))]
+    P.drop.extend(got); k = sum(1 for x in got if x.ev)
+    if k >= 2: T['feint'] = 7; P.bump('フェイント')
+    elif k == 1: T['feint'] = 4; P.bump('フェイント')
+
+
+def fx_drop_to_evz(e, P, T, zone):
+    cands = [x for x in P.drop if x.ev == (e['filter'].get('category') == 'EVENT') and filt_ok(x, e['filter'])]
+    if cands:
+        w = max(cands, key=event_value); P.drop.remove(w); P.evz.append(w); P.bump('棄牌區放Event區')
+
+
+EXT_EFFECTS = dict(feint=fx_feint, mill_feint=fx_mill_feint, drop_to_evz=fx_drop_to_evz, side_self_to_bottom=fx_side_self_to_bottom, summon_from_guts=fx_summon_from_guts, holder_move=fx_holder_move, holder_to_hand=fx_holder_to_hand,
                    aura_turn=fx_aura_turn, back_attack=fx_back_attack, synchro=fx_synchro, swap_toss=fx_swap_toss,
                    deck_bottom_from_drop=fx_deck_bottom_from_drop, hand_card_enter=fx_hand_card_enter, end_block=fx_end_block,
                    side_summon_drop=fx_side_summon_drop, mill_all_then=fx_mill_all_then, evz_to_hand_n=fx_evz_to_hand_n,
@@ -1296,6 +1357,16 @@ def side_bonus(B, comb):
     return tot
 
 
+def hand_block_boost(B, comb):
+    """規劃用：手牌（不在這組攔網裡）的攔網階段手牌技（blk_boost）可以補多少攔網值。"""
+    tot = 0
+    for c in B.hand:
+        if c in comb or not c.handsk: continue
+        for s in c.handsk:
+            if 'block' in s['phases'] and s.get('blk_boost') and not s.get('once'): tot += s['blk_boost']
+    return tot
+
+
 def flush_when(P, T):
     """攔網組合全部登場後，再依序處理觸發型技能（同時登場）。"""
     q = T.get('defer_when') or []
@@ -1317,8 +1388,10 @@ def use_hand_skills(P, T, phase, zone='receive', auto_only=None):
             if not all(cond_ok(x, P, T) for x in s.get('conditions', []) + s.get('use_if', [])): continue
             T['paid_guts'] = None
             if not cost_pay(s.get('cost', []), P, T, zone): continue
-            P.hand.remove(c)
-            (P.drop if s.get('self_cost', 'drop') == 'drop' else P.evz).append(c)
+            sc = s.get('self_cost', 'drop')
+            if sc != 'none':
+                P.hand.remove(c)
+                (P.drop if sc == 'drop' else P.evz).append(c)
             if s.get('once'): P.used.add(c.name)
             P.bump('手牌技:' + c.no)
             apply_effects(s['effects'], P, T, zone)
@@ -1338,7 +1411,10 @@ def toss_allowed(P, c):
 def event_playable(P, T, ev):
     """事件的「使える」條件（例：今日 何をする？ 要舉球是侑或治）。"""
     if ev.phases & {'toss', 'attack'} and any(l['rule'] == 'no_toss_attack_events' for l in P.restrict): return False  # P01-093：QA 1247
-    return all(cond_ok(c, P, T) for s in ev.skills if not s.get('part_of_same_card') for c in s.get('conditions', []) + s.get('use_if', []))
+    if not all(cond_ok(c, P, T) for s in ev.skills if not s.get('part_of_same_card') for c in s.get('conditions', []) + s.get('use_if', [])): return False
+    for s in ev.skills:  # 事件的代價（ecost）：付得起才能打
+        if s.get('ecost') and not cost_pay(s['ecost'], P.clone(), T, 'receive'): return False
+    return True
 
 
 def play_event(P, T, ev, zone_hint):
@@ -1357,6 +1433,8 @@ def play_event(P, T, ev, zone_hint):
                 tr = s.get('trigger')
                 if s['timing'] == 'trigger' and tr and tr['event'] == 'play_event':
                     T['mod']['toss'] = T['mod'].get('toss', 0) + 1; T['toss_cap'] = 3; P.bump('影山P03-047觸發')
+    for s in ev.skills:
+        if s.get('ecost'): cost_pay(s['ecost'], P, T, zone_hint)
     for s in ev.skills:
         if s.get('part_of_same_card') and any(c['type'] == 'drop_block_char' for c in s.get('cost', [])):
             # P01-091：接不住時才棄置攔網角色換對手攻擊 −1
@@ -1462,7 +1540,8 @@ def block_event_boost(B):
 
 def block_actual(P2, T):
     """攔網區現在實際的攔網值合計：中間攔網（含技能加值）＋側邊攔網的原本攔網值。"""
-    return cur_stat(P2, T, 'block') + sum(x.b['blk'] for x in P2.zones.get('_side', []))
+    sb = T.get('side_blk_set') or {}
+    return cur_stat(P2, T, 'block') + sum(sb.get(id(x), x.b['blk']) for x in P2.zones.get('_side', []))
 
 
 def play_block_events(P2, T, need):
@@ -1484,7 +1563,7 @@ def block_total(B, comb, attacker, restrict, include_adj=True):
         v, need = blk_potential(B, c, attacker, ev_free) if attacker is not None else (c.b['blk'], 0)
         ev_free -= need; pots.append(v)
     adj = sum(l['n'] for l in restrict if l['rule'] == 'center_blocker_blk_add') if include_adj else 0
-    boost = block_event_boost(B) + (side_bonus(B, comb) if attacker is not None else 0)  # 手牌的攔網階段事件（最樂觀估計；真的組合會再驗證）
+    boost = block_event_boost(B) + (side_bonus(B, comb) + hand_block_boost(B, comb) if attacker is not None else 0)  # 手牌的攔網階段事件（最樂觀估計；真的組合會再驗證）
     if any(l['rule'] == 'center_no_blk' for l in restrict):
         i = min(range(len(comb)), key=lambda j: pots[j])
         return sum(pots) - pots[i] + boost, comb[i]
@@ -1568,7 +1647,7 @@ def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
     if aggressive == 'two': return None
     for ev in [e for e in P.hand if e.ev and 'toss' in e.phases]:
         cantrip = any(e['type'] == 'draw' for sk in ev.skills for e in sk['effects'])  # 今日 何をする？：會抽牌的舉球事件一律打
-        if ev in P.hand and (cantrip or ('S' in t.pos and cur_stat(P, T, 'toss') < 2)): play_event(P, T, ev, 'toss')
+        if ev in P.hand and (cantrip or ('S' in t.pos and cur_stat(P, T, 'toss') < 2) or any(sk.get('toss_use') for sk in ev.skills)): play_event(P, T, ev, 'toss')
     if stop_after_toss: return 'TOSSED'
     return attack_part(P, T, a, na, aggressive)
 
@@ -1581,7 +1660,10 @@ def attack_part(P, T, a, na, aggressive):
     if aggressive:
         for ev in sorted([e for e in P.hand if e.ev and 'attack' in e.phases], key=lambda e: e.name != 'オープン攻撃'):
             if ev in P.hand: play_event(P, T, ev, 'attack')
-        if any(c.handsk for c in P.hand): use_hand_skills(P, T, 'attack', 'attack')
+    if any(c.handsk for c in P.hand): use_hand_skills(P, T, 'attack', 'attack')
+    if T.get('feint') is not None:  # フェイント：進攻值固定 N，對手下回合不能登場攔網角色
+        T['locks'].append(dict(rule='max_enter', role='block', max=0, duration='next_opp_turn'))
+        return T['feint']
     return cur_stat(P, T, 'toss') + cur_stat(P, T, 'attack')
 
 
@@ -1624,6 +1706,10 @@ def receive_best(Pd, opp, op_in, src):
     return rec_best
 
 
+def has_end_block(c):
+    return any(s['timing'] == 'on_enter' and 'block' in s.get('zones', []) and any(e['type'] == 'end_block' for e in s['effects']) for s in c.skills)
+
+
 def has_fetch(t):
     return any(e['type'] == 'drop_to_hand' for s in t.skills if s['timing'] == 'on_enter' and 'toss' in s.get('zones', [])
                for e in s['effects'])
@@ -1632,6 +1718,7 @@ def has_fetch(t):
 def draw_phase_events(P, opp, op_in, src):
     """抽牌階段只能打的事件（P03-090）：Event 區有可回收的事件時才打。"""
     T = newT(opp, op_in, src); T['phase'] = 'draw'
+    if any(c.handsk for c in P.hand): use_hand_skills(P, T, 'draw', 'receive')
     for ev in [e for e in P.hand if e.ev and e.phases == {'draw'}]:
         if any(s.get('draw_policy') == 'always' for s in ev.skills):  # 混校批次的抽牌階段事件：條件成立就打
             if ev in P.hand: play_event(P, T, ev, 'draw')
@@ -1705,6 +1792,16 @@ def take_turn(P, opp, op_in, src):
                     best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'onetouch')
             elif c.b['blk'] + adj >= block_need(P.restrict, op_in):
                 consider(P2, T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block1')
+    # 松川／千鹿谷：中間攔網放一張就結束攔網階段，回到自己的抽牌階段（不需要攔得住）
+    if mb >= 1 and not freeball:
+        for c in {x.no: x for x in chars if has_end_block(x) and can_enter(P, 'block', x)}.values():
+            P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = (c,)
+            P2.hand.remove(c); enter(P2, T, 'block', c, from_hand=True)
+            if not T.get('end_block'): continue
+            P2.drop += P2.zones.pop('_side', [])
+            P2.draw(1); draw_phase_events(P2, opp, op_in, src)
+            rb = receive_best(P2, opp, op_in, src)
+            if rb and (best is None or rb[0] > best[0]): best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'endblock')
     blocks.sort(key=lambda cb: (len(cb), sum(keep_value(c) for c in cb)))
     for comb in blocks[:4]:
         P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = comb  # 這條路是靠攔網值合計攔下來
@@ -1792,13 +1889,19 @@ def play_game(cardsA, cardsB, rng, log=None):
                 if res[0] == 'loss' or beats > CFG['max_turns_per_set']:
                     loser = cur; pl[cur].bump('LOSS'); break
                 _, pl[cur], op, src, locks, trap, act = res
-                if pl[cur].gift: pl[other(cur)].draw(pl[cur].gift); pl[cur].gift = 0
+                if pl[cur].gift or pl[cur].owed: pl[other(cur)].draw(pl[cur].gift + pl[cur].owed); pl[cur].gift = pl[cur].owed = 0
                 turns_log.append(dict(set=set_no, beat=beats, who=cur, act=act, op=op))
                 if log is not None:
                     log.append((set_no, beats, cur, act, op, len(pl[cur].hand), len(pl[cur].deck)))
                 pl[other(cur)].pending_restrict, pl[other(cur)].pending_trap = apply_now(locks, pl[other(cur)]), trap
             turns_log.append(dict(set=set_no, beat=beats, who=cur, act='LOSS', op=0))
         winner = other(loser); sets[winner] += 1
+        if any(l['rule'] == 'on_loss_fetch' for l in pl[loser].restrict):  # P04-082：對手 LOSS 時，棄牌區的影山成為舉球區 Guts、日向回手牌
+            W = pl[winner]
+            kg = next((x for x in W.drop if x.name == '影山 飛雄'), None)
+            if kg is not None and W.zones['toss']: W.drop.remove(kg); W.zones['toss'].insert(0, kg); W.bump('P04-082影山成Guts')
+            hn = next((x for x in W.drop if x.name == '日向 翔陽'), None)
+            if hn is not None: W.drop.remove(hn); W.add_nondraw(hn); W.bump('P04-082日向回手')
         if any(l['rule'] == 'owner_draw_to_on_loss' for l in pl[loser].restrict):  # P01-090：對手 LOSS 時抽到 7 張
             n7 = max(l['n'] for l in pl[loser].restrict if l['rule'] == 'owner_draw_to_on_loss')
             k = pl[winner].draw(max(0, n7 - len(pl[winner].hand)))
