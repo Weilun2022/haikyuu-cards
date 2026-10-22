@@ -1,583 +1,619 @@
 {
-  "說明": "雲端 Claude 寫入工作並推到 deck-health 分支後，GitHub Actions（.github/workflows/deck-health-jobs.yml）自動執行還沒完成的工作，每個工作一台機器（4 核），結果推回 results/<工作編號>/（推送失敗時另存為該次執行的 artifact）。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
-  "jobs": [
-    {
-      "id": "J001",
-      "note": "連線與多核心測試：重跑梟谷 A/B/C 方案（舊結果 60.0/60.4/65.8%）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku.json",
-        "fuku_variants.json",
-        2000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 30
-    },
-    {
-      "id": "INARI-001",
-      "note": "稲荷崎定版大樣本：v2／v4b／v4b+治P03-041×1 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v2.json",
-        "ina_final_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "INARI-002",
-      "note": "稲荷崎定版大樣本：v4b、v4b+治P03-041×1 直接對打 v2（各 20000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "ina_v2.json",
-        "ina_final_h2h.json",
-        20000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "SHIRA-001",
-      "note": "白鳥沢定案 換卡篩選：5 張無技能白鳥沢卡（川西、由良、五色×3）各換掉定案版每一種卡（2 張，單張的換 1），對定案版直接對打",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "shira_final.json",
-        "shira_swap1.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "SHIRA-002",
-      "note": "同 SHIRA-001 的 76 個方案，對烏野、梟谷 V2、梟谷目前版、稲荷崎 v4b",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "shira_final.json",
-        "shira_swap1.json",
-        "deck.json,fuku_op8_v2.json,fuku_B_045_z.json,ina_v4b.json",
-        3000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 120
-    },
-    {
-      "id": "FUKU-001",
-      "note": "梟谷 PR-026 版換卡篩選：26 種梟谷卡各換掉每一種卡 2 張，共 300 方案＋對照，對 PR-026 版直接對打",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_swap2.json",
-        3000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 120,
-      "where": "local"
-    },
-    {
-      "id": "FUKU-002",
-      "note": "FUKU-001 逾時沒跑完的 42 個方案（同設定 3000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_swap2_rest.json",
-        3000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 90,
-      "where": "local"
-    },
-    {
-      "id": "FUKU-003",
-      "note": "FUKU-001 前 13 名複驗：新種子、各 6000 場對 PR-026 版",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_top1.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "1000"
-      },
-      "workers": 16,
-      "timeout_min": 90,
-      "where": "local"
-    },
-    {
-      "id": "FUKU-004",
-      "note": "FUKU-001 前 13 名 vs 烏野（各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_top1.json",
-        "deck.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "FUKU-005",
-      "note": "FUKU-001 前 13 名 vs 白鳥沢定案（各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_top1.json",
-        "shira_final.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "FUKU-006",
-      "note": "FUKU-001 前 13 名 vs 稲荷崎 v4b（各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_top1.json",
-        "ina_v4b.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "FUKU-007",
-      "note": "梟谷組合方案（A 猿杙→PR-026、B P01-044→P01-043、C、D 及組合）對 PR-026 版，新種子各 6000 場",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_combo1.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "2000"
-      },
-      "workers": 16,
-      "timeout_min": 60,
-      "where": "local"
-    },
-    {
-      "id": "FUKU-008",
-      "note": "梟谷組合方案 vs 烏野（各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_combo1.json",
-        "deck.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "FUKU-009",
-      "note": "梟谷組合方案 vs 白鳥沢定案（各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_combo1.json",
-        "shira_final.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "FUKU-010",
-      "note": "梟谷組合方案 vs 稲荷崎 v4b（各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_combo1.json",
-        "ina_v4b.json",
-        6000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 60
-    },
-    {
-      "id": "FUKU-011",
-      "note": "梟谷定案確認：A＋B、A＋B＋D 對 PR-026 版（新種子，各 6000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_confirm.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "3000"
-      },
-      "workers": 16,
-      "timeout_min": 30,
-      "where": "local"
-    },
-    {
-      "id": "FUKU-012",
-      "note": "梟谷定案確認：A＋B＋D 直接對打 A＋B（各 6000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "fuku_ab.json",
-        "fuku_ab_d.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "3000"
-      },
-      "workers": 16,
-      "timeout_min": 30,
-      "where": "local"
-    },
-    {
-      "id": "FUKU-013",
-      "note": "梟谷定案確認：A＋B、A＋B＋D vs 烏野（新種子，各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_confirm.json",
-        "deck.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "3000"
-      },
-      "workers": 16,
-      "timeout_min": 40
-    },
-    {
-      "id": "FUKU-014",
-      "note": "梟谷定案確認：A＋B、A＋B＋D vs 白鳥沢定案（新種子，各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_confirm.json",
-        "shira_final.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "3000"
-      },
-      "workers": 16,
-      "timeout_min": 40
-    },
-    {
-      "id": "FUKU-015",
-      "note": "梟谷定案確認：A＋B、A＋B＋D vs 稲荷崎 v4b（新種子，各 6000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "fuku_v026.json",
-        "fuku_confirm.json",
-        "ina_v4b.json",
-        6000,
-        "{out}"
-      ],
-      "env": {
-        "DH_SEED_OFFSET": "3000"
-      },
-      "workers": 16,
-      "timeout_min": 40
-    },
-    {
-      "id": "INARI-003",
-      "note": "稲荷崎 v5 拆解 A：v4b 只改赤木（−P03-046×3 ＋P02-034×2 ＋D03-011×1）直接對打 v4b（20000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_v5A_h2h.json",
-        20000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 30,
-      "where": "local"
-    },
-    {
-      "id": "INARI-004",
-      "note": "稲荷崎 v5 拆解 A：v4b 與 A 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_v5A_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 30,
-      "where": "local"
-    },
-    {
-      "id": "INARI-005",
-      "note": "稲荷崎 v5 拆解：B2（循環、赤木不動、どん6）、C2（v5 赤木不動）、C（v5 原樣）直接對打 v4b（各 20000 場）",
-      "script": "compare2",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_v5BC_h2h.json",
-        20000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 30,
-      "where": "local"
-    },
-    {
-      "id": "INARI-006",
-      "note": "稲荷崎 v5 拆解：B2、C2、C 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_v5BC_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 40,
-      "where": "local"
-    },
-    {
-      "id": "INARI-007",
-      "note": "稲荷崎降速：v4b、D03-002 只在致命時付／永遠不付、D03-002×3→治 P01-064×3，對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_slow_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 40,
-      "where": "local"
-    },
-    {
-      "id": "INARI-008",
-      "note": "（INARI-007 標 local 20 分鐘無結果，改交 GitHub）稲荷崎降速：v4b、D03-002 只在致命時付／永遠不付、D03-002×3→治 P01-064×3，對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_slow_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 40
-    },
-    {
-      "id": "INARI-009",
-      "note": "稲荷崎 vs 冠軍：v4b、v4b(D03-002致命才付)、v2、v5 對冠軍、烏野、梟谷V2、白鳥沢（各 12000 場；手坑改為可多張後重測）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_vs_champ_var.json",
-        "champ.json,deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 40,
-      "where": "local"
-    },
-    {
-      "id": "INARI-010",
-      "note": "冠軍稲荷崎對烏野、梟谷V2、白鳥沢（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "champ.json",
-        "champ_self_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20,
-      "where": "local"
-    },
-    {
-      "id": "INARI-011",
-      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對冠軍（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_vs_champ_var.json",
-        "champ.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-012",
-      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對烏野（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_vs_champ_var.json",
-        "deck.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-013",
-      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對梟谷V2（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_vs_champ_var.json",
-        "fuku_op8_v2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-014",
-      "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對白鳥沢（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_vs_champ_var.json",
-        "shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-015",
-      "note": "（INARI-010 改交 GitHub）冠軍對烏野、梟谷V2、白鳥沢（各 12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "champ.json",
-        "champ_self_var.json",
-        "deck.json,fuku_op8_v2.json,shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-016",
-      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對冠軍（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_policy_var.json",
-        "champ.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-017",
-      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對烏野（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_policy_var.json",
-        "deck.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-018",
-      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對梟谷V2（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_policy_var.json",
-        "fuku_op8_v2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    },
-    {
-      "id": "INARI-019",
-      "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對白鳥沢（12000 場）",
-      "script": "gauntlet",
-      "args": [
-        "{cards}",
-        "ina_v4b.json",
-        "ina_policy_var.json",
-        "shira_067x2.json",
-        12000,
-        "{out}"
-      ],
-      "workers": 16,
-      "timeout_min": 20
-    }
-  ]
+ "說明": "雲端 Claude 寫入工作並推到 deck-health 分支後，GitHub Actions（.github/workflows/deck-health-jobs.yml）自動執行還沒完成的工作，每個工作一台機器（4 核），結果推回 results/<工作編號>/（推送失敗時另存為該次執行的 artifact）。參數只能是數字、deck_health 內的檔名、{cards}（卡片資料）、{out}（結果檔）。",
+ "jobs": [
+  {
+   "id": "J001",
+   "note": "連線與多核心測試：重跑梟谷 A/B/C 方案（舊結果 60.0/60.4/65.8%）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku.json",
+    "fuku_variants.json",
+    2000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 30
+  },
+  {
+   "id": "INARI-001",
+   "note": "稲荷崎定版大樣本：v2／v4b／v4b+治P03-041×1 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v2.json",
+    "ina_final_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "INARI-002",
+   "note": "稲荷崎定版大樣本：v4b、v4b+治P03-041×1 直接對打 v2（各 20000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "ina_v2.json",
+    "ina_final_h2h.json",
+    20000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "SHIRA-001",
+   "note": "白鳥沢定案 換卡篩選：5 張無技能白鳥沢卡（川西、由良、五色×3）各換掉定案版每一種卡（2 張，單張的換 1），對定案版直接對打",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "shira_final.json",
+    "shira_swap1.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "SHIRA-002",
+   "note": "同 SHIRA-001 的 76 個方案，對烏野、梟谷 V2、梟谷目前版、稲荷崎 v4b",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "shira_final.json",
+    "shira_swap1.json",
+    "deck.json,fuku_op8_v2.json,fuku_B_045_z.json,ina_v4b.json",
+    3000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 120
+  },
+  {
+   "id": "FUKU-001",
+   "note": "梟谷 PR-026 版換卡篩選：26 種梟谷卡各換掉每一種卡 2 張，共 300 方案＋對照，對 PR-026 版直接對打",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_swap2.json",
+    3000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 120,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-002",
+   "note": "FUKU-001 逾時沒跑完的 42 個方案（同設定 3000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_swap2_rest.json",
+    3000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 90,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-003",
+   "note": "FUKU-001 前 13 名複驗：新種子、各 6000 場對 PR-026 版",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "1000"
+   },
+   "workers": 16,
+   "timeout_min": 90,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-004",
+   "note": "FUKU-001 前 13 名 vs 烏野（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    "deck.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-005",
+   "note": "FUKU-001 前 13 名 vs 白鳥沢定案（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    "shira_final.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-006",
+   "note": "FUKU-001 前 13 名 vs 稲荷崎 v4b（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_top1.json",
+    "ina_v4b.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-007",
+   "note": "梟谷組合方案（A 猿杙→PR-026、B P01-044→P01-043、C、D 及組合）對 PR-026 版，新種子各 6000 場",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "2000"
+   },
+   "workers": 16,
+   "timeout_min": 60,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-008",
+   "note": "梟谷組合方案 vs 烏野（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    "deck.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-009",
+   "note": "梟谷組合方案 vs 白鳥沢定案（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    "shira_final.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-010",
+   "note": "梟谷組合方案 vs 稲荷崎 v4b（各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_combo1.json",
+    "ina_v4b.json",
+    6000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 60
+  },
+  {
+   "id": "FUKU-011",
+   "note": "梟谷定案確認：A＋B、A＋B＋D 對 PR-026 版（新種子，各 6000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-012",
+   "note": "梟谷定案確認：A＋B＋D 直接對打 A＋B（各 6000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "fuku_ab.json",
+    "fuku_ab_d.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "FUKU-013",
+   "note": "梟谷定案確認：A＋B、A＋B＋D vs 烏野（新種子，各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    "deck.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 40
+  },
+  {
+   "id": "FUKU-014",
+   "note": "梟谷定案確認：A＋B、A＋B＋D vs 白鳥沢定案（新種子，各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    "shira_final.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 40
+  },
+  {
+   "id": "FUKU-015",
+   "note": "梟谷定案確認：A＋B、A＋B＋D vs 稲荷崎 v4b（新種子，各 6000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "fuku_v026.json",
+    "fuku_confirm.json",
+    "ina_v4b.json",
+    6000,
+    "{out}"
+   ],
+   "env": {
+    "DH_SEED_OFFSET": "3000"
+   },
+   "workers": 16,
+   "timeout_min": 40
+  },
+  {
+   "id": "INARI-003",
+   "note": "稲荷崎 v5 拆解 A：v4b 只改赤木（−P03-046×3 ＋P02-034×2 ＋D03-011×1）直接對打 v4b（20000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_v5A_h2h.json",
+    20000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "INARI-004",
+   "note": "稲荷崎 v5 拆解 A：v4b 與 A 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_v5A_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "INARI-005",
+   "note": "稲荷崎 v5 拆解：B2（循環、赤木不動、どん6）、C2（v5 赤木不動）、C（v5 原樣）直接對打 v4b（各 20000 場）",
+   "script": "compare2",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_v5BC_h2h.json",
+    20000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 30,
+   "where": "local"
+  },
+  {
+   "id": "INARI-006",
+   "note": "稲荷崎 v5 拆解：B2、C2、C 對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_v5BC_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 40,
+   "where": "local"
+  },
+  {
+   "id": "INARI-007",
+   "note": "稲荷崎降速：v4b、D03-002 只在致命時付／永遠不付、D03-002×3→治 P01-064×3，對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_slow_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 40,
+   "where": "local"
+  },
+  {
+   "id": "INARI-008",
+   "note": "（INARI-007 標 local 20 分鐘無結果，改交 GitHub）稲荷崎降速：v4b、D03-002 只在致命時付／永遠不付、D03-002×3→治 P01-064×3，對烏野、梟谷V2、白鳥沢建議版（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_slow_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 40
+  },
+  {
+   "id": "INARI-009",
+   "note": "稲荷崎 vs 冠軍：v4b、v4b(D03-002致命才付)、v2、v5 對冠軍、烏野、梟谷V2、白鳥沢（各 12000 場；手坑改為可多張後重測）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_vs_champ_var.json",
+    "champ.json,deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 40,
+   "where": "local"
+  },
+  {
+   "id": "INARI-010",
+   "note": "冠軍稲荷崎對烏野、梟谷V2、白鳥沢（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "champ.json",
+    "champ_self_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20,
+   "where": "local"
+  },
+  {
+   "id": "INARI-011",
+   "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對冠軍（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_vs_champ_var.json",
+    "champ.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-012",
+   "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對烏野（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_vs_champ_var.json",
+    "deck.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-013",
+   "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對梟谷V2（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_vs_champ_var.json",
+    "fuku_op8_v2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-014",
+   "note": "（INARI-009 本機 20 分鐘無結果，改交 GitHub，按對手拆開）v4b、致命才付、v2、v5 對白鳥沢（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_vs_champ_var.json",
+    "shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-015",
+   "note": "（INARI-010 改交 GitHub）冠軍對烏野、梟谷V2、白鳥沢（各 12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "champ.json",
+    "champ_self_var.json",
+    "deck.json,fuku_op8_v2.json,shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-016",
+   "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對冠軍（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_policy_var.json",
+    "champ.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-017",
+   "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對烏野（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_policy_var.json",
+    "deck.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-018",
+   "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對梟谷V2（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_policy_var.json",
+    "fuku_op8_v2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "INARI-019",
+   "note": "D03-002 四種打法（現行／致命才付／會被蓋掉就不付／兩者都要）v4b 對白鳥沢（12000 場）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "ina_v4b.json",
+    "ina_policy_var.json",
+    "shira_067x2.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 20
+  },
+  {
+   "id": "MIX-001",
+   "note": "混校基準勝率（全部結構化後；第5～8批以環境變數開啟）：mixed_user 對烏野、梟谷V2、白鳥沢、稲荷崎（各 12000 場）",
+   "env": {
+    "DH_BATCH5": "1",
+    "DH_BATCH6": "1",
+    "DH_BATCH7": "1",
+    "DH_BATCH8": "1"
+   },
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "mixed_user.json",
+    "mixed_base_var.json",
+    "deck.json,fuku_op8_v2.json,shira_final.json,ina_v4b.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 90
+  },
+  {
+   "id": "MIX-002",
+   "note": "對照組：同上，但只開預設已驗收的第1～4批（看第5～8批結構化對 mixed_user 的影響）",
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "mixed_user.json",
+    "mixed_base_var.json",
+    "deck.json,fuku_op8_v2.json,shira_final.json,ina_v4b.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 90
+  }
+ ]
 }
