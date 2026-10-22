@@ -645,3 +645,8 @@ if _os.environ.get('DH_BATCH4', '1') == '1':
 if _os.environ.get('DH_BATCH5', '0') == '1':
     from manual_batch5 import MANUAL_BATCH5, NAME_CHOICE_BATCH5
     MANUAL.update(MANUAL_BATCH5); NAME_CHOICE.update(NAME_CHOICE_BATCH5)
+
+# 混校研究 第 6 批（觸發型技能 23 張）：等使用者驗收，DH_BATCH6=1 才啟用
+if _os.environ.get('DH_BATCH6', '0') == '1':
+    from manual_batch6 import MANUAL_BATCH6, NAME_CHOICE_BATCH6
+    MANUAL.update(MANUAL_BATCH6); NAME_CHOICE.update(NAME_CHOICE_BATCH6)

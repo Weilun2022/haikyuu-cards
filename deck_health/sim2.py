@@ -83,6 +83,7 @@ class Player:
         self.zones = {z: [] for z in ZSTAT}
         self.pending_restrict, self.pending_trap = [], False   # 對手施加、在我下一回合生效
         self.restrict, self.trap = [], False                   # 本回合生效中
+        self.gift = 0   # 我方技能讓對手要抽的張數（川渡 P04-048）；回合結束時轉給對手
         self.auras, self.used, self.owed = [], set(), 0        # 本回合持續效果（每次登場加值）／本回合已用的ターン1／對手欠我抽的張數
         self.stats = {}
 
@@ -117,7 +118,7 @@ class Player:
         o.zones = {k: v[:] for k, v in self.zones.items()}
         o.pending_restrict = self.pending_restrict[:]; o.pending_trap = self.pending_trap
         o.restrict = self.restrict[:]; o.trap = self.trap
-        o.auras = [dict(a) for a in self.auras]; o.used = set(self.used); o.owed = self.owed
+        o.gift = self.gift; o.auras = [dict(a) for a in self.auras]; o.used = set(self.used); o.owed = self.owed
         o.stats = dict(self.stats)
         return o
 
@@ -838,7 +839,17 @@ def run_deferred(P, T):
 
 
 def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
-    _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
+    prot = (zone == 'attack' and under is not None and not as_side_blocker and any(
+        w.get('protect') and ef_ok(card, nm, w.get('ef', {})) for w in under.whens))  # 岩泉 P04-021：疊在他上面的青葉城西角色不被減值
+    if prot:
+        saved = P.restrict; P.restrict = [l for l in saved if l['rule'] != 'opp_atk_add']; P.bump('岩泉保護')
+        try: _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
+        finally: P.restrict = saved
+    else:
+        _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
+    if zone == 'block':  # 川渡 P04-048：對手的「下個回合攔網角色登場就抽牌」
+        for l in P.restrict:
+            if l['rule'] == 'opp_block_draw' and card.b['blk'] >= l.get('base_ge', 0): P.gift += 1; P.bump('川渡讓對手抽牌')
     fire_when(P, T, zone, card, from_hand, under, as_side_blocker, nm)
 
 
@@ -989,6 +1000,9 @@ def cond_ext(c, P, T):
     if t == 'plan_attack_name':
         pa = T.get('plan_attack'); return bool(pa) and pa[1] == c['name']
     if t == 'never': return False
+    if t == 'backattack_user':  # 古森 P03-028 用：場上或接球區底下有會バックアタック的角色
+        cards = [st[-1] for z, st in P.zones.items() if z in ZSTAT and st] + list(P.guts('receive'))
+        return any(e['type'] == 'back_attack' for x in cards for w in x.whens for e in w.get('effects', []))
     if t == 'side_slot_free':  # 側邊攔網還有位子，且攔網區沒有同名角色
         return len(P.zones.get('_side', [])) < 2 and c['name'] not in block_area_names(P, T) and (
             len(block_area_names(P, T)) < 3)
@@ -1008,7 +1022,8 @@ def _ex_pay_evz_drop(c, P, T, zone):
 
 
 def _ex_chk_guts_name_on_top(c, P, T, zone):
-    return any((not x.ev) and x.name == c['name'] for x in P.guts(c['zone']))
+    st = P.zones[c['zone']]; k = ZSTAT[c['zone']]
+    return any((not x.ev) and x.name == c['name'] and (not c.get('not_worse') or (st and x.b[k] >= st[-1].b[k])) for x in P.guts(c['zone']))
 def _ex_pay_guts_name_on_top(c, P, T, zone):
     g = next(x for x in P.guts(c['zone']) if (not x.ev) and x.name == c['name'])
     P.zones[c['zone']].remove(g); P.zones[c['zone']].append(g)  # 疊到最上面成為該區的角色（不是登場，不發動登場技能）
@@ -1062,7 +1077,9 @@ def fx_holder_move(e, P, T, zone):
         if not can_enter(P, 'block', h, from_hand=False): return
     elif not alt_ok(T, to, h) or not can_enter(P, to, h, from_hand=False): return
     P.zones[hz].pop()
+    keep = T['names'].get('block')
     enter(P, T, to, h, False, as_side_blocker=side, name=h.name if side else choose_name(T, to, h))
+    if side and keep is not None: T['names']['block'] = keep   # 側邊攔網不改變「中間攔網」的名字
     P.bump('觸發移動:' + h.no)
     if e.get('then'): apply_effects(e['then'], P, T, to)
 
@@ -1156,7 +1173,9 @@ def fx_side_summon_drop(e, P, T, zone):
         if not cands: continue
         w = max(cands, key=lambda x: x.b['blk'])
         P.drop.remove(w)
+        keep = T['names'].get('block')
         enter(P, T, 'block', w, False, as_side_blocker=True, name=w.name, defer=e.get('by', '__side__'))
+        if keep is not None: T['names']['block'] = keep
         if e.get('set_blk') is not None: T.setdefault('side_blk_set', {})[id(w)] = e['set_blk']
         done += 1
     run_deferred(P, T)
@@ -1245,6 +1264,38 @@ def fire_when(P, T, zone, card, from_hand, under, side, nm):
     T['when_depth'] = depth
 
 
+def fire_event_when(P, T, ev):
+    """「自分の○○がプレイされた時」型：場上角色的 when(event_play) 技能。"""
+    saved = {k: T.get(k) for k in ('trig_zone', 'trig_card', 'trig_hz', 'trig_holder')}
+    for hz, st in list(P.zones.items()):
+        if hz not in ZSTAT or not st or not st[-1].whens: continue
+        h = st[-1]
+        for s in h.whens:
+            if s['ev'] != 'event_play' or s.get('holder') != hz or s.get('ename') != ev.name: continue
+            if not P.zones[hz] or P.zones[hz][-1] is not h: continue
+            T['trig_zone'], T['trig_card'], T['trig_hz'], T['trig_holder'] = None, None, hz, h
+            if not all(cond_ok(c, P, T) for c in s.get('conditions', []) + s.get('use_if', [])): continue
+            T['paid_guts'] = None
+            if not cost_pay(s.get('cost', []), P, T, hz): continue
+            P.bump('觸發:' + h.no); apply_effects(s['effects'], P, T, hz)
+    for k, v in saved.items(): T[k] = v
+
+
+def side_bonus(B, comb):
+    """規劃用：這組攔網登場後，場上攻擊區的 D02-004 灰羽／P03-044 角名 之類（blk_bonus）可以再叫一個側邊攔網，估計多出來的攔網值。"""
+    if not comb or len(comb) >= 3: return 0
+    st = B.zones['attack']
+    if not st or not st[-1].whens: return 0
+    h = st[-1]; tot = 0; names = {c.name for c in comb}
+    for s in h.whens:
+        if not s.get('blk_bonus') or h.name in names: continue
+        if not any(ef_ok(c, c.name, s.get('ef', {})) for c in comb): continue
+        if any(co['type'] == 'guts' and len(st) - 1 < co['n'] for co in s.get('cost', [])): continue
+        if any(co['type'] == 'discard_hand' and len(B.hand) - len(comb) < co['n'] for co in s.get('cost', [])): continue
+        tot = max(tot, h.b['blk'])
+    return tot
+
+
 def flush_when(P, T):
     """攔網組合全部登場後，再依序處理觸發型技能（同時登場）。"""
     q = T.get('defer_when') or []
@@ -1323,6 +1374,7 @@ def play_event(P, T, ev, zone_hint):
         run_deferred(P, T)
         T['want_hinata'] = False
     P.bump('事件:' + ev.no)
+    fire_event_when(P, T, ev)
 
 
 def cur_stat(P, T, zone):
@@ -1432,7 +1484,7 @@ def block_total(B, comb, attacker, restrict, include_adj=True):
         v, need = blk_potential(B, c, attacker, ev_free) if attacker is not None else (c.b['blk'], 0)
         ev_free -= need; pots.append(v)
     adj = sum(l['n'] for l in restrict if l['rule'] == 'center_blocker_blk_add') if include_adj else 0
-    boost = block_event_boost(B)  # 手牌的攔網階段事件（最樂觀估計；真的組合會再驗證）
+    boost = block_event_boost(B) + (side_bonus(B, comb) if attacker is not None else 0)  # 手牌的攔網階段事件（最樂觀估計；真的組合會再驗證）
     if any(l['rule'] == 'center_no_blk' for l in restrict):
         i = min(range(len(comb)), key=lambda j: pots[j])
         return sum(pots) - pots[i] + boost, comb[i]
@@ -1740,6 +1792,7 @@ def play_game(cardsA, cardsB, rng, log=None):
                 if res[0] == 'loss' or beats > CFG['max_turns_per_set']:
                     loser = cur; pl[cur].bump('LOSS'); break
                 _, pl[cur], op, src, locks, trap, act = res
+                if pl[cur].gift: pl[other(cur)].draw(pl[cur].gift); pl[cur].gift = 0
                 turns_log.append(dict(set=set_no, beat=beats, who=cur, act=act, op=op))
                 if log is not None:
                     log.append((set_no, beats, cur, act, op, len(pl[cur].hand), len(pl[cur].deck)))
