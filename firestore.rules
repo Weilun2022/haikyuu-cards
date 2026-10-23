@@ -1,9 +1,10 @@
 rules_version = '2';
 
-// ⚠️ 這份檔案同時是 `firebase.json` 的 firestore.rules 部署來源，但目前
-// 只在本地 emulator 用過（`firebase emulators:start`/`emulators:exec`），
-// **從未 deploy 到正式的 haikyuu-cards-cloud 專案**。是否要部署、何時部署，
-// 由使用者自行決定並親自執行，不要自動跑 `firebase deploy --only firestore`。
+// 這份檔案是 `firebase.json` 的 firestore.rules 部署來源。
+// 2026-10-23 使用者已親自把這份規則 deploy 到正式的 haikyuu-cards-cloud 專案
+// （含下面的管理者唯讀規則），正式環境不再只有 emulator 用過的版本。
+// 往後修改這個檔案 ≠ 正式環境跟著改：部署一律由使用者自行決定並親自執行，
+// agent 不要自動跑 `firebase deploy --only firestore`。
 service cloud.firestore {
   match /databases/{database}/documents {
 
