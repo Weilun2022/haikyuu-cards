@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /
-Disallow: /admin.html
-Disallow: /order-status.html
+
+# 不公開的頁面（小賣部後台、牌組分析、訂單查詢）不列在這裡：
+# robots.txt 是公開檔案，列出路徑等於把網址告訴所有人。
+# 這些頁面各自用 <meta name="robots" content="noindex, nofollow"> 擋搜尋引擎收錄。
 
 Sitemap: https://weilun2022.github.io/haikyuu-cards/sitemap.xml

@@ -26,6 +26,14 @@ firebase emulators:exec --only firestore "npm --prefix functions run test:emulat
 firebase emulators:exec --only firestore "npm --prefix functions run test:rules"
 ```
 
+管理者唯讀檢視的規則測試（`functions/ana-rules.js`：只有管理者 email 能用 `collectionGroup('decks')` 讀所有帳號的牌組，且不能寫入、一般使用者權限不被放寬）：
+
+```bash
+firebase emulators:exec --only firestore "npm --prefix functions run test:ana-rules"
+```
+
+管理者檢視頁是 `ana.html`（純唯讀，不放在網站導覽裡，`noindex`），用管理者 Google 帳號登入後一次載入所有帳號的牌組；改規則時務必連同上面的測試一起跑。
+
 `firebase emulators:exec` 會自動啟動 emulator、注入對應的環境變數、跑完指定指令後自動關閉 emulator，不用手動先 `emulators:start` 再另開一個終端機跑測試。
 
 之後要幫別的規則路徑或整合場景寫測試，都可以照 `functions/firestore-emulator-smoke.js`／`functions/school-popularity-rules.js` 的寫法（`@firebase/rules-unit-testing` 的 `initializeTestEnvironment`）延伸，不需要重新摸索怎麼接上 emulator。

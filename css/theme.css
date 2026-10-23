@@ -30,6 +30,15 @@
   --warning: #B86B00;
   --danger: #C63D3D;
   --info: #2D6FA3;
+  /* 牌組用途色（自由／接球／舉球／攻擊＋事件）。色值跟 index.html 牌組編輯器的 COLOR_TAGS
+     一致，玩家在編輯器看到什麼顏色，管理頁的統計就該是什麼顏色。學校色票那條「不放共用檔」
+     的理由在這裡不成立：用途色是固定的 4+1 個鍵，兩邊用的是同一組。
+     這幾個色對白字的對比度都不到 4.5:1（黃色只有 1.8:1），所以上面的字一律用 --text。 */
+  --use-free: #888888;
+  --use-receive: #3b82f6;
+  --use-set: #22c55e;
+  --use-attack: #ef4444;
+  --use-event: #eab308;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
