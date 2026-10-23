@@ -1,6 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /admin.html
+Disallow: /admin-decks.html
 Disallow: /order-status.html
 
 Sitemap: https://weilun2022.github.io/haikyuu-cards/sitemap.xml
