@@ -1,7 +1,11 @@
 # 牌組分析面板：實作計畫
 
-狀態：**規劃完成，尚未實作**。規劃日期 2026-10-23。
+狀態：**步驟 1~5 已實作（2026-10-23），步驟 6 等 B 線交付**。規劃日期 2026-10-23。
 這份文件是 `/clear` 後的接手入口，包含所有已談定的規格與已查證的事實。
+
+實作落點：`js/deck-fingerprint.js`、`js/deck-stats-model.js`（各自的 `.test.js` 共 64 項，
+`cd js && npm test`）、`js/admin-decks-analysis.js`（畫面層）、`js/admin-dom.js`（共用 DOM 小工具）、
+`admin-decks.html` 的「分析面板」分頁。`js/admin-decks-model.js` 的預設牌組判定已改用 `dk_quick` ID。
 
 ## 背景
 
@@ -55,6 +59,10 @@
 
 牌名、用途色、圖片路徑不納入。
 
+`mixed_user.json` 在兩個 checkout 與 `deck_health/` 都找不到，牌表內容無從重建，
+所以 `js/deck-fingerprint.test.js` 內嵌的是其餘五組向量（規格範例 + 四副研究端實際牌表，
+雜湊全部對上）。要補這一組的話需要研究端重新提供那副 28 種卡的牌表。
+
 **測試向量**（測試要內嵌 fixture，不依賴檔案路徑）：
 
 | 案例 | sha1 |
@@ -62,7 +70,7 @@
 | `[["HV-P01-001",3],["HV-P01-002",2]]` | `75deb4dd22372e7b32fac38eef145c9e305ea344`（兩端獨立驗算吻合） |
 | `ina_v4b.json` 40張/12種 | `b2ab9432cf20d535ff3a383e7b58913cc17721db` |
 | `deck.json` 40張/20種 | `8426025b5d97b70838d4b628494b2c4d2ac16b27` |
-| `mixed_user.json` 40張/28種 | `3429d93def91998b85a1eb44b42d0441657ea187` |
+| `mixed_user.json` 40張/28種 | `3429d93def91998b85a1eb44b42d0441657ea187`（**牌表已佚失**，見下） |
 | `fuku_op8_v2.json` 40張/12種 | `9d754d3cea932806efc2a7ebf87caf5e83ba20a7` |
 | `shira_final.json` 40張/15種 | `7705ed174e05eb0d123184d31df55799f5b386d1` |
 

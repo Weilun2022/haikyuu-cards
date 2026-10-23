@@ -10,6 +10,9 @@ import { app } from './cloud-sync.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
 import { getFirestore, collectionGroup, getDocs, query } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
 import { groupByAccount, filterDecks, summarizeDeck, findDeckHits, isAdminUser, cardCount } from './admin-decks-model.js';
+import { indexCards, normalizeDeck, selectCohort, aggregate } from './deck-stats-model.js';
+import { renderAnalysis } from './admin-decks-analysis.js';
+import { h, fmtDate, fmtTime } from './admin-dom.js';
 
 const ADMIN_EMAIL = 'evilscheme2012@gmail.com';
 
@@ -23,19 +26,14 @@ for (const c of (typeof CARDS_DATA !== 'undefined' ? CARDS_DATA.cards : [])) car
 let accounts = [];
 let selUid = null;
 let selDeckId = null;
-
-function h(tag, props = {}, ...kids) {
-  const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (k === 'class') el.className = v;
-    else if (k === 'on') for (const [ev, fn] of Object.entries(v)) el.addEventListener(ev, fn);
-    else el.setAttribute(k, v);
-  }
-  for (const kid of kids.flat()) if (kid != null) el.append(kid);
-  return el;
-}
-
-const fmtDate = ms => ms ? new Date(ms).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' }) : '—';
+let rawDocs = [];
+let loadedAt = 0;
+let tab = 'browse';
+// 分析面板的運算結果（全量算一次就夠，切分頁不重算）。重新整理資料時清掉。
+let analysis = null;
+// 面板內的 UI 選擇（選了哪一校、哪一副牌、品質清單看哪一欄），重畫時沿用。
+const analysisState = { schoolWeighted: true };
+const cardsIndex = indexCards(typeof CARDS_DATA !== 'undefined' ? CARDS_DATA.cards : []);
 
 function showGate(text, isErr = false) {
   $('app').hidden = true;
@@ -57,18 +55,53 @@ function filters() {
 async function loadAll() {
   $('status').textContent = '讀取中…';
   const snap = await getDocs(query(collectionGroup(db, 'decks')));
-  const docs = snap.docs.map(d => ({
+  rawDocs = snap.docs.map(d => ({
     ...d.data(),
     id: d.id,
     // 以文件路徑上的 uid 為準，不信文件內可自填的 ownerUid
     ownerUid: d.ref.parent.parent?.id || d.data().ownerUid,
   }));
-  accounts = groupByAccount(docs);
-  $('status').textContent = `${accounts.length} 個帳號、${docs.length} 份牌組文件`;
+  accounts = groupByAccount(rawDocs);
+  loadedAt = Date.now();
+  analysis = null;
+  $('status').textContent = `${accounts.length} 個帳號、${rawDocs.length} 份牌組文件`;
+  $('loaded-at').textContent = `資料讀取於 ${fmtTime(loadedAt)}`;
+  $('data-note').textContent = `資料讀取於 ${fmtTime(loadedAt)}，之後不會自動更新——要看最新狀態請按「重新整理」。`
+    + '玩家刪除或清空牌組不會自動同步到雲端（要玩家自己按「🔄 立即同步」），'
+    + '所以已經被刪掉的牌組可能還留在這裡。';
   render();
 }
 
+function buildAnalysis() {
+  const normalized = rawDocs.map(d => normalizeDeck(d, cardsIndex));
+  const cohort = selectCohort(normalized);
+  return {
+    normalized,
+    cohort,
+    agg: aggregate(cohort.included, cardsIndex),
+    index: cardsIndex,
+    loadedAt,
+    state: analysisState,
+  };
+}
+
 function render() {
+  const onAnalysis = tab === 'analysis';
+  $('view-browse').hidden = onAnalysis;
+  $('view-analysis').hidden = !onAnalysis;
+  $('tab-browse').classList.toggle('active', !onAnalysis);
+  $('tab-analysis').classList.toggle('active', onAnalysis);
+  if (onAnalysis) {
+    if (!analysis) {
+      // 全量算幾百毫秒，同步算的話瀏覽器不會先把「計算中」畫出來（整段都在同一個 task 裡），
+      // 所以先讓出一次事件迴圈再算。
+      $('view-analysis').replaceChildren(h('div', { class: 'msg' }, '計算中…'));
+      setTimeout(() => { analysis = buildAnalysis(); render(); }, 0);
+      return;
+    }
+    renderAnalysis($('view-analysis'), analysis);
+    return;
+  }
   renderAccounts();
   renderDetail();
 }
@@ -142,6 +175,8 @@ function renderSearch(box, q) {
 }
 
 function bindUi() {
+  $('tab-browse').addEventListener('click', () => { tab = 'browse'; render(); });
+  $('tab-analysis').addEventListener('click', () => { tab = 'analysis'; render(); });
   for (const id of ['f-quick', 'f-empty', 'f-deleted', 'f-40']) $(id).addEventListener('change', renderDetail);
   $('q').addEventListener('input', renderDetail);
   $('btn-refresh').addEventListener('click', () => start(auth.currentUser));
