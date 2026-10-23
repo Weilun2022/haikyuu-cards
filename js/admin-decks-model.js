@@ -94,7 +94,8 @@ export function summarizeDeck(deck, cardsByImage) {
   return { bySchool: school.list, byCategory: category.list, unknown: school.unknown };
 }
 
-const normalizeQuery = s => String(s ?? '').toLowerCase().replace(/[\s　]+/g, '');
+// 卡名資料保留日文字形「兎」（木兎光太郎），但使用者多半打「兔」，兩邊都轉成同一個字再比
+const normalizeQuery = s => String(s ?? '').toLowerCase().replace(/[\s　]+/g, '').replace(/兔/g, '兎');
 
 // 找「哪些牌組用了符合這個字串的卡」：卡號、日文名、中文名都比對。
 // 已刪除與預設的快速查詢不算（那不是使用者真的組出來的牌）。

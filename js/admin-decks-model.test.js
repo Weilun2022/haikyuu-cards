@@ -137,6 +137,13 @@ test('findDeckHits：卡號、日文名都能搜，且忽略空白差異；已�
   assert.equal(findDeckHits(accounts, '日向　翔陽', CARDS).length, 1);
 });
 
+test('findDeckHits：兎／兔 異體字視為同一個字（資料裡是「兎」，使用者常打「兔」）', () => {
+  const cards = { 'K-1.webp': { card_no: 'K-1', name: '木兎 光太郎', name_zh: '木兎光太郎', school: '梟谷', category_zh: '角色' } };
+  const accounts = groupByAccount([doc('u1', 'd1', '梟谷', [{ image_file: 'K-1.webp', count: 2 }])]);
+  assert.equal(findDeckHits(accounts, '木兔', cards).length, 1);
+  assert.equal(findDeckHits(accounts, '木兎', cards).length, 1);
+});
+
 test('findDeckHits：空字串不回傳任何東西；結果依張數由多到少', () => {
   const accounts = groupByAccount([
     doc('u1', 'd1', '少', [{ image_file: 'A-1.webp', count: 1 }]),
