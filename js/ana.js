@@ -18,6 +18,8 @@ const ADMIN_EMAIL = 'evilscheme2012@gmail.com';
 // 沒權限的人彈回卡牌資料庫。管理者要在這一頁自己登入的話，用 ana.html?login=1。
 const HOME_URL = 'index.html';
 const wantsLogin = new URLSearchParams(location.search).has('login');
+// 標題不寫在 HTML 裡：沒權限的人在跳轉前不該看到「牌組檢視（管理者）」閃過。
+const PAGE_TITLE = '牌組檢視（管理者）';
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -192,10 +194,17 @@ async function start(user) {
   // replace 而不是 assign：免得使用者按上一頁又被彈回來，在兩頁之間彈跳
   if (decision === 'redirect') return void location.replace(HOME_URL);
 
+  // 到這裡才讓畫面出現；'login' 只露出登入按鈕，標題仍然留白
+  $('page-head').hidden = false;
+  if (decision === 'allow') {
+    document.title = PAGE_TITLE;
+    $('page-title').textContent = PAGE_TITLE;
+  }
   $('btn-login').hidden = !!user;
   $('btn-logout').hidden = !user;
   $('btn-refresh').hidden = true;
   if (decision === 'login') { $('status').textContent = '未登入'; return showGate('請先用管理者的 Google 帳號登入'); }
+  $('gate').textContent = '載入中…';
   try {
     await loadAll();
     $('gate').hidden = true;

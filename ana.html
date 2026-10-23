@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>牌組檢視（管理者）</title>
+<title>載入中…</title>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/components.css">
 <style>
@@ -123,16 +123,18 @@
 </style>
 </head>
 <body>
-<header class="top">
-  <h1>牌組檢視（管理者）</h1>
+<!-- 左上角標題與整個 header 都等 JS 確認是管理者才出現（見 js/ana.js 的 accessDecision）。
+     沒權限的人會在這之前就被彈回卡牌資料庫，從頭到尾不該看到任何字。 -->
+<header class="top" id="page-head" hidden>
+  <h1 id="page-title"></h1>
   <span class="status" id="loaded-at"></span>
-  <span class="status" id="status">載入中…</span>
+  <span class="status" id="status"></span>
   <button class="btn" id="btn-refresh" hidden>重新整理</button>
   <button class="btn primary" id="btn-login" hidden>Google 登入</button>
   <button class="btn" id="btn-logout" hidden>登出</button>
 </header>
 
-<div id="gate" class="msg">載入中…</div>
+<div id="gate" class="msg"></div>
 
 <div id="app" hidden>
   <p class="data-note" id="data-note"></p>
