@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>牌組檢視（管理者）</title>
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/components.css">
+<style>
+  body { background-image: none; }
+  header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px;
+    background: var(--surface); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 5; }
+  header.top h1 { font-size: 16px; margin-right: auto; }
+  .status { font-size: 12px; color: var(--text-dim); }
+  button.btn { padding: 7px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2);
+    color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; }
+  button.btn.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 10px 16px; font-size: 13px; }
+  .toolbar label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  .toolbar input[type="search"] { flex: 1 1 220px; min-width: 160px; font-size: 14px; }
+  .msg { padding: 40px 16px; text-align: center; color: var(--text-dim); font-size: 14px; }
+  .msg.err { color: var(--danger); }
+  main { display: grid; grid-template-columns: 280px 1fr; gap: 14px; padding: 0 16px 40px; align-items: start; }
+  @media (max-width: 760px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .panel h2 { font-size: 13px; padding: 10px 12px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .list { max-height: 70vh; overflow-y: auto; }
+  .row { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; border-bottom: 1px solid var(--border);
+    background: transparent; color: var(--text); font-size: 13px; cursor: pointer; }
+  .row:hover { background: var(--surface2); }
+  .row.active { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .row .sub { display: block; font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+  .decks { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .decks .chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .deck-head { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: baseline; }
+  .deck-head b { font-size: 15px; }
+  .deck-head span { font-size: 12px; color: var(--text-dim); }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; }
+  .tag { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: var(--surface2); border: 1px solid var(--border); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; padding: 0 12px 14px; }
+  .c { position: relative; display: block; }
+  .c img { width: 100%; display: block; border-radius: 6px; border: 1px solid var(--border); background: var(--surface2); aspect-ratio: 5/7; object-fit: cover; }
+  .c .n { position: absolute; right: 4px; top: 4px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 700;
+    padding: 1px 7px; border-radius: 999px; }
+  .c .t { font-size: 11px; margin-top: 3px; line-height: 1.3; word-break: break-all; }
+  .hint { font-size: 12px; color: var(--text-dim); padding: 10px 12px; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>牌組檢視（管理者）</h1>
+  <span class="status" id="status">載入中…</span>
+  <button class="btn" id="btn-refresh" hidden>重新整理</button>
+  <button class="btn primary" id="btn-login" hidden>Google 登入</button>
+  <button class="btn" id="btn-logout" hidden>登出</button>
+</header>
+
+<div id="gate" class="msg">載入中…</div>
+
+<div id="app" hidden>
+  <div class="toolbar">
+    <label><input type="checkbox" id="f-quick"> 顯示「快速查詢」</label>
+    <label><input type="checkbox" id="f-empty"> 顯示空牌組</label>
+    <label><input type="checkbox" id="f-deleted"> 顯示已刪除</label>
+    <label><input type="checkbox" id="f-40"> 只看 40 張</label>
+    <input type="search" id="q" placeholder="搜尋卡片（卡號 / 日文名 / 中文名），找出誰的牌組有放">
+  </div>
+  <main>
+    <section class="panel"><h2 id="acc-title">帳號</h2><div class="list" id="accounts"></div></section>
+    <section class="panel" id="detail"><div class="msg">從左邊選一個帳號</div></section>
+  </main>
+</div>
+
+<script src="cards_data.js"></script>
+<script type="module" src="js/admin-decks.js"></script>
+</body>
+</html>

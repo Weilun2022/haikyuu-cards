@@ -14,6 +14,20 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // ── 管理者唯讀檢視（admin-decks.html）──────────────────────────────
+    // 管理者可以讀「任何路徑底下名為 decks 的集合」，讓 collectionGroup('decks')
+    // 一次抓回所有帳號的牌組。只開 read，不開 write；一般使用者仍只能讀寫自己的
+    // /users/{uid}/...（兩條 match 是 OR 關係，這條不會放寬別人的權限）。
+    // 管理者以 Google 登入的 email 判斷，且必須是已驗證 email。
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'evilscheme2012@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    match /{path=**}/decks/{deckId} {
+      allow read: if isAdmin();
+    }
+
     // ── Emulator 環境本身的 smoke test 用（functions/firestore-emulator-smoke.js）──
     // 純粹驗證「emulator 啟動→寫入→讀回」這條路徑本身通不通，跟下面任何
     // 業務規則無關，故意用寬鬆規則、獨立路徑，不受業務規則變動牽動。
