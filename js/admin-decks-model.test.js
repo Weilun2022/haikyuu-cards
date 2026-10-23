@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  groupByAccount, filterDecks, summarizeDeck, findDeckHits, isAdminUser,
+  groupByAccount, filterDecks, summarizeDeck, findDeckHits, isAdminUser, QUICK_DECK_ID,
 } from './admin-decks-model.js';
 
 const CARDS = {
@@ -45,7 +45,7 @@ test('帳號排序：真正牌組（非快速查詢、非空、未刪除）多�
   const docs = [
     doc('few', 'd1', '甲', full40),
     doc('many', 'd2', '乙', full40), doc('many', 'd3', '丙', full40),
-    doc('quick', 'd4', '快速查詢', full40), doc('quick', 'd5', '快速查詢', full40), doc('quick', 'd6', '快速查詢', full40),
+    doc('quick', QUICK_DECK_ID, '快速查詢', full40),
   ];
   const accounts = groupByAccount(docs);
   assert.deepEqual(accounts.map(a => a.uid), ['many', 'few', 'quick']);
@@ -66,7 +66,7 @@ test('帳號統計：legal40Count 只算剛好 40 張的真正牌組', () => {
 test('filterDecks：預設隱藏快速查詢、空牌組、已刪除', () => {
   const [a] = groupByAccount([
     doc('u', 'd1', '正常', full40),
-    doc('u', 'd2', '快速查詢', full40),
+    doc('u', QUICK_DECK_ID, '快速查詢', full40),
     doc('u', 'd3', '空', []),
     doc('u', 'd4', '已刪', full40, { deleted: true }),
   ]);
@@ -76,7 +76,7 @@ test('filterDecks：預設隱藏快速查詢、空牌組、已刪除', () => {
 test('filterDecks：各旗標可個別打開', () => {
   const [a] = groupByAccount([
     doc('u', 'd1', '正常', full40),
-    doc('u', 'd2', '快速查詢', full40),
+    doc('u', QUICK_DECK_ID, '快速查詢', full40),
     doc('u', 'd3', '空', []),
     doc('u', 'd4', '已刪', full40, { deleted: true }),
   ]);
@@ -129,7 +129,7 @@ test('findDeckHits：用中文名找到用了該卡的牌組，並帶出張數�
 test('findDeckHits：卡號、日文名都能搜，且忽略空白差異；已刪除與快速查詢不計入', () => {
   const accounts = groupByAccount([
     doc('u1', 'd1', '甲', [{ image_file: 'A-1.webp', count: 1 }]),
-    doc('u1', 'd2', '快速查詢', [{ image_file: 'A-1.webp', count: 1 }]),
+    doc('u1', QUICK_DECK_ID, '快速查詢', [{ image_file: 'A-1.webp', count: 1 }]),
     doc('u1', 'd3', '已刪', [{ image_file: 'A-1.webp', count: 1 }], { deleted: true }),
   ]);
   assert.equal(findDeckHits(accounts, 'a-1', CARDS).length, 1);
@@ -159,4 +159,30 @@ test('isAdminUser：email 相符且已驗證才算管理者', () => {
   assert.equal(isAdminUser({ email: ADMIN, emailVerified: false }, ADMIN), false);
   assert.equal(isAdminUser({ email: 'other@example.com', emailVerified: true }, ADMIN), false);
   assert.equal(isAdminUser(null, ADMIN), false);
+});
+
+test('預設牌組一律用固定 id dk_quick 認定，不用名稱', () => {
+  const [a] = groupByAccount([
+    doc('u', QUICK_DECK_ID, '快速查詢', full40),
+    doc('u', 'd2', '正常', full40),
+  ]);
+  assert.deepEqual(filterDecks(a.decks).map(d => d.id), ['d2']);
+  assert.deepEqual(filterDecks(a.decks, { showQuick: true }).map(d => d.id).sort(), ['d2', QUICK_DECK_ID].sort());
+  assert.equal(a.realCount, 1);
+});
+
+// 實測 560 份文件：名為「快速查詢」但 id 不是 dk_quick 的有 5 份，全是玩家自建的牌組。
+// 用名稱過濾會把這 5 副真牌組誤砍掉。
+test('名為「快速查詢」但 id 不是 dk_quick 的牌組，不算預設牌組', () => {
+  const [a] = groupByAccount([doc('u', 'self-made', '快速查詢', full40)]);
+  assert.equal(a.realCount, 1);
+  assert.deepEqual(filterDecks(a.decks).map(d => d.id), ['self-made']);
+  assert.equal(findDeckHits([a], '日向', CARDS).length, 1);
+});
+
+test('id 是 dk_quick 但被改過名的牌組，仍算預設牌組', () => {
+  const [a] = groupByAccount([doc('u', QUICK_DECK_ID, '我改過名字', full40)]);
+  assert.equal(a.realCount, 0);
+  assert.deepEqual(filterDecks(a.decks), []);
+  assert.equal(findDeckHits([a], '日向', CARDS).length, 0);
 });

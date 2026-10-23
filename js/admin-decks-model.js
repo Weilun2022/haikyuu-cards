@@ -5,8 +5,10 @@
 //   { id, ownerUid, deck: { name, cards: [{ image_file, card_no, count }] },
 //     deleted, clientUpdatedAt, updatedAt? }
 
-export const QUICK_DECK_NAME = '快速查詢';
-const LEGAL_DECK_SIZE = 40;
+import { QUICK_DECK_ID, LEGAL_DECK_SIZE, deckUpdatedMs } from './deck-constants.js';
+
+export { QUICK_DECK_ID };
+
 
 // 舊資料的卡片可能沒有 count 欄位，視為 1 張
 export function cardCount(c) {
@@ -17,13 +19,7 @@ function deckTotal(cards) {
   return (cards || []).reduce((s, c) => s + cardCount(c), 0);
 }
 
-const isQuickDeck = d => d.name === QUICK_DECK_NAME;
-
-function updatedMs(d) {
-  if (Number.isFinite(d.clientUpdatedAt)) return d.clientUpdatedAt;
-  const t = d.updatedAt?.toMillis?.();
-  return Number.isFinite(t) ? t : 0;
-}
+const isQuickDeck = d => d.id === QUICK_DECK_ID;
 
 function normalizeDeck(d) {
   const cards = d.deck?.cards || [];
@@ -33,7 +29,7 @@ function normalizeDeck(d) {
     cards,
     total: deckTotal(cards),
     deleted: !!d.deleted,
-    updatedMs: updatedMs(d),
+    updatedMs: deckUpdatedMs(d),
   };
 }
 
