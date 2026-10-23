@@ -4,12 +4,12 @@
 這份文件是 `/clear` 後的接手入口，包含所有已談定的規格與已查證的事實。
 
 實作落點：`js/deck-fingerprint.js`、`js/deck-stats-model.js`（各自的 `.test.js` 共 64 項，
-`cd js && npm test`）、`js/admin-decks-analysis.js`（畫面層）、`js/admin-dom.js`（共用 DOM 小工具）、
-`admin-decks.html` 的「分析面板」分頁。`js/admin-decks-model.js` 的預設牌組判定已改用 `dk_quick` ID。
+`cd js && npm test`）、`js/ana-analysis.js`（畫面層）、`js/ana-dom.js`（共用 DOM 小工具）、
+`ana.html` 的「分析面板」分頁。`js/ana-model.js` 的預設牌組判定已改用 `dk_quick` ID。
 
 ## 背景
 
-`admin-decks.html`（2026-10-23 上線，commit `f9bd47a`／`2944487`）已能用 `collectionGroup('decks')`
+`ana.html`（2026-10-23 上線，commit `f9bd47a`／`2944487`）已能用 `collectionGroup('decks')`
 一次載入全部帳號的雲端牌組，點帳號看牌組、點牌組看卡片牆、搜卡找出誰的牌組有放。
 現在要在它上面加「分析面板」。
 
@@ -140,7 +140,7 @@ outcome / failure_conditions / rules_refs / test_refs / trace_refs / engine_comm
 - id 是 `dk_quick` 但改過名：0 份
 
 `QUICK_DECK_ID = 'dk_quick'` 定義在 `index.html:2191`。
-**現有 `js/admin-decks-model.js` 用的是名稱比對，實作時要一併改掉。**
+**現有 `js/ana-model.js` 用的是名稱比對，實作時要一併改掉。**
 
 ### 2.2 標記但不整筆排除
 
@@ -171,7 +171,7 @@ outcome / failure_conditions / rules_refs / test_refs / trace_refs / engine_comm
 
 ### 3.1 資料新鮮度（2026-10-23 實測）
 
-`admin-decks.html` 用 `getDocs` 一次性讀取，**不是即時監聽**。按「重新整理」確實重打伺服器
+`ana.html` 用 `getDocs` 一次性讀取，**不是即時監聽**。按「重新整理」確實重打伺服器
 （實測新增 2 筆 Firestore 請求）。Service Worker 只快取 `/images/` 與 `/audio/`，不攔截資料。
 
 玩家端的上傳時機（`index.html` 的 `hvScheduleAutoSync`）：
@@ -245,11 +245,11 @@ outcome / failure_conditions / rules_refs / test_refs / trace_refs / engine_comm
 - 每個函式都要輸出分母與樣本數，供 §2.3 的標註使用。
 
 ### 步驟 3：修正既有 model 的預設牌組判定
-`js/admin-decks-model.js` 目前用 `QUICK_DECK_NAME = '快速查詢'` 比對，改用 `dk_quick` ID。
+`js/ana-model.js` 目前用 `QUICK_DECK_NAME = '快速查詢'` 比對，改用 `dk_quick` ID。
 補一條測試：名為「快速查詢」但 id 不是 `dk_quick` 的牌組**不應**被當成預設牌組。
 
 ### 步驟 4：分析面板 DOM 層
-在 `admin-decks.html` 加分頁。第一版做 Codex 標 ★ 的六個：
+在 `ana.html` 加分頁。第一版做 Codex 標 ★ 的六個：
 
 | # | 面板 | 回答什麼 | 視覺化 |
 |---|---|---|---|
@@ -293,9 +293,9 @@ outcome / failure_conditions / rules_refs / test_refs / trace_refs / engine_comm
 
 ## 七、相關檔案
 
-- `admin-decks.html`、`js/admin-decks.js`、`js/admin-decks-model.js`（+ `.test.js`）
+- `ana.html`、`js/ana.js`、`js/ana-model.js`（+ `.test.js`）
 - `js/cloud-sync.js`（Firebase app／auth 來源，`export { app }`）
 - `firestore.rules`（管理者唯讀規則，2026-10-23 已發布到正式環境）
-- `functions/admin-decks-rules.js`（emulator 規則測試，7 項）
+- `functions/ana-rules.js`（emulator 規則測試，7 項）
 - 研究端：`deck_health/`（`deck-health` 分支）、本機計算 checkout 在
   `C:\Users\evils\Documents\Claude\deck_compute\haikyuu-cards`（**曾落後遠端 22 個 commit，動工前先 `git pull`**）

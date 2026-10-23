@@ -1,4 +1,4 @@
-// 牌組分析面板的畫面層（admin-decks.html 的「分析面板」分頁）。
+// 牌組分析面板的畫面層（ana.html 的「分析面板」分頁）。
 // 所有統計都在 deck-stats-model.js 算完，這裡只負責畫，刻意不在這個檔案裡做任何運算決策——
 // 要改口徑請改那個有測試的模組。
 //
@@ -6,7 +6,7 @@
 // 帳號數少於門檻要標「探索性」，而且不能出現勝率、強度、剋制、流行度歷史這類推不出來的說法
 // （計畫 §2.3、§2.4）。相似牌表一律叫「跨帳號相似牌表」，不是抄襲。
 
-import { h, fmtDate, fmtTime, pct } from './admin-dom.js';
+import { h, fmtDate, fmtTime, pct } from './ana-dom.js';
 import {
   describeDeck, crossAccountSimilar, STAT_KEYS, MIN_ACCOUNTS_FOR_CONFIDENCE, SIMILARITY_THRESHOLD,
 } from './deck-stats-model.js';

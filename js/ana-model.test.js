@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  groupByAccount, filterDecks, summarizeDeck, findDeckHits, isAdminUser, QUICK_DECK_ID,
-} from './admin-decks-model.js';
+  groupByAccount, filterDecks, summarizeDeck, findDeckHits, isAdminUser, accessDecision, QUICK_DECK_ID,
+} from './ana-model.js';
 
 const CARDS = {
   'A-1.webp': { card_no: 'A-1', name: '日向 翔陽', name_zh: '日向翔陽', school: '烏野', category_zh: '角色' },
@@ -185,4 +185,24 @@ test('id 是 dk_quick 但被改過名的牌組，仍算預設牌組', () => {
   assert.equal(a.realCount, 0);
   assert.deepEqual(filterDecks(a.decks), []);
   assert.equal(findDeckHits([a], '日向', CARDS).length, 0);
+});
+
+// ── 進頁決策（沒權限就彈回卡牌資料庫）────────────────────────────────────
+const ADMIN = 'me@example.com';
+
+test('accessDecision：只有管理者能進，其他人一律彈回首頁', () => {
+  assert.equal(accessDecision({ email: ADMIN, emailVerified: true }, ADMIN), 'allow');
+  assert.equal(accessDecision({ email: 'other@example.com', emailVerified: true }, ADMIN), 'redirect');
+  assert.equal(accessDecision({ email: ADMIN, emailVerified: false }, ADMIN), 'redirect');
+  assert.equal(accessDecision(null, ADMIN), 'redirect');
+});
+
+test('accessDecision：未登入且明確要求登入畫面時，留在頁面上給登入按鈕', () => {
+  assert.equal(accessDecision(null, ADMIN, { wantsLogin: true }), 'login');
+  // 已登入但不是管理者，不能用 ?login=1 賴在這一頁
+  assert.equal(accessDecision({ email: 'other@example.com', emailVerified: true }, ADMIN, { wantsLogin: true }), 'redirect');
+  // email 對但沒驗證過，也是彈回去
+  assert.equal(accessDecision({ email: ADMIN, emailVerified: false }, ADMIN, { wantsLogin: true }), 'redirect');
+  // 管理者帶著 ?login=1 進來還是直接放行
+  assert.equal(accessDecision({ email: ADMIN, emailVerified: true }, ADMIN, { wantsLogin: true }), 'allow');
 });

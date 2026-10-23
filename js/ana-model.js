@@ -1,4 +1,4 @@
-// 管理者牌組檢視頁（admin-decks.html）的純函式：把 collectionGroup('decks') 抓回來的
+// 管理者牌組檢視頁（ana.html）的純函式：把 collectionGroup('decks') 抓回來的
 // 文件分組、篩選、統計。刻意不碰 DOM / Firebase，才能用 node:test 測（見 ADR 0005）。
 //
 // 輸入的「文件」形狀（對應 cloud-sync.js 的 deckDocPayload）：
@@ -117,4 +117,15 @@ export function findDeckHits(accounts, query, cardsByImage) {
 // 網頁端的閘門（只是讓非管理者看到明確訊息，真正的把關是 Firestore Rules）
 export function isAdminUser(user, adminEmail) {
   return !!user && user.emailVerified === true && user.email === adminEmail;
+}
+
+// 進頁決策：沒權限的人不該停在這個網址上，直接彈回卡牌資料庫，不給他看內容也不給他看錯誤訊息。
+// 真正的把關仍是 Firestore Rules；這裡只是不讓外人停留，不是安全邊界。
+//   'allow'    管理者，照常載入
+//   'login'    還沒登入、而且網址上明確帶了 ?login=1（管理者自己要在這一頁登入時用的逃生門）
+//   'redirect' 其他全部——登入了但不是管理者、email 沒驗證、或單純沒登入
+export function accessDecision(user, adminEmail, { wantsLogin = false } = {}) {
+  if (isAdminUser(user, adminEmail)) return 'allow';
+  if (!user && wantsLogin) return 'login';
+  return 'redirect';
 }

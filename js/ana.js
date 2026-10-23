@@ -1,7 +1,7 @@
 // 管理者牌組檢視頁：一次把所有帳號的牌組載進來，點帳號看牌組、點牌組看卡片。
 // 純唯讀——這個檔案不呼叫任何 Firestore 寫入函式。
-// 真正的把關是 Firestore Rules（只有管理者 email 能讀別人的 decks）；這裡的 isAdminUser
-// 只是讓非管理者看到清楚的訊息，不是安全邊界。
+// 真正的把關是 Firestore Rules（只有管理者 email 能讀別人的 decks）；這裡的 accessDecision
+// 只是把沒權限的人彈回卡牌資料庫，不是安全邊界。
 //
 // 登入狀態跟 index.html 共用（同一個 app／同網域），在卡牌網站登入過這裡就已登入。
 // 牌組名稱是其他使用者自訂的不可信字串，一律用 textContent 渲染，不拼 innerHTML。
@@ -9,12 +9,15 @@
 import { app } from './cloud-sync.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js';
 import { getFirestore, collectionGroup, getDocs, query } from 'https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js';
-import { groupByAccount, filterDecks, summarizeDeck, findDeckHits, isAdminUser, cardCount } from './admin-decks-model.js';
+import { groupByAccount, filterDecks, summarizeDeck, findDeckHits, accessDecision, cardCount } from './ana-model.js';
 import { indexCards, normalizeDeck, selectCohort, aggregate } from './deck-stats-model.js';
-import { renderAnalysis } from './admin-decks-analysis.js';
-import { h, fmtDate, fmtTime } from './admin-dom.js';
+import { renderAnalysis } from './ana-analysis.js';
+import { h, fmtDate, fmtTime } from './ana-dom.js';
 
 const ADMIN_EMAIL = 'evilscheme2012@gmail.com';
+// 沒權限的人彈回卡牌資料庫。管理者要在這一頁自己登入的話，用 ana.html?login=1。
+const HOME_URL = 'index.html';
+const wantsLogin = new URLSearchParams(location.search).has('login');
 
 const auth = getAuth(app);
 const db = getFirestore(app);
@@ -185,14 +188,14 @@ function bindUi() {
 }
 
 async function start(user) {
+  const decision = accessDecision(user, ADMIN_EMAIL, { wantsLogin });
+  // replace 而不是 assign：免得使用者按上一頁又被彈回來，在兩頁之間彈跳
+  if (decision === 'redirect') return void location.replace(HOME_URL);
+
   $('btn-login').hidden = !!user;
   $('btn-logout').hidden = !user;
   $('btn-refresh').hidden = true;
-  if (!user) { $('status').textContent = '未登入'; return showGate('請先用管理者的 Google 帳號登入'); }
-  if (!isAdminUser(user, ADMIN_EMAIL)) {
-    $('status').textContent = user.email || '';
-    return showGate('這個帳號不是管理者，無法檢視', true);
-  }
+  if (decision === 'login') { $('status').textContent = '未登入'; return showGate('請先用管理者的 Google 帳號登入'); }
   try {
     await loadAll();
     $('gate').hidden = true;

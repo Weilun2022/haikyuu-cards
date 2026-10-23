@@ -1,4 +1,4 @@
-// admin-decks.js 與 admin-decks-analysis.js 共用的建 DOM 小工具。
+// ana.js 與 ana-analysis.js 共用的建 DOM 小工具。
 // 牌組名稱與帳號資料都是其他使用者自訂的不可信字串，一律走 textContent（append 字串就是
 // textContent），不拼 innerHTML。
 

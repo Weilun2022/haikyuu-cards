@@ -15,7 +15,7 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // ── 管理者唯讀檢視（admin-decks.html）──────────────────────────────
+    // ── 管理者唯讀檢視（ana.html）──────────────────────────────
     // 管理者可以讀「任何路徑底下名為 decks 的集合」，讓 collectionGroup('decks')
     // 一次抓回所有帳號的牌組。只開 read，不開 write；一般使用者仍只能讀寫自己的
     // /users/{uid}/...（兩條 match 是 OR 關係，這條不會放寬別人的權限）。

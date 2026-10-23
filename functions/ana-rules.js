@@ -1,9 +1,9 @@
-// Firestore 安全規則測試：管理者唯讀檢視（admin-decks.html）的 collectionGroup('decks') 規則。
+// Firestore 安全規則測試：管理者唯讀檢視（ana.html）的 collectionGroup('decks') 規則。
 // 重點：管理者能讀所有帳號的牌組，但「一般使用者」「未驗證 email」「別的 email」「未登入」
 // 全部讀不到別人的；管理者也沒有寫入權限；原本「只能讀寫自己的」規則沒被放寬。
 //
 // 跟 school-popularity-rules.js 一樣需要正在跑的 emulator，不能被 `npm test` 掃到。
-// 跑法：`firebase emulators:exec --only firestore "npm --prefix functions run test:admin-rules"`
+// 跑法：`firebase emulators:exec --only firestore "npm --prefix functions run test:ana-rules"`
 import { test, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

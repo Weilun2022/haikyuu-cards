@@ -1,4 +1,4 @@
-// 牌組分析面板（admin-decks.html）的 A 線統計純函式。
+// 牌組分析面板（ana.html）的 A 線統計純函式。
 // 規格與理由見 docs/deck-analysis-panel-plan.md；這裡只實作，不重述規格。
 // 刻意不碰 DOM／Firebase，才能用 node:test 測（見 ADR 0005）。
 //
