@@ -102,7 +102,12 @@ Q.add_nondraw(C(FILL)); Q.add_nondraw(C(FILL)); ok('天童：對手以非抽牌�
 Q2 = Q.clone(); ok('owed 隨 clone 保留', Q2.owed == 2)
 yam = C('HV-P02-004'); P, o, T = newp(op=3, phase='serve'); setz(P, 'serve', C('HV-P01-001'))
 sim2.enter(P, T, 'serve', yam, True)
-ok('山口：疊在烏野角色上 → 掛上 owner_draw_any（%s）' % [l['rule'] for l in T['locks']], any(l['rule'] == 'owner_draw_any' for l in T['locks']))
+ok('山口：對手手牌沒有事件 → 一定掛上 owner_draw_any', any(l['rule'] == 'owner_draw_any' for l in T['locks']))
+hit = 0
+for sd in range(400):
+    P, o, T = newp(op=3, phase='serve'); P.rng = random.Random(sd); setz(P, 'serve', C('HV-P01-001')); o.hand = [C(next(k for k, c in U.items() if c['category'] == 'EVENT'))]
+    sim2.enter(P, T, 'serve', C('HV-P02-004'), True); hit += any(l['rule'] == 'owner_draw_any' for l in T['locks'])
+ok('山口：對手有事件時約 40%% 生效（實測 %.2f）' % (hit / 400), 0.33 < hit / 400 < 0.47)
 P, o, T = newp(op=3, phase='serve'); setz(P, 'serve', C(FILL)); sim2.enter(P, T, 'serve', C('HV-P02-004'), True)
 ok('山口：疊在非烏野上 → 不發動', not any(l['rule'] == 'owner_draw_any' for l in T['locks']))
 Q, o2, T2 = newp(); Q.restrict = [dict(rule='owner_draw_any', duration='next_opp_turn')]; Q.draw(1); Q.add_nondraw(C(FILL))

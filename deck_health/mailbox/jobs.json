@@ -614,6 +614,27 @@
    ],
    "workers": 16,
    "timeout_min": 90
+  },
+  {
+   "id": "MIX-003",
+   "note": "混校基準勝率（改完侑／山口／黒川後的正式版；第5～8批開啟）",
+   "env": {
+    "DH_BATCH5": "1",
+    "DH_BATCH6": "1",
+    "DH_BATCH7": "1",
+    "DH_BATCH8": "1"
+   },
+   "script": "gauntlet",
+   "args": [
+    "{cards}",
+    "mixed_user.json",
+    "mixed_base_var.json",
+    "deck.json,fuku_op8_v2.json,shira_final.json,ina_v4b.json",
+    12000,
+    "{out}"
+   ],
+   "workers": 16,
+   "timeout_min": 90
   }
  ]
 }

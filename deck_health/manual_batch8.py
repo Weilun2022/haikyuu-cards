@@ -43,9 +43,9 @@ MANUAL_BATCH8 = {
     # 天童 P01-057：下個對手回合，對手每次以「抽牌以外」的方法加牌，自己抽 1
     'HV-P01-057': [ON(['block'], effects=[dict(type='restrict_opp', who='opp', rule='owner_draw_nondraw', duration=TO)])],
     # 山口 P02-004：疊在烏野角色上登場時，對手可以放 1 張事件到 Event 區；沒放的話下個對手回合對手每次加牌（含抽牌），自己抽 1
-    # ※假設對手「不放」事件（等於這個效果一定生效，對我方有利）
+    # 依你的指示：對手手牌有事件時，60% 機率會放一張到 Event 區（效果不生效）；沒事件可放就一定生效。※對手放的那張牌沒有實際移到對手 Event 區（搜尋分支不改動對手）
     'HV-P02-004': [ON(['serve'], conditions=[dict(type='enter_on_top_school', school='烏野')],
-                      effects=[dict(type='restrict_opp', who='opp', rule='owner_draw_any', duration=TO)])],
+                      effects=[dict(type='lock_unless_opp_places', p_place=0.6, lock=dict(rule='owner_draw_any', duration=TO))])],
 
     # ══ 被技能叫出才有效 ══
     # 西谷 P02-005：被「助けてもらう!!!」叫出、付 2 Guts → 接球 +2，棄牌區「木下 久志」1 張回手牌

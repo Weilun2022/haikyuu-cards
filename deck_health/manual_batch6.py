@@ -92,7 +92,11 @@ MANUAL_BATCH6 = {
     'HV-P03-044': [W('enter', 'attack', ['block'], ef=dict(school='稲荷崎'), blk_bonus=True, cost=[dict(type='discard_hand', n=1)],
                      use_if=[SHORT], effects=[SIDE])],
     # 侑 P03-039：【策略 never】手牌的稲荷崎事件被打出時要丟 Event 區兩張可 [=サーブ] 的稲荷崎卡換 +1，代價太大，設為不使用
-    'HV-P03-039': [W('event_play', 'serve', [], ename=None, conditions=[dict(type='never')], effects=[S('srv', 1)])],
+    # 使用方式（依你的指示設計）：自己手牌的稲荷崎事件在發球階段被打出、這張在發球區 → 丟 Event 區兩張可〔サーブ〕打的稲荷崎卡，發球 +1。
+    # 【策略：丟完後 Event 區仍 ≥4 張才用（只丟「多餘」的牌，不傷到北 P02-024、侑 D03-001 等靠 Event 區張數的技能）】
+    'HV-P03-039': [W('event_play', 'serve', [], ename=None, eschool='稲荷崎', ephase='serve',
+                     cost=[dict(type='evz_drop', n=2, school='稲荷崎', phase='serve')], use_if=[dict(type='evz_total_ge', n=6)],
+                     effects=[S('srv', 1)])],
 
     # ══ 井闥山／ユース ══
     # 古森 P03-028：自己的ユース舉球角色登場，這張在接球區 → 接球區 Guts 的「影山 飛雄」疊到這張上面，本回合バックアタック登場的角色攻擊 +1

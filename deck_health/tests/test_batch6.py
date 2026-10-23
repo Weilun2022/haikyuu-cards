@@ -168,9 +168,19 @@ P, o, T = newp(); setz(P, 'receive', C(FILL), C('HV-P03-016')); T['plan_attack']
 sim2.enter(P, T, 'toss', C(mom), True)
 ok('百沢 P03-016：預定攻擊手不是百沢 → 不用', not T.get('aura'))
 
-# ── 侑 P03-039：不使用
-P, o, T = newp(); setz(P, 'serve', C(FILL), C(FILL), C('HV-P03-039')); sim2.fire_event_when(P, T, C(inner))
-ok('侑：設為不使用', not T['mod'].get('serve'))
+# ── 侑 P03-039：Event 區 ≥6 張才丟 2 張可〔サーブ〕的稲荷崎卡
+ina_srv = [k for k, c in U.items() if c['category'] == 'EVENT' and '稲荷崎' in (c.get('school_tags') or [c['school']]) and 'serve' in sim2.Card(c).phases]
+if ina_srv:
+    ev_s = C(ina_srv[0])
+    P, o, T = newp(); T['phase'] = 'serve'; setz(P, 'serve', C(FILL), C('HV-P03-039')); P.evz = [C(ina_srv[0]) for _ in range(6)]
+    sim2.fire_event_when(P, T, ev_s)
+    ok('侑：發球階段打稲荷崎事件、Event 區 6 張 → 丟 2 張、發球 +1', T['mod'].get('serve') == 1 and len(P.evz) == 4)
+    P, o, T = newp(); T['phase'] = 'serve'; setz(P, 'serve', C(FILL), C('HV-P03-039')); P.evz = [C(ina_srv[0]) for _ in range(4)]
+    sim2.fire_event_when(P, T, ev_s)
+    ok('侑：Event 區只有 4 張 → 不用', not T['mod'].get('serve') and len(P.evz) == 4)
+    P, o, T = newp(); T['phase'] = 'attack'; setz(P, 'serve', C(FILL), C('HV-P03-039')); P.evz = [C(ina_srv[0]) for _ in range(6)]
+    sim2.fire_event_when(P, T, ev_s)
+    ok('侑：不是發球階段 → 不用', not T['mod'].get('serve'))
 
 # ── 煙霧：每張卡 ×4 放進牌組，對 deck.json 與梟谷 12 場
 base = json.load(open(os.path.join(HERE, 'deck.json'), encoding='utf8'))

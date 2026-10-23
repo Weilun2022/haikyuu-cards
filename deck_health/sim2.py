@@ -851,7 +851,13 @@ def run_deferred(P, T):
 def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     prot = (zone == 'attack' and under is not None and not as_side_blocker and any(
         w.get('protect') and ef_ok(card, nm, w.get('ef', {})) for w in under.whens))  # 岩泉 P04-021：疊在他上面的青葉城西角色不被減值
-    if prot:
+    rprot = (zone == 'receive' and any(a['on'] == 'receive_enter' and a.get('protect') and (not a.get('school') or a['school'] in card.school)
+                                      and (not a.get('grades') or any(card.aff.endswith('·%s年' % g) for g in a['grades'])) for a in P.auras))
+    if rprot:  # 黒川 P03-057：登場的烏野 2、3 年接球角色不被減值
+        saved = P.restrict; P.restrict = [l for l in saved if l['rule'] not in ('opp_rcv_add', 'li_receive_add', 'opp_noskill_rcv_add')]
+        try: _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
+        finally: P.restrict = saved
+    elif prot:
         saved = P.restrict; P.restrict = [l for l in saved if l['rule'] != 'opp_atk_add']; P.bump('岩泉保護')
         try: _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
         finally: P.restrict = saved
@@ -1281,7 +1287,14 @@ def fx_drop_to_evz(e, P, T, zone):
         w = max(cands, key=event_value); P.drop.remove(w); P.evz.append(w); P.bump('棄牌區放Event區')
 
 
-EXT_EFFECTS = dict(feint=fx_feint, mill_feint=fx_mill_feint, drop_to_evz=fx_drop_to_evz, side_self_to_bottom=fx_side_self_to_bottom, summon_from_guts=fx_summon_from_guts, holder_move=fx_holder_move, holder_to_hand=fx_holder_to_hand,
+def fx_lock_unless_opp_places(e, P, T, zone):
+    """山口 P02-004：對手手牌有事件時，有 p_place 的機率放一張到 Event 區（效果不生效）；否則掛上鎖。"""
+    opp = T['opp']
+    if any(x.ev for x in opp.hand) and P.rng.random() < e.get('p_place', 0.6): P.bump('對手放事件化解'); return
+    T['locks'].append(dict(e['lock'])); P.bump('封鎖:' + e['lock']['rule'])
+
+
+EXT_EFFECTS = dict(lock_unless_opp_places=fx_lock_unless_opp_places, feint=fx_feint, mill_feint=fx_mill_feint, drop_to_evz=fx_drop_to_evz, side_self_to_bottom=fx_side_self_to_bottom, summon_from_guts=fx_summon_from_guts, holder_move=fx_holder_move, holder_to_hand=fx_holder_to_hand,
                    aura_turn=fx_aura_turn, back_attack=fx_back_attack, synchro=fx_synchro, swap_toss=fx_swap_toss,
                    deck_bottom_from_drop=fx_deck_bottom_from_drop, hand_card_enter=fx_hand_card_enter, end_block=fx_end_block,
                    side_summon_drop=fx_side_summon_drop, mill_all_then=fx_mill_all_then, evz_to_hand_n=fx_evz_to_hand_n,
@@ -1332,7 +1345,10 @@ def fire_event_when(P, T, ev):
         if hz not in ZSTAT or not st or not st[-1].whens: continue
         h = st[-1]
         for s in h.whens:
-            if s['ev'] != 'event_play' or s.get('holder') != hz or s.get('ename') != ev.name: continue
+            if s['ev'] != 'event_play' or s.get('holder') != hz: continue
+            if s.get('ename') is not None:
+                if s['ename'] != ev.name: continue
+            elif not (s.get('eschool') and s['eschool'] in ev.school and T.get('phase') == s.get('ephase')): continue
             if not P.zones[hz] or P.zones[hz][-1] is not h: continue
             T['trig_zone'], T['trig_card'], T['trig_hz'], T['trig_holder'] = None, None, hz, h
             if not all(cond_ok(c, P, T) for c in s.get('conditions', []) + s.get('use_if', [])): continue

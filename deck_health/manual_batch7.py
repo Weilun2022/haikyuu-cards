@@ -79,7 +79,7 @@ MANUAL_BATCH7 = {
                       effects=[dict(type='drop_to_hand', who='self', filter=dict(school='烏野', grade=3, category='CHARACTER'), max=1)])],
     # 黒川 P03-057（抽牌階段）：本回合烏野 2、3 年角色登場到接球區，接球 +2，且不被減值【策略：手牌有烏野 2、3 年角色、且對手進攻 ≥2 才用】
     'HV-P03-057': [HS(['draw'], conditions=[dict(type='hand_has_char', filter=dict(school='烏野', grades=[2, 3])), dict(type='opp_op_ge', n=2, of='any')],
-                      effects=[dict(type='aura_turn', aura=dict(on='receive_enter', school='烏野', grades=[2, 3], n=2))])],
+                      effects=[dict(type='aura_turn', aura=dict(on='receive_enter', school='烏野', grades=[2, 3], n=2, protect=True))])],
     # 温田 P04-031（抽牌階段、ターン1）：對手 Event 區可在〔ブロック／ドロー／レシーブ〕打的卡合計 ≥5 → 自己 Event 區青葉城西卡 1 張回手牌
     'HV-P04-031': [HS(['draw'], once=True, conditions=[dict(type='opp_evz_phase_ge', phases=['block', 'draw', 'receive'], n=5)],
                       effects=[dict(type='event_to_hand', who='self', filter=dict(school='青葉城西'))])],

@@ -169,6 +169,13 @@ ok('黒川 aura：烏野 2 年接球登場 +2', T['mod'].get('receive') == 2)
 P, o, T = newp(phase='draw'); P.hand = [C('HV-P03-057')]; sim2.use_hand_skills(P, T, 'draw', 'receive')
 ok('黒川：手牌沒有烏野 2、3 年 → 不用', not P.auras)
 
+# 黒川保護：有 aura(protect) 時烏野 2 年接球角色不被對手 −
+P, o, T = newp(phase='receive'); P.auras = [dict(on='receive_enter', school='烏野', grades=[2, 3], n=2, protect=True)]; P.restrict = [dict(rule='opp_rcv_add', n=-2)]
+sim2.enter(P, T, 'receive', C(n2), True)
+ok('黒川：烏野 2 年接球登場 → +2 且不吃對手 −2（接球加值 %s）' % T['mod'].get('receive'), T['mod'].get('receive') == 2)
+P, o, T = newp(phase='receive'); P.restrict = [dict(rule='opp_rcv_add', n=-2)]; sim2.enter(P, T, 'receive', C(n2), True)
+ok('對照：沒有黒川 → −2', T['mod'].get('receive') == -2)
+
 # 温田
 P, o, T = newp(phase='draw'); P.hand = [C('HV-P04-031')]; P.evz = [C(FILL)]
 bev = [k for k, c in U.items() if c['category'] == 'EVENT' and ({'block', 'receive', 'draw'} & set(s_ for sk in sim2.Card(c).skills for s_ in sk.get('phases', [])))]
