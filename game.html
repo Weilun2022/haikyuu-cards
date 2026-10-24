@@ -2057,11 +2057,13 @@ input[type=text]::placeholder { color: var(--text-dim); }
 }
 .peek-card-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));   /* minmax(0) 才不會被 nowrap 文字撐出格子 */
   gap: 3px;
   width: 100%;
 }
+.peek-card-actions button.wide { grid-column: 1 / -1; }   /* 手牌／棄牌文字長，各佔整列，三排等寬對齊 */
 .peek-card-actions button {
+  min-width: 0;
   padding: 3px 0;
   border-radius: 5px;
   border: 1px solid var(--border);
@@ -5832,8 +5834,8 @@ function _renderPeekCards() {
       <div class="peek-card-actions">
         <button onclick="_peekPlace(${i},'top')">↑ 牌頂</button>
         <button onclick="_peekPlace(${i},'bottom')">↓ 牌底</button>
-        <button onclick="_peekPlace(${i},'hand')" title="加入手牌會向對手公開這張牌">✋ 手牌（亮牌）</button>
-        <button class="red" onclick="_peekPlace(${i},'drop')">🗑 棄牌</button>
+        <button class="wide" onclick="_peekPlace(${i},'hand')" title="加入手牌會向對手公開這張牌">✋ 手牌（亮牌）</button>
+        <button class="red wide" onclick="_peekPlace(${i},'drop')">🗑 棄牌</button>
       </div>`}
     `;
     const imgEl = div.querySelector('.peek-card-img');
