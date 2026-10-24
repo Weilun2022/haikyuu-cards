@@ -12,6 +12,7 @@ import { getFirestore, collectionGroup, getDocs, query } from 'https://www.gstat
 import { groupByAccount, filterDecks, summarizeDeck, findDeckHits, accessDecision, cardCount } from './ana-model.js';
 import { indexCards, normalizeDeck, selectCohort, aggregate } from './deck-stats-model.js';
 import { renderAnalysis } from './ana-analysis.js';
+import { deckShareUrl } from './deck-share-url.js';
 import { h, fmtDate, fmtTime } from './ana-dom.js';
 
 const ADMIN_EMAIL = 'evilscheme2012@gmail.com';
@@ -36,6 +37,8 @@ let loadedAt = 0;
 let tab = 'browse';
 // 分析面板的運算結果（全量算一次就夠，切分頁不重算）。重新整理資料時清掉。
 let analysis = null;
+// 目前彈窗上那張 QR 對應的網址，給「複製連結」用
+let shareUrl = '';
 // 面板內的 UI 選擇（選了哪一校、哪一副牌、品質清單看哪一欄），重畫時沿用。
 const analysisState = { schoolWeighted: true };
 const cardsIndex = indexCards(typeof CARDS_DATA !== 'undefined' ? CARDS_DATA.cards : []);
@@ -152,7 +155,8 @@ function deckView(deck) {
       h('b', {}, deck.name),
       h('span', {}, `${deck.total} 張`),
       h('span', {}, `更新 ${fmtDate(deck.updatedMs)}`),
-      deck.deleted ? h('span', {}, '已刪除') : null),
+      deck.deleted ? h('span', {}, '已刪除') : null,
+      deck.total ? h('button', { class: 'btn qr-btn', on: { click: () => openShare(deck) } }, '📲 QR 分享') : null),
     h('div', { class: 'tags' },
       s.bySchool.map(x => h('span', { class: 'tag' }, `${x.label} ${x.count}`)),
       s.byCategory.map(x => h('span', { class: 'tag' }, `${x.label} ${x.count}`)),
@@ -179,6 +183,50 @@ function renderSearch(box, q) {
     }, `${x.deckName}　×${x.count}`, h('span', { class: 'sub' }, `帳號 ${x.shortId}…`)))));
 }
 
+// ── QR 分享 ─────────────────────────────────────────────────────────────
+// 連結指向 index.html（匯入流程在卡牌資料庫那邊），payload 格式見 deck-share-url.js。
+function openShare(deck) {
+  shareUrl = deckShareUrl(deck);
+  $('qr-title').textContent = `分享「${deck.name}」`;
+  $('qr-msg').textContent = '';
+  const box = $('qr-canvas');
+  box.replaceChildren();
+  const size = Math.max(160, Math.min(window.innerWidth - 112, window.innerHeight - 300, 300));
+  new QRCode(box, { text: shareUrl, width: size, height: size, correctLevel: QRCode.CorrectLevel.M });
+  $('qr-overlay').hidden = false;
+}
+
+function closeShare() {
+  $('qr-overlay').hidden = true;
+}
+
+// 剛點過牌組按鈕就按複製，Chrome 有時會回報 document 尚未取得焦點而直接拒絕 Clipboard API，
+// 畫面上又沒有任何提示；失敗時改用 execCommand('copy') 兜底，並確保一定有一行結果可看。
+function copyShareUrl() {
+  // 複製失敗時把網址直接印出來，使用者才有東西可以手動選取
+  const done = ok => { $('qr-msg').textContent = ok ? '連結已複製' : `複製失敗，請手動選取：${shareUrl}`; };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(shareUrl).then(() => done(true)).catch(() => done(fallbackCopy(shareUrl)));
+  } else {
+    done(fallbackCopy(shareUrl));
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+  document.body.append(ta);
+  ta.select();
+  try {
+    return document.execCommand('copy');
+  } catch {
+    return false;
+  } finally {
+    ta.remove();
+  }
+}
+
 function bindUi() {
   $('tab-browse').addEventListener('click', () => { tab = 'browse'; render(); });
   $('tab-analysis').addEventListener('click', () => { tab = 'analysis'; render(); });
@@ -187,6 +235,10 @@ function bindUi() {
   $('btn-refresh').addEventListener('click', () => start(auth.currentUser));
   $('btn-login').addEventListener('click', () => window.hvCloudSync.signInWithGoogle().catch(e => showGate(`登入失敗：${e.message}`, true)));
   $('btn-logout').addEventListener('click', () => window.hvCloudSync.signOutUser());
+  $('qr-close').addEventListener('click', closeShare);
+  $('qr-copy').addEventListener('click', copyShareUrl);
+  $('qr-overlay').addEventListener('click', e => { if (e.target === $('qr-overlay')) closeShare(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeShare(); });
 }
 
 async function start(user) {

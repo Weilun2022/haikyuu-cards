@@ -3,7 +3,7 @@
 //
 // 輸入的「文件」形狀（對應 cloud-sync.js 的 deckDocPayload）：
 //   { id, ownerUid, deck: { name, cards: [{ image_file, card_no, count }] },
-//     deleted, clientUpdatedAt, updatedAt? }
+//     color, deleted, clientUpdatedAt, updatedAt? }
 
 import { QUICK_DECK_ID, LEGAL_DECK_SIZE, deckUpdatedMs } from './deck-constants.js';
 
@@ -27,6 +27,7 @@ function normalizeDeck(d) {
     id: d.id,
     name: d.deck?.name ?? '（無名稱）',
     cards,
+    colors: d.color ?? null,
     total: deckTotal(cards),
     deleted: !!d.deleted,
     updatedMs: deckUpdatedMs(d),
