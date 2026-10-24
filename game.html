@@ -1441,6 +1441,8 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .log-line.log-key-reset .lk { background: var(--orange); }
 .log-line.log-key-score { border-left-color: #facc15;       background: rgba(250,204,21,.08); }
 .log-line.log-key-score .lk { background: #facc15; }
+.log-line.log-key-peek  { border-left-color: var(--adjusted); background: rgba(108,99,255,.10); }
+.log-line.log-key-peek  .lk { background: var(--adjusted); }
 
 /* card-preview removed */
 
@@ -1990,6 +1992,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
   color: var(--text);
 }
 .peek-mode-desc { font-size: 11px; color: var(--text-dim); text-align: center; line-height: 1.5; width: 100%; }
+.peek-mode-note { font-size: 10px; color: var(--text-dim); text-align: center; line-height: 1.5; width: 100%; opacity: .75; }
 /* Peek result panel */
 #peek-panel {
   background: var(--surface);
@@ -2105,15 +2108,46 @@ input[type=text]::placeholder { color: var(--text-dim); }
   border-radius: 14px;
   padding: 10px 14px;
   min-width: 220px;
-  max-width: 480px;
+  width: max-content;   /* 不加的話卡片列只會撐到 min-width，8 張牌被擠成兩排窄的 */
+  max-width: min(480px, calc(100vw - 20px));
   box-shadow: 0 8px 32px rgba(0,0,0,.7);
 }
 #opp-peek-banner.show { display: block; }
-.opp-peek-hd { font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; }
+.opp-peek-hd { font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.opp-peek-hd-txt { flex: 1; min-width: 0; }
+.opp-peek-toggle {
+  flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 7px; font-size: 10px; padding: 2px 7px; cursor: pointer;
+}
+.opp-peek-toggle:hover { color: var(--text); border-color: var(--accent); }
 .opp-peek-cards { display: flex; gap: 6px; flex-wrap: wrap; }
+.opp-peek-cards.collapsed { display: none; }
 .opp-peek-card { width: 52px; }
 .opp-peek-card img { width: 100%; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
 .opp-peek-card-name { font-size: 9px; color: var(--text-dim); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 3px; }
+/* 未揭露的牌只畫卡背，而且照「處理順序」排，不照牌堆原本的位置排——
+   否則對手從第幾格翻開就能推出你挑的是牌頂數來第幾張 */
+.opp-peek-back {
+  width: 52px; aspect-ratio: 5 / 7; border-radius: 5px;
+  border: 1px dashed var(--border); background: var(--surface2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; color: var(--text-dim);
+  background-image: repeating-linear-gradient(45deg, rgba(var(--accent-rgb),.10) 0 4px, transparent 4px 8px);
+}
+.opp-peek-badge {
+  margin-top: 3px; font-size: 9px; font-weight: 700; text-align: center;
+  border-radius: 999px; padding: 1px 0; background: var(--surface3); color: var(--text-dim);
+}
+.opp-peek-badge.hand { background: rgba(var(--accent-rgb),.22); color: var(--accent-hi); }
+.opp-peek-badge.drop { background: rgba(248,113,113,.18); color: #f87171; }
+.opp-peek-unknown {
+  display: flex; align-items: center; gap: 5px; padding: 0 10px; min-height: 40px;
+  border: 1px dashed var(--border); border-radius: 8px;
+  font-size: 11px; color: var(--text-dim); background: var(--surface2);
+}
+@media (max-width: 768px) {
+  .opp-peek-card, .opp-peek-back { width: 40px; }
+}
 
 /* ══════════════════════════════════════
    TUTORIAL MODAL
@@ -3197,6 +3231,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <button class="peek-mode-btn"        id="peek-pub-btn"  onclick="_peekSetMode('public')">👁 公開</button>
     </div>
     <div class="peek-mode-desc" id="peek-mode-desc">僅自己可見牌面，對手只看到提示</div>
+    <div class="peek-mode-note">不論哪個模式，翻出來的牌只要「加入手牌」或「棄牌」都會向對手公開牌面；一般抽牌不會。請依卡牌效果選擇操作。</div>
     <button class="btn primary" style="width:100%" onclick="executePeek()">翻牌</button>
     <button class="btn" style="width:100%;margin-top:-6px" onclick="closePeek()">取消</button>
   </div>
@@ -3208,7 +3243,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
     </div>
     <div class="peek-cards-row" id="peek-cards-row"></div>
     <div class="peek-done-row">
-      <button class="btn sm primary" onclick="_peekReturnAll()">全部放回牌頂</button>
+      <button class="btn sm primary" onclick="closePeek()">全部放回牌頂</button>
     </div>
   </div>
 </div>
@@ -5664,6 +5699,23 @@ let _peekCount = 1;
 let _peekMode  = 'private';
 let _peekCards = []; // imgs removed from pile top during peek
 let _peekUsed  = new Set(); // indices of _peekCards already placed
+let _peekSeq   = 0;  // 放置順序；對手橫幅照這個排，不照牌堆原位置排
+let _peekPlacedAny = false; // 這次翻牌有沒有動過牌，決定關掉時要不要讓橫幅多留一下
+// peekNotif / peekReveal 是共用節點、不分角色，所以只能碰「自己這次翻牌寫的那個」，
+// 否則對手正在翻牌時我按一下取消就會把他的紀錄刪掉
+let _peekActiveNode = null;
+let _peekRunning = false;   // 設定視窗按取消時不該去動上一次翻牌還在延遲刪除的節點
+
+// 翻牌視窗關掉後，對手橫幅還要留多久才收，不然最後一張牌的落點會在對手眼前瞬間消失
+const PEEK_LINGER_MS = 6000;
+let _peekLingerTimer = null;
+
+// 揭露規則由「落點」決定，不是由模式決定：加入手牌、棄牌一律公開牌面
+// （棄牌堆本來就是公開區；手牌則是「可以不讓對手知道你看了哪幾張，
+// 但不能不讓他知道你拿走了什麼」）。放回牌頂／牌底只有公開模式才亮。
+function _peekDiscloses(where) {
+  return where === 'hand' || where === 'drop' || _peekMode === 'public';
+}
 
 function openPeekSetup() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
@@ -5672,6 +5724,8 @@ function openPeekSetup() {
   _peekMode  = 'private';
   _peekCards = [];
   _peekUsed  = new Set();
+  _peekSeq   = 0;
+  _peekPlacedAny = false;
   document.getElementById('peek-count-val').textContent = 1;
   document.getElementById('peek-minus').disabled = true;
   document.getElementById('peek-plus').disabled  = (L.pile.length <= 1);
@@ -5704,14 +5758,23 @@ function executePeek() {
   // splice from pile top (last n elements), reverse so index 0 = topmost card
   _peekCards = L.pile.splice(L.pile.length - n, n).reverse();
   _peekUsed  = new Set();
+  _peekSeq   = 0;
+  _peekPlacedAny = false;
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
 
-  if (_peekMode === 'private') {
-    db.ref(`games/${roomId}/peekNotif`).set({ by: myRole, count: n, ts: Date.now() });
-  } else {
-    db.ref(`games/${roomId}/peekReveal`).set({ by: myRole, cards: _peekCards, ts: Date.now() });
-  }
+  // 上一次翻牌的收尾計時器還沒跑完就又翻一次的話，它 6 秒後會把這一次的節點刪掉
+  clearTimeout(_peekLingerTimer);
+  const node = _peekMode === 'private' ? 'peekNotif' : 'peekReveal';
+  if (_peekActiveNode && _peekActiveNode !== node) db.ref(`games/${roomId}/${_peekActiveNode}`).remove();
+  _peekActiveNode = node;
+  _peekRunning = true;
+  const ref = db.ref(`games/${roomId}/${node}`);
+  // 翻到一半斷線時由伺服器端收掉，對手才不會卡著一個永遠不消失的橫幅
+  ref.onDisconnect().remove();
+  ref.set(_peekMode === 'private'
+    ? { by: myRole, count: n, ts: Date.now() }
+    : { by: myRole, count: n, cards: _peekCards, ts: Date.now() });
   addLog(L.name, `🔍 翻牌頂（${n} 張，${_peekMode === 'private' ? '私看' : '公開'}）`);
 
   document.getElementById('peek-setup').style.display = 'none';
@@ -5738,7 +5801,7 @@ function _renderPeekCards() {
       <div class="peek-card-actions">
         <button onclick="_peekPlace(${i},'top')">↑ 牌頂</button>
         <button onclick="_peekPlace(${i},'bottom')">↓ 牌底</button>
-        <button onclick="_peekPlace(${i},'hand')">✋ 手牌</button>
+        <button onclick="_peekPlace(${i},'hand')" title="加入手牌會向對手公開這張牌">✋ 手牌（亮牌）</button>
         <button class="red" onclick="_peekPlace(${i},'drop')">🗑 棄牌</button>
       </div>`}
     `;
@@ -5757,7 +5820,7 @@ async function _peekPlace(idx, where) {
   const name = allCards[img]?.name || img;
   _peekUsed.add(idx);
 
-  const shownName = _peekMode === 'private' ? '一張牌' : name;
+  const shownName = _peekDiscloses(where) ? name : '一張牌';
 
   if (where === 'top') {
     L.pile.push(img);
@@ -5780,44 +5843,72 @@ async function _peekPlace(idx, where) {
     zones.drop.push(img);
     await pushZones(zones);
     document.getElementById('self-drop').textContent = zones.drop.length;
-    addLog(L.name, `🔍 ${name} → 棄牌`);
+    addLog(L.name, `🔍 ${shownName} → 棄牌`);
   }
 
-  // Update public reveal for opponent
-  if (_peekMode === 'public') {
-    const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
-    if (remaining.length) db.ref(`games/${roomId}/peekReveal`).update({ cards: remaining });
-    else                  db.ref(`games/${roomId}/peekReveal`).remove();
-  }
+  _peekSyncPlacements([{ idx, img, to: where }]);
 
   _renderPeekCards();
-  if (_peekUsed.size === _peekCards.length) setTimeout(closePeek, 350);
+  // 最後一張放完自動關窗；比對陣列本身，避免這 350ms 內又開了新的一次翻牌而關錯
+  if (_peekUsed.size === _peekCards.length) {
+    const batch = _peekCards;
+    setTimeout(() => { if (_peekCards === batch) closePeek(); }, 350);
+  }
 }
 
-function _peekReturnAll() {
-  const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
-  // Push in reverse so index 0 ends up on top
-  for (let i = remaining.length - 1; i >= 0; i--) L.pile.push(remaining[i]);
-  _peekCards.forEach((_, i) => _peekUsed.add(i));
-  document.getElementById('self-deck').textContent = L.pile.length;
-  syncPileCount();
-  if (remaining.length) addLog(L.name, `🔍 ${remaining.length} 張放回牌頂`);
-  closePeek();
+// key 用「這次翻牌的原始索引」——_peekCards 從頭到尾不刪元素，所以索引穩定，
+// 同一張卡在同一次翻牌出現兩次也分得開。寫進 placed/<idx> 子路徑，
+// 才不會像 update({placed:{...}}) 那樣把同一次翻牌已經放好的其他紀錄整個蓋掉。
+function _peekSyncPlacements(placements) {
+  if (!placements.length || !_peekActiveNode) return;
+  const patch = {};
+  placements.forEach(({ idx, img, to }) => {
+    const entry = { to, seq: _peekSeq++ };
+    if (_peekDiscloses(to)) entry.img = img;  // 不該公開時連欄位都不寫，RTDB 不吃 undefined
+    patch[`placed/${idx}`] = entry;
+  });
+  if (_peekMode === 'public') {
+    const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
+    patch.cards = remaining.length ? remaining : null;
+  }
+  _peekPlacedAny = true;
+  db.ref(`games/${roomId}/${_peekActiveNode}`).update(patch);
 }
 
 function closePeek() {
-  // Return any unplaced cards to pile top in order
-  const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
+  // 視窗關掉時還沒處理的牌一律放回牌頂，而且照樣同步成「放回牌頂」，
+  // 不然對手的橫幅會卡在「已處理 1/3」然後莫名其妙消失
+  const remaining = [];
+  _peekCards.forEach((img, i) => { if (!_peekUsed.has(i)) remaining.push([i, img]); });
   if (remaining.length) {
-    for (let i = remaining.length - 1; i >= 0; i--) L.pile.push(remaining[i]);
+    // 反向推回去，原本的第 1 張才會回到牌頂
+    for (let j = remaining.length - 1; j >= 0; j--) L.pile.push(remaining[j][1]);
+    remaining.forEach(([i]) => _peekUsed.add(i));
+    _peekSyncPlacements(remaining.map(([idx, img]) => ({ idx, img, to: 'top' })));
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
+    addLog(L.name, `🔍 ${remaining.length} 張放回牌頂`);
   }
-  db.ref(`games/${roomId}/peekNotif`).remove();
-  db.ref(`games/${roomId}/peekReveal`).remove();
+  if (_peekRunning) _peekFinishSync();
   _peekCards = [];
   _peekUsed  = new Set();
   document.getElementById('peek-overlay').classList.remove('open');
+}
+
+// 關掉視窗不等於對手已經看過落點，所以先打 done 旗標讓橫幅多留 PEEK_LINGER_MS 再刪節點
+function _peekFinishSync() {
+  if (!_peekActiveNode) return;
+  _peekRunning = false;
+  const node = _peekActiveNode;
+  const ref  = db.ref(`games/${roomId}/${node}`);
+  ref.onDisconnect().cancel();
+  if (!_peekPlacedAny) { _peekActiveNode = null; ref.remove(); return; }
+  _peekPlacedAny = false;
+  ref.update({ done: true, endTs: Date.now() });
+  _peekLingerTimer = setTimeout(() => {
+    ref.remove();
+    if (_peekActiveNode === node) _peekActiveNode = null;
+  }, PEEK_LINGER_MS);
 }
 
 function _peekOverlayClick(e) {
@@ -5825,6 +5916,16 @@ function _peekOverlayClick(e) {
 }
 
 // Opponent-side peek display (called from syncUI)
+const PEEK_DEST = {
+  hand:   { label: '✋ 進手牌', cls: 'hand' },
+  drop:   { label: '🗑 棄牌',   cls: 'drop' },
+  top:    { label: '↑ 牌頂' },
+  bottom: { label: '↓ 牌底' },
+};
+let _oppPeekExpanded  = true;   // 超過 6 格時窄螢幕預設收起，桌機照常攤開
+let _oppPeekTs        = null;
+let _oppPeekHideTimer = null;
+
 function handleOppPeek(data, prev) {
   const oppRole = myRole === 'host' ? 'guest' : 'host';
   const oppName = data.players?.[oppRole]?.name || '對手';
@@ -5832,48 +5933,121 @@ function handleOppPeek(data, prev) {
 
   const notif  = data.peekNotif;
   const reveal = data.peekReveal;
+  const isPriv = !!(notif && notif.by === oppRole);
+  const peek   = isPriv ? notif : ((reveal && reveal.by === oppRole) ? reveal : null);
 
-  if (notif && notif.by === oppRole) {
-    // Private peek: show simple banner
-    const prevNotif = prev?.peekNotif;
-    if (!prevNotif || prevNotif.ts !== notif.ts) {
-      toast(`🔍 ${oppName} 正在查看牌頂 ${notif.count} 張`);
-    }
-    document.getElementById('opp-peek-hd').textContent = `🔍 ${oppName} 查看牌頂（${notif.count} 張）`;
-    document.getElementById('opp-peek-cards').innerHTML = '';
-    banner.classList.add('show');
-  } else if (reveal && reveal.by === oppRole) {
-    // Public peek: show cards
-    const prevReveal = prev?.peekReveal;
-    if (!prevReveal || prevReveal.ts !== reveal.ts) {
-      toast(`👁 ${oppName} 公開翻牌頂 ${(reveal.cards||[]).length} 張`);
-    }
-    document.getElementById('opp-peek-hd').textContent = `👁 ${oppName} 公開翻牌頂`;
-    const cardsEl = document.getElementById('opp-peek-cards');
-    cardsEl.innerHTML = '';
-    (reveal.cards || []).forEach(img => {
-      const c   = allCards[img];
-      const div = document.createElement('div');
-      div.className = 'opp-peek-card';
-      const imgEl = document.createElement('img');
-      imgEl.src = `images/${img}`;
-      imgEl.alt = c?.name || '';
-      imgEl.addEventListener('mouseenter', e => showCardHover(img, e));
-      imgEl.addEventListener('mousemove',  e => _posCardHover(e));
-      imgEl.addEventListener('mouseleave', hideCardHover);
-      imgEl.addEventListener('click',      () => showDetail(img));
-      imgEl.style.cursor = 'pointer';
-      const nameEl = document.createElement('div');
-      nameEl.className = 'opp-peek-card-name';
-      nameEl.textContent = c?.name || img;
-      div.appendChild(imgEl);
-      div.appendChild(nameEl);
-      cardsEl.appendChild(div);
-    });
-    banner.classList.add('show');
-  } else {
-    banner.classList.remove('show');
+  clearTimeout(_oppPeekHideTimer);
+  if (!peek) { banner.classList.remove('show'); return; }
+
+  // 翻牌者那側關掉視窗後會自己刪節點；萬一他中途斷線，這個計時器負責把殘留的橫幅收掉
+  if (peek.done && peek.endTs) {
+    const left = peek.endTs + PEEK_LINGER_MS - Date.now();
+    if (left <= 0) { banner.classList.remove('show'); return; }
+    _oppPeekHideTimer = setTimeout(() => banner.classList.remove('show'), left);
   }
+
+  const prevPeek = isPriv ? prev?.peekNotif : prev?.peekReveal;
+  if (peek.ts !== _oppPeekTs) {
+    _oppPeekTs = peek.ts;
+    _oppPeekExpanded = window.innerWidth > 768;
+    toast(isPriv
+      ? `🔍 ${oppName} 正在查看牌頂 ${peek.count || 0} 張`
+      : `👁 ${oppName} 公開翻牌頂 ${peek.count || (peek.cards || []).length} 張`);
+  }
+  _toastPeekPlacements(oppName, peek, prevPeek);
+  _renderOppPeek(oppName, peek, isPriv);
+  banner.classList.add('show');
+}
+
+// 只有「進手牌／棄牌」跳 toast——這兩個是對手當下真的需要知道的事；
+// 放回牌頂/牌底只更新橫幅，不然連翻 10 張會被 toast 洗版
+function _toastPeekPlacements(oppName, peek, prevPeek) {
+  if (!prevPeek) return;   // 這是重連後的第一張快照，裡面的落點都是舊事，不該整串重跳
+  const now = peek.placed || {};
+  const was = prevPeek.placed || {};
+  Object.keys(now).forEach(k => {
+    if (was[k]) return;
+    const p = now[k] || {};
+    if (p.to !== 'hand' && p.to !== 'drop') return;
+    const nm = p.img ? (allCards[p.img]?.name || p.img) : '一張牌';
+    toast(p.to === 'hand'
+      ? `✋ ${oppName} 把〈${nm}〉加入手牌`
+      : `🗑 ${oppName} 把〈${nm}〉丟進棄牌`);
+  });
+}
+
+function _oppPeekTile(img, dest) {
+  const div = document.createElement('div');
+  div.className = 'opp-peek-card';
+  if (img) {
+    const c = allCards[img];
+    const imgEl = document.createElement('img');
+    imgEl.src = `images/${img}`;
+    imgEl.alt = c?.name || '';
+    imgEl.style.cursor = 'pointer';
+    imgEl.addEventListener('mouseenter', e => showCardHover(img, e));
+    imgEl.addEventListener('mousemove',  e => _posCardHover(e));
+    imgEl.addEventListener('mouseleave', hideCardHover);
+    imgEl.addEventListener('click',      () => showDetail(img));
+    div.appendChild(imgEl);
+    const nameEl = document.createElement('div');
+    nameEl.className = 'opp-peek-card-name';
+    nameEl.textContent = c?.name || img;
+    div.appendChild(nameEl);
+  } else {
+    const back = document.createElement('div');
+    back.className = 'opp-peek-back';
+    back.textContent = '?';
+    div.appendChild(back);
+  }
+  if (dest) {
+    const b = document.createElement('div');
+    b.className = 'opp-peek-badge' + (dest.cls ? ' ' + dest.cls : '');
+    b.textContent = dest.label;
+    div.appendChild(b);
+  }
+  return div;
+}
+
+function _renderOppPeek(oppName, peek, isPriv) {
+  const placed = peek.placed || {};
+  // 照 seq（處理順序）排，不照索引排——索引是牌堆原本的位置，照它排等於告訴對手你挑了第幾張
+  // RTDB 看到連號整數鍵會還原成陣列，中間沒寫到的索引是 null，要先濾掉再排序
+  const done = Object.values(placed).filter(Boolean).sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  const unplacedImgs = isPriv ? [] : (peek.cards || []);
+  const total   = peek.count || (done.length + unplacedImgs.length);
+  const unknown = isPriv ? Math.max(0, total - done.length) : 0;
+
+  const tiles = done.length + unplacedImgs.length + (unknown ? 1 : 0);
+  const collapsible = tiles > 6;
+  const head = isPriv
+    ? `🔍 ${oppName} 查看牌頂（${total} 張）`
+    : `👁 ${oppName} 公開翻牌頂（${total} 張）`;
+  const prog = done.length ? `　·　已處理 ${done.length}/${total}` : '';
+  document.getElementById('opp-peek-hd').innerHTML =
+    `<span class="opp-peek-hd-txt">${esc(head + prog)}</span>` +
+    (collapsible
+      ? `<button class="opp-peek-toggle" id="opp-peek-toggle" onclick="_oppPeekToggle()">${_oppPeekExpanded ? '收起 ▴' : '展開 ▾'}</button>`
+      : '');
+
+  const row = document.getElementById('opp-peek-cards');
+  row.innerHTML = '';
+  done.forEach(p => row.appendChild(_oppPeekTile(p.img || null, PEEK_DEST[p.to])));
+  unplacedImgs.forEach(img => row.appendChild(_oppPeekTile(img, null)));
+  if (unknown) {
+    const chip = document.createElement('div');
+    chip.className = 'opp-peek-unknown';
+    chip.textContent = `未揭露 ×${unknown}`;
+    row.appendChild(chip);
+  }
+  row.classList.toggle('collapsed', collapsible && !_oppPeekExpanded);
+}
+
+function _oppPeekToggle() {
+  _oppPeekExpanded = !_oppPeekExpanded;
+  document.getElementById('opp-peek-cards').classList.toggle('collapsed', !_oppPeekExpanded);
+  const btn = document.getElementById('opp-peek-toggle');
+  if (btn) btn.textContent = _oppPeekExpanded ? '收起 ▴' : '展開 ▾';
 }
 
 // 單一計分公式來源：serve 模式看 serve 牌的 srv，攻擊模式看 toss.tos + attack.atk。
@@ -6170,6 +6344,7 @@ const LOG_KEY_EVENTS = [
   { type: 'turn',  label: '換手', test: a => a.startsWith('回合結束') },
   { type: 'reset', label: '重置', test: a => a.includes('重置本局') },
   { type: 'score', label: '局數', test: a => a.startsWith('🏆 局數調整') },
+  { type: 'peek',  label: '翻牌', test: a => a.startsWith('🔍') },
 ];
 
 function _makeLogLine(e) {
