@@ -3878,6 +3878,7 @@ async function spectateRoom(id) {
 async function leaveRoom() {
   if (!roomId) return;
   _stopPresenceWatch();
+  _peekResetForRoom();
   if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
   exitMoveMode();
   const id = roomId;
@@ -4102,6 +4103,13 @@ function _startPresenceWatch() {
     const presRef = db.ref(`games/${roomId}/presence/${myRole}`);
     presRef.onDisconnect().remove();
     presRef.set(true).catch(() => {});
+    // 斷線時 onDisconnect 已經把翻牌節點刪掉了，接回來要重發，不然對手後半段全看不到
+    if (_peekRunning && _peekBase) {
+      const peekRef = _peekRef();
+      peekRef.onDisconnect().remove();
+      peekRef.set({ ..._peekBase, ...(Object.keys(_peekPlaced).length ? { placed: _peekPlaced } : {}) })
+             .catch(() => {});
+    }
   });
 }
 
@@ -5568,6 +5576,15 @@ async function undoLastAction() {
   syncPileCount();
   syncHandCount();
   renderHand();
+  // 翻牌是一次 saveUndo 蓋住整輪，復原等於整輪沒發生，同步出去的落點也得跟著撤
+  if (_peekNodeName) {
+    clearTimeout(_peekLingerTimer);
+    _peekRef().onDisconnect().cancel();
+    _peekRef().remove();
+    _peekNodeName = null;
+    _peekRunning  = false;
+    _peekPlacedAny = false;
+  }
   addLog(L.name, `↩ 復原了上一步`);
   toast('已復原上一步');
 }
@@ -5699,12 +5716,12 @@ let _peekCount = 1;
 let _peekMode  = 'private';
 let _peekCards = []; // imgs removed from pile top during peek
 let _peekUsed  = new Set(); // indices of _peekCards already placed
-let _peekSeq   = 0;  // 放置順序；對手橫幅照這個排，不照牌堆原位置排
+let _peekSeq   = 0;  // 放置流水號；同時當同步用的 key，見 _peekSyncPlacements
 let _peekPlacedAny = false; // 這次翻牌有沒有動過牌，決定關掉時要不要讓橫幅多留一下
-// peekNotif / peekReveal 是共用節點、不分角色，所以只能碰「自己這次翻牌寫的那個」，
-// 否則對手正在翻牌時我按一下取消就會把他的紀錄刪掉
-let _peekActiveNode = null;
-let _peekRunning = false;   // 設定視窗按取消時不該去動上一次翻牌還在延遲刪除的節點
+let _peekNodeName  = null;  // 'peekNotif' | 'peekReveal'，這次翻牌寫在哪個節點底下
+let _peekRunning   = false; // 設定視窗按取消時不該去動上一次翻牌還在延遲刪除的節點
+let _peekBase      = null;  // 重連後要原封不動重發的那包，見 _startPresenceWatch
+let _peekPlaced    = {};    // seq → entry，重發時一起帶上
 
 // 翻牌視窗關掉後，對手橫幅還要留多久才收，不然最後一張牌的落點會在對手眼前瞬間消失
 const PEEK_LINGER_MS = 6000;
@@ -5713,8 +5730,21 @@ let _peekLingerTimer = null;
 // 揭露規則由「落點」決定，不是由模式決定：加入手牌、棄牌一律公開牌面
 // （棄牌堆本來就是公開區；手牌則是「可以不讓對手知道你看了哪幾張，
 // 但不能不讓他知道你拿走了什麼」）。放回牌頂／牌底只有公開模式才亮。
+const PEEK_DEST = {
+  hand:   { label: '✋ 進手牌', cls: 'hand', always: true,  toast: '✋ %s 把〈%c〉加入手牌' },
+  drop:   { label: '🗑 棄牌',   cls: 'drop', always: true,  toast: '🗑 %s 把〈%c〉丟進棄牌' },
+  top:    { label: '↑ 牌頂',                 always: false },
+  bottom: { label: '↓ 牌底',                 always: false },
+};
+
 function _peekDiscloses(where) {
-  return where === 'hand' || where === 'drop' || _peekMode === 'public';
+  return PEEK_DEST[where]?.always || _peekMode === 'public';
+}
+
+// 每個角色寫自己的子節點。共用一個節點的話，兩人同時翻牌時後開的 set() 會蓋掉先開的，
+// 而且之後的 placed 合併會把自己的落點掛到對方名下，對手橫幅就張冠李戴。
+function _peekRef(node) {
+  return db.ref(`games/${roomId}/${node || _peekNodeName}/${myRole}`);
 }
 
 function openPeekSetup() {
@@ -5766,15 +5796,16 @@ function executePeek() {
   // 上一次翻牌的收尾計時器還沒跑完就又翻一次的話，它 6 秒後會把這一次的節點刪掉
   clearTimeout(_peekLingerTimer);
   const node = _peekMode === 'private' ? 'peekNotif' : 'peekReveal';
-  if (_peekActiveNode && _peekActiveNode !== node) db.ref(`games/${roomId}/${_peekActiveNode}`).remove();
-  _peekActiveNode = node;
-  _peekRunning = true;
-  const ref = db.ref(`games/${roomId}/${node}`);
+  if (_peekNodeName && _peekNodeName !== node) _peekRef(_peekNodeName).remove();
+  _peekNodeName = node;
+  _peekRunning  = true;
+  _peekPlaced   = {};
+  _peekBase = { by: myRole, count: n, ts: Date.now() };
+  if (_peekMode === 'public') _peekBase.cards = _peekCards;
+  const ref = _peekRef();
   // 翻到一半斷線時由伺服器端收掉，對手才不會卡著一個永遠不消失的橫幅
   ref.onDisconnect().remove();
-  ref.set(_peekMode === 'private'
-    ? { by: myRole, count: n, ts: Date.now() }
-    : { by: myRole, count: n, cards: _peekCards, ts: Date.now() });
+  ref.set(_peekBase);
   addLog(L.name, `🔍 翻牌頂（${n} 張，${_peekMode === 'private' ? '私看' : '公開'}）`);
 
   document.getElementById('peek-setup').style.display = 'none';
@@ -5846,7 +5877,7 @@ async function _peekPlace(idx, where) {
     addLog(L.name, `🔍 ${shownName} → 棄牌`);
   }
 
-  _peekSyncPlacements([{ idx, img, to: where }]);
+  _peekSyncPlacements([{ img, to: where }]);
 
   _renderPeekCards();
   // 最後一張放完自動關窗；比對陣列本身，避免這 350ms 內又開了新的一次翻牌而關錯
@@ -5856,23 +5887,27 @@ async function _peekPlace(idx, where) {
   }
 }
 
-// key 用「這次翻牌的原始索引」——_peekCards 從頭到尾不刪元素，所以索引穩定，
-// 同一張卡在同一次翻牌出現兩次也分得開。寫進 placed/<idx> 子路徑，
-// 才不會像 update({placed:{...}}) 那樣把同一次翻牌已經放好的其他紀錄整個蓋掉。
+// key 是放置流水號，不是牌在牌堆裡的索引——用索引的話對手讀一下 gameState 就知道
+// 你挑的是牌頂數來第幾張，私看就白做了。流水號同樣唯一，所以同一張卡在同一次翻牌
+// 出現兩次也分得開。寫 placed/<seq> 子路徑，才不會像 update({placed:{...}}) 那樣
+// 把同一次翻牌已經放好的其他紀錄整個蓋掉。
 function _peekSyncPlacements(placements) {
-  if (!placements.length || !_peekActiveNode) return;
+  if (!placements.length || !_peekNodeName) return;
   const patch = {};
-  placements.forEach(({ idx, img, to }) => {
-    const entry = { to, seq: _peekSeq++ };
+  placements.forEach(({ img, to }) => {
+    const entry = { to };
     if (_peekDiscloses(to)) entry.img = img;  // 不該公開時連欄位都不寫，RTDB 不吃 undefined
-    patch[`placed/${idx}`] = entry;
+    const seq = _peekSeq++;
+    _peekPlaced[seq] = entry;
+    patch[`placed/${seq}`] = entry;
   });
   if (_peekMode === 'public') {
     const remaining = _peekCards.filter((_, i) => !_peekUsed.has(i));
     patch.cards = remaining.length ? remaining : null;
+    _peekBase.cards = remaining;
   }
   _peekPlacedAny = true;
-  db.ref(`games/${roomId}/${_peekActiveNode}`).update(patch);
+  _peekRef().update(patch);
 }
 
 function closePeek() {
@@ -5884,7 +5919,7 @@ function closePeek() {
     // 反向推回去，原本的第 1 張才會回到牌頂
     for (let j = remaining.length - 1; j >= 0; j--) L.pile.push(remaining[j][1]);
     remaining.forEach(([i]) => _peekUsed.add(i));
-    _peekSyncPlacements(remaining.map(([idx, img]) => ({ idx, img, to: 'top' })));
+    _peekSyncPlacements(remaining.map(([, img]) => ({ img, to: 'top' })));
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
     addLog(L.name, `🔍 ${remaining.length} 張放回牌頂`);
@@ -5897,18 +5932,39 @@ function closePeek() {
 
 // 關掉視窗不等於對手已經看過落點，所以先打 done 旗標讓橫幅多留 PEEK_LINGER_MS 再刪節點
 function _peekFinishSync() {
-  if (!_peekActiveNode) return;
+  if (!_peekNodeName) return;
+  const node = _peekNodeName;
+  const ref  = _peekRef(node);
+  const placed = _peekPlacedAny;
   _peekRunning = false;
-  const node = _peekActiveNode;
-  const ref  = db.ref(`games/${roomId}/${node}`);
-  ref.onDisconnect().cancel();
-  if (!_peekPlacedAny) { _peekActiveNode = null; ref.remove(); return; }
   _peekPlacedAny = false;
-  ref.update({ done: true, endTs: Date.now() });
+  _peekBase = null;
+  _peekPlaced = {};
+  ref.onDisconnect().cancel();
+  if (!placed) { _peekNodeName = null; ref.remove(); return; }
+  ref.update({ done: true });
   _peekLingerTimer = setTimeout(() => {
     ref.remove();
-    if (_peekActiveNode === node) _peekActiveNode = null;
+    if (_peekNodeName === node) _peekNodeName = null;
   }, PEEK_LINGER_MS);
+}
+
+// 離開房間時把翻牌狀態整個丟掉：延遲刪除的計時器抓著舊房間的 ref，
+// 6 秒內重新進同一間房的話會把新的節點砍掉
+function _peekResetForRoom() {
+  clearTimeout(_peekLingerTimer);
+  _peekLingerTimer = null;
+  _peekNodeName = null;
+  _peekRunning  = false;
+  _peekPlacedAny = false;
+  _peekBase = null;
+  _peekPlaced = {};
+  _peekCards = [];
+  _peekUsed  = new Set();
+  _oppPeekTs = null;
+  clearTimeout(_oppPeekHideTimer);
+  document.getElementById('opp-peek-banner').classList.remove('show');
+  document.getElementById('peek-overlay').classList.remove('open');
 }
 
 function _peekOverlayClick(e) {
@@ -5916,14 +5972,9 @@ function _peekOverlayClick(e) {
 }
 
 // Opponent-side peek display (called from syncUI)
-const PEEK_DEST = {
-  hand:   { label: '✋ 進手牌', cls: 'hand' },
-  drop:   { label: '🗑 棄牌',   cls: 'drop' },
-  top:    { label: '↑ 牌頂' },
-  bottom: { label: '↓ 牌底' },
-};
 let _oppPeekExpanded  = true;   // 超過 6 格時窄螢幕預設收起，桌機照常攤開
 let _oppPeekTs        = null;
+let _oppPeekDoneAt    = 0;      // 本機收到 done 的時刻；不用對方送來的時間戳，見下方
 let _oppPeekHideTimer = null;
 
 function handleOppPeek(data, prev) {
@@ -5931,24 +5982,22 @@ function handleOppPeek(data, prev) {
   const oppName = data.players?.[oppRole]?.name || '對手';
   const banner  = document.getElementById('opp-peek-banner');
 
-  const notif  = data.peekNotif;
-  const reveal = data.peekReveal;
-  const isPriv = !!(notif && notif.by === oppRole);
-  const peek   = isPriv ? notif : ((reveal && reveal.by === oppRole) ? reveal : null);
+  const notif  = data.peekNotif?.[oppRole];
+  const reveal = data.peekReveal?.[oppRole];
+  const isPriv = !!notif;
+  const peek   = notif || reveal || null;
 
   clearTimeout(_oppPeekHideTimer);
-  if (!peek) { banner.classList.remove('show'); return; }
-
-  // 翻牌者那側關掉視窗後會自己刪節點；萬一他中途斷線，這個計時器負責把殘留的橫幅收掉
-  if (peek.done && peek.endTs) {
-    const left = peek.endTs + PEEK_LINGER_MS - Date.now();
-    if (left <= 0) { banner.classList.remove('show'); return; }
-    _oppPeekHideTimer = setTimeout(() => banner.classList.remove('show'), left);
+  // 對手整個離線就不要再掛著他的橫幅（他的節點要等 onDisconnect 跑完才會消失）
+  if (!peek || (data.presence && !data.presence[oppRole])) {
+    banner.classList.remove('show');
+    return;
   }
 
-  const prevPeek = isPriv ? prev?.peekNotif : prev?.peekReveal;
+  const prevPeek = isPriv ? prev?.peekNotif?.[oppRole] : prev?.peekReveal?.[oppRole];
   if (peek.ts !== _oppPeekTs) {
     _oppPeekTs = peek.ts;
+    _oppPeekDoneAt = 0;
     _oppPeekExpanded = window.innerWidth > 768;
     toast(isPriv
       ? `🔍 ${oppName} 正在查看牌頂 ${peek.count || 0} 張`
@@ -5957,6 +6006,14 @@ function handleOppPeek(data, prev) {
   _toastPeekPlacements(oppName, peek, prevPeek);
   _renderOppPeek(oppName, peek, isPriv);
   banner.classList.add('show');
+
+  // 收尾後讓橫幅多留一下再收。用本機收到 done 的時間算，不用對方寫的時間戳——
+  // 兩台電腦的時鐘差個幾秒，最後一批落點就會在對手還沒看到時被判定逾時。
+  if (peek.done) {
+    if (!_oppPeekDoneAt) _oppPeekDoneAt = Date.now();
+    const left = Math.max(0, _oppPeekDoneAt + PEEK_LINGER_MS - Date.now());
+    _oppPeekHideTimer = setTimeout(() => banner.classList.remove('show'), left);
+  }
 }
 
 // 只有「進手牌／棄牌」跳 toast——這兩個是對手當下真的需要知道的事；
@@ -5968,11 +6025,10 @@ function _toastPeekPlacements(oppName, peek, prevPeek) {
   Object.keys(now).forEach(k => {
     if (was[k]) return;
     const p = now[k] || {};
-    if (p.to !== 'hand' && p.to !== 'drop') return;
+    const tpl = PEEK_DEST[p.to]?.toast;
+    if (!tpl) return;
     const nm = p.img ? (allCards[p.img]?.name || p.img) : '一張牌';
-    toast(p.to === 'hand'
-      ? `✋ ${oppName} 把〈${nm}〉加入手牌`
-      : `🗑 ${oppName} 把〈${nm}〉丟進棄牌`);
+    toast(tpl.replace('%s', oppName).replace('%c', nm));
   });
 }
 
@@ -6011,9 +6067,9 @@ function _oppPeekTile(img, dest) {
 
 function _renderOppPeek(oppName, peek, isPriv) {
   const placed = peek.placed || {};
-  // 照 seq（處理順序）排，不照索引排——索引是牌堆原本的位置，照它排等於告訴對手你挑了第幾張
-  // RTDB 看到連號整數鍵會還原成陣列，中間沒寫到的索引是 null，要先濾掉再排序
-  const done = Object.values(placed).filter(Boolean).sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  // key 是放置流水號，連號，所以 Object.values 本來就是處理順序。
+  // RTDB 看到連號整數鍵會還原成陣列，刪掉的位置是 null，要濾掉。
+  const done = Object.values(placed).filter(Boolean);
   const unplacedImgs = isPriv ? [] : (peek.cards || []);
   const total   = peek.count || (done.length + unplacedImgs.length);
   const unknown = isPriv ? Math.max(0, total - done.length) : 0;
@@ -6023,7 +6079,7 @@ function _renderOppPeek(oppName, peek, isPriv) {
   const head = isPriv
     ? `🔍 ${oppName} 查看牌頂（${total} 張）`
     : `👁 ${oppName} 公開翻牌頂（${total} 張）`;
-  const prog = done.length ? `　·　已處理 ${done.length}/${total}` : '';
+  const prog = `　·　已處理 ${done.length}/${total}`;
   document.getElementById('opp-peek-hd').innerHTML =
     `<span class="opp-peek-hd-txt">${esc(head + prog)}</span>` +
     (collapsible
