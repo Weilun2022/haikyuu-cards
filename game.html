@@ -5207,6 +5207,23 @@ async function handleDrop(targetZone, hasCards) {
   if (!dragData) return;
   const dd = dragData; dragData = null;
 
+  // ── Drag from pile (hand/drop 必須在下面 hand/drop 前置分支之前處理，否則牌庫拖到手牌/棄牌會無動作) ──
+  if (dd.src === 'pile' && (targetZone === 'hand' || targetZone === 'drop')) {
+    if (isSpectator) { toast('觀戰模式無法操作'); return; }
+    if (!L.pile.length) { toast('牌庫已空'); return; }
+    if (targetZone === 'hand') { drawCard(); return; }
+    saveUndo();
+    const img = L.pile.pop();
+    const zones = myZonesCopy();
+    zones.drop = zones.drop || [];
+    zones.drop.push(img);
+    document.getElementById('self-deck').textContent = L.pile.length;
+    syncPileCount();
+    await pushZones(zones);
+    addLog(L.name, `${allCards[img]?.name || img} 從牌庫送至棄牌區${cardState()}`);
+    return;
+  }
+
   // ── Drag to hand ──
   if (targetZone === 'hand') {
     if (dd.src === 'zone') {
@@ -5242,23 +5259,8 @@ async function handleDrop(targetZone, hasCards) {
     return;
   }
 
-  const baseTarget = targetZone.split(':')[0];
-
   if (dd.src === 'pile') {
     if (!L.pile.length) { toast('牌庫已空'); return; }
-    if (targetZone === 'pile') return;
-    if (targetZone === 'hand') { drawCard(); return; }
-    if (targetZone === 'drop') {
-      const img = L.pile.pop();
-      const zones = myZonesCopy();
-      zones.drop = zones.drop || [];
-      zones.drop.push(img);
-      document.getElementById('self-deck').textContent = L.pile.length;
-      syncPileCount();
-      await pushZones(zones);
-      addLog(L.name, `${allCards[img]?.name || img} 從牌庫送至棄牌區${cardState()}`);
-      return;
-    }
     // Direct pile-to-zone: reuse placeCard by temporarily pushing to hand
     const img = L.pile.pop();
     document.getElementById('self-deck').textContent = L.pile.length;
@@ -5278,8 +5280,8 @@ async function handleDrop(targetZone, hasCards) {
     if (!cardData) return;
     moveCard(dd.zoneName, targetZone, cardData, false);
   } else if (dd.src === 'guts') {
-    if (dd.zoneName === baseTarget) return;
-    moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, baseTarget);
+    if (dd.zoneName === targetZone) return;
+    moveGutsCard(dd.zoneName, dd.cardData, dd.gutsImg, targetZone);
   }
 }
 
@@ -6495,14 +6497,14 @@ function openStack(zoneName, zonesData, readOnly = false) {
         const upBtn = document.createElement('button');
         upBtn.className = 'btn xs';
         upBtn.textContent = '↑ 上移';
-        upBtn.onclick = () => reorderStack(zoneName, all, i, i - 1);
+        upBtn.onclick = () => swapStackPosition(zoneName, all, i, i - 1);
         btns.appendChild(upBtn);
       }
       if (i < all.length - 1) {
         const downBtn = document.createElement('button');
         downBtn.className = 'btn xs';
         downBtn.textContent = '↓ 下移';
-        downBtn.onclick = () => reorderStack(zoneName, all, i, i + 1);
+        downBtn.onclick = () => swapStackPosition(zoneName, all, i, i + 1);
         btns.appendChild(downBtn);
       }
       // Move-to-zone buttons (block expands to 3 slots)
@@ -6717,7 +6719,9 @@ async function moveCardFromStack(fromZone, img, toTarget) {
   addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}${cardState()}`);
 }
 
-async function reorderStack(zoneName, all, fromIdx, toIdx) {
+// 堆疊檢視器 ↑/↓：依顯示順序（all[0]=頂牌）交換兩個位置。
+async function swapStackPosition(zoneName, all, fromIdx, toIdx) {
+  saveUndo();
   const newAll = [...all];
   [newAll[fromIdx], newAll[toIdx]] = [newAll[toIdx], newAll[fromIdx]];
   const zones = myZonesCopy();
