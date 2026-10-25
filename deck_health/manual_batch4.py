@@ -85,8 +85,8 @@ MANUAL_BATCH4 = {
     'HV-PR-083': [ON(['block'], cost=[dict(type='event_hand_to_evz', n=1, filter=dict(school='伊達工業'))], auto_cost=True,
                      effects=[S('blk', 3), dict(type='keyword', name='ドシャット', n=6)])],
     'HV-PR-039': [], 'HV-PR-070': [],
-    'HV-P04-073': [ON(['block'], conditions=[dict(type='evz_total_ge', n=4)], cost=G(1), effects=[S('blk', 2)])],
-    # ※ 黄金川 P04-073：「對手 Guts 的国見英最多 3 張丟棄」沒模擬
+    'HV-P04-073': [ON(['block'], conditions=[dict(type='evz_total_ge', n=4)], cost=G(1), effects=[S('blk', 2), dict(type='drop_opp_guts_named', name='国見 英', max=3)])],
+    # 黄金川 P04-073：對手 Guts 的国見英最多 3 張丟棄（2026-10-25 補上）
     # 事件（攔網階段）
     'HV-P02-090': [dict(timing='event', phases=['block', 'receive'], effects=[
         DRAW,

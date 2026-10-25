@@ -30,8 +30,8 @@ MANUAL_BATCH5 = {
     # ※ 沼井 P02-074：「對手 S 舉球角色登場就 −1」我用「手牌出場的 S 舉球 −1」規則（跟稲荷崎 P04-068 一樣）
     'HV-P02-076': [ON(['attack'], conditions=[dict(type='enter_on_top_name', name='田中 龍之介')], cost=G(4), effects=[S('atk', 2)])],
     'HV-P03-075': [ON(['receive', 'attack'], conditions=[dict(type='self_role_name', role='toss', name='越後 栄')], cost=G(3), effects=[S('any', 3)])],
-    'HV-P03-073': [ON(['attack'], cost=[dict(type='guts_each', zones=['receive', 'toss', 'attack'], n=2)], effects=[S('atk', 5)])],
-    # ※ 小鹿野 P03-073：「對手下回合攔網角色技能無效」沒模擬（目前沒有對應的規則）
+    'HV-P03-073': [ON(['attack'], cost=[dict(type='guts_each', zones=['receive', 'toss', 'attack'], n=2)], effects=[S('atk', 5), dict(type='restrict_opp', who='opp', rule='nullify_block_skills', duration=TO)])],
+    # 小鹿野 P03-073：對手下回合攔網角色技能無效（2026-10-25 補上）
     'HV-P01-060': [ON(['block'], conditions=[OP4], effects=[dict(type='keyword', name='ワンタッチ', n=2)])],
     'HV-P04-041': [ON(['block'], conditions=[OP4], effects=[dict(type='keyword', name='ワンタッチ', n=2)])],
     'HV-P04-051': [ON(['block'], conditions=[OP4], effects=[
@@ -49,8 +49,9 @@ MANUAL_BATCH5 = {
     'HV-P04-049': [ON(['receive'], cost=G(3), effects=[S('rcv', 2)])],
     'HV-P04-050': [ON(['toss'], cost=G(3), effects=[S('tos', 1), dict(type='drop_to_hand', who='self', filter=dict(school='和久谷南', category='CHARACTER'), max=1)])],
     'HV-P04-032': [ON(['attack'], conditions=[dict(type='all_own_chars_school', school='角川')],
-                      cost=[dict(type='guts_multi', zones=['block', 'attack'], n=3)], effects=[S('atk', 5)])],
-    # ※ 百沢 P04-032：「付的全是沒技能的百沢 → 再 +2」沒模擬（付 Guts 時不挑牌）
+                      cost=[dict(type='guts_multi', zones=['block', 'attack'], n=3)], effects=[S('atk', 5),
+        dict(type='stat_add', target='this', stat='atk', n=2, **{'if': [dict(type='paid_guts_name_noskill', name='百沢 雄大')]})])],
+    # 百沢 P04-032：付的全是沒技能的百沢 → 再 +2（2026-10-25 補上；付 Guts 不刻意挑牌）
     'HV-P04-037': [ON(['block'], cost=[dict(type='discard_filtered', n=1, filter=dict(school='角川'))], use_if=[dict(type='allow_discard')], effects=[
         dict(type='drop_to_hand', who='self', filter=dict(name='百沢 雄大', category='CHARACTER'), max=1),
         dict(type='keyword', name='ワンタッチ', n=2)])],
@@ -82,8 +83,9 @@ MANUAL_BATCH5 = {
     # ※ 谷地 P02-079：「對手輸掉時手牌烏野角色放成 Guts」沒模擬
     'HV-P02-080': [EV(['draw'], draw_policy='always', effects=[DRAW])],
     # ※ 武田 P02-080：「對手 Event 區的教練放回牌庫底後查看牌庫頂 3 張」沒模擬
-    'HV-P02-082': [EV(['attack'], effects=[DRAW, S('atk', 1, ONE(name='田中 龍之介'))])],
-    # ※ P02-082：「田中攻擊時，對手側邊攔網者登場一次丟棄」沒模擬
+    'HV-P02-082': [EV(['attack'], effects=[DRAW, S('atk', 1, ONE(name='田中 龍之介')),
+        dict(type='restrict_opp', who='opp', rule='drop_side_blocker_once', duration=TO, **{'if': [dict(type='self_role_name', role='attack', name='田中 龍之介')]})])],
+    # P02-082：田中攻擊時，對手下回合側翼攔網手出場時只限一次棄置（2026-10-25 補上）
     'HV-P02-092': [EV(['block', 'draw'], draw_policy='always', effects=[DRAW])],
     # ※ P02-092：「中間攔網是伊達工業 3 年時，場上 1・2 年回手牌再棄 1」沒模擬
     'HV-P02-099': [EV(['draw'], draw_policy='always', conditions=[dict(type='self_hand_le', n=4)], effects=[
@@ -118,9 +120,9 @@ MANUAL_BATCH5 = {
         dict(type='stat_add', target=ONE(), stat='atk', n=1, **{'if': [dict(type='event_zone_name_count_ge', name='おっさんも本気出しちゃうんだぜ', n=4)]})])],
     'HV-P04-090': [EV(['attack'], effects=[
         DRAW,
-        dict(type='restrict_opp', who='opp', rule='center_blocker_blk_add', n=-1, duration=TO, **{'if': [dict(type='self_role_name', role='attack', name='百沢 雄大')]}),
+        dict(type='restrict_opp', who='opp', rule='all_blockers_blk_add', n=-1, duration=TO, **{'if': [dict(type='self_role_name', role='attack', name='百沢 雄大')]}),
         dict(type='restrict_opp', who='opp', rule='opp_rcv_add', n=-1, duration=TO, **{'if': [dict(type='self_role_name', role='attack', name='百沢 雄大')]})])],
-    # ※ P04-090：兩個效果都是「對手之後出的攔網／接球角色 −1」，我把攔網 −1 當作中間攔網 −1
+    # P04-090：對手每個攔網角色（含側翼）攔網 −1（2026-10-25 改為 all_blockers_blk_add）
     'HV-P04-091': [EV(['receive'], once_per_turn=True, effects=[
         S('rcv', 1, ONE(school='角川', grade=2)),
         dict(type='draw', who='self', n=1, **{'if': [dict(type='self_role_name', role='attack', name='百沢 雄大')]}),

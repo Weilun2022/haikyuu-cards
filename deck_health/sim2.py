@@ -99,6 +99,9 @@ class Player:
     def add_nondraw(self, card):
         self.hand.append(card)
         if self.restrict and any(l['rule'] in ('owner_draw_nondraw', 'owner_draw_any') for l in self.restrict): self.owed += 1  # 天童 P01-057／山口 P02-004：對方每加一張，施放者抽 1
+        if self.restrict and any(l['rule'] == 'discard_on_nondraw_add' for l in self.restrict) and len(self.hand) > 1:  # 及川 P01-087：對手下回合每次非抽牌加牌要棄 1
+            w = max(self.hand, key=lambda c: hand_score([x for x in self.hand if x is not c]))
+            self.hand.remove(w); self.drop.append(w); self.bump('被及川逼棄牌')
         if self.trap:  # 二口：對手下回合以抽牌以外方式加入手牌時，削牌庫頂 3 張
             for _ in range(3):
                 if self.deck: self.drop.append(self.deck.pop(0))
@@ -164,8 +167,8 @@ def block_need(restrict, op):  # 伊達工業 二口 P02-039：攔網值 ≤n �
     return op
 
 
-def nullified(restrict):  # 稲荷崎 P02-016：一觸與「接球階段・手牌」技能無效
-    return any(l['rule'] == 'nullify_onetouch_and_receive_hand' for l in restrict)
+def nullified(restrict):  # 稲荷崎 P02-016：一觸與「接球階段・手牌」技能無效；岩泉 P04-020：接球階段・手牌技能無效
+    return any(l['rule'] in ('nullify_onetouch_and_receive_hand', 'nullify_receive_hand') for l in restrict)
 
 
 def name_ok(T, zone, name):
@@ -240,6 +243,7 @@ def cond_ok(c, P, T):
         st = P.zones[c['role']]
         return bool(st) and T['names'].get(c['role'], st[-1].name) in c['names']
     if t == 'entered_by_skill': return T.get('entered_by') is not None
+    if t == 'zone_entered_by_skill': return bool(T.get('by_skill', {}).get(c['zone']))
     if t == 'self_hand_le': return len(P.hand) <= c['n']
     if t == 'captured_school':
         cap = T.get('captured', {}).get(c['key'])
@@ -309,6 +313,9 @@ def cond_ok(c, P, T):
     if t == 'paid_guts_name':  # 理石 P02-031：付出的 Guts 是某人名
         pg = T.get('paid_guts') or []
         return bool(pg) and all((not x.ev) and x.name == c['name'] for x in pg)
+    if t == 'paid_guts_name_noskill':  # 百沢 P04-032：付出的 Guts 全是沒有技能的某人名
+        pg = T.get('paid_guts') or []
+        return bool(pg) and all((not x.ev) and x.name == c['name'] and x.noskill for x in pg)
     if t == 'block_comb_school_ge':  # 伊達工業：攔網區（含側邊攔網）有 n 個某校角色
         comb = T.get('block_comb') or [x for z, st in P.zones.items() if z == 'block' for x in st[-1:]]
         return sum(1 for x in comb if c['school'] in x.school) >= c['n']
@@ -430,10 +437,17 @@ def cost_pay(costs, P, T, zone):
     return True
 
 
+HAND_ADD_FX = frozenset(['reveal_top_take', 'drop_to_hand', 'drop_names_to_hand', 'event_to_hand', 'look_top_take', 'guts_to_hand_same_school',
+                         'guts_grade_to_hand', 'reveal_top_take_school', 'mill_take', 'drop_distinct_school_to_hand', 'look_top_two_picks',
+                         'this_event_to_hand_if_took', 'evz_to_hand_n', 'holder_to_hand', 'reveal_take'])
+
+
 def apply_effects(effs, P, T, zone):
     for e in effs:
         if e.get('if') and not all(cond_ok(c, P, T) for c in e['if']): continue
         t = e['type']
+        if t in HAND_ADD_FX and P.restrict and any(l['rule'] == 'no_skill_add_hand' for l in P.restrict):
+            P.bump('技能加手牌被禁止'); continue  # 岩泉 P01-035
         if t == 'draw': P.draw(e['n'])
         elif t == 'discard_hand':
             for _ in range(min(e['n'], len(P.hand))):
@@ -641,6 +655,8 @@ def apply_effects(effs, P, T, zone):
         elif t == 'drop_opp_zone_guts':  # 牛島 P02-046：對手接球區 Guts 最多 n 張（對手回合開始前執行）
             T['locks'].append(dict(rule='drop_zone_guts', zone=e['zone'], n=e['max'], duration='now'))
             P.bump('棄對手接球Guts')
+        elif t == 'drop_opp_guts_named':  # 黄金川 P04-073：對手 Guts 裡的某人名最多 n 張（對手回合開始前執行）
+            T['locks'].append(dict(rule='drop_named_guts', name=e['name'], n=e['max'], duration='now')); P.bump('棄對手指定Guts')
         elif t == 'opp_discard':  # 及川 P01-033：對手從手牌棄 1 張（對手自己選，立即生效）
             T['locks'].append(dict(rule='drop_hand_card', n=e['n'], duration='now')); P.bump('及川逼棄牌')
         elif t == 'rcv_add_paid_blk':  # 縁下 P04-007：接球 + 付出的 Guts 的攔網值合計
@@ -821,6 +837,9 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None, defer=N
     under = None
     if as_side_blocker:
         P.zones.setdefault('_side', []).append(card)
+        if P.restrict and not T.get('side_drop_used') and any(l['rule'] == 'drop_side_blocker_once' for l in P.restrict):
+            T['side_drop_used'] = True  # 田中 超インナークロス P02-082：對手側翼攔網手出場時只限一次棄置
+            P.zones['_side'].remove(card); P.drop.append(card); P.bump('側翼攔網被棄置'); return
     else:
         under = P.zones[zone][-1] if P.zones[zone] else None
         if under is not None and under is T.get('bottom_paid_on'): P.bump('D03-002加值被蓋掉')
@@ -835,6 +854,7 @@ def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None, defer=N
                         and cost_pay(s.get('cost', []), P, T, zone)):
                     P.bump('木葉觸發'); apply_effects(s['effects'], P, T, zone)
     T['names'][zone] = nm
+    T.setdefault('by_skill', {})[zone] = bool(T.get('entered_by') or defer)  # 山本 PR-084：該區角色是否以技能出場
     if defer:  # QA 1368：先把事件效果全部解決，再處理叫出來角色的登場技能
         T.setdefault('deferred', []).append((zone, card, from_hand, under, nm, defer)); return
     enter_skills(P, T, zone, card, from_hand, under if not as_side_blocker else None, nm, as_side_blocker)
@@ -868,6 +888,10 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
             if a['on'] == 'receive_enter' and (not a.get('school') or a['school'] in card.school) and (
                     not a.get('grades') or any(card.aff.endswith('·%s年' % g) for g in a['grades'])):
                 T['mod']['receive'] = T['mod'].get('receive', 0) + a['n']; P.bump('接球登場加值')
+    if P.auras:  # 入畑 P01-085：本回合該校角色登場，登場區的數值 +n
+        for a in P.auras:
+            if a['on'] == 'enter_any' and (not a.get('school') or a['school'] in card.school) and zone in ZSTAT:
+                T['mod'][zone] = T['mod'].get(zone, 0) + a['n']; P.bump('登場加值')
     if zone == 'block':  # 川渡 P04-048：對手的「下個回合攔網角色登場就抽牌」
         for l in P.restrict:
             if l['rule'] == 'opp_block_draw' and card.b['blk'] >= l.get('base_ge', 0): P.gift += 1; P.bump('川渡讓對手抽牌')
@@ -904,13 +928,15 @@ def _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker):
         P.bump('接球舉球技能被無效'); return  # 手白 P01-032
     if zone == 'block' and not as_side_blocker and any(l['rule'] == 'nullify_center_skills' for l in P.restrict):
         P.bump('中間攔網技能被無效'); return  # 東峰 P04-013
+    if zone == 'block' and any(l['rule'] == 'nullify_block_skills' for l in P.restrict):
+        P.bump('攔網技能被無效'); return  # 小鹿野 P03-073：所有攔網角色
     if nm in T.get('negated', ()):
         P.bump('技能被無效'); return
     if zone == 'attack' and T.get('aura') and nm == T['aura'][0]:
         T['mod']['attack'] = T['mod'].get('attack', 0) + T['aura'][1]
     if zone == 'block' and not as_side_blocker:  # 對手 PR-031：中間攔網登場時攔網值 −2
         for l in P.restrict:
-            if l['rule'] == 'center_blocker_blk_add': T['mod']['block'] = T['mod'].get('block', 0) + l['n']
+            if l['rule'] in ('center_blocker_blk_add', 'all_blockers_blk_add'): T['mod']['block'] = T['mod'].get('block', 0) + l['n']
     for s in card.skills:
         if s['timing'] != 'on_enter' or zone not in s.get('zones', []): continue
         if zone == 'block' and (as_side_blocker or T.get('decline_onetouch')) and any(
@@ -1323,7 +1349,7 @@ def fire_when(P, T, zone, card, from_hand, under, side, nm):
             if not ef_ok(card, nm, ef): continue
             if (hz in ('receive', 'toss') and any(l['rule'] == 'nullify_receive_toss_skills' for l in P.restrict)) or (
                     hz == 'receive' and any(l['rule'] == 'nullify_receive_skills' for l in P.restrict)) or (
-                    hz == 'block' and any(l['rule'] == 'nullify_center_skills' for l in P.restrict)): continue
+                    hz == 'block' and any(l['rule'] in ('nullify_center_skills', 'nullify_block_skills') for l in P.restrict)): continue
             if on_top:
                 if h not in P.zones[zone]: continue
             elif not P.zones[hz] or P.zones[hz][-1] is not h: continue
@@ -1557,7 +1583,9 @@ def block_event_boost(B):
 def block_actual(P2, T):
     """攔網區現在實際的攔網值合計：中間攔網（含技能加值）＋側邊攔網的原本攔網值。"""
     sb = T.get('side_blk_set') or {}
-    return cur_stat(P2, T, 'block') + sum(sb.get(id(x), x.b['blk']) for x in P2.zones.get('_side', []))
+    side = P2.zones.get('_side', [])
+    side_adj = sum(l['n'] for l in P2.restrict if l['rule'] == 'all_blockers_blk_add') * len(side)  # 百沢 P04-090
+    return cur_stat(P2, T, 'block') + sum(sb.get(id(x), x.b['blk']) for x in side) + side_adj
 
 
 def play_block_events(P2, T, need):
@@ -1579,6 +1607,7 @@ def block_total(B, comb, attacker, restrict, include_adj=True):
         v, need = blk_potential(B, c, attacker, ev_free) if attacker is not None else (c.b['blk'], 0)
         ev_free -= need; pots.append(v)
     adj = sum(l['n'] for l in restrict if l['rule'] == 'center_blocker_blk_add') if include_adj else 0
+    adj += sum(l['n'] for l in restrict if l['rule'] == 'all_blockers_blk_add') * len(comb) if include_adj else 0  # 百沢 P04-090：每個攔網角色
     boost = block_event_boost(B) + (side_bonus(B, comb) + hand_block_boost(B, comb) if attacker is not None else 0)  # 手牌的攔網階段事件（最樂觀估計；真的組合會再驗證）
     if any(l['rule'] == 'center_no_blk' for l in restrict):
         i = min(range(len(comb)), key=lambda j: pots[j])
@@ -1757,6 +1786,13 @@ def apply_now(locks, target):
         if l['rule'] == 'drop_zone_guts':
             st = target.zones[l['zone']]
             for _ in range(min(l['n'], max(0, len(st) - 1))): target.drop.append(st.pop(0))
+        elif l['rule'] == 'drop_named_guts':
+            left = l['n']
+            for zz, st in target.zones.items():
+                if zz not in ZSTAT: continue
+                for c in [x for x in st[:-1] if (not x.ev) and x.name == l['name']]:
+                    if left <= 0: break
+                    st.remove(c); target.drop.append(c); left -= 1
         elif l['rule'] == 'drop_hand_card':  # 對手自己選：棄掉棄後手牌評分最高的那張（最沒用的牌）
             for _ in range(min(l['n'], len(target.hand))):
                 w = max(target.hand, key=lambda c: hand_score([x for x in target.hand if x is not c]))

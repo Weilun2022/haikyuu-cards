@@ -9,8 +9,9 @@ MANUAL_BATCH3 = {
     'HV-P01-034': [ON(['serve'], cost=G(1), effects=[
         dict(type='opp_reshuffle_draw', n=6, **{'if': [dict(type='paid_guts_all_school', school='青葉城西')]})])],
     'HV-P01-035': [ON(['attack'], cost=[dict(type='discard_filtered', n=1, filter=dict(school='青葉城西'))], use_if=[dict(type='allow_discard')],
-                      effects=[S('atk', 2)])],
-    # ※ 岩泉 P01-035：「對手手牌 ≤4 時，下回合對手不能用技能加入手牌」沒模擬
+                      effects=[S('atk', 2),
+                               dict(type='restrict_opp', who='opp', rule='no_skill_add_hand', duration=TO, **{'if': [dict(type='opp_hand_le', n=4)]})])],
+    # 岩泉 P01-035：對手手牌 ≤4 時，下回合對手不能用技能加入手牌（2026-10-25 補上；對手事件／登場技的撿牌效果會被擋）
     'HV-P01-039': [ON(['receive'], conditions=[dict(type='opp_op_ge', n=6, of='any')],
                       cost=[dict(type='discard_filtered', n=1, filter=dict(school='青葉城西'))], auto_cost=True, effects=[
         S('rcv', 1), dict(type='draw', who='self', n=1, **{'if': [AOS()]})])],
@@ -24,8 +25,9 @@ MANUAL_BATCH3 = {
         dict(type='stat_add', target='this', stat='rcv', n=3, **{'if': [dict(type='evz_total_ge', n=6)]})])],
     'HV-P04-018': [ON(['serve'], cost=G(2), effects=[S('srv', 1), dict(type='opp_discard', n=1, **{'if': [dict(type='opp_hand_ge', n=4)]})])],
     'HV-P04-020': [ON(['attack'], cost=G(3), effects=[S('atk', 4),
-        dict(type='restrict_opp', who='opp', rule='max_enter', role='block', max=1, duration=TO, **{'if': [dict(type='zone_stat_ge', zone='attack', n=8)]})])],
-    # ※ 岩泉 P04-020：「對手 [レシーブフェイズ][手牌] 技能無效」沒模擬
+        dict(type='restrict_opp', who='opp', rule='max_enter', role='block', max=1, duration=TO, **{'if': [dict(type='zone_stat_ge', zone='attack', n=8)]}),
+        dict(type='restrict_opp', who='opp', rule='nullify_receive_hand', duration=TO, **{'if': [dict(type='zone_stat_ge', zone='attack', n=8)]})])],
+    # 岩泉 P04-020：攻擊值 ≥8 時，對手下回合接球階段的手牌技無效（2026-10-25 補上）
     'HV-P04-023': [ON(['block'], cost=[dict(type='event_hand_to_evz', n=1, filter=dict(school='青葉城西'))], auto_cost=True,
                       effects=[dict(type='draw', who='self', n=1), S('blk', 3)])],
     'HV-P04-025': [ON(['receive'], conditions=[AOS()], cost=G(3), effects=[S('rcv', 3), dict(type='keyword', name='Aパス', n=1)])],
@@ -42,14 +44,18 @@ MANUAL_BATCH3 = {
         S('atk', 2), dict(type='opp_discard', n=1, **{'if': [dict(type='opp_hand_ge', n=3)]})])],
     'HV-PR-009': [], 'HV-PR-017': [], 'HV-PR-069': [],
     # ── 事件 ──
-    'HV-P01-085': [dict(timing='event', phases=['draw'], draw_policy='always', effects=[dict(type='draw', who='self', n=1)])],
-    # ※ 入畑 P01-085：「場上合計付 8 Guts → 本回合青葉城西角色登場各 +1」沒模擬（只算抽 1）
+    'HV-P01-085': [dict(timing='event', phases=['draw'], draw_policy='always', effects=[
+        dict(type='draw', who='self', n=1),
+        dict(type='optional', cost=[dict(type='guts_multi', zones=['receive', 'toss', 'attack', 'block', 'serve'], n=8)],
+             effects=[dict(type='aura_turn', aura=dict(on='enter_any', school='青葉城西', n=1))])])],
+    # 入畑 P01-085：場上合計付 8 Guts → 本回合青葉城西角色登場，該區數值 +1（2026-10-25 補上；實戰很少付得起）
     'HV-P01-086': [dict(timing='event', phases=['draw', 'receive'], draw_policy='always', effects=[
         dict(type='drop_to_hand', who='self', filter=dict(school='青葉城西', category='CHARACTER'), max=1)])],
-    'HV-P01-087': [dict(timing='event', phases=['toss'], conditions=[dict(type='any_of', conds=[
+    'HV-P01-087': [dict(timing='event', phases=['serve', 'toss'], conditions=[dict(type='any_of', conds=[
         dict(type='self_role_name', role='toss', name='及川 徹'), dict(type='self_role_name', role='serve', name='及川 徹')])], effects=[
-        dict(type='draw', who='self', n=1), S('tos', 1, dict(who='self', count=1, name='及川 徹'))])],
-    # ※ P01-087：[サーブ] 階段用法與「對手以非抽牌方式加入手牌就要棄牌」沒模擬
+        dict(type='draw', who='self', n=1), S('tos', 1, dict(who='self', count=1, name='及川 徹')),
+        dict(type='restrict_opp', who='opp', rule='discard_on_nondraw_add', duration=TO)])],
+    # P01-087：發球階段也能打；對手下回合每次非抽牌加牌要棄 1（2026-10-25 補上）
     'HV-P01-088': [dict(timing='event', phases=['receive'], effects=[
         dict(type='draw', who='self', n=1), S('rcv', 1, dict(who='self', count=1, school='青葉城西')),
         dict(type='stat_add', target='same', stat='rcv', n=1, **{'if': [dict(type='self_hand_le', n=3)]})])],

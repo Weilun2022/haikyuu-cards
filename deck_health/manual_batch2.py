@@ -60,7 +60,7 @@ MANUAL_BATCH2 = {
     'HV-P01-084': [dict(timing='event', phases=['toss'], conditions=[dict(type='self_role_name', role='toss', name='孤爪 研磨')], effects=[
         dict(type='draw', who='self', n=1), S('tos', 1, dict(who='self', count=1)),
         dict(type='restrict_opp', who='opp', rule='cannot_enter_pos_from_hand', role='attack', position='MB', duration=TO)])],
-    'HV-P02-100': [dict(timing='event', phases=['receive', 'attack'], once_per_turn=True, effects=[
+    'HV-P02-100': [dict(timing='event', phases=['block', 'receive', 'attack'], once_per_turn=True, effects=[
         dict(type='draw', who='self', n=1),
         dict(type='stat_add', target=dict(who='self', count=1, name='灰羽 リエーフ'), stat='any_phase', n=1)])],
     'HV-P03-088': [dict(timing='event', phases=['draw'], draw_policy='always', conditions=[dict(type='self_hand_le', n=4)],
@@ -69,9 +69,11 @@ MANUAL_BATCH2 = {
         dict(type='drop_to_deck_bottom_if_took', school='音駒')])],
     'HV-P03-089': [dict(timing='event', phases=['draw', 'receive'], draw_policy='always', effects=[
         dict(type='drop_to_hand', who='self', filter=dict(school='音駒', category='CHARACTER'), max=1)])],
-    'HV-D02-011': [dict(timing='event', phases=['receive'], effects=[
-        dict(type='draw', who='self', n=1), S('rcv', 1, dict(who='self', count=1))])],
-    # ※ D02-011 的攔網階段選項（黒尾攔網 +1）不模擬（引擎不在攔網階段打事件）
+    'HV-D02-011': [dict(timing='event', phases=['block', 'receive'], effects=[
+        dict(type='draw', who='self', n=1),
+        dict(type='stat_add', target=dict(who='self', count=1, name='黒尾 鉄朗'), stat='blk', n=1, **{'if': [dict(type='phase_is', phase='block')]}),
+        dict(type='stat_add', target=dict(who='self', count=1), stat='rcv', n=1, **{'if': [dict(type='phase_is', phase='receive')]})])],
+    # D02-011：二選一。攔網階段選「黒尾攔網 +1」（2026-10-25 補上），接球階段選「接球 +1」
     'HV-D02-012': [dict(timing='event', phases=['draw'], draw_policy='always', effects=[
         dict(type='draw', who='self', n=1),
         dict(type='look_top_take', who='self', n=3, names=['灰羽 リエーフ', '犬岡 走'], max=1, rest='deck_bottom')])],
@@ -79,8 +81,9 @@ MANUAL_BATCH2 = {
         S('rcv', 2, dict(who='self', count=1, school='音駒')),
         dict(type='draw', who='self', n=1, **{'if': [dict(type='self_role_name', role='receive', name='芝山 優生')]})])],
     'HV-PR-084': [dict(timing='event', phases=['attack'], once_per_turn=True, effects=[
-        dict(type='draw', who='self', n=1), S('atk', 1, dict(who='self', count=1, name='山本 猛虎'))])],
-    # ※ PR-084 的「該角色是靠技能登場再 +1」不模擬
+        dict(type='draw', who='self', n=1), S('atk', 1, dict(who='self', count=1, name='山本 猛虎')),
+        dict(type='stat_add', target='same', stat='atk', n=1, **{'if': [dict(type='zone_entered_by_skill', zone='attack')]})])],
+    # PR-084：該角色是以技能出場時再 +1（2026-10-25 補上；以技能叫出的記錄在 T['by_skill']）
 }
 NAME_CHOICE_BATCH2 = {
     'HV-PR-014': ['孤爪 研磨', '黒尾 鉄朗'],

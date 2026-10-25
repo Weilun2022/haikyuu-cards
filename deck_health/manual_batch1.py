@@ -100,10 +100,9 @@ MANUAL_BATCH1 = {
     'HV-P03-094': [dict(timing='event', phases=['draw'], once_per_turn=True, draw_policy='always', effects=[
         dict(type='look_top_take', who='self', n=3, school='烏野', event_only=True, max=1, rest='deck_bottom'),
         dict(type='this_event_to_hand_if_took')])],
-    'HV-P03-096': [dict(timing='event', phases=['receive', 'attack'], once_per_turn=True, effects=[
+    'HV-P03-096': [dict(timing='event', phases=['block', 'receive', 'attack'], once_per_turn=True, effects=[
         dict(type='draw', who='self', n=1),
         dict(type='stat_add', target=dict(who='self', count=1, name='日向 翔陽'), stat='any_phase', n=1)])],
-    # ※ 日向夏 的攔網階段用法不模擬
     'HV-P04-084': [dict(timing='event', phases=['receive', 'toss', 'attack'], once_per_turn=True,
                         conditions=[dict(type='evz_total_le', n=5)], effects=[
         dict(type='draw', who='self', n=1),

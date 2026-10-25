@@ -641,22 +641,22 @@ if _os.environ.get('DH_BATCH4', '1') == '1':
     from manual_batch4 import MANUAL_BATCH4, NAME_CHOICE_BATCH4
     MANUAL.update(MANUAL_BATCH4); NAME_CHOICE.update(NAME_CHOICE_BATCH4)
 
-# 混校研究 第 5 批（雙名卡＋各校登場技／事件）：等使用者驗收，DH_BATCH5=1 才啟用
-if _os.environ.get('DH_BATCH5', '0') == '1':
+# 混校研究 第 5 批（雙名卡＋各校登場技／事件）：使用者驗收通過，2026-10-25 重審修正後預設啟用（DH_BATCH5=0 可關閉）
+if _os.environ.get('DH_BATCH5', '1') == '1':
     from manual_batch5 import MANUAL_BATCH5, NAME_CHOICE_BATCH5
     MANUAL.update(MANUAL_BATCH5); NAME_CHOICE.update(NAME_CHOICE_BATCH5)
 
-# 混校研究 第 6 批（觸發型技能 23 張）：等使用者驗收，DH_BATCH6=1 才啟用
-if _os.environ.get('DH_BATCH6', '0') == '1':
+# 混校研究 第 6 批（觸發型技能 23 張）：使用者驗收通過，2026-10-25 重審修正後預設啟用（DH_BATCH6=0 可關閉）
+if _os.environ.get('DH_BATCH6', '1') == '1':
     from manual_batch6 import MANUAL_BATCH6, NAME_CHOICE_BATCH6
     MANUAL.update(MANUAL_BATCH6); NAME_CHOICE.update(NAME_CHOICE_BATCH6)
 
-# 混校研究 第 7 批（手牌技／ボール拾い／結束攔網／側邊攔網特召 19 張）：等使用者驗收，DH_BATCH7=1 才啟用
-if _os.environ.get('DH_BATCH7', '0') == '1':
+# 混校研究 第 7 批（手牌技／ボール拾い／結束攔網／側邊攔網特召 19 張）：使用者驗收通過，2026-10-25 重審修正後預設啟用（DH_BATCH7=0 可關閉）
+if _os.environ.get('DH_BATCH7', '1') == '1':
     from manual_batch7 import MANUAL_BATCH7, NAME_CHOICE_BATCH7
     MANUAL.update(MANUAL_BATCH7); NAME_CHOICE.update(NAME_CHOICE_BATCH7)
 
-# 混校研究 第 8 批（フェイント／ユース組／對手加牌我抽／事件 14 張）：等使用者驗收，DH_BATCH8=1 才啟用
-if _os.environ.get('DH_BATCH8', '0') == '1':
+# 混校研究 第 8 批（フェイント／ユース組／對手加牌我抽／事件 14 張）：使用者驗收通過，2026-10-25 重審修正後預設啟用（DH_BATCH8=0 可關閉）
+if _os.environ.get('DH_BATCH8', '1') == '1':
     from manual_batch8 import MANUAL_BATCH8, NAME_CHOICE_BATCH8
     MANUAL.update(MANUAL_BATCH8); NAME_CHOICE.update(NAME_CHOICE_BATCH8)
