@@ -3601,6 +3601,8 @@ let _openingPhase = false;
 // 輸一球後的補牌資格：與開局階段獨立。輸一球後為 true，直到自己下一次成功出牌
 // （角色/事件登場、GUTS 疊放、牌庫直接上場）才關閉；結束回合不會提前關閉。
 let _postLossRedrawEligible = false;
+let _lastRallyLossId = null;
+let _pendingRallyLossId = null;
 let gameRef    = null;
 let lastLogKey = null;
 let _qrInstance = null;
@@ -3982,6 +3984,7 @@ function saveSession() {
       setPool: L.setPool, setCards: L.setCards,
       name: L.name, deckId: L.deckId, avatar: L.avatar,
       postLossRedrawEligible: _postLossRedrawEligible,
+      lastRallyLossId: _lastRallyLossId,
       savedAt: Date.now(),
     }));
   } catch(e) {}
@@ -4059,12 +4062,14 @@ async function rejoinRoom() {
   await db.ref(`games/${roomId}/presence/${myRole}`).set(true);
   _startPresenceWatch();
 
-  listenGame();
-
   document.getElementById('rejoin-banner').style.display = 'none';
   L.undoStack = [];
   // 輸一球的補牌資格是本機 session 欄位，舊 session 沒有此欄位時預設 false（相容）
   _postLossRedrawEligible = sess.postLossRedrawEligible || false;
+  // 舊 session 只對齊歷史事件；已有游標的 session 才補接離線期間的新事件。
+  _lastRallyLossId = Object.hasOwn(sess, 'lastRallyLossId')
+    ? sess.lastRallyLossId : (data.rallyLoss?.id || null);
+  handleRallyLoss(data);
   // 開局中重新整理也要接回開局輔助：自己場上（含棄牌）沒牌、SET 池也空，就視為還在開局
   setOpeningPhase(!collectCardsFromZones(data?.players?.[myRole]?.zones || emptyZones()).length && !L.setPool.length);
   showScreen('game');
@@ -4072,6 +4077,7 @@ async function rejoinRoom() {
   syncPileCount();
   updateUndoBtn();
   renderHand();
+  listenGame();
   updatePhaseUI(data?.phase || 'serve', data?.turn);
   toast(`重新加入房間 #${roomId}`);
   autoShowTutorial(600); // 略過時不補操作提示，避免蓋掉上面的重新加入 toast
@@ -4127,7 +4133,13 @@ function listenGame() {
     // ★ 根因修復(R13)：正常進場(enterGame/create/join/start)未初始化 _processedRoundReset，
     //   若這場 Firebase 已有舊 roundReset 時戳，放牌觸發的首次回呼會誤判成新重置→清空整手牌（手牌洗回牌庫、self-deck 變~40）。
     //   首次同步即把當前 roundReset 對齊為「已處理」，涵蓋所有進場路徑。對手「之後」按重置仍正常觸發（非首次回呼）。
-    if (_firstSync) { _firstSync = false; _processedRoundReset = data.roundReset || 0; }
+    if (_firstSync) {
+      _firstSync = false;
+      _processedRoundReset = data.roundReset || 0;
+      if (!document.getElementById('screen-game').classList.contains('active')) {
+        _lastRallyLossId = data.rallyLoss?.id || null;
+      }
+    }
 
     const prevState = gameState;
     gameState = data;
@@ -4176,6 +4188,7 @@ function syncUI(data, prev) {
       detectOppActions(data, prev);
       handleDiceRollUpdate(data);
       handleRoundReset(data);
+      handleRallyLoss(data);
       handlePresenceChange(data, prev);
       handleOppPeek(data, prev);
       // atkAlert: prev is available here (not inside renderBoard)
@@ -4217,6 +4230,7 @@ async function performLocalRoundCollect() {
     shuffle(L.pile);
     setOpeningPhase(true); // 重置本局 = 重新開局
     setPostLossRedrawEligible(false); // 重置本局，輸一球資格一併清空
+    _lastRallyLossId = gameState?.rallyLoss?.id || null;
     await pushZones(emptyZones());
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-set').textContent  = 0;
@@ -4427,6 +4441,7 @@ function enterGame() {
   L.undoStack = [];
   setOpeningPhase(true);
   setPostLossRedrawEligible(false);
+  _lastRallyLossId = gameState?.rallyLoss?.id || null;
 
   // Cancel waiting-phase onDisconnects (presence system takes over from here)
   db.ref(`rooms/${roomId}`).onDisconnect().cancel();
@@ -5603,6 +5618,7 @@ function saveUndo() {
     score:       gameState?.scores?.[myRole]      ?? 0,
     scoreMode:   gameState?.scoreModes?.[myRole]  || 'attack',
     postLossRedrawEligible: _postLossRedrawEligible,
+    lastRallyLossId: _lastRallyLossId,
   };
   L.undoStack.push(snap);
   if (L.undoStack.length > UNDO_MAX) L.undoStack.shift();
@@ -5619,7 +5635,10 @@ async function undoLastAction() {
   L.pile    = snap.pile;
   L.setPool = snap.setPool;
   L.setCards = snap.setCards;
-  _postLossRedrawEligible = !!snap.postLossRedrawEligible;
+  // 新一球發生前的復原點不能撤銷新一球授予的資格。
+  if (snap.lastRallyLossId === _lastRallyLossId) {
+    _postLossRedrawEligible = !!snap.postLossRedrawEligible;
+  }
 
   // Restore Firebase state atomically
   const updates = {};
@@ -5701,6 +5720,17 @@ function setOpeningPhase(on) {
 function setPostLossRedrawEligible(on) {
   _postLossRedrawEligible = on;
   updateFillHandBtn();
+}
+
+function handleRallyLoss(data) {
+  if (isSpectator) return;
+  const loss = data?.rallyLoss;
+  if (!loss?.id || loss.id === _lastRallyLossId || loss.id === _pendingRallyLossId) return;
+  _lastRallyLossId = loss.id;
+  if ((loss.roundReset || 0) === (data.roundReset || 0)) {
+    setPostLossRedrawEligible(true);
+  }
+  saveSession();
 }
 
 function updateFillHandBtn() {
@@ -6642,7 +6672,21 @@ async function addToSetPool() {
   setOpeningPhase(false); // 開局步驟 7：先攻方補 SET 池就進入第一回合
 }
 
+let _rallyLossBusy = false;
+
 async function loseRallySetPool() {
+  if (isSpectator || _rallyLossBusy) return;
+  _rallyLossBusy = true;
+  try {
+    await performRallyLoss();
+  } catch (err) {
+    toast('輸球同步失敗，請重試：' + err.message);
+  } finally {
+    _rallyLossBusy = false;
+  }
+}
+
+async function performRallyLoss() {
   L.setPool = L.setPool || [];
   if (!L.setPool.length) { toast('組數池已空，無法輸球'); return; }
   const handNow = L.hand.length;
@@ -6656,6 +6700,30 @@ async function loseRallySetPool() {
     okDanger: true,
   });
   if (!ok) return;
+  const lossRoomId = roomId;
+  const loss = {
+    id: db.ref(`games/${roomId}/rallyLoss`).push().key,
+    role: myRole,
+    roundReset: gameState?.roundReset || 0,
+  };
+  const endsTurn = gameState?.turn === myRole;
+  const updates = {
+    [`players/${myRole}/setCardsLeft`]: L.setPool.length - 1,
+    rallyLoss: loss,
+  };
+  if (endsTurn) Object.assign(updates, {
+    turn: myRole === 'host' ? 'guest' : 'host', currentAction: null, atkAlert: null,
+  });
+  // 事件、SET 計數與換手一次寫入，失敗時不先移動本機卡片。
+  // Firebase 會先回送本機快照，自己的事件須等伺服器確認後才授予資格。
+  _pendingRallyLossId = loss.id;
+  try {
+    await db.ref(`games/${lossRoomId}`).update(updates);
+  } finally {
+    _pendingRallyLossId = null;
+  }
+  if (roomId !== lossRoomId || myRole !== loss.role || !L.setPool.length ||
+      (gameState?.roundReset || 0) !== loss.roundReset || _processedRoundReset !== loss.roundReset) return;
   saveUndo();
 
   // Step 1: draw from pile until hand reaches 6
@@ -6673,18 +6741,14 @@ async function loseRallySetPool() {
   document.getElementById('self-set').textContent  = cnt;
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
+  _lastRallyLossId = loss.id;
   setPostLossRedrawEligible(true); // 輸一球後重新開放補到 6 張，直到下一次成功出牌
   renderHand();
   const drawnMsg = drawn > 0 ? `補 ${drawn} 張到 6 張，` : '';
   addLog(L.name, `輸一球 — ${drawnMsg}SET 牌入手，組數剩 ${cnt}`);
 
   // Auto end turn
-  if (gameState?.turn === myRole) {
-    const oppRole = myRole === 'host' ? 'guest' : 'host';
-    await db.ref(`games/${roomId}`).update({
-      turn: oppRole, currentAction: null, atkAlert: null,
-    });
+  if (endsTurn) {
     L.undoStack = [];
     updateUndoBtn();
     addLog(L.name, '回合結束（輸一球）');
