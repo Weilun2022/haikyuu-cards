@@ -5713,6 +5713,7 @@ function updateFillHandBtn() {
 // 一次補到 6 張：不重複呼叫 drawCard()，否則每張都存一次復原點（吃掉 10 步上限）、各寫一筆 log
 function drawToSix() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!_openingPhase && !_postLossRedrawEligible) { updateFillHandBtn(); return; }
   if (moveMode) exitMoveMode();
   const need = Math.min(6 - L.hand.length, L.pile.length);
   if (need <= 0) { updateFillHandBtn(); return; }
@@ -6428,6 +6429,7 @@ async function pushZones(zones) {
 
 let _syncPileTimer = 0, _syncHandTimer = 0;
 async function syncPileCount() {
+  updateFillHandBtn();
   clearTimeout(_syncPileTimer);
   _syncPileTimer = setTimeout(async () => {
     if (!roomId || !myRole) return;
