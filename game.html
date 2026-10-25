@@ -3598,6 +3598,9 @@ let gameState  = null;
 // 開局階段：進場或重置本局後為 true，第一次結束回合（含輸一球）後為 false。
 // 只用來決定要不要顯示開局輔助 UI（setOpeningPhase），不影響任何規則判斷。
 let _openingPhase = false;
+// 輸一球後的補牌資格：與開局階段獨立。輸一球後為 true，直到自己下一次成功出牌
+// （角色/事件登場、GUTS 疊放、牌庫直接上場）才關閉；結束回合不會提前關閉。
+let _postLossRedrawEligible = false;
 let gameRef    = null;
 let lastLogKey = null;
 let _qrInstance = null;
@@ -3978,6 +3981,7 @@ function saveSession() {
       hand: L.hand, pile: L.pile,
       setPool: L.setPool, setCards: L.setCards,
       name: L.name, deckId: L.deckId, avatar: L.avatar,
+      postLossRedrawEligible: _postLossRedrawEligible,
       savedAt: Date.now(),
     }));
   } catch(e) {}
@@ -4059,6 +4063,8 @@ async function rejoinRoom() {
 
   document.getElementById('rejoin-banner').style.display = 'none';
   L.undoStack = [];
+  // 輸一球的補牌資格是本機 session 欄位，舊 session 沒有此欄位時預設 false（相容）
+  _postLossRedrawEligible = sess.postLossRedrawEligible || false;
   // 開局中重新整理也要接回開局輔助：自己場上（含棄牌）沒牌、SET 池也空，就視為還在開局
   setOpeningPhase(!collectCardsFromZones(data?.players?.[myRole]?.zones || emptyZones()).length && !L.setPool.length);
   showScreen('game');
@@ -4210,6 +4216,7 @@ async function performLocalRoundCollect() {
     L.setPool = [];
     shuffle(L.pile);
     setOpeningPhase(true); // 重置本局 = 重新開局
+    setPostLossRedrawEligible(false); // 重置本局，輸一球資格一併清空
     await pushZones(emptyZones());
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-set').textContent  = 0;
@@ -4419,6 +4426,7 @@ function enterGame() {
   L.setCards = 0;
   L.undoStack = [];
   setOpeningPhase(true);
+  setPostLossRedrawEligible(false);
 
   // Cancel waiting-phase onDisconnects (presence system takes over from here)
   db.ref(`rooms/${roomId}`).onDisconnect().cancel();
@@ -5391,6 +5399,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   L.hand.splice(handIdx, 1);
   _turnLastZoneType = baseZone;
   setOpeningPhase(false); // 第一張牌上場 = 開局結束，之後手牌少於 6 張不再出現「補到 6 張」
+  setPostLossRedrawEligible(false); // 成功出牌 = 輸一球的補牌資格用掉
   // Optimistic UI: update hand and zone display immediately, before Firebase awaits
   renderHand();
   renderZones('self', zones, false);
@@ -5568,6 +5577,7 @@ async function applyGuts(handIdx, zoneName) {
   if (!target.guts) target.guts = [];
   target.guts.push(img);
   setZoneCard(zones, zoneName, target);
+  setPostLossRedrawEligible(false); // 成功疊 GUTS 也算出牌，資格用掉
   // Optimistic UI: update hand and zone display immediately, before Firebase await
   renderHand();
   renderZones('self', zones, false);
@@ -5592,6 +5602,7 @@ function saveUndo() {
     counterDelta:deepCopy(gameState?.counterDelta?.[myRole]  || {}),
     score:       gameState?.scores?.[myRole]      ?? 0,
     scoreMode:   gameState?.scoreModes?.[myRole]  || 'attack',
+    postLossRedrawEligible: _postLossRedrawEligible,
   };
   L.undoStack.push(snap);
   if (L.undoStack.length > UNDO_MAX) L.undoStack.shift();
@@ -5608,6 +5619,7 @@ async function undoLastAction() {
   L.pile    = snap.pile;
   L.setPool = snap.setPool;
   L.setCards = snap.setCards;
+  _postLossRedrawEligible = !!snap.postLossRedrawEligible;
 
   // Restore Firebase state atomically
   const updates = {};
@@ -5686,16 +5698,22 @@ function setOpeningPhase(on) {
   updateFillHandBtn();
 }
 
+function setPostLossRedrawEligible(on) {
+  _postLossRedrawEligible = on;
+  updateFillHandBtn();
+}
+
 function updateFillHandBtn() {
   const btn = document.getElementById('fill-hand-btn');
   if (!btn) return;
-  const show = _openingPhase && !isSpectator && L.hand.length < 6 && L.pile.length > 0;
+  const show = (_openingPhase || _postLossRedrawEligible) && !isSpectator && L.hand.length < 6 && L.pile.length > 0;
   btn.style.display = show ? '' : 'none';
 }
 
 // 一次補到 6 張：不重複呼叫 drawCard()，否則每張都存一次復原點（吃掉 10 步上限）、各寫一筆 log
 function drawToSix() {
   if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!_openingPhase && !_postLossRedrawEligible) { updateFillHandBtn(); return; }
   if (moveMode) exitMoveMode();
   const need = Math.min(6 - L.hand.length, L.pile.length);
   if (need <= 0) { updateFillHandBtn(); return; }
@@ -6411,6 +6429,7 @@ async function pushZones(zones) {
 
 let _syncPileTimer = 0, _syncHandTimer = 0;
 async function syncPileCount() {
+  updateFillHandBtn();
   clearTimeout(_syncPileTimer);
   _syncPileTimer = setTimeout(async () => {
     if (!roomId || !myRole) return;
@@ -6655,6 +6674,7 @@ async function loseRallySetPool() {
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
   db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
+  setPostLossRedrawEligible(true); // 輸一球後重新開放補到 6 張，直到下一次成功出牌
   renderHand();
   const drawnMsg = drawn > 0 ? `補 ${drawn} 張到 6 張，` : '';
   addLog(L.name, `輸一球 — ${drawnMsg}SET 牌入手，組數剩 ${cnt}`);
