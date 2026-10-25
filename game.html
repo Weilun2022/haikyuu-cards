@@ -1781,6 +1781,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .drop-bulk-toggle:hover { background: rgba(var(--accent-rgb), .12); }
 .drop-bulk-toggle:disabled { opacity: .4; cursor: default; }
 .drop-bulk-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.drop-bulk-options[hidden] { display: none; }
 .drop-bulk-options button {
   flex: 1 1 auto;
   min-width: 100px;
@@ -6791,6 +6792,7 @@ function openDropViewer(side) {
   bulkToggle.disabled = !isSelf || drop.length === 0;
   bulkToggle.setAttribute('aria-expanded', 'false');
   bulkOptions.hidden = true;
+  bulkOptions.querySelectorAll('button').forEach(b => b.disabled = false); // 上次批次操作留下的 disabled 不該延續到下一次
 
   const wrap = document.getElementById('drop-cards');
   wrap.innerHTML = '';
@@ -6886,8 +6888,10 @@ async function bulkReturnDrop(where) {
   toggle.disabled = true;
   document.querySelectorAll('#drop-bulk-options button').forEach(b => b.disabled = true);
 
+  saveUndo();
+  const pileBeforeSnap = L.pile.slice(); // pushZones 失敗時復原用，此時尚未真正寫進 Firebase
+
   try {
-    saveUndo();
     zones.drop = [];
     // L.pile 以 pop() 為抽牌方向（陣列尾端 = 牌頂），依序 push/unshift 維持棄牌原相對順序
     cards.forEach(img => {
@@ -6904,10 +6908,18 @@ async function bulkReturnDrop(where) {
     const label = where === 'top' ? '放回牌頂' : where === 'bottom' ? '放回牌底' : '放回並洗牌';
     addLog(L.name, `♻️ 全部棄牌 ${cards.length} 張${label}${cardState()}`);
     toast(`已將 ${cards.length} 張棄牌${label}`);
-    openDropViewer('self'); // refresh（自動收合選項列）
+  } catch (err) {
+    // 還沒真正寫進 Firebase 就失敗：復原本地動過的牌，避免同一批卡同時留在棄牌區又出現在牌庫
+    L.undoStack.pop(); // 這次操作沒有真的生效，剛存的復原點也要撤掉
+    updateUndoBtn();
+    L.pile = pileBeforeSnap;
+    document.getElementById('self-deck').textContent = L.pile.length;
+    console.error('bulkReturnDrop 失敗：', err);
+    toast('放回牌庫失敗，請重試');
   } finally {
     _dropBulkBusy = false;
   }
+  openDropViewer('self'); // 無論成功或失敗都刷新畫面與按鈕狀態（自動收合選項列）
 }
 
 async function _dropPlaceToZone(img, zoneName) {
