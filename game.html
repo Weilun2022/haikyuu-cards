@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script src="lib/qrcode.min.js"></script>
 <script src="cards_data.js"></script>
+<script src="js/game-rematch.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
@@ -2795,6 +2796,48 @@ input[type=text]::placeholder { color: var(--text-dim); }
 /* 抽屜裡可點開的標題要達 44px 觸控高度（桌機側邊欄維持原本小標題） */
 #mobile-drawer-content summary.sb-title { display: flex; align-items: center; min-height: 44px; margin-bottom: 0; }
 #mobile-drawer-content .drawer-scores[open] > summary::after { content: ' ▾'; }
+
+/* ── 再開一場／換牌組 ─────────────────────────────── */
+#rematch-overlay {
+  display: none; position: fixed; inset: 0; z-index: 6100;
+  background: rgba(0,0,0,.62); align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+#rematch-overlay.open { display: flex; }
+#rematch-box {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px 20px 16px; width: min(440px, 94vw); max-height: 90vh; max-height: 90dvh;
+  overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,.7); color: var(--text);
+}
+#rematch-title { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+#rematch-status { font-size: 13px; line-height: 1.6; color: var(--text-dim); margin-bottom: 12px; white-space: pre-line; }
+#rematch-status.warn { color: var(--accent2); }
+#rematch-error { font-size: 12px; color: var(--accent2); margin: 0 0 10px; white-space: pre-line; }
+#rematch-error:empty { display: none; }
+#rematch-source { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.rm-opt {
+  display: flex; align-items: flex-start; gap: 8px; padding: 10px; min-height: 44px;
+  border: 1px solid var(--border); border-radius: 10px; cursor: pointer; font-size: 13px; line-height: 1.4;
+}
+.rm-opt.sel { border-color: var(--accent); background: rgba(var(--accent-rgb),.12); }
+.rm-opt input { margin-top: 3px; }
+.rm-opt small { display: block; color: var(--text-dim); font-size: 11px; }
+#rematch-library { margin-bottom: 10px; }
+#rematch-library select { width: 100%; min-height: 44px; font-size: 14px; }
+.rm-lib-tools { display: flex; gap: 8px; margin-top: 8px; }
+.rm-lib-tools .btn { flex: 1; min-height: 44px; }
+#rematch-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+#rematch-actions .btn { flex: 1 1 120px; min-height: 44px; }
+#rematch-banner {
+  display: none; position: fixed; left: 50%; top: 8px; transform: translateX(-50%); z-index: 6050;
+  background: var(--surface); border: 1px solid var(--accent); border-radius: 999px;
+  padding: 6px 8px 6px 14px; font-size: 12px; align-items: center; gap: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.5); max-width: 94vw;
+}
+#rematch-banner.show { display: flex; }
+#rematch-banner .btn { min-height: 32px; }
+/* 暫停對局：擋住盤面與手牌的操作（入口函式另有守衛，這只是讓畫面不再誤導人） */
+body.rm-locked #hand-area, body.rm-locked .board-side { pointer-events: none; opacity: .62; }
 </style>
 </head>
 <body>
@@ -3149,6 +3192,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
         <button class="btn xs" onclick="openDiceModal()" style="width:100%" title="擲骰子決定先攻後攻">🎲 先攻後攻</button>
         <button class="btn xs" onclick="showTutorial()" style="width:100%;margin-top:4px" title="查看遊戲說明">📖 遊戲說明</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px" title="重置本局：雙方所有牌洗回牌庫">🔄 重置本局</button>
+        <button class="btn xs" data-rematch-open onclick="openRematch()" style="width:100%;margin-top:4px" title="保留這個房間，重新開一場；也可以換牌組">🔁 再開一場／換牌組</button>
       </div>
       <!-- 行動記錄 -->
       <div style="padding:6px 12px 5px;font-size:10px;color:var(--accent);border-bottom:1px solid var(--border);font-weight:700;letter-spacing:.8px;text-transform:uppercase;flex-shrink:0;border-left:3px solid var(--accent);margin-left:0">📋 行動記錄</div>
@@ -3327,6 +3371,38 @@ input[type=text]::placeholder { color: var(--text-dim); }
       <button class="btn sm" id="place-confirm-guts-btn">當 Guts</button>
     </div>
     <button class="btn xs" onclick="cancelPlaceConfirm()">取消</button>
+  </div>
+</div>
+
+<!-- 再開一場／換牌組 -->
+<div id="rematch-banner">
+  <span id="rematch-banner-text">再開一場進行中，對局暫停</span>
+  <button class="btn xs primary" onclick="openRematch()">開啟視窗</button>
+</div>
+<div id="rematch-overlay">
+  <div id="rematch-box" role="dialog" aria-labelledby="rematch-title">
+    <div id="rematch-title">🔁 再開一場／換牌組</div>
+    <div id="rematch-status"></div>
+    <div id="rematch-error"></div>
+    <div id="rematch-pick">
+      <div id="rematch-source">
+        <label class="rm-opt" id="rm-opt-snapshot"><input type="radio" name="rm-src" value="snapshot" onchange="rematchPickSource('snapshot')"><span><b>沿用本場牌組</b><small id="rm-snapshot-name">—</small></span></label>
+        <label class="rm-opt" id="rm-opt-library"><input type="radio" name="rm-src" value="library" onchange="rematchPickSource('library')"><span><b>從牌組庫選擇最新牌組</b><small>讀取此瀏覽器卡牌資料庫目前的牌組；變更會在新的一場套用</small></span></label>
+      </div>
+      <div id="rematch-library">
+        <select id="rematch-deck-select" onchange="rematchPickDeck(this.value)"></select>
+        <div class="rm-lib-tools">
+          <button class="btn sm" onclick="refreshRematchCandidates(true)">🔄 重新讀取</button>
+          <button class="btn sm" onclick="window.open('index.html', '_blank')">📚 另開卡牌資料庫</button>
+        </div>
+      </div>
+    </div>
+    <div id="rematch-actions">
+      <button class="btn primary" id="rematch-main-btn" onclick="rematchSubmit()">送出邀請並準備</button>
+      <button class="btn danger" id="rematch-cancel-btn" onclick="cancelRematch()" style="display:none">取消邀請</button>
+      <button class="btn" id="rematch-leave-btn" onclick="leaveRoom()" style="display:none">離開房間</button>
+      <button class="btn" id="rematch-close-btn" onclick="closeRematchModal()">關閉視窗</button>
+    </div>
   </div>
 </div>
 
@@ -3603,7 +3679,11 @@ let _openingPhase = false;
 let _postLossRedrawEligible = false;
 let _lastRallyLossId = null;
 let _pendingRallyLossId = null;
-let gameRef    = null;
+// 寫入脈絡：房間、角色、場節點三者綁在一起。非同步動作在入口抓一份，之後的寫入一律走它，
+// 不再 await 之後才去讀全域 roomId／myRole。場切換或離房時 kill()，舊動作的後續寫入變成 no-op。
+let _gctx      = null;
+let _gameListeners = [];   // 目前掛著的 Firebase 監聽（離房／換場時整批 off）
+let _deckSnapshot = null;  // 本場開局時的原始牌組快照 { id, name, cards:[{image_file,count}] }
 let lastLogKey = null;
 let _qrInstance = null;
 
@@ -3617,6 +3697,38 @@ const L = {
   setPool: [],
   undoStack: [],  // max 10, cleared on endTurn
 };
+
+// ══════════════════════════════════════════════════════
+// 寫入脈絡與對局鎖（再開一場）
+// ══════════════════════════════════════════════════════
+const GR = GameRematch;
+const _deadCtx = GR.createCtx(null, { room: '', role: '', matchId: '', proto: 2 });
+_deadCtx.kill();
+function gx() { return _gctx || _deadCtx; }
+// 這份 ctx 還是「現在這場」嗎？換場、離房後舊動作的後續邏輯用它自我中止
+function cxLive(cx) { return !!cx && cx.live() && cx === _gctx; }
+
+let _ctl = null;              // 最近一次的 ctl（proto 2 房間才有）
+let _appliedMatchId = null;   // 本機目前套用中的場
+let _rmBusy = false;          // 本機正在送出邀請／準備／提交：先於伺服器回應就鎖，避免舊動作溜進去
+let _rmBusyRid = null;        // _rmBusy 期間正在送的邀請 id（保護剛存的 pending 不被當成過期）
+let _rmPending = null;        // 已存進 session 的待套用牌庫 { requestId, snapshot, pile, … }
+let _roomLife = 0;            // 房間生命週期憑證：每次進房、離房都會變，換場不會。見 flowStart()
+
+function actionLocked() {
+  return GR.isLocked({
+    proto: _gctx ? _gctx.proto : 1,
+    ctl: _ctl,
+    appliedMatchId: _appliedMatchId,
+    localHold: _rmBusy,
+  });
+}
+// 所有會改牌／寫 Firebase 的入口都先過這關；只 disable 按鈕擋不住快捷鍵、拖放與手機長按
+function guardAction() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return false; }
+  if (actionLocked()) { toast('再開一場進行中，對局暫停'); return false; }
+  return true;
+}
 
 // ══════════════════════════════════════════════════════
 // INIT
@@ -3710,6 +3822,7 @@ function startFirebase(cfg) {
     if (firebase.apps.length) firebase.apps[0].delete().catch(() => {});
     firebase.initializeApp(cfg);
     db = firebase.database();
+    db.ref('.info/serverTimeOffset').on('value', s => { _serverTimeOffset = s.val() || 0; });
     showScreen('lobby');
     loadDecks();
     listenRooms();
@@ -3754,6 +3867,9 @@ function listenRooms() {
     const now = Date.now();
     // Auto-delete stale rooms from Firebase
     Object.values(rooms).forEach(r => {
+      // playing2（新版對局中）刻意不走 4 小時／presence 這條舊路徑：已開著的舊版大廳只對 'playing' 檢查 presence，
+      // 而新版房間兩端暫時離線（切去卡牌資料庫改牌組、手機背景）是正常情境。它和舊版大廳對未知狀態一樣用 30 分鐘，
+      // 由房內的玩家定期續租 createdAt（見 startRoomLease），所以有人在線就不會過期，雙方都離開超過 30 分鐘才清。
       const roomStale = (r.status === 'playing') ? STALE_MS : WAITING_STALE_MS;
       if ((now - (r.createdAt || 0)) >= roomStale) {
         db.ref(`rooms/${r.id}`).remove();
@@ -3773,18 +3889,20 @@ function listenRooms() {
         });
       }
     });
+    const isWaitingStatus = s => s === 'waiting' || s === GR.STATUS.WAITING_V2;
+    const isPlayingStatus = s => s === 'playing' || s === GR.STATUS.PLAYING_V2;
     const allRooms = Object.values(rooms).filter(r =>
-      (r.status === 'waiting' || r.status === 'playing') &&
+      (isWaitingStatus(r.status) || isPlayingStatus(r.status)) &&
       (now - (r.createdAt || 0)) < STALE_MS
     );
-    const waiting = allRooms.filter(r => r.status === 'waiting');
+    const waiting = allRooms.filter(r => isWaitingStatus(r.status));
     const cntEl = document.getElementById('room-count');
     if (cntEl) cntEl.textContent = waiting.length ? `${waiting.length} 間等待中` : '目前無房間';
     const el = document.getElementById('room-list');
     if (!allRooms.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間<br>建立一個吧！</div>'; return; }
     el.innerHTML = '';
     allRooms.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).forEach(r => {
-      const isPlaying = r.status === 'playing';
+      const isPlaying = isPlayingStatus(r.status);
       const row = document.createElement('div');
       row.className = 'room-item';
       row.innerHTML = `
@@ -3837,28 +3955,32 @@ async function createRoom() {
     if (!s.exists()) break;
   } while (++tries < 10);
 
+  // 第一場也用新佈局（games/<room>/m/<matchId>）：之後重開只是 ctl 換一個 activeMatch
+  const matchId = db.ref(`games/${id}/m`).push().key;
   roomId = id;
   myRole = 'host';
+  _roomLife++;
+  _gctx = GR.createCtx(db, { room: id, role: 'host', matchId, proto: GR.PROTO });
+  _appliedMatchId = matchId;
+  _ctl = null;
+  _rmPending = null;
+  _deckSnapshot = null;
 
   await db.ref(`rooms/${id}`).set({
-    id, status: 'waiting',
+    id, status: GR.STATUS.WAITING_V2, proto: GR.PROTO,
     hostName: L.name, hostAvatar: L.avatar, deckName: deck.name,
     createdAt: firebase.database.ServerValue.TIMESTAMP,
   });
 
   await db.ref(`games/${id}`).set({
-    started: false,
-    turn: 'host', phase: 'serve',
-    setScore: { host:0, guest:0 },
-    log: null,
+    ctl: { proto: GR.PROTO, rev: 1, started: false, phase: GR.PHASE.IDLE, activeMatch: matchId, epoch: 1 },
     players: {
-      host: { name:L.name, avatar:L.avatar, deckName:deck.name, ready:true, setCardsLeft:0, zones:emptyZones() },
+      host: { name:L.name, avatar:L.avatar, deckName:deck.name, ready:true },
       guest: null,
     },
+    m: { [matchId]: GR.newMatchData(emptyZones, { epoch: 1, ts: Date.now() }) },
   });
 
-  if (gameRef) gameRef.off();
-  gameRef = db.ref(`games/${id}`);
   listenGame();
   showWaitingScreen(id);
 }
@@ -3875,48 +3997,71 @@ async function joinRoom(id) {
   const snap = await db.ref(`rooms/${id}`).once('value');
   if (!snap.exists()) { toast('房間不存在'); return; }
   const r = snap.val();
-  if (r.status !== 'waiting') { toast('此房間已開始或已關閉'); return; }
+  if (r.status !== 'waiting' && r.status !== GR.STATUS.WAITING_V2) { toast('此房間已開始或已關閉'); return; }
+
+  // 新版房間（proto 2）用 ctl／m/<matchId> 佈局；舊版房間維持原本的根佈局，只是不支援再開一場
+  const proto = r.proto === GR.PROTO ? GR.PROTO : 1;
+  let matchId = null;
+  if (proto === GR.PROTO) {
+    const ctl = (await db.ref(`games/${id}/ctl`).once('value')).val();
+    if (!ctl || ctl.proto !== GR.PROTO || !ctl.activeMatch) { toast('房間資料不完整，無法加入'); return; }
+    matchId = ctl.activeMatch;
+  }
 
   roomId = id;
   myRole = 'guest';
+  _roomLife++;
+  _gctx = GR.createCtx(db, { room: id, role: 'guest', matchId, proto });
+  _appliedMatchId = matchId;
+  _ctl = null;
+  _rmPending = null;
+  _deckSnapshot = null;
 
-  await db.ref(`games/${id}/players/guest`).set({
-    name: L.name, avatar: L.avatar, deckName: deck.name, ready: true, setCardsLeft: 5, zones: emptyZones(),
-  });
+  await db.ref(`games/${id}/players/guest`).set(Object.assign(
+    { name: L.name, avatar: L.avatar, deckName: deck.name, ready: true },
+    proto === 1 ? { setCardsLeft: 5, zones: emptyZones() } : {}
+  ));
   // Set status to 'ready' (not 'playing') so listenRooms auto-cleanup doesn't delete it
   // (auto-cleanup only fires on 'playing' rooms with no presence, but presence isn't set until game starts)
   // 'ready' also blocks other guests from joining (joinRoom checks status === 'waiting')
-  await db.ref(`rooms/${id}/status`).set('ready');
+  await db.ref(`rooms/${id}/status`).set(GR.STATUS.READY);
 
   // If guest disconnects during waiting phase, only remove guest's data (not the whole room)
   db.ref(`games/${id}/players/guest`).onDisconnect().remove();
-  db.ref(`rooms/${id}/status`).onDisconnect().set('waiting');
+  db.ref(`rooms/${id}/status`).onDisconnect().set(proto === GR.PROTO ? GR.STATUS.WAITING_V2 : GR.STATUS.WAITING_V1);
 
-  if (gameRef) gameRef.off();
-  gameRef = db.ref(`games/${id}`);
   listenGame();
   showWaitingScreen(id);
 }
 
 async function spectateRoom(id) {
-  const snap = await db.ref(`games/${id}`).once('value');
-  if (!snap.exists()) { toast('找不到該對局'); return; }
-  const data = snap.val();
-  if (!data.started) { toast('對局尚未開始'); return; }
+  // 新版房間先只讀 ctl，不要把歷史各場整包下載下來
+  const ctl = (await db.ref(`games/${id}/ctl`).once('value')).val();
+  let data = null;
+  if (ctl && ctl.proto === GR.PROTO) {
+    if (!ctl.started) { toast('對局尚未開始'); return; }
+  } else {
+    const snap = await db.ref(`games/${id}`).once('value');
+    if (!snap.exists()) { toast('找不到該對局'); return; }
+    data = snap.val();
+    if (!data.started) { toast('對局尚未開始'); return; }
+  }
 
   isSpectator = true;
   roomId = id;
   myRole = 'host'; // used only for opp calculation; spectator sees both sides as read-only
-
-  if (gameRef) gameRef.off();
-  gameRef = db.ref(`games/${id}`);
+  const proto = data ? 1 : GR.PROTO;
+  _roomLife++;
+  _gctx = GR.createCtx(db, { room: id, role: 'host', matchId: data ? null : ctl.activeMatch, proto });
+  _appliedMatchId = data ? null : ctl.activeMatch;
+  _ctl = null;
   listenGame();
 
   // Jump straight to game screen
   L.hand = []; L.pile = []; L.setPool = []; L.setCards = 0;
   L.name = '觀戰者';
   showScreen('game');
-  renderBoard(data);
+  if (data) renderBoard(data);
   document.getElementById('spectator-banner').style.display = 'flex';
   document.getElementById('hand-area').style.display = 'none';
   document.getElementById('sb-actions').style.display = 'none';
@@ -3934,10 +4079,11 @@ async function leaveRoom() {
   const wasSpectator = isSpectator;
   // Use DOM screen state (not Firebase) to determine if game has started
   const wasInGame = document.getElementById('screen-game').classList.contains('active');
+  const waitingStatus = _gctx && _gctx.proto === GR.PROTO ? GR.STATUS.WAITING_V2 : GR.STATUS.WAITING_V1;
 
   // Reset local state first (prevents re-entry from syncUI)
-  if (gameRef) gameRef.off();
-  gameRef = null; roomId = null; myRole = null; isSpectator = false;
+  teardownRoomState();
+  roomId = null; myRole = null; isSpectator = false;
   clearSession();
   closeDiceModal();
   document.getElementById('spectator-banner').style.display = 'none';
@@ -3961,9 +4107,25 @@ async function leaveRoom() {
       await db.ref(`games/${id}/players/guest`).onDisconnect().cancel();
       await db.ref(`rooms/${id}/status`).onDisconnect().cancel();
       await db.ref(`games/${id}/players/guest`).remove();
-      await db.ref(`rooms/${id}/status`).set('waiting');
+      await db.ref(`rooms/${id}/status`).set(waitingStatus);
     }
   }
+}
+
+// 離房／被踢／房間消失時共用：先讓舊脈絡失效，再放掉監聽與再開一場的暫存狀態
+function teardownRoomState() {
+  _roomLife++;
+  stopRoomLease();
+  detachGameListeners();
+  if (_gctx) _gctx.kill();
+  _gctx = null;
+  _ctl = null;
+  _appliedMatchId = null;
+  _rmPending = null;
+  _deckSnapshot = null;
+  _rmBusy = false;
+  _rmBusyRid = null;
+  rematchResetUi();
 }
 
 async function cleanupRoom(id) {
@@ -3975,19 +4137,40 @@ async function cleanupRoom(id) {
 // ══════════════════════════════════════════════════════
 // SESSION — 離開後重新加入
 // ══════════════════════════════════════════════════════
-function saveSession() {
-  if (!roomId || !myRole || isSpectator) return;
+// 回傳是否真的寫進 localStorage。再開一場的 pending／appliedMatchId 靠它保命，
+// 寫不進去就必須讓呼叫端知道，不能裝作存好了。
+let _sessionWarned = false;
+function sessionCore(over = {}) {
+  return Object.assign({
+    roomId, role: myRole,
+    hand: L.hand, pile: L.pile,
+    setPool: L.setPool, setCards: L.setCards,
+    name: L.name, deckId: L.deckId, avatar: L.avatar,
+    postLossRedrawEligible: _postLossRedrawEligible,
+    lastRallyLossId: _lastRallyLossId,
+    savedAt: Date.now(),
+  }, over);
+}
+// 整份重寫時，再開一場相關欄位也必須帶著，漏掉就等於把它丟掉
+function writeSession(core, extra) {
+  const session = GR.composeSession(core, extra);
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-      roomId, role: myRole,
-      hand: L.hand, pile: L.pile,
-      setPool: L.setPool, setCards: L.setCards,
-      name: L.name, deckId: L.deckId, avatar: L.avatar,
-      postLossRedrawEligible: _postLossRedrawEligible,
-      lastRallyLossId: _lastRallyLossId,
-      savedAt: Date.now(),
-    }));
-  } catch(e) {}
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    _sessionWarned = false;
+    return true;
+  } catch (e) {
+    if (!_sessionWarned) { _sessionWarned = true; toast('⚠️ 無法保存本機進度，重新整理後可能回不到這場對局'); }
+    return false;
+  }
+}
+function saveSession() {
+  if (!roomId || !myRole || isSpectator) return true;
+  return writeSession(sessionCore(), {
+    proto: _gctx ? _gctx.proto : 1,
+    appliedMatchId: _appliedMatchId,
+    deckSnapshot: _deckSnapshot,
+    pending: _rmPending,
+  });
 }
 
 function clearSession() {
@@ -4012,19 +4195,50 @@ async function checkRejoinSession() {
 
   // Check Firebase: game must exist, started, and at least one player online
   try {
-    const snap = await db.ref(`games/${sess.roomId}`).once('value');
-    const data = snap.val();
-    if (!data?.started) { clearSession(); return; }
-    const presence = data?.presence || {};
-    if (!presence.host && !presence.guest) { clearSession(); return; }
+    const head = await readRoomHead(sess.roomId);
+    if (!head.started) { clearSession(); return; }
+    const presence = head.presence || {};
+    // 新版房間可能因為雙方都切去改牌組而暫時沒有任何人在線，仍然要讓人回得來；舊版維持原本的判斷
+    if (head.proto !== GR.PROTO && !presence.host && !presence.guest) { clearSession(); return; }
     // Valid — show banner
     const oppRole  = sess.role === 'host' ? 'guest' : 'host';
-    const oppName  = data?.players?.[oppRole]?.name || '對手';
+    const oppName  = head.players?.[oppRole]?.name || '對手';
     const roleLabel = sess.role === 'host' ? '房主' : '挑戰者';
     document.getElementById('rejoin-sub').textContent =
       `房間 #${sess.roomId} · ${oppName} 仍在線 · 你的身分：${roleLabel}`;
     document.getElementById('rejoin-banner').style.display = '';
   } catch { clearSession(); }
+}
+
+// 新版房間只讀 ctl／身分／在線三個小節點；舊版房間維持整包讀取
+async function readRoomHead(id) {
+  const ctl = (await db.ref(`games/${id}/ctl`).once('value')).val();
+  if (ctl && ctl.proto === GR.PROTO) {
+    const [pres, players] = await Promise.all([
+      db.ref(`games/${id}/presence`).once('value'),
+      db.ref(`games/${id}/players`).once('value'),
+    ]);
+    return { proto: GR.PROTO, ctl, started: !!ctl.started, presence: pres.val() || {}, players: players.val() || {} };
+  }
+  const data = (await db.ref(`games/${id}`).once('value')).val();
+  return { proto: 1, ctl: null, started: !!data?.started, presence: data?.presence || {}, players: data?.players || {}, data };
+}
+
+// 重連當下需要對齊的那幾個欄位（舊版從整包資料拿，新版去讀該場節點的三個小欄位）
+async function readMatchHead(head, id, matchId, role) {
+  if (head.proto !== GR.PROTO) return head.data || {};
+  const base = `games/${id}/m/${matchId}`;
+  const [rr, rl, zones, turn, phase] = await Promise.all([
+    db.ref(`${base}/roundReset`).once('value'),
+    db.ref(`${base}/rallyLoss`).once('value'),
+    db.ref(`${base}/players/${role}/zones`).once('value'),
+    db.ref(`${base}/turn`).once('value'),
+    db.ref(`${base}/phase`).once('value'),
+  ]);
+  return {
+    roundReset: rr.val(), rallyLoss: rl.val(), turn: turn.val(), phase: phase.val(),
+    players: { [role]: { zones: zones.val() } },
+  };
 }
 
 async function rejoinRoom() {
@@ -4034,24 +4248,41 @@ async function rejoinRoom() {
   try { sess = JSON.parse(raw); } catch { clearSession(); return; }
 
   // Verify room still alive
-  const snap = await db.ref(`games/${sess.roomId}`).once('value');
-  const data  = snap.val();
-  if (!data?.started) { toast('對局已結束'); clearSession(); return; }
+  const head = await readRoomHead(sess.roomId);
+  if (!head.started) { toast('對局已結束'); clearSession(); return; }
+  const v2 = head.proto === GR.PROTO;
+
+  // 新版房間：session 的 appliedMatchId 與遠端 activeMatch 比對，不盲目對齊——
+  // 對不上時還原舊手牌會把上一場的牌帶進新場
+  const decision = v2 ? GR.classifyResume({ session: sess, ctl: head.ctl }) : 'legacy';
+  if (decision === 'unrecoverable') {
+    toast('房間已進入新的一場，但這台裝置沒有那一場的資料，無法回到對局');
+    clearSession();
+    return;
+  }
+  const resuming = decision === 'resume' || decision === 'legacy';
+  const matchId = v2 ? head.ctl.activeMatch : null;
+  const data = await readMatchHead(head, sess.roomId, matchId, sess.role);
 
   // Restore local state
   roomId      = sess.roomId;
   myRole      = sess.role;
-  L.hand      = sess.hand   || [];
-  L.pile      = sess.pile   || [];
-  L.setPool   = sess.setPool || [];
-  L.setCards  = sess.setCards || 0;
+  L.hand      = resuming ? (sess.hand || []) : [];
+  L.pile      = resuming ? (sess.pile || []) : [];
+  L.setPool   = resuming ? (sess.setPool || []) : [];
+  L.setCards  = resuming ? (sess.setCards || 0) : 0;
   L.name      = sess.name   || L.name;
   L.deckId    = sess.deckId || L.deckId;
   L.avatar    = sess.avatar || L.avatar;
+  _roomLife++;
+  _gctx = GR.createCtx(db, { room: roomId, role: myRole, matchId, proto: v2 ? GR.PROTO : 1 });
+  _ctl = null;
+  _appliedMatchId = v2 ? (resuming ? matchId : (sess.appliedMatchId || null)) : null;
+  _rmPending = v2 && sess.pending ? sess.pending : null;
+  _deckSnapshot = v2 && sess.deckSnapshot ? sess.deckSnapshot : null;
 
   // Reconnect Firebase — tear down any existing listener first to avoid duplicates
-  if (gameRef) gameRef.off();
-  gameRef = db.ref(`games/${roomId}`);
+  detachGameListeners();
 
   // Sync _processedRoundReset from current Firebase data so handleRoundReset
   // doesn't re-fire for a reset that already happened before this rejoin
@@ -4065,20 +4296,21 @@ async function rejoinRoom() {
   document.getElementById('rejoin-banner').style.display = 'none';
   L.undoStack = [];
   // 輸一球的補牌資格是本機 session 欄位，舊 session 沒有此欄位時預設 false（相容）
-  _postLossRedrawEligible = sess.postLossRedrawEligible || false;
+  _postLossRedrawEligible = resuming ? (sess.postLossRedrawEligible || false) : false;
   // 舊 session 只對齊歷史事件；已有游標的 session 才補接離線期間的新事件。
-  _lastRallyLossId = Object.hasOwn(sess, 'lastRallyLossId')
+  _lastRallyLossId = resuming && Object.hasOwn(sess, 'lastRallyLossId')
     ? sess.lastRallyLossId : (data.rallyLoss?.id || null);
-  handleRallyLoss(data);
+  if (resuming) handleRallyLoss(data);
   // 開局中重新整理也要接回開局輔助：自己場上（含棄牌）沒牌、SET 池也空，就視為還在開局
   setOpeningPhase(!collectCardsFromZones(data?.players?.[myRole]?.zones || emptyZones()).length && !L.setPool.length);
   showScreen('game');
-  renderBoard(data);
-  syncPileCount();
+  if (!v2) renderBoard(data);
+  if (resuming) syncPileCount();
   updateUndoBtn();
   renderHand();
   listenGame();
-  updatePhaseUI(data?.phase || 'serve', data?.turn);
+  startRoomLease();
+  if (!v2) updatePhaseUI(data?.phase || 'serve', data?.turn);
   toast(`重新加入房間 #${roomId}`);
   autoShowTutorial(600); // 略過時不補操作提示，避免蓋掉上面的重新加入 toast
 }
@@ -4105,46 +4337,125 @@ function copyCode() {
 // ══════════════════════════════════════════════════════
 // GAME LISTENER
 // ══════════════════════════════════════════════════════
+// 舊版房間（根佈局）：單一監聽，跟以前一模一樣。新版房間（proto 2）：ctl／身分／在線／該場節點
+// 四個監聽各自更新一塊，拼成同一包 data 再交給 syncUI，syncUI 以下的程式碼不用知道佈局不同。
+let _listenToken = 0;      // 每次重掛監聽就遞增，舊回呼看到不同就丟掉
+let _matchToken = 0;       // 該場節點監聽專用：換場時單獨重掛
+let _viewParts = null;
+let _viewFirstSync = true; // 進場首次同步旗標（ADR 0006），換場時也要重新對齊
+let _matchListenerRef = null;
+
+function detachGameListeners() {
+  _listenToken++;
+  _matchToken++;
+  _gameListeners.forEach(ref => { try { ref.off(); } catch (_) {} });
+  _gameListeners = [];
+  _matchListenerRef = null;
+  _viewParts = null;
+}
+
+// ★ 根因修復(R13)：正常進場(enterGame/create/join/start)未初始化 _processedRoundReset，
+//   若這場 Firebase 已有舊 roundReset 時戳，放牌觸發的首次回呼會誤判成新重置→清空整手牌（手牌洗回牌庫、self-deck 變~40）。
+//   首次同步即把當前 roundReset 對齊為「已處理」，涵蓋所有進場路徑。對手「之後」按重置仍正常觸發（非首次回呼）。
+function alignFirstSync(data) {
+  if (!_viewFirstSync) return;
+  _viewFirstSync = false;
+  _processedRoundReset = data.roundReset || 0;
+  if (!document.getElementById('screen-game').classList.contains('active')) {
+    _lastRallyLossId = data.rallyLoss?.id || null;
+  }
+}
+
+// Game node deleted externally (e.g., stale-room cleanup race) while we're in it
+function handleGameNodeGone() {
+  if (document.getElementById('screen-game').classList.contains('active') && roomId) {
+    _stopPresenceWatch();
+    teardownRoomState();
+    roomId = null; myRole = null;
+    if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
+    document.getElementById('hand-area').style.display = '';
+    document.getElementById('sb-actions').style.display = '';
+    showScreen('lobby');
+    toast('對局已結束 [listenGame/null]');
+  } else if (document.getElementById('screen-waiting').classList.contains('active') && roomId) {
+    teardownRoomState();
+    roomId = null; myRole = null;
+    if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
+    showScreen('lobby');
+    toast('房間已關閉');
+  }
+}
+
 function listenGame() {
-  let _firstSync = true;   // 進場首次同步旗標（閉包，每次進場重建）
-  gameRef.on('value', snap => {
+  detachGameListeners();
+  _viewFirstSync = true;
+  const cx = _gctx;
+  if (cx.proto !== GR.PROTO) { listenGameLegacy(cx); return; }
+  _viewParts = { ctl: undefined, meta: undefined, presence: undefined, match: undefined };
+  const token = _listenToken;
+  const attach = (path, onVal) => {
+    const ref = db.ref(`games/${cx.room}/${path}`);
+    _gameListeners.push(ref);
+    ref.on('value', snap => { if (token === _listenToken) onVal(snap.val()); });
+  };
+  attach('ctl', val => {
+    _viewParts.ctl = val;
+    if (val == null) { handleGameNodeGone(); return; }
+    ctlChanged(val);
+    emitView();
+  });
+  attach('players', val => { _viewParts.meta = val || {}; emitView(); });
+  attach('presence', val => { _viewParts.presence = val || {}; emitView(); });
+  attachMatchListener(cx);
+}
+
+function listenGameLegacy(cx) {
+  const token = _listenToken;
+  const ref = db.ref(`games/${cx.room}`);
+  _gameListeners.push(ref);
+  ref.on('value', snap => {
+    if (token !== _listenToken) return;
     const data = snap.val();
-    if (!data) {
-      // Game node deleted externally (e.g., stale-room cleanup race) while we're in it
-      if (document.getElementById('screen-game').classList.contains('active') && roomId) {
-        _stopPresenceWatch();
-        if (gameRef) { gameRef.off(); gameRef = null; }
-        roomId = null; myRole = null;
-        if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
-        document.getElementById('hand-area').style.display = '';
-        document.getElementById('sb-actions').style.display = '';
-        showScreen('lobby');
-        toast('對局已結束 [listenGame/null]');
-      } else if (document.getElementById('screen-waiting').classList.contains('active') && roomId) {
-        if (gameRef) { gameRef.off(); gameRef = null; }
-        roomId = null; myRole = null;
-        if (_presenceKickTimer) { clearTimeout(_presenceKickTimer); _presenceKickTimer = null; }
-        showScreen('lobby');
-        toast('房間已關閉');
-      }
-      return;
-    }
-
-    // ★ 根因修復(R13)：正常進場(enterGame/create/join/start)未初始化 _processedRoundReset，
-    //   若這場 Firebase 已有舊 roundReset 時戳，放牌觸發的首次回呼會誤判成新重置→清空整手牌（手牌洗回牌庫、self-deck 變~40）。
-    //   首次同步即把當前 roundReset 對齊為「已處理」，涵蓋所有進場路徑。對手「之後」按重置仍正常觸發（非首次回呼）。
-    if (_firstSync) {
-      _firstSync = false;
-      _processedRoundReset = data.roundReset || 0;
-      if (!document.getElementById('screen-game').classList.contains('active')) {
-        _lastRallyLossId = data.rallyLoss?.id || null;
-      }
-    }
-
+    if (!data) { handleGameNodeGone(); return; }
+    alignFirstSync(data);
     const prevState = gameState;
     gameState = data;
     syncUI(data, prevState);
   });
+}
+
+// 掛上（或換掉）該場節點的監聽。skeleton：換場當下先用一份空場畫面，等伺服器的真資料來了再覆蓋；
+// 觀戰者不給（null），避免在新場資料到達前把舊場畫面套在新場上。
+function attachMatchListener(cx, skeleton = null) {
+  if (_matchListenerRef) {
+    try { _matchListenerRef.off(); } catch (_) {}
+    _gameListeners = _gameListeners.filter(r => r !== _matchListenerRef);
+  }
+  const token = ++_matchToken;
+  const listenToken = _listenToken;
+  const ref = db.ref(cx.path(''));
+  _matchListenerRef = ref;
+  _gameListeners.push(ref);
+  _viewFirstSync = true;
+  _viewParts.match = skeleton || undefined;
+  ref.on('value', snap => {
+    if (token !== _matchToken || listenToken !== _listenToken) return;
+    _viewParts.match = snap.val() || {};
+    emitView();
+  });
+  if (skeleton) emitView();
+}
+
+function emitView() {
+  const p = _viewParts;
+  if (!p || p.ctl == null || p.meta === undefined || p.presence === undefined || p.match === undefined) return;
+  const data = GR.composeView(p);
+  if (!data) return;
+  alignFirstSync(data);
+  const prevState = gameState;
+  gameState = data;
+  syncUI(data, prevState);
+  if (_ctl) { updateLockUi(); renderRematch(); }   // 對手離線等資料變動也要反映在視窗與橫幅上
 }
 
 let _processedRoundReset = 0;
@@ -4171,6 +4482,10 @@ function _startPresenceWatch() {
       peekRef.set({ ..._peekBase, ...(Object.keys(_peekPlaced).length ? { placed: _peekPlaced } : {}) })
              .catch(() => {});
     }
+    // 再開一場：斷線期間失敗的提交／ack 在這裡補做（全部冪等）
+    _rmAckSentFor = null;
+    renewRoomLease();
+    rematchReact();
   });
 }
 
@@ -4217,6 +4532,7 @@ let _roundResetBusy = false;
 async function performLocalRoundCollect() {
   if (_roundResetBusy) return false; // 已有一份收牌流程在跑，跳過避免重複收牌
   _roundResetBusy = true;
+  const cx = gx();
   try {
     // Exit any active move mode / pinned hover
     exitMoveMode();
@@ -4231,10 +4547,11 @@ async function performLocalRoundCollect() {
     setOpeningPhase(true); // 重置本局 = 重新開局
     setPostLossRedrawEligible(false); // 重置本局，輸一球資格一併清空
     _lastRallyLossId = gameState?.rallyLoss?.id || null;
-    await pushZones(emptyZones());
+    await pushZones(emptyZones(), cx);
+    if (!cxLive(cx)) return false; // 等待期間換場了：新場的本機狀態已經重建，不能再拿舊場的結果去覆蓋
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-set').textContent  = 0;
-    db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(0);
+    cx.ref(`players/${myRole}/setCardsLeft`).set(0);
     syncPileCount();
     renderHand();
     return true;
@@ -4246,20 +4563,22 @@ async function performLocalRoundCollect() {
 // 重置本局後，我方的分數/counter 要歸零——declareLost()（發起方）跟
 // handleRoundReset()（回應方）都要對稱呼叫這個，缺一邊就會有一方畫面
 // 沿用重置前的舊分數/counter。單純的 Firebase 清空，沒有計分公式可共用。
-async function resetMyRoundScoreState() {
-  await db.ref(`games/${roomId}/counterDelta/${myRole}`).remove();
-  await db.ref(`games/${roomId}/scores/${myRole}`).set(0);
+async function resetMyRoundScoreState(cx = gx()) {
+  await cx.ref(`counterDelta/${cx.role}`).remove();
+  await cx.ref(`scores/${cx.role}`).set(0);
 }
 
 async function handleRoundReset(data) {
   const rv = data?.roundReset;
   if (!rv || rv === _processedRoundReset) return;
   _processedRoundReset = rv;
+  const cx = gx();
 
   const collected = await performLocalRoundCollect();
   if (!collected) return; // 本地已有收牌流程在跑（例如自己剛按過重置），避免重複收牌
 
-  await resetMyRoundScoreState();
+  await resetMyRoundScoreState(cx);
+  if (!cxLive(cx)) return;
 
   toast(`本局結束，牌庫已重置（${L.pile.length} 張），請手動抽牌`);
 }
@@ -4321,7 +4640,8 @@ function handlePresenceChange(data, prev) {
   // Delay + re-verify before kicking to avoid false positives caused by stale snapshots
   // (e.g., when the game node was briefly deleted and recreated without presence fields).
   const hadPresenceBefore = !!(prevPresence.host || prevPresence.guest);
-  if (hadPresenceBefore && !presence.host && !presence.guest && roomId) {
+  // 新版房間（proto 2）不因暫時雙方都沒有 presence 就清房：靠 createdAt 租約過期清理（見 listenRooms）
+  if (hadPresenceBefore && !presence.host && !presence.guest && roomId && !(_gctx && _gctx.proto === GR.PROTO)) {
     if (!_presenceKickTimer) {
       const _kickRoomId = roomId;
       _presenceKickTimer = setTimeout(async () => {
@@ -4334,7 +4654,7 @@ function handlePresenceChange(data, prev) {
         } catch (_) { return; }
         const id = roomId;
         _stopPresenceWatch();
-        if (gameRef) { gameRef.off(); gameRef = null; }
+        teardownRoomState();
         roomId = null; myRole = null;
         closeDiceModal();
         document.getElementById('hand-area').style.display = '';
@@ -4409,14 +4729,708 @@ function showOppNotification(player, action) {
 }
 
 // ══════════════════════════════════════════════════════
+// REMATCH — 再開一場／換牌組
+// 協議：邀請 → 雙方 quiescent 後 ready（值是 requestId）→ 任一方建立不可見新場並用 ctl 單路徑
+// transaction 切換 activeMatch → 各端套用並 ack（值是 matchId）→ 雙 ack 後解鎖。
+// 取舊場與新場的隔離、為什麼不是原地清盤，見 docs/game/docs/adr/0008-per-match-node-rematch.md。
+// ══════════════════════════════════════════════════════
+let RM_INVITE_TTL_MS = 180000;   // 邀請沒人理會多久後自動取消（任一端的計時器先到都行，取消是冪等的）
+let RM_QUIESCE_MS    = 4000;     // 等舊的非同步動作落定的上限
+let RM_RETRY_MS      = 1500;
+
+let _rmUi = { open: false, source: 'snapshot', deckId: '', candidates: [], error: '', seenReq: null, recoverFor: null, fatal: false, applyFailed: false };
+let _rmFlow = null;              // 目前這輪再開流程（有值 = 已做過「收攤」：關暫態 UI、flush 去抖寫入）
+let _rmApplyingId = null;        // applyPendingMatch 的 mutex（以場號為單位）
+let _rmCommitting = null;        // commitRematch 的 mutex（以 requestId 為單位）
+let _rmAckInflight = null;
+let _rmAckSentFor = null;        // 這場的 ack 已送出（斷線重連時清掉重送）
+let _rmFinishing = null;
+let _rmInviteTimer = null;
+let _rmInviteTimerRid = null;
+let _rmRetryTimer = null;
+const _rmPrepared = new Set();   // 這個客戶端建立過、還沒確認用途的新場節點（requestId）
+
+function rematchOpp() { return myRole === 'host' ? 'guest' : 'host'; }
+function rematchOppName() { return gameState?.players?.[rematchOpp()]?.name || '對手'; }
+function ctlRef(room = roomId) { return db.ref(`games/${room}/ctl`); }
+
+// ── 進場／重置 ──────────────────────────────────────────
+function rematchResetUi() {
+  clearInviteTimer();
+  clearTimeout(_rmRetryTimer); _rmRetryTimer = null;
+  _rmUi = { open: false, source: 'snapshot', deckId: '', candidates: [], error: '', seenReq: null, recoverFor: null, fatal: false, applyFailed: false };
+  _rmFlow = null;
+  _rmApplyingId = null; _rmCommitting = null; _rmAckInflight = null; _rmAckSentFor = null; _rmFinishing = null;
+  _rmPrepared.clear();
+  const ov = document.getElementById('rematch-overlay');
+  if (ov) ov.classList.remove('open');
+  document.body.classList.remove('rm-locked');
+  const bn = document.getElementById('rematch-banner');
+  if (bn) bn.classList.remove('show');
+}
+
+// ── ctl 變動入口 ────────────────────────────────────────
+function ctlChanged(val) {
+  _ctl = val;
+  if (isSpectator) { spectatorFollow(val); return; }
+  rematchReact();
+}
+
+// transaction 的結果也是伺服器確認過的值：比目前快照新（rev 較大）才採用，
+// 避免回呼比監聽事件早到時，畫面還停在「還沒鎖」的舊狀態
+function ingestCtl(val, f) {
+  if (!val || (f && !flowAlive(f)) || (val.rev || 0) <= ((_ctl && _ctl.rev) || 0)) return;
+  if (_viewParts) _viewParts.ctl = val;
+  ctlChanged(val);
+}
+
+function scheduleRematchRetry() {
+  if (_rmRetryTimer) return;
+  _rmRetryTimer = setTimeout(() => { _rmRetryTimer = null; rematchReact(); }, RM_RETRY_MS);
+}
+
+// 依 ctl 與本機狀態決定下一步。每個動作都有 mutex 且冪等，所以任何事件都可以放心重跑它
+function rematchReact() {
+  const cx = _gctx;
+  if (isSpectator || !cx || cx.proto !== GR.PROTO || !_ctl || !roomId || !myRole) return;
+  const plan = GR.planRematch({
+    proto: cx.proto, ctl: _ctl, role: myRole,
+    appliedMatchId: _appliedMatchId, pending: _rmPending,
+    hold: _rmBusy ? _rmBusyRid : null,
+  });
+  if (plan.dropPending) dropPending();
+  _rmUi.fatal = plan.unrecoverable;
+  if (plan.lock || _rmBusy) enterRematchLock(); else leaveRematchLock();
+
+  if (_ctl.phase === GR.PHASE.INVITING && _ctl.req) {
+    if (_rmUi.seenReq !== _ctl.req.id) {
+      _rmUi.seenReq = _ctl.req.id;
+      if (_ctl.req.by !== myRole) { _rmUi.open = true; _rmUi.error = ''; refreshRematchCandidates(); }
+    }
+    armInviteTimer();
+  } else {
+    clearInviteTimer();
+  }
+
+  sweepPreparedMatches();
+  if (plan.commit) commitRematch(plan.rid);
+  if (plan.apply) applyPendingMatch(_ctl.activeMatch);
+  if (plan.recover) enterRecovery(_ctl.activeMatch);
+  if (plan.ack) sendAck();
+  if (plan.finish) finishRematch(_ctl.activeMatch);
+  updateLockUi();
+  renderRematch();
+}
+
+// 進入鎖定時做一次「收攤」：關掉所有可能還握著舊狀態的暫態 UI，並把排隊中的去抖寫入立刻寫到舊場
+function enterRematchLock() {
+  if (_rmFlow) return;
+  _rmFlow = { startMatch: _appliedMatchId };
+  closeTransientUi();
+  flushPendingSyncs();
+}
+
+function leaveRematchLock() {
+  if (!_rmFlow) return;
+  const flow = _rmFlow;
+  _rmFlow = null;
+  _rmUi.open = false; _rmUi.error = ''; _rmUi.recoverFor = null; _rmUi.seenReq = null;
+  clearInviteTimer();
+  toast(flow.startMatch !== _appliedMatchId ? '🔁 新的一場開始！請手動抽牌' : '再開一場已取消，回到原局');
+}
+
+function closeTransientUi() {
+  if (document.getElementById('gen-confirm-overlay')?.style.display === 'flex') _genConfirmClose(false);
+  if (document.getElementById('peek-overlay').classList.contains('open')) closePeek();
+  exitMoveMode();
+  cancelGuts();
+  closePlaceConfirm();
+  closeDropViewer();
+  closeStack();
+  closeHandAction();
+  closeCtx();
+  closeDiceModal();
+  if (typeof window.__clearMobileTapSelect === 'function') window.__clearMobileTapSelect();
+}
+
+function opsBusy() {
+  return _declareLostBusy || _rallyLossBusy || _roundResetBusy || _dropBulkBusy || _peekRunning || !!_pendingRallyLossId;
+}
+
+// ready 之前必須安靜：沒有進行中的動作、沒有排隊的去抖、已送出的寫入都落定。
+// 逾時就放棄這次 ready（使用者可以再按），不在不確定的狀態下宣稱準備好
+async function waitQuiescent(cx) {
+  const t0 = Date.now();
+  for (;;) {
+    flushPendingSyncs();
+    const left = RM_QUIESCE_MS - (Date.now() - t0);
+    if (left <= 0) return false;
+    await cx.drain(left);
+    if (!cxLive(cx)) return false;
+    if (!opsBusy() && !hasPendingSyncs() && !cx.inflight.size) return true;
+    await new Promise(r => setTimeout(r, 40));
+  }
+}
+
+function updateLockUi() {
+  const inGame = document.getElementById('screen-game').classList.contains('active');
+  const locked = inGame && !isSpectator && !!_gctx && _gctx.proto === GR.PROTO && actionLocked();
+  document.body.classList.toggle('rm-locked', locked);
+  const bn = document.getElementById('rematch-banner');
+  if (!bn) return;
+  bn.classList.toggle('show', locked && !_rmUi.open);
+  const t = document.getElementById('rematch-banner-text');
+  if (t) t.textContent = rematchStatusText().split('\n')[0];
+}
+
+// ── 待套用牌庫（pending）────────────────────────────────
+function dropPending(rid) {
+  if (!_rmPending) return;
+  if (rid && _rmPending.requestId !== rid) return;
+  _rmPending = null;
+  saveSession();
+}
+
+// 沒有原始快照的舊 session：把手牌／牌庫／SET 池／場上與棄牌收齊，剛好 40 張才提供「沿用」
+function reconstructSnapshot() {
+  const zones = myZonesCopy();
+  const cards = [...L.hand, ...L.pile, ...(L.setPool || []), ...collectCardsFromZones(zones)];
+  const name = gameState?.players?.[myRole]?.deckName || '';
+  return GR.snapshotFromCards(cards, allCards, name);
+}
+
+function currentSnapshot() { return _deckSnapshot || reconstructSnapshot(); }
+
+function refreshRematchCandidates(manual) {
+  let raw = null;
+  try { raw = localStorage.getItem(DECK_KEY); } catch (_) {}
+  _rmUi.candidates = GR.listCandidates(raw, allCards);
+  if (_rmUi.deckId && !_rmUi.candidates.some(c => c.id === _rmUi.deckId)) _rmUi.deckId = '';
+  if (manual) toast(`已重新讀取牌組庫（${_rmUi.candidates.length} 副）`);
+  renderRematch();
+}
+
+// 送出當下才決定牌組內容：沿用本場 → 原始快照；從牌組庫 → 此刻重新讀到的內容
+function resolveDeckChoice() {
+  if (_rmUi.source === 'snapshot') {
+    const snap = currentSnapshot();
+    if (!snap) return { error: '找不到本場的牌組快照，請改用「從牌組庫選擇」。' };
+    const check = GR.validateDeck(snap, allCards);
+    if (!check.ok) return { error: check.problems.join('；') };
+    return { snapshot: snap };
+  }
+  refreshRematchCandidates();
+  const c = _rmUi.candidates.find(x => x.id === _rmUi.deckId);
+  if (!c) return { error: '請先選擇一副牌組。' };
+  if (!c.ok) return { error: `「${c.name}」不能使用：${c.problems.join('；')}` };
+  return { snapshot: GR.makeDeckSnapshot(c.deck) };
+}
+
+// 先存 pending 再 ready：重新整理或關頁後，session 裡的牌庫就是之後要套用的那一份，不會重洗
+async function prepareMyPending(cx, rid) {
+  if (!(await waitQuiescent(cx))) return { error: '還有操作正在送出，請稍候再按一次。' };
+  const choice = resolveDeckChoice();
+  if (choice.error) return choice;
+  const built = GR.buildPending({ requestId: rid, snapshot: choice.snapshot, allCards });
+  if (built.error) return { error: built.error };
+  const prev = _rmPending;
+  _rmPending = built.pending;
+  if (!saveSession()) {
+    _rmPending = prev;
+    return { error: '這台裝置無法保存牌組（瀏覽器儲存空間不可用）。為避免重新整理後資料遺失，無法準備。' };
+  }
+  return { pending: built.pending };
+}
+
+// 非同步流程（邀請／準備／取消／提交／ack／結束）共用的房間生命週期憑證。
+// 離房、被踢、重新進房都會讓 _roomLife 變動；同一個房間內換場則不會，所以不能拿 cxLive(cx) 來判斷
+// 「這個流程是不是屬於現在這個房間」——提交成功時 listener 可能已經先把同房的 ctx 換成新場的了。
+// 流程的入口抓一份，之後每個 await 回來、catch、finally、排程回覆都先過 flowAlive(f)，
+// 舊房間的流程不能再碰新房間的 _ctl／mutex／UI／session。role 也在入口就抓好，不在重試時才讀全域 myRole。
+function flowStart(cx) { return { life: _roomLife, room: cx.room, role: myRole }; }
+function flowAlive(f) { return f.life === _roomLife; }
+
+// ── 房間租約（proto 2）───────────────────────────────────
+// 舊版大廳把未知狀態的房間當成 30 分鐘過期。在線時定期、切回／重連時立刻更新 createdAt，
+// 長時間正常打牌就不會被清；離開後租約計時器隨房間生命週期取消，不會寫到已離開的房。
+let ROOM_LEASE_MS = 10 * 60 * 1000;
+let _leaseTimer = null;
+let _leaseFlow = null;
+// 用 transaction 且房間紀錄不存在就中止：房間已被清掉後才抵達的續租，不能再用單欄位 set 把它長成缺身分與狀態的幽靈房。
+// 時間用 .info/serverTimeOffset 校正成伺服器時間（transaction 裡不依賴 ServerValue 佔位符）。
+let _serverTimeOffset = 0;
+function touchRoomLease(room, f = _leaseFlow) {
+  if (!f || !flowAlive(f) || f.room !== room) return;
+  db.ref(`rooms/${room}`).transaction(
+    // 交易衝突會讓更新函式重跑；那時玩家可能已離房，不能只在送出前檢查。
+    cur => (flowAlive(f) && cur && cur.id === room && cur.status
+      ? Object.assign({}, cur, { createdAt: Math.max(Number(cur.createdAt) || 0, Date.now() + _serverTimeOffset) })
+      : undefined),
+    undefined, false
+  ).catch(() => {});
+}
+function renewRoomLease() {
+  if (_leaseFlow && flowAlive(_leaseFlow)) touchRoomLease(_leaseFlow.room);
+}
+function startRoomLease() {
+  stopRoomLease();
+  const cx = _gctx;
+  if (!cx || cx.proto !== GR.PROTO || isSpectator) return;
+  _leaseFlow = flowStart(cx);
+  renewRoomLease();
+  _leaseTimer = setInterval(renewRoomLease, ROOM_LEASE_MS);
+}
+function stopRoomLease() {
+  clearInterval(_leaseTimer);
+  _leaseTimer = null;
+  _leaseFlow = null;
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') renewRoomLease(); });
+
+// ── 玩家操作 ────────────────────────────────────────────
+function openRematch() {
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!_gctx || _gctx.proto !== GR.PROTO) {
+    toast('這個房間是舊版建立的，不支援再開一場。請雙方重新整理頁面後，由其中一方重新建立房間。');
+    return;
+  }
+  _rmUi.open = true;
+  _rmUi.error = '';
+  refreshRematchCandidates();
+  updateLockUi();
+}
+
+function closeRematchModal() {
+  _rmUi.open = false;
+  renderRematch();
+  updateLockUi();
+}
+
+function rematchPickSource(src) { _rmUi.source = src; _rmUi.error = ''; renderRematch(); }
+function rematchPickDeck(id) { _rmUi.deckId = id; _rmUi.source = 'library'; _rmUi.error = ''; renderRematch(); }
+
+function rematchSubmit() {
+  if (_rmUi.applyFailed) { _rmUi.error = ''; rematchReact(); return; }   // 保存失敗後重試套用（pending 還在，不會重洗）
+  if (_rmUi.recoverFor) return applyRecovery();
+  if (!_ctl) return;
+  if (_ctl.phase === GR.PHASE.IDLE) return sendInvite();
+  if (_ctl.phase === GR.PHASE.INVITING) return sendReady();
+}
+
+async function sendInvite() {
+  const cx = _gctx;
+  if (_rmBusy || !cx || cx.proto !== GR.PROTO || isSpectator || !_ctl || _ctl.phase !== GR.PHASE.IDLE) return;
+  const f = flowStart(cx);
+  const rid = ctlRef(f.room).push().key;   // 只產生 id，不寫入
+  _rmBusy = true; _rmBusyRid = rid;          // 先於伺服器回應就鎖，舊動作不能在等待期間溜進去
+  _rmUi.error = '';
+  enterRematchLock();
+  updateLockUi(); renderRematch();
+  let ok = false;
+  try {
+    const prep = await prepareMyPending(cx, rid);
+    if (!flowAlive(f)) return;
+    if (prep.error) throw new Error(prep.error);
+    if (!cxLive(cx)) throw new Error('房間狀態已改變');
+    const res = await ctlRef(f.room).transaction(cur => GR.txInvite(cur, { rid, role: f.role, now: Date.now() }), undefined, false);
+    if (!flowAlive(f)) return;
+    if (!res.committed) throw new Error(`${rematchOppName()} 已先發起邀請，或目前無法邀請。`);
+    ok = true;
+    ingestCtl(res.snapshot.val(), f);
+  } catch (e) {
+    if (!flowAlive(f)) return;
+    if (!ok) { dropPending(rid); _rmFlow = null; }
+    _rmUi.error = e.message || '送出邀請失敗';
+  } finally {
+    if (flowAlive(f) && _rmBusyRid === rid) {
+      _rmBusy = false; _rmBusyRid = null;
+      rematchReact();
+    }
+  }
+}
+
+async function sendReady() {
+  const cx = _gctx;
+  const req = _ctl && _ctl.req;
+  if (_rmBusy || !cx || cx.proto !== GR.PROTO || isSpectator || !req || _ctl.phase !== GR.PHASE.INVITING) return;
+  if (_ctl.ready && _ctl.ready[myRole] === req.id) return;
+  const f = flowStart(cx);
+  const rid = req.id;
+  _rmBusy = true; _rmBusyRid = rid;
+  _rmUi.error = '';
+  updateLockUi(); renderRematch();
+  try {
+    const prep = await prepareMyPending(cx, rid);
+    if (!flowAlive(f)) return;
+    if (prep.error) throw new Error(prep.error);
+    // 等待期間邀請可能已被取消或換成別的：沒有對應的邀請就不能 ready
+    if (!_ctl || _ctl.phase !== GR.PHASE.INVITING || !_ctl.req || _ctl.req.id !== rid) {
+      dropPending(rid);
+      throw new Error('邀請已被取消。');
+    }
+    await db.ref(`games/${f.room}/ctl/ready/${f.role}`).set(rid);
+  } catch (e) {
+    if (!flowAlive(f)) return;
+    _rmUi.error = e.message || '準備失敗，請再試一次';
+  } finally {
+    if (flowAlive(f) && _rmBusyRid === rid) {
+      _rmBusy = false; _rmBusyRid = null;
+      rematchReact();
+    }
+  }
+}
+
+// 提交前任一方都能取消／拒絕；transaction 驗證 requestId 與 phase，所以與提交互斥
+async function cancelRematch() {
+  const cx = _gctx;
+  if (!cx || cx.proto !== GR.PROTO || !_ctl || _ctl.phase !== GR.PHASE.INVITING || !_ctl.req) return;
+  const f = flowStart(cx);
+  const rid = _ctl.req.id;
+  try {
+    const res = await ctlRef(f.room).transaction(cur => GR.txCancel(cur, { rid }), undefined, false);
+    if (!flowAlive(f)) return;
+    if (res.committed) { dropPending(rid); ingestCtl(res.snapshot.val(), f); }
+    else { _rmUi.error = '已無法取消：雙方都已準備完成，新場正在開始。'; }
+  } catch (e) {
+    if (!flowAlive(f)) return;
+    _rmUi.error = '取消失敗：' + (e.message || e);
+  }
+  renderRematch();
+}
+
+function clearInviteTimer() {
+  clearTimeout(_rmInviteTimer);
+  _rmInviteTimer = null;
+  _rmInviteTimerRid = null;
+}
+
+function armInviteTimer() {
+  const rid = _ctl && _ctl.req && _ctl.req.id;
+  if (!rid || _ctl.phase !== GR.PHASE.INVITING) { clearInviteTimer(); return; }
+  if (_rmInviteTimerRid === rid && _rmInviteTimer) return;
+  clearInviteTimer();
+  _rmInviteTimerRid = rid;
+  _rmInviteTimer = setTimeout(() => {
+    _rmInviteTimer = null;
+    if (_ctl && _ctl.phase === GR.PHASE.INVITING && _ctl.req && _ctl.req.id === rid) cancelRematch();
+  }, RM_INVITE_TTL_MS);
+}
+
+// ── 提交（任一方、可重複執行）────────────────────────────
+async function commitRematch(rid) {
+  const cx = _gctx;
+  if (!cx || _rmCommitting === rid) return;
+  _rmCommitting = rid;
+  const f = flowStart(cx);
+  try {
+    // 1) 先把新場節點準備好：沒人引用它；已經有內容（例如對方先準備了、或已被啟用）就不覆寫
+    const epoch = ((_ctl && _ctl.epoch) || 1) + 1;
+    const data = GR.newMatchData(emptyZones, { epoch, requestId: rid, by: _ctl && _ctl.req && _ctl.req.by, ts: Date.now() });
+    const prep = await db.ref(`games/${f.room}/m/${rid}`).transaction(cur => GR.txPrepare(cur, data), undefined, false);
+    if (!flowAlive(f)) return;
+    if (prep.committed) _rmPrepared.add(rid);
+    // 2) ctl 單路徑 transaction 驗證 request／phase／雙方 ready，切換 activeMatch（applyLocally=false）
+    const res = await ctlRef(f.room).transaction(cur => GR.txCommit(cur, { rid }), undefined, false);
+    if (!flowAlive(f)) return;
+    if (res.committed) {
+      ingestCtl(res.snapshot.val(), f);
+      touchRoomLease(f.room);
+    }
+    // 提交沒成功不代表新場沒被啟用——可能是對方的提交先成功了，而 transaction 中止時回傳的快照可能還是舊的。
+    // 所以這裡不判斷也不刪，交給 sweepPreparedMatches() 在 ctl 確定這個 requestId 再也提交不了之後才清。
+  } catch (e) {
+    if (flowAlive(f)) scheduleRematchRetry();
+  } finally {
+    if (_rmCommitting === rid) _rmCommitting = null;
+  }
+}
+
+// 自己準備過、但沒被啟用的新場節點才清。判斷只看 ctl 的單調事實：requestId 唯一，
+// 一旦 ctl 的 req 已經不是它、activeMatch 也不是它，它就再也不可能被提交，刪除不會跟任何提交競爭
+function sweepPreparedMatches() {
+  const cx = _gctx;
+  if (!cx || !_ctl || !_rmPrepared.size) return;
+  for (const rid of [..._rmPrepared]) {
+    if (_ctl.activeMatch === rid || (_ctl.req && _ctl.req.id === rid)) continue;
+    _rmPrepared.delete(rid);
+    db.ref(`games/${cx.room}/m/${rid}`).remove().catch(() => {});
+  }
+}
+
+// ── 套用新場 ────────────────────────────────────────────
+// 順序很重要：先把「套用後」的完整 session 一次寫進 localStorage（寫不進去就整個不套用），
+// 成功了才改本機狀態、切脈絡／監聽、ack。這樣不會有「持久 session 還是舊場、畫面與對手卻已是新場」的半套狀態；
+// 寫入失敗時 pending（已洗好的牌序）、鎖定都原樣保留，儲存恢復後重試即可，不會重洗。
+// 中途關頁的話，重連時 session 要嘛還是舊的（用 pending 重套）、要嘛已是新的（補送 ack）
+async function applyPendingMatch(mid) {
+  if (_rmApplyingId === mid || _appliedMatchId === mid) return false;
+  const pend = _rmPending && _rmPending.requestId === mid ? _rmPending : null;
+  if (!pend) { enterRecovery(mid); return false; }
+  const oldCx = _gctx;
+  if (!oldCx) return false;
+  _rmApplyingId = mid;
+  const f = flowStart(oldCx);
+  try {
+    const persisted = writeSession(
+      sessionCore({
+        hand: [], pile: pend.pile, setPool: [], setCards: 0,
+        deckId: pend.deckId || L.deckId,
+        postLossRedrawEligible: false, lastRallyLossId: null,
+      }),
+      { proto: GR.PROTO, appliedMatchId: mid, deckSnapshot: pend.snapshot, pending: null }
+    );
+    if (!persisted) {
+      _rmUi.applyFailed = true;
+      _rmUi.open = true;
+      _rmUi.error = '這台裝置無法保存新一場的進度（瀏覽器儲存空間不可用）。你準備好的牌序已保留，釋出空間後按「重試套用」，或稍候會自動重試。';
+      scheduleRematchRetry();
+      renderRematch();
+      return false;
+    }
+    _rmUi.applyFailed = false;
+    _rmUi.recoverFor = null;
+    _rmUi.error = '';
+    resetLocalForNewMatch(pend);
+    _appliedMatchId = mid;
+    _deckSnapshot = pend.snapshot;
+    _rmPending = null;
+    _rmAckSentFor = null;
+    oldCx.kill();
+    const cx = GR.createCtx(db, { room: f.room, role: f.role, matchId: mid, proto: GR.PROTO });
+    _gctx = cx;
+    attachMatchListener(cx, GR.newMatchData(emptyZones, { epoch: (_ctl && _ctl.epoch) || 1 }));
+    renderHand();
+    updateUndoBtn();
+    updateFillHandBtn();
+    document.getElementById('self-deck').textContent = L.pile.length;
+    document.getElementById('self-set').textContent  = 0;
+    cx.ref(`players/${f.role}/handCount`).set(0);
+    syncPileCount();
+    // 牌組名沿用既有的公開行為（大廳與等待畫面本來就顯示）；完整牌表與牌序只留在本機
+    if (pend.deckName) {
+      db.ref(`games/${f.room}/players/${f.role}/deckName`).set(pend.deckName).catch(() => {});
+      if (f.role === 'host') db.ref(`rooms/${f.room}/deckName`).set(pend.deckName).catch(() => {});
+    }
+    sendAck();
+  } finally {
+    if (_rmApplyingId === mid) _rmApplyingId = null;
+  }
+  if (flowAlive(f)) rematchReact();
+  return true;
+}
+
+// 新場的本機狀態：牌庫用 pending 裡已洗好的那份（不再洗第二次），其餘一律歸零
+function resetLocalForNewMatch(pend) {
+  closeTransientUi();
+  _peekResetForRoom();
+  updateDefZones(null);
+  L.pile = pend.pile.slice();
+  L.hand = [];
+  L.setPool = [];
+  L.setCards = 0;
+  L.undoStack = [];
+  L.deckId = pend.deckId || L.deckId;
+  setOpeningPhase(true);
+  setPostLossRedrawEligible(false);
+  _lastRallyLossId = null;
+  _pendingRallyLossId = null;
+  _processedRoundReset = 0;
+  _atkBaseline = null;
+  _turnLastZoneType = null;
+  _diceResultLogged = null;
+  _diceDoneHandled = false;
+  const log = document.getElementById('log-wrap');
+  if (log) log.innerHTML = '';
+  _logRenderedKeys.clear();
+}
+
+async function sendAck() {
+  const cx = _gctx;
+  const mid = _appliedMatchId;
+  if (!cx || !mid || _rmAckInflight === mid || _rmAckSentFor === mid) return;
+  const f = flowStart(cx);
+  _rmAckInflight = mid;
+  try {
+    await db.ref(`games/${f.room}/ctl/ack/${f.role}`).set(mid);
+    if (flowAlive(f)) _rmAckSentFor = mid;
+  } catch (e) {
+    if (flowAlive(f)) scheduleRematchRetry();
+  } finally {
+    if (_rmAckInflight === mid) _rmAckInflight = null;
+  }
+}
+
+async function finishRematch(mid) {
+  const cx = _gctx;
+  if (!cx || _rmFinishing === mid) return;
+  const f = flowStart(cx);
+  _rmFinishing = mid;
+  try {
+    const res = await ctlRef(f.room).transaction(cur => GR.txFinish(cur, { mid }), undefined, false);
+    if (!flowAlive(f)) return;
+    if (res.committed) ingestCtl(res.snapshot.val(), f);
+  } catch (e) {
+    if (flowAlive(f)) scheduleRematchRetry();
+  } finally {
+    if (_rmFinishing === mid) _rmFinishing = null;
+  }
+}
+
+// 新場已經提交，但這台裝置沒有那一場的 pending（換裝置、清過儲存空間…）：
+// 盤面是空的，所以讓玩家自己重新選牌、洗牌、套用，不會有公平性問題，也不會永久鎖住
+function enterRecovery(mid) {
+  if (_rmUi.recoverFor === mid) return;
+  _rmUi.recoverFor = mid;
+  _rmUi.open = true;
+  _rmUi.error = '';
+  _rmUi.source = currentSnapshot() ? 'snapshot' : 'library';
+  enterRematchLock();
+  refreshRematchCandidates();
+}
+
+async function applyRecovery() {
+  const mid = _rmUi.recoverFor;
+  const cx = _gctx;
+  if (!mid || !cx || _rmBusy || _rmApplyingId) return;
+  const f = flowStart(cx);
+  _rmBusy = true; _rmBusyRid = mid;
+  _rmUi.error = '';
+  try {
+    const choice = resolveDeckChoice();
+    if (choice.error) throw new Error(choice.error);
+    const built = GR.buildPending({ requestId: mid, snapshot: choice.snapshot, allCards });
+    if (built.error) throw new Error(built.error);
+    _rmPending = built.pending;
+    _rmUi.recoverFor = null;
+    const applied = await applyPendingMatch(mid);
+    if (!applied && flowAlive(f)) _rmUi.recoverFor = mid;   // 保存失敗：留在恢復流程，pending 在記憶體裡，重試不重洗
+  } catch (e) {
+    if (!flowAlive(f)) return;
+    _rmUi.error = e.message || '套用失敗，請再試一次';
+  } finally {
+    if (flowAlive(f) && _rmBusyRid === mid) {
+      _rmBusy = false; _rmBusyRid = null;
+      rematchReact();
+    }
+  }
+}
+
+// 觀戰者：跟著 activeMatch 換場，不寫入任何東西
+function spectatorFollow(ctl) {
+  const cx = _gctx;
+  if (!cx || cx.proto !== GR.PROTO || !ctl || !ctl.activeMatch || ctl.activeMatch === cx.matchId || !_viewParts) return;
+  cx.kill();
+  const next = GR.createCtx(db, { room: cx.room, role: cx.role, matchId: ctl.activeMatch, proto: GR.PROTO });
+  _gctx = next;
+  _appliedMatchId = ctl.activeMatch;
+  attachMatchListener(next, null);
+}
+
+// ── 畫面 ───────────────────────────────────────────────
+function rematchStatusText() {
+  const opp = rematchOppName();
+  if (_rmUi.fatal) return '此裝置缺少目前對局的進度，無法繼續這場對局。\n請雙方重新建立房間。';
+  if (_rmUi.recoverFor) return '新的一場已經開始，但這台裝置沒有保存你的牌組。\n請重新選擇牌組，套用後就能繼續。';
+  const c = _ctl;
+  if (!c) return '連線中…';
+  const oppOffline = gameState?.presence && !gameState.presence[rematchOpp()] ? `\n（${opp} 目前離線）` : '';
+  if (c.phase === GR.PHASE.INVITING && c.req) {
+    const mine = !!(c.ready && c.ready[myRole] === c.req.id);
+    const theirs = !!(c.ready && c.ready[rematchOpp()] === c.req.id);
+    if (c.req.by === myRole) {
+      return (mine && !theirs ? `已送出邀請，等待 ${opp} 選擇牌組並準備…` : '雙方就緒，正在開新場…') + oppOffline;
+    }
+    if (!mine) return `${opp} 邀請你再開一場。\n選擇你要用的牌組後按「同意並準備」，或拒絕回到原局。` + oppOffline;
+    return (theirs ? '雙方就緒，正在開新場…' : `已準備，等待 ${opp}…`) + oppOffline;
+  }
+  if (c.phase === GR.PHASE.APPLYING) {
+    const mine = c.ack && c.ack[myRole] === c.activeMatch;
+    const theirs = c.ack && c.ack[rematchOpp()] === c.activeMatch;
+    return `新場已建立，同步中…\n你：${mine ? '完成' : '套用中'}　${opp}：${theirs ? '完成' : '等待中'}` + oppOffline;
+  }
+  return '保留目前的房間與連線，重新開一場。先選好你要用的牌組，送出後等 ' + opp + ' 同意並選牌。對局會暫停，取消可回到原局。';
+}
+
+function renderRematch() {
+  const ov = document.getElementById('rematch-overlay');
+  if (!ov) return;
+  ov.classList.toggle('open', !!_rmUi.open);
+  if (!_rmUi.open) return;
+  const c = _ctl;
+  const st = document.getElementById('rematch-status');
+  st.textContent = rematchStatusText();
+  st.classList.toggle('warn', !!_rmUi.fatal);
+  document.getElementById('rematch-error').textContent = _rmUi.error || '';
+
+  const inviting = c && c.phase === GR.PHASE.INVITING && c.req;
+  const myReady = !!(inviting && c.ready && c.ready[myRole] === c.req.id);
+  const applying = c && c.phase === GR.PHASE.APPLYING && !_rmUi.recoverFor && !_rmUi.applyFailed;
+  const canPick = !_rmUi.fatal && !applying && !myReady && !_rmBusy;
+  document.getElementById('rematch-pick').style.display = canPick ? '' : 'none';
+
+  const snap = currentSnapshot();
+  const snapOpt = document.getElementById('rm-opt-snapshot');
+  snapOpt.style.display = snap ? '' : 'none';
+  if (!snap && _rmUi.source === 'snapshot') _rmUi.source = 'library';
+  document.getElementById('rm-snapshot-name').textContent = snap ? `${snap.name || '(未命名)'}（${GR.DECK_SIZE} 張，開局時的版本）` : '—';
+  document.querySelectorAll('input[name="rm-src"]').forEach(r => { r.checked = r.value === _rmUi.source; });
+  snapOpt.classList.toggle('sel', _rmUi.source === 'snapshot');
+  document.getElementById('rm-opt-library').classList.toggle('sel', _rmUi.source === 'library');
+  document.getElementById('rematch-library').style.display = _rmUi.source === 'library' ? '' : 'none';
+
+  const sel = document.getElementById('rematch-deck-select');
+  sel.innerHTML = '';
+  const first = document.createElement('option');
+  first.value = ''; first.textContent = _rmUi.candidates.length ? '— 請選擇牌組 —' : '（牌組庫裡沒有牌組）';
+  sel.appendChild(first);
+  _rmUi.candidates.forEach(cand => {
+    const o = document.createElement('option');
+    o.value = cand.id;
+    o.textContent = `${cand.name}（${cand.total} 張）${cand.ok ? '' : ' ⚠ ' + cand.problems[0]}`;
+    o.disabled = !cand.ok;
+    if (cand.id === _rmUi.deckId) o.selected = true;
+    sel.appendChild(o);
+  });
+
+  const main = document.getElementById('rematch-main-btn');
+  const cancel = document.getElementById('rematch-cancel-btn');
+  const leave = document.getElementById('rematch-leave-btn');
+  let mainLabel = '', showMain = false, showCancel = false;
+  if (_rmUi.applyFailed) { mainLabel = '重試套用'; showMain = true; }
+  else if (_rmUi.recoverFor) { mainLabel = '套用並同步'; showMain = true; }
+  else if (_rmUi.fatal || applying) { showMain = false; }
+  else if (inviting) {
+    showCancel = true;
+    if (!myReady) { mainLabel = '同意並準備'; showMain = true; }
+    cancel.textContent = c.req.by === myRole ? '取消邀請' : (myReady ? '取消' : '拒絕');
+  } else { mainLabel = '送出邀請並準備'; showMain = !!c && c.phase === GR.PHASE.IDLE; }
+  main.textContent = mainLabel;
+  main.style.display = showMain ? '' : 'none';
+  main.disabled = _rmBusy;
+  cancel.style.display = showCancel ? '' : 'none';
+  leave.style.display = (_rmUi.fatal || applying || _rmUi.recoverFor) ? '' : 'none';
+}
+
+// 牌組庫在別的分頁改了：只更新候選清單，絕不動本場快照或已經確認的 pending
+window.addEventListener('storage', e => { if (_rmUi.open && (e.key === DECK_KEY || e.key === null)) refreshRematchCandidates(); });
+window.addEventListener('focus', () => { if (_rmUi.open) refreshRematchCandidates(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && _rmUi.open) refreshRematchCandidates(); });
+
+// ══════════════════════════════════════════════════════
 // GAME START
 // ══════════════════════════════════════════════════════
 async function startGame() {
   if (!gameState?.players?.guest) { toast('等待對手加入'); return; }
-  db.ref(`games/${roomId}`).update({ started: true, turn: 'host', phase: 'serve' });
+  const cx = gx();
+  if (cx.proto === GR.PROTO) {
+    db.ref(`games/${roomId}/ctl/started`).set(true);
+    cx.ref().update({ turn: 'host', phase: 'serve' });
+  } else {
+    db.ref(`games/${roomId}`).update({ started: true, turn: 'host', phase: 'serve' });
+  }
   await db.ref(`games/${roomId}/presence/host`).set(true);
   db.ref(`games/${roomId}/presence/host`).onDisconnect().remove();
-  db.ref(`rooms/${roomId}/status`).set('playing');
+  db.ref(`rooms/${roomId}/status`).set(cx.proto === GR.PROTO ? GR.STATUS.PLAYING_V2 : 'playing');
   enterGame(); // enterGame will set presence again — idempotent, no issue
 }
 
@@ -4434,6 +5448,8 @@ function enterGame() {
   }).reduce((s, e) => s + (e.count || 1), 0);
   if (totalCards !== 40) { toast(`牌組張數錯誤（${totalCards} 張，應為 40 張）`); L.pile = []; return; }
   if (eventCount > 8)    { toast(`EVENT 牌超過上限（${eventCount} 張，上限 8 張）`); L.pile = []; return; }
+  // 原始牌組快照：之後「沿用本場牌組」重開時用，不會被卡牌資料庫後來的編輯影響
+  _deckSnapshot = GR.makeDeckSnapshot(deck);
   shuffle(L.pile);
   L.hand = [];
   L.setPool = [];
@@ -4452,13 +5468,14 @@ function enterGame() {
   db.ref(`games/${roomId}/presence/${myRole}`).set(true);
   db.ref(`games/${roomId}/presence/${myRole}`).onDisconnect().remove();
   _startPresenceWatch();
+  startRoomLease();
 
   showScreen('game');
   renderBoard(gameState);
   renderHand();
   syncPileCount();
   // Init handCount = 0 so the opponent's sidebar count is populated from game start
-  db.ref(`games/${roomId}/players/${myRole}/handCount`).set(0);
+  gx().ref(`players/${myRole}/handCount`).set(0);
   updateUndoBtn();
   saveSession();
   addLog('system', '對戰開始！請手動抽牌。');
@@ -4544,8 +5561,9 @@ function updatePhaseUI(phase, turn) {
 // END TURN
 // ══════════════════════════════════════════════════════
 async function endTurn() {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
   if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
+  const cx = gx();
   // Auto-close any open peek (returns unplaced cards to pile)
   if (document.getElementById('peek-overlay').classList.contains('open')) closePeek();
   const oppRole = myRole === 'host' ? 'guest' : 'host';
@@ -4560,7 +5578,7 @@ async function endTurn() {
   // Optimistic local update: flip button immediately without waiting for Firebase round-trip
   updatePhaseUI(gameState?.phase || 'serve', oppRole);
   try {
-    await db.ref(`games/${roomId}`).update({
+    await cx.ref().update({
       turn: oppRole, currentAction: null,
       atkAlert: atkTotal > 0 ? atkTotal : null
     });
@@ -4568,9 +5586,10 @@ async function endTurn() {
     toast('回合結束失敗：' + e.message);
     return; // 寫入失敗、回合其實沒結束，_turnLastZoneType 留著給下一次真正 endTurn 用
   }
+  if (!cxLive(cx)) return; // 等待期間換場了，這些本機收尾屬於舊場
   _turnLastZoneType = null; // 回合真的結束了才清空，供下一輪重新追蹤
   setOpeningPhase(false);
-  addLog(L.name, `回合結束 — ${actionLabel}`);
+  addLog(L.name, `回合結束 — ${actionLabel}`, cx);
   // Clear undo stack at end of turn (no going back across turns)
   L.undoStack = [];
   updateUndoBtn();
@@ -4578,11 +5597,12 @@ async function endTurn() {
 }
 
 function selectAction(action) {
+  if (!guardAction()) return;
   if (gameState?.turn !== myRole) { toast('現在是對手的回合'); return; }
   const current = gameState?.currentAction;
   // Toggle off if clicking the same action again
   const next = current === action ? null : action;
-  db.ref(`games/${roomId}/currentAction`).set(next);
+  gx().ref('currentAction').set(next);
 }
 
 // 換到我的回合時的過場：沿用 #phase-flash（pointer-events:none，不擋操作）
@@ -5044,6 +6064,7 @@ function makeHandCard(img, idx) {
     if (!dd || dd.src !== 'hand') return;
     e.preventDefault(); e.stopPropagation();
     dragData = null;
+    if (!guardAction()) return;   // 手牌順序也是「提交前取消不能動」的本機狀態
     const myIdx = +div.dataset.idx;
     if (dd.idx === myIdx) return;
     const insertAfter = e.clientX > div.getBoundingClientRect().left + div.getBoundingClientRect().width / 2;
@@ -5270,6 +6291,8 @@ function _doReturnToPile(dd, pos) {
 async function handleDrop(targetZone, hasCards) {
   if (!dragData) return;
   const dd = dragData; dragData = null;
+  if (!guardAction()) return;
+  const cx = gx();
 
   // ── Drag from pile (hand/drop 必須在下面 hand/drop 前置分支之前處理，否則牌庫拖到手牌/棄牌會無動作) ──
   if (dd.src === 'pile' && (targetZone === 'hand' || targetZone === 'drop')) {
@@ -5283,8 +6306,8 @@ async function handleDrop(targetZone, hasCards) {
     zones.drop.push(img);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    await pushZones(zones);
-    addLog(L.name, `${allCards[img]?.name || img} 從牌庫送至棄牌區${cardState()}`);
+    await pushZones(zones, cx);
+    addLog(L.name, `${allCards[img]?.name || img} 從牌庫送至棄牌區${cardState()}`, cx);
     return;
   }
 
@@ -5391,6 +6414,8 @@ function onZoneClick(zoneName, cardData, slotEl, e) {
 
 // ── Place card from hand ─────────────────────────────
 async function placeCard(handIdx, zoneName, asGuts = false) {
+  if (!guardAction()) return;
+  const cx = gx();
   closeCtx();
   clearSelection();
   clearZoneHighlights();
@@ -5418,17 +6443,19 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   // Optimistic UI: update hand and zone display immediately, before Firebase awaits
   renderHand();
   renderZones('self', zones, false);
-  await pushZones(zones);
-  if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone);
-  await resetCounterDelta(zoneName); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
-  await _checkAndClearAtkAlert(zones);
-  addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}${cardState()}`);
+  await pushZones(zones, cx);
+  if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone, cx);
+  await resetCounterDelta(zoneName, cx); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
+  await _checkAndClearAtkAlert(zones, cx);
+  addLog(L.name, `${card?.name || img} 登場至 ${ZONE_LABEL[baseZone]}${cardState()}`, cx);
 }
 
 // ── Move card between zones ──────────────────────────
 // Only moves the TOP card; guts remain in the source zone.
 // asGuts=true → dragged card slides under the existing top at destination.
 async function moveCard(fromZone, toZone, cardData, asGuts = false) {
+  if (!guardAction()) return;
+  const cx = gx();
   closeCtx();
   saveUndo();
   const zones = myZonesCopy();
@@ -5474,17 +6501,19 @@ async function moveCard(fromZone, toZone, cardData, asGuts = false) {
 
   const card = allCards[cardData.img];
   _turnLastZoneType = baseZone;
-  await pushZones(zones);
+  await pushZones(zones, cx);
   const _rel = ['serve','toss','attack'];
   if (_rel.includes(fromBase) || _rel.includes(baseZone)) {
-    await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null);
+    await syncScoreToBase(zones, _rel.includes(baseZone) ? baseZone : null, cx);
   }
-  await resetCounterDelta(toZone); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
-  addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}${cardState()}`);
+  await resetCounterDelta(toZone, cx); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
+  addLog(L.name, `${card?.name || cardData.img} 移至 ${ZONE_LABEL[baseZone] || baseZone}${cardState()}`, cx);
 }
 
 // ── Discard only the TOP card from zone (guts remain) ─ used by drag ──
 async function discardTopFromZone(zoneName, cardData) {
+  if (!guardAction()) return;
+  const cx = gx();
   closeCtx();
   saveUndo();
   const zones = myZonesCopy();
@@ -5518,14 +6547,16 @@ async function discardTopFromZone(zoneName, cardData) {
   if (!zones.drop) zones.drop = [];
   zones.drop.push(cardData.img);
   const card = allCards[cardData.img];
-  await pushZones(zones);
+  await pushZones(zones, cx);
   updateDropImg(zones);
-  if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, null);
-  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`);
+  if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, null, cx);
+  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`, cx);
 }
 
 // ── Discard from zone (all cards incl. guts) — used by context menu ──
 async function discardFromZone(zoneName, cardData) {
+  if (!guardAction()) return;
+  const cx = gx();
   closeCtx();
   saveUndo();
   const zones = myZonesCopy();
@@ -5535,15 +6566,17 @@ async function discardFromZone(zoneName, cardData) {
   zones.drop.push(cardData.img);
   attachedGuts(zoneName, cardData).forEach(g => zones.drop.push(g));
   const card = allCards[cardData.img];
-  await pushZones(zones);
+  await pushZones(zones, cx);
   updateDropImg(zones);
   const _dz = zoneName.split(':')[0];
-  if (_dz === 'serve' || _dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones, null);
-  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`);
+  if (_dz === 'serve' || _dz === 'toss' || _dz === 'attack') await syncScoreToBase(zones, null, cx);
+  addLog(L.name, `${card?.name || cardData.img} 送至棄牌區${cardState()}`, cx);
 }
 
 // ── Discard from hand ────────────────────────────────
 async function discardFromHand(idx) {
+  if (!guardAction()) return;
+  const cx = gx();
   closeCtx();
   clearSelection();
   clearZoneHighlights();
@@ -5553,9 +6586,9 @@ async function discardFromHand(idx) {
   const zones = myZonesCopy();
   if (!zones.drop) zones.drop = [];
   zones.drop.push(img);
-  await pushZones(zones);
+  await pushZones(zones, cx);
   updateDropImg(zones);
-  addLog(L.name, `棄置 ${card?.name || img}${cardState()}`);
+  addLog(L.name, `棄置 ${card?.name || img}${cardState()}`, cx);
   renderHand();
 }
 
@@ -5584,6 +6617,8 @@ function cancelGuts() {
 }
 
 async function applyGuts(handIdx, zoneName) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const img   = L.hand.splice(handIdx, 1)[0];
   const zones = myZonesCopy();
@@ -5596,8 +6631,8 @@ async function applyGuts(handIdx, zoneName) {
   // Optimistic UI: update hand and zone display immediately, before Firebase await
   renderHand();
   renderZones('self', zones, false);
-  await pushZones(zones);
-  addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）${cardState()}`);
+  await pushZones(zones, cx);
+  addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）${cardState()}`, cx);
   cancelGuts();
 }
 
@@ -5626,8 +6661,9 @@ function saveUndo() {
 }
 
 async function undoLastAction() {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
   if (!L.undoStack.length) { toast('沒有可復原的操作'); return; }
+  const cx = gx();
   const snap = L.undoStack.pop();
   updateUndoBtn();
 
@@ -5642,11 +6678,12 @@ async function undoLastAction() {
 
   // Restore Firebase state atomically
   const updates = {};
-  updates[`games/${roomId}/players/${myRole}/zones`] = sanitise(snap.zones);
-  updates[`games/${roomId}/counterDelta/${myRole}`]  = snap.counterDelta;
-  updates[`games/${roomId}/scores/${myRole}`]        = snap.score;
-  updates[`games/${roomId}/scoreModes/${myRole}`]    = snap.scoreMode;
-  await db.ref().update(updates);
+  updates[`players/${myRole}/zones`] = sanitise(snap.zones);
+  updates[`counterDelta/${myRole}`]  = snap.counterDelta;
+  updates[`scores/${myRole}`]        = snap.score;
+  updates[`scoreModes/${myRole}`]    = snap.scoreMode;
+  await cx.ref().update(updates);
+  if (!cxLive(cx)) return; // 等待期間換場了，後面的本機收尾屬於舊場
 
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
@@ -5661,7 +6698,7 @@ async function undoLastAction() {
     _peekRunning  = false;
     _peekPlacedAny = false;
   }
-  addLog(L.name, `↩ 復原了上一步`);
+  addLog(L.name, `↩ 復原了上一步`, cx);
   toast('已復原上一步');
 }
 
@@ -5691,13 +6728,14 @@ function startDragPile(e) {
 }
 
 function drawCard() {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
+  const cx = gx();
   if (moveMode) { showPileReturnChoice(); return; }
   if (!L.pile.length) { toast('⚠️ 牌庫已空！請考慮重置本局'); return; }
   saveUndo();
   const img = drawFromPile();
   const cardName = allCards[img]?.name ? `「${allCards[img].name}」` : '';
-  addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
+  addLog(L.name, `抽牌（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`, cx);
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
   renderHand();
@@ -5742,14 +6780,15 @@ function updateFillHandBtn() {
 
 // 一次補到 6 張：不重複呼叫 drawCard()，否則每張都存一次復原點（吃掉 10 步上限）、各寫一筆 log
 function drawToSix() {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
+  const cx = gx();
   if (!_openingPhase && !_postLossRedrawEligible) { updateFillHandBtn(); return; }
   if (moveMode) exitMoveMode();
   const need = Math.min(6 - L.hand.length, L.pile.length);
   if (need <= 0) { updateFillHandBtn(); return; }
   saveUndo();
   for (let i = 0; i < need; i++) drawFromPile();
-  addLog(L.name, `補牌 ${need} 張（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`);
+  addLog(L.name, `補牌 ${need} 張（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`, cx);
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
   renderHand();
@@ -5757,6 +6796,8 @@ function drawToSix() {
 }
 
 function returnHandToPile(idx, position) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const img = L.hand.splice(idx, 1)[0];
   if (!img) return;
@@ -5767,11 +6808,13 @@ function returnHandToPile(idx, position) {
   }
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  addLog(L.name, `從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`);
+  addLog(L.name, `從手牌放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`, cx);
   renderHand();
 }
 
 async function returnToPile(fromZone, cardData, position) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const zones = myZonesCopy();
   removeFromZone(zones, fromZone, cardData.img);
@@ -5782,12 +6825,12 @@ async function returnToPile(fromZone, cardData, position) {
   } else {
     L.pile.unshift(cardData.img);
   }
-  await pushZones(zones);
+  await pushZones(zones, cx);
   const _rz = fromZone.split(':')[0];
-  if (_rz === 'serve' || _rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones, null);
+  if (_rz === 'serve' || _rz === 'toss' || _rz === 'attack') await syncScoreToBase(zones, null, cx);
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`);
+  addLog(L.name, `${allCards[cardData.img]?.name || cardData.img} 放回牌堆${position === 'top' ? '（上方）' : '（下方）'}${cardState()}`, cx);
 }
 
 function showDeckInfo() {
@@ -5795,11 +6838,13 @@ function showDeckInfo() {
 }
 
 function shufflePile() {
+  if (!guardAction()) return;
+  const cx = gx();
   if (!L.pile.length) { toast('牌庫已空'); return; }
   shuffle(L.pile);
   syncPileCount();
   toast(`牌庫已洗牌（${L.pile.length} 張）`);
-  addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`);
+  addLog(L.name, `🔀 洗牌（牌庫 ${L.pile.length} 張）`, cx);
 }
 
 // ══════════════════════════════════════════════════════
@@ -5837,11 +6882,11 @@ function _peekDiscloses(where) {
 // 每個角色寫自己的子節點。共用一個節點的話，兩人同時翻牌時後開的 set() 會蓋掉先開的，
 // 而且之後的 placed 合併會把自己的落點掛到對方名下，對手橫幅就張冠李戴。
 function _peekRef(node) {
-  return db.ref(`games/${roomId}/${node || _peekNodeName}/${myRole}`);
+  return gx().ref(`${node || _peekNodeName}/${myRole}`);
 }
 
 function openPeekSetup() {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
   if (!L.pile.length) { toast('牌庫已空'); return; }
   _peekCount = 1;
   _peekMode  = 'private';
@@ -5875,6 +6920,8 @@ function _peekSetMode(m) {
 }
 
 function executePeek() {
+  if (!guardAction()) return;
+  const cx = gx();
   const n = Math.min(_peekCount, L.pile.length);
   if (!n) { toast('牌庫已空'); return; }
   saveUndo();
@@ -5899,7 +6946,7 @@ function executePeek() {
   // 翻到一半斷線時由伺服器端收掉，對手才不會卡著一個永遠不消失的橫幅
   ref.onDisconnect().remove();
   ref.set(_peekBase);
-  addLog(L.name, `🔍 翻牌頂（${n} 張，${_peekMode === 'private' ? '私看' : '公開'}）`);
+  addLog(L.name, `🔍 翻牌頂（${n} 張，${_peekMode === 'private' ? '私看' : '公開'}）`, cx);
 
   document.getElementById('peek-setup').style.display = 'none';
   document.getElementById('peek-panel').style.display  = '';
@@ -5939,6 +6986,8 @@ function _renderPeekCards() {
 }
 
 async function _peekPlace(idx, where) {
+  if (!guardAction()) return;
+  const cx = gx();
   if (_peekUsed.has(idx)) return;
   const img  = _peekCards[idx];
   const name = allCards[img]?.name || img;
@@ -5950,24 +6999,24 @@ async function _peekPlace(idx, where) {
     L.pile.push(img);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    addLog(L.name, `🔍 ${shownName} → 牌頂`);
+    addLog(L.name, `🔍 ${shownName} → 牌頂`, cx);
   } else if (where === 'bottom') {
     L.pile.unshift(img);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    addLog(L.name, `🔍 ${shownName} → 牌底`);
+    addLog(L.name, `🔍 ${shownName} → 牌底`, cx);
   } else if (where === 'hand') {
     L.hand.push(img);
-    db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
+    cx.ref(`players/${myRole}/handCount`).set(L.hand.length);
     renderHand();
-    addLog(L.name, `🔍 ${shownName} → 手牌（手牌 ${L.hand.length} 張）`);
+    addLog(L.name, `🔍 ${shownName} → 手牌（手牌 ${L.hand.length} 張）`, cx);
   } else if (where === 'drop') {
     const zones = myZonesCopy();
     if (!zones.drop) zones.drop = [];
     zones.drop.push(img);
-    await pushZones(zones);
+    await pushZones(zones, cx);
     document.getElementById('self-drop').textContent = zones.drop.length;
-    addLog(L.name, `🔍 ${shownName} → 棄牌`);
+    addLog(L.name, `🔍 ${shownName} → 棄牌`, cx);
   }
 
   _peekSyncPlacements([{ img, to: where }]);
@@ -6220,7 +7269,7 @@ function calcBaseScore(role, data) {
   return calcBaseScoreFromZones(zones);
 }
 // changedZone: 'serve'|'toss'|'attack' → sets mode; null → keep stored mode (removal)
-async function syncScoreToBase(zones, changedZone) {
+async function syncScoreToBase(zones, changedZone, cx = gx()) {
   const delta = gameState?.counterDelta?.[myRole] || {};
   let mode, base;
   if (changedZone === 'serve') {
@@ -6236,16 +7285,18 @@ async function syncScoreToBase(zones, changedZone) {
     base = mode === 'serve' ? calcServeScore(zones) : calcNetAttackScore(zones, delta);
   }
   const updates = {};
-  updates[`games/${roomId}/scores/${myRole}`] = base;
-  if (changedZone != null) updates[`games/${roomId}/scoreModes/${myRole}`] = mode;
-  await db.ref().update(updates);
+  updates[`scores/${myRole}`] = base;
+  if (changedZone != null) updates[`scoreModes/${myRole}`] = mode;
+  await cx.ref().update(updates);
 }
 
 async function adjustScore(role, delta) {
+  if (!guardAction()) return;
+  const cx = gx();
   if (role !== myRole) return;
   const cur = gameState?.scores?.[role] ?? calcBaseScore(role, gameState);
   const next = Math.max(0, cur + delta);
-  await db.ref(`games/${roomId}/scores/${role}`).set(next);
+  await cx.ref(`scores/${role}`).set(next);
 }
 
 // ── Counter cells (接球 / 舉球 / 攻擊) ─────────────────
@@ -6263,20 +7314,20 @@ const ZONE_STAT_INFO = {
   'block:2':{ stat: 'blk', bg: '#374151', textDark: false, adj: true },
 };
 
-async function resetCounterDelta(zoneName) {
+async function resetCounterDelta(zoneName, cx = gx()) {
   const stat = ZONE_TO_STAT[zoneName];
   if (!stat) return;
-  await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(0);
+  await cx.ref(`counterDelta/${myRole}/${stat}`).set(0);
   const zones  = gameState?.players?.[myRole]?.zones;
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: 0 };
   if (zoneName === 'serve') {
     // Recalc serve score with new card's srv value (delta reset to 0)
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcServeScore(zones, deltas)));
+    await cx.ref(`scores/${myRole}`).set(Math.max(0, calcServeScore(zones, deltas)));
   } else if (zoneName === 'block:0' || zoneName === 'block:1' || zoneName === 'block:2') {
     // Block delta only affects display, no score recalc needed
   } else {
     // Recalc NET score with reset delta
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcNetAttackScore(zones, deltas)));
+    await cx.ref(`scores/${myRole}`).set(Math.max(0, calcNetAttackScore(zones, deltas)));
   }
 }
 
@@ -6298,7 +7349,7 @@ function updateDefZones(target) {
 }
 
 // Check if my receive or block total defeats the atkAlert — if so, clear it
-async function _checkAndClearAtkAlert(zones) {
+async function _checkAndClearAtkAlert(zones, cx = gx()) {
   const alert = gameState?.atkAlert;
   if (!alert || gameState?.turn !== myRole) return;
   const delta = gameState?.counterDelta?.[myRole] || {};
@@ -6317,36 +7368,37 @@ async function _checkAndClearAtkAlert(zones) {
   const blkTotal = Math.max(0, blkRaw - baseline.blk) + (delta.blk || 0);
 
   if (rcvTotal >= alert || blkTotal >= alert) {
-    await db.ref(`games/${roomId}/atkAlert`).remove();
+    await cx.ref('atkAlert').remove();
     if (rcvTotal >= alert) toast(`✅ 接球成功！（接球 ${rcvTotal} ≥ 攻擊 ${alert}）`);
     else                   toast(`✅ 攔網成功！（攔網 ${blkTotal} ≥ 攻擊 ${alert}）`);
   }
 }
 
 async function adjustCounter(stat, delta) {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const cur = gameState?.counterDelta?.[myRole]?.[stat] ?? 0;
   const next = cur + delta;
-  await db.ref(`games/${roomId}/counterDelta/${myRole}/${stat}`).set(next);
+  await cx.ref(`counterDelta/${myRole}/${stat}`).set(next);
   const zones  = gameState?.players?.[myRole]?.zones;
   const deltas = { ...(gameState?.counterDelta?.[myRole] || {}), [stat]: next };
   if (stat === 'blk') {
     // Block delta only affects display, not NET score
     // But still check if block now defeats atkAlert
-    await _checkAndClearAtkAlert(zones);
+    await _checkAndClearAtkAlert(zones, cx);
     return;
   } else if (stat === 'srv') {
     // Recalc serve score if currently in serve mode
     if ((gameState?.scoreModes?.[myRole] || 'attack') === 'serve') {
-      await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcServeScore(zones, deltas)));
+      await cx.ref(`scores/${myRole}`).set(Math.max(0, calcServeScore(zones, deltas)));
     }
   } else {
     // Recalc NET score = tos_total + atk_total
-    await db.ref(`games/${roomId}/scores/${myRole}`).set(Math.max(0, calcNetAttackScore(zones, deltas)));
+    await cx.ref(`scores/${myRole}`).set(Math.max(0, calcNetAttackScore(zones, deltas)));
   }
   // Check if rcv/blk delta change now defeats atkAlert
-  if (stat === 'rcv' || stat === 'blk') await _checkAndClearAtkAlert(zones);
+  if (stat === 'rcv' || stat === 'blk') await _checkAndClearAtkAlert(zones, cx);
 }
 
 function renderCounters(data) {
@@ -6377,21 +7429,24 @@ function renderCounters(data) {
 }
 
 function adjustSet() {
+  if (!guardAction()) return;
+  const cx = gx();
   const n = prompt(`調整組合區牌數（現在：${L.setCards}）`, String(L.setCards));
   if (n === null) return;
   const v = parseInt(n);
   if (isNaN(v) || v < 0) return;
   L.setCards = v;
   document.getElementById('self-set').textContent = v;
-  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(v);
-  addLog(L.name, `組合區牌數 → ${v}`);
+  cx.ref(`players/${myRole}/setCardsLeft`).set(v);
+  addLog(L.name, `組合區牌數 → ${v}`, cx);
 }
 
 let _declareLostBusy = false; // 防止快速連點「重置本局」時整個流程（含 confirm/收牌/Firebase 清理）重入
 async function declareLost() {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
   if (_declareLostBusy) return;
   _declareLostBusy = true;
+  const cx = gx();
   try {
     const ok = await showConfirm({
       icon: '🔄',
@@ -6400,24 +7455,25 @@ async function declareLost() {
       okText: '確認重置',
       okDanger: true,
     });
-    if (!ok) return;
+    if (!ok || !cxLive(cx)) return;
 
     const collected = await performLocalRoundCollect();
-    if (!collected) return; // 已有收牌流程在跑（例如 handleRoundReset 同時觸發），避免重複收牌
+    if (!collected || !cxLive(cx)) return; // 已有收牌流程在跑（例如 handleRoundReset 同時觸發），避免重複收牌
 
     // Clear round-scoped Firebase state so opponent's screen doesn't get stuck
-    await db.ref(`games/${roomId}/atkAlert`).remove();
-    await db.ref(`games/${roomId}/currentAction`).remove();
-    await resetMyRoundScoreState();
+    await cx.ref('atkAlert').remove();
+    await cx.ref('currentAction').remove();
+    await resetMyRoundScoreState(cx);
+    if (!cxLive(cx)) return;
 
     // Signal opponent to do the same
     const resetVal = Date.now();
     _processedRoundReset = resetVal;
-    await db.ref(`games/${roomId}/roundReset`).set(resetVal);
+    await cx.ref('roundReset').set(resetVal);
 
     updateDefZones(null);
 
-    addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`);
+    addLog(L.name, `🔄 重置本局 — 雙方牌庫重置（${L.pile.length} 張），請手動抽牌`, cx);
     toast(`本局重置，牌庫 ${L.pile.length} 張，請手動抽牌`);
   } finally {
     _declareLostBusy = false;
@@ -6425,7 +7481,8 @@ async function declareLost() {
 }
 
 async function adjustSets(role, delta) {
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  if (!guardAction()) return;
+  const cx = gx();
   const cur = gameState?.setScore?.[role] ?? 0;
   const next = Math.max(0, cur + delta);
   if (next === cur) return;
@@ -6438,49 +7495,65 @@ async function adjustSets(role, delta) {
       body: `${ownerName} 的局數 ${cur} → ${next}\n這筆變更會記在行動記錄裡，雙方都看得到。`,
       okText: '確認調整',
     });
-    if (!ok) return;
+    if (!ok || !cxLive(cx)) return;
   }
-  await db.ref(`games/${roomId}/setScore/${role}`).set(next);
-  addLog(L.name, `🏆 局數調整：${ownerName} ${cur} → ${next}`);
+  await cx.ref(`setScore/${role}`).set(next);
+  addLog(L.name, `🏆 局數調整：${ownerName} ${cur} → ${next}`, cx);
 }
 
 function forcePhase(v) {
-  db.ref(`games/${roomId}/phase`).set(v);
-  addLog(L.name, `階段 → ${PHASE_META[v]?.label || v}`);
+  if (!guardAction()) return;
+  const cx = gx();
+  cx.ref('phase').set(v);
+  addLog(L.name, `階段 → ${PHASE_META[v]?.label || v}`, cx);
   flashPhase(v);
 }
 
 // ══════════════════════════════════════════════════════
 // FIREBASE SYNC
 // ══════════════════════════════════════════════════════
-async function pushZones(zones) {
-  await db.ref(`games/${roomId}/players/${myRole}/zones`).set(sanitise(zones));
+async function pushZones(zones, cx = gx()) {
+  await cx.ref(`players/${cx.role}/zones`).set(sanitise(zones));
 }
 
+// 牌庫／手牌張數的 150ms 去抖。排隊時就綁定當下的 ctx：換場後才到期的那一次寫不進新場，
+// 進入再開一場前則由 flushPendingSyncs() 立刻寫出去（寫到舊場），不留任何排隊中的寫入。
 let _syncPileTimer = 0, _syncHandTimer = 0;
+let _syncPileCx = null, _syncHandCx = null;
+function writePileCount(cx) {
+  if (!cxLive(cx)) return;
+  cx.ref(`players/${cx.role}/pileCount`).set(L.pile.length);
+  saveSession();
+}
+function writeHandCount(cx) {
+  if (!cxLive(cx)) return;
+  cx.ref(`players/${cx.role}/handCount`).set(L.hand.length);
+}
 async function syncPileCount() {
   updateFillHandBtn();
   clearTimeout(_syncPileTimer);
-  _syncPileTimer = setTimeout(async () => {
-    if (!roomId || !myRole) return;
-    await db.ref(`games/${roomId}/players/${myRole}/pileCount`).set(L.pile.length);
-    saveSession();
-  }, 150);
+  const cx = gx();
+  _syncPileCx = cx;
+  _syncPileTimer = setTimeout(() => { _syncPileTimer = 0; _syncPileCx = null; writePileCount(cx); }, 150);
 }
 function syncHandCount() {
   clearTimeout(_syncHandTimer);
-  _syncHandTimer = setTimeout(() => {
-    if (!roomId || !myRole) return;
-    db.ref(`games/${roomId}/players/${myRole}/handCount`).set(L.hand.length);
-  }, 150);
+  const cx = gx();
+  _syncHandCx = cx;
+  _syncHandTimer = setTimeout(() => { _syncHandTimer = 0; _syncHandCx = null; writeHandCount(cx); }, 150);
 }
+function flushPendingSyncs() {
+  if (_syncPileTimer) { clearTimeout(_syncPileTimer); _syncPileTimer = 0; const cx = _syncPileCx; _syncPileCx = null; writePileCount(cx); }
+  if (_syncHandTimer) { clearTimeout(_syncHandTimer); _syncHandTimer = 0; const cx = _syncHandCx; _syncHandCx = null; writeHandCount(cx); }
+}
+function hasPendingSyncs() { return !!(_syncPileTimer || _syncHandTimer); }
 
 function cardState() {
   return `（手牌 ${L.hand.length} 張，牌庫剩 ${L.pile.length} 張）`;
 }
 
-async function addLog(player, action) {
-  await db.ref(`games/${roomId}/log`).push({
+async function addLog(player, action, cx = gx()) {
+  await cx.ref('log').push({
     player, action,
     timestamp: firebase.database.ServerValue.TIMESTAMP,
   });
@@ -6653,6 +7726,8 @@ function layoutHstack(hstack) {
 
 // ── 組數池 ──────────────────────────────────────────
 async function addToSetPool() {
+  if (!guardAction()) return;
+  const cx = gx();
   if (L.pile.length < 2) { toast('牌庫不足 2 張'); return; }
   const ok = await showConfirm({
     icon: '🃏',
@@ -6660,14 +7735,14 @@ async function addToSetPool() {
     body: `從牌庫頂取 2 張放入組數池。\n當前牌庫：${L.pile.length} 張`,
     okText: '確認補牌',
   });
-  if (!ok) return;
+  if (!ok || !cxLive(cx)) return;
   L.setPool = L.setPool || [];
   L.setPool.push(L.pile.pop(), L.pile.pop());
   const cnt = L.setPool.length;
   document.getElementById('self-set').textContent = cnt;
   document.getElementById('self-deck').textContent = L.pile.length;
   syncPileCount();
-  db.ref(`games/${roomId}/players/${myRole}/setCardsLeft`).set(cnt);
+  cx.ref(`players/${myRole}/setCardsLeft`).set(cnt);
   addLog(L.name, `組數補牌 +2（組數：${cnt}，牌庫剩 ${L.pile.length}）`);
   setOpeningPhase(false); // 開局步驟 7：先攻方補 SET 池就進入第一回合
 }
@@ -6675,6 +7750,7 @@ async function addToSetPool() {
 let _rallyLossBusy = false;
 
 async function loseRallySetPool() {
+  if (!guardAction()) return;
   if (isSpectator || _rallyLossBusy) return;
   _rallyLossBusy = true;
   try {
@@ -6687,6 +7763,7 @@ async function loseRallySetPool() {
 }
 
 async function performRallyLoss() {
+  const cx = gx();
   L.setPool = L.setPool || [];
   if (!L.setPool.length) { toast('組數池已空，無法輸球'); return; }
   const handNow = L.hand.length;
@@ -6699,10 +7776,9 @@ async function performRallyLoss() {
     okText: '確認輸球',
     okDanger: true,
   });
-  if (!ok) return;
-  const lossRoomId = roomId;
+  if (!ok || !cxLive(cx)) return;
   const loss = {
-    id: db.ref(`games/${roomId}/rallyLoss`).push().key,
+    id: cx.newKey('rallyLoss'),
     role: myRole,
     roundReset: gameState?.roundReset || 0,
   };
@@ -6718,11 +7794,11 @@ async function performRallyLoss() {
   // Firebase 會先回送本機快照，自己的事件須等伺服器確認後才授予資格。
   _pendingRallyLossId = loss.id;
   try {
-    await db.ref(`games/${lossRoomId}`).update(updates);
+    await cx.ref().update(updates);
   } finally {
     _pendingRallyLossId = null;
   }
-  if (roomId !== lossRoomId || myRole !== loss.role || !L.setPool.length ||
+  if (!cxLive(cx) || myRole !== loss.role || !L.setPool.length ||
       (gameState?.roundReset || 0) !== loss.roundReset || _processedRoundReset !== loss.roundReset) return;
   saveUndo();
 
@@ -6745,13 +7821,13 @@ async function performRallyLoss() {
   setPostLossRedrawEligible(true); // 輸一球後重新開放補到 6 張，直到下一次成功出牌
   renderHand();
   const drawnMsg = drawn > 0 ? `補 ${drawn} 張到 6 張，` : '';
-  addLog(L.name, `輸一球 — ${drawnMsg}SET 牌入手，組數剩 ${cnt}`);
+  addLog(L.name, `輸一球 — ${drawnMsg}SET 牌入手，組數剩 ${cnt}`, cx);
 
   // Auto end turn
   if (endsTurn) {
     L.undoStack = [];
     updateUndoBtn();
-    addLog(L.name, '回合結束（輸一球）');
+    addLog(L.name, '回合結束（輸一球）', cx);
   }
   setOpeningPhase(false);
 }
@@ -6768,6 +7844,8 @@ function closeStack() {
 }
 
 async function moveCardFromStack(fromZone, img, toTarget) {
+  if (!guardAction()) return;
+  const cx = gx();
   const zones = myZonesCopy();
   // Remove img from fromZone stack
   const zc = getZoneCard(zones, fromZone);
@@ -6834,24 +7912,26 @@ async function moveCardFromStack(fromZone, img, toTarget) {
       }
     }
   }
-  await pushZones(zones);
+  await pushZones(zones, cx);
   const _sfrom = fromZone.split(':')[0], _sto = toTarget.split(':')[0];
   const _srel = ['serve','toss','attack'];
   if (_srel.includes(_sfrom) || _srel.includes(_sto)) {
-    await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null);
+    await syncScoreToBase(zones, _srel.includes(_sto) ? _sto : null, cx);
   }
-  await resetCounterDelta(resolvedTarget);
-  addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}${cardState()}`);
+  await resetCounterDelta(resolvedTarget, cx);
+  addLog(L.name, `${allCards[img]?.name || img} 移至 ${toTarget === 'hand' ? '手牌' : ZONE_LABEL[toTarget]}${cardState()}`, cx);
 }
 
 // 堆疊檢視器 ↑/↓：依顯示順序（all[0]=頂牌）交換兩個位置。
 async function swapStackPosition(zoneName, all, fromIdx, toIdx) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const newAll = [...all];
   [newAll[fromIdx], newAll[toIdx]] = [newAll[toIdx], newAll[fromIdx]];
   const zones = myZonesCopy();
   setZoneCard(zones, zoneName, { img: newAll[0], guts: newAll.slice(1).reverse() });
-  await pushZones(zones);
+  await pushZones(zones, cx);
   openStack(zoneName, zones);
 }
 
@@ -6913,6 +7993,8 @@ function openDropViewer(side) {
 }
 
 async function _dropPlace(img, where) {
+  if (!guardAction()) return;
+  const cx = gx();
   if (where === 'zone') {
     closeDropViewer();
     enterMoveMode({ type: 'drop', img });
@@ -6927,24 +8009,24 @@ async function _dropPlace(img, where) {
 
   if (where === 'hand') {
     L.hand.push(img);
-    await pushZones(zones);
+    await pushZones(zones, cx);
     document.getElementById('self-drop').textContent = countDrop(zones);
     renderHand();
-    addLog(L.name, `♻️ ${name} 從棄牌收回手牌${cardState()}`);
+    addLog(L.name, `♻️ ${name} 從棄牌收回手牌${cardState()}`, cx);
   } else if (where === 'top') {
     L.pile.push(img);
-    await pushZones(zones);
+    await pushZones(zones, cx);
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-drop').textContent = countDrop(zones);
     syncPileCount();
-    addLog(L.name, `♻️ ${name} 從棄牌放回牌頂`);
+    addLog(L.name, `♻️ ${name} 從棄牌放回牌頂`, cx);
   } else if (where === 'bottom') {
     L.pile.unshift(img);
-    await pushZones(zones);
+    await pushZones(zones, cx);
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-drop').textContent = countDrop(zones);
     syncPileCount();
-    addLog(L.name, `♻️ ${name} 從棄牌放回牌底`);
+    addLog(L.name, `♻️ ${name} 從棄牌放回牌底`, cx);
   }
 
   openDropViewer('self'); // refresh
@@ -6961,8 +8043,9 @@ function toggleDropBulk() {
 let _dropBulkBusy = false;
 
 async function bulkReturnDrop(where) {
+  if (!guardAction()) return;
+  const cx = gx();
   if (_dropBulkBusy) return;
-  if (isSpectator) { toast('觀戰模式無法操作'); return; }
   const zones = myZonesCopy();
   const cards = (zones.drop || []).slice(); // 保留棄牌原相對順序（舊→新）
   if (!cards.length) { toast('棄牌區為空'); return; }
@@ -6983,14 +8066,14 @@ async function bulkReturnDrop(where) {
       else L.pile.push(img); // 'top' 與 'shuffle' 皆先疊上牌頂，'shuffle' 再整副打散
     });
     if (where === 'shuffle') shuffle(L.pile);
-    await pushZones(zones);
+    await pushZones(zones, cx);
 
     document.getElementById('self-deck').textContent = L.pile.length;
     document.getElementById('self-drop').textContent = countDrop(zones);
     syncPileCount();
 
     const label = where === 'top' ? '放回牌頂' : where === 'bottom' ? '放回牌底' : '放回並洗牌';
-    addLog(L.name, `♻️ 全部棄牌 ${cards.length} 張${label}${cardState()}`);
+    addLog(L.name, `♻️ 全部棄牌 ${cards.length} 張${label}${cardState()}`, cx);
     toast(`已將 ${cards.length} 張棄牌${label}`);
   } catch (err) {
     // 還沒真正寫進 Firebase 就失敗：復原本地動過的牌，避免同一批卡同時留在棄牌區又出現在牌庫
@@ -7007,6 +8090,7 @@ async function bulkReturnDrop(where) {
 }
 
 async function _dropPlaceToZone(img, zoneName) {
+  if (!guardAction()) return;
   saveUndo();
   const zones = myZonesCopy();
   const idx   = zones.drop.indexOf(img);
@@ -7028,11 +8112,13 @@ async function _dropPlaceToZone(img, zoneName) {
 }
 
 async function _finishDropZone(zones, img, name, zoneName) {
+  if (!guardAction()) return;
+  const cx = gx();
   _turnLastZoneType = zoneName.split(':')[0];
-  await pushZones(zones);
+  await pushZones(zones, cx);
   document.getElementById('self-drop').textContent = countDrop(zones);
-  await syncScoreToBase(zones, zoneName.split(':')[0]);
-  addLog(L.name, `♻️ ${name} 從棄牌放置${ZONE_LABEL[zoneName.split(':')[0]] || zoneName}${cardState()}`);
+  await syncScoreToBase(zones, zoneName.split(':')[0], cx);
+  addLog(L.name, `♻️ ${name} 從棄牌放置${ZONE_LABEL[zoneName.split(':')[0]] || zoneName}${cardState()}`, cx);
 }
 
 function closeDropViewer() { document.getElementById('drop-overlay').classList.remove('open'); }
@@ -7501,6 +8587,8 @@ function showGutsAction(zoneName, cardData, gutsImg) {
 // useFirstOccurrence=true → indexOf (for guts cards: find lowest position)
 // useFirstOccurrence=false → lastIndexOf (for top card: find highest position)
 async function reorderStack(zoneName, movedImg, targetImg, insertAfter, useFirstOccurrence = false) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const zones = myZonesCopy();
   const zc = getZoneCard(zones, zoneName);
@@ -7517,12 +8605,14 @@ async function reorderStack(zoneName, movedImg, targetImg, insertAfter, useFirst
   zc.img = all[all.length - 1];
   zc.guts = all.slice(0, -1);
   setZoneCard(zones, zoneName, zc);
-  await pushZones(zones);
-  await resetCounterDelta(zoneName);
+  await pushZones(zones, cx);
+  await resetCounterDelta(zoneName, cx);
 }
 
 // ── 手機版：將 GUTS 牌放到最上面（DeepSeek 方案 + hy3 syncScoreToBase 補充）──
 async function moveGutsToTop(zoneName, cardData, gutsImg) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const zones = myZonesCopy();
   const zc = getZoneCard(zones, zoneName);
@@ -7536,16 +8626,18 @@ async function moveGutsToTop(zoneName, cardData, gutsImg) {
   // gutsImg 成為新 top
   zc.img = gutsImg;
   setZoneCard(zones, zoneName, zc);
-  await pushZones(zones);
+  await pushZones(zones, cx);
   // 若是得分區需同步（hy3 建議）
   const scoreZones = ['attack', 'receive', 'toss'];
   if (scoreZones.includes(zoneName.split(':')[0])) {
-    await syncScoreToBase(zones, zoneName.split(':')[0]);
+    await syncScoreToBase(zones, zoneName.split(':')[0], cx);
   }
-  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 移至堆頂`);
+  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 移至堆頂`, cx);
 }
 
 async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false) {
+  if (!guardAction()) return;
+  const cx = gx();
   saveUndo();
   const zones = myZonesCopy();
   const zc = getZoneCard(zones, zoneName);
@@ -7564,28 +8656,28 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false)
   let logTarget = target;
   if (target === 'hand') {
     L.hand.push(gutsImg);
-    await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones, _modeZone);
+    await pushZones(zones, cx);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone, cx);
     renderHand();
   } else if (target === 'pile-top') {
     L.pile.push(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones, _modeZone);
+    await pushZones(zones, cx);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone, cx);
     logTarget = '牌庫頂';
   } else if (target === 'pile-bottom') {
     L.pile.unshift(gutsImg);
     document.getElementById('self-deck').textContent = L.pile.length;
     syncPileCount();
-    await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones, _modeZone);
+    await pushZones(zones, cx);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone, cx);
     logTarget = '牌庫底';
   } else if (target === 'drop') {
     zones.drop = zones.drop || [];
     zones.drop.push(gutsImg);
-    await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones, _modeZone);
+    await pushZones(zones, cx);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone, cx);
     logTarget = '棄牌區';
   } else {
     const baseZone = target.split(':')[0];
@@ -7612,16 +8704,16 @@ async function moveGutsCard(zoneName, cardData, gutsImg, target, asGuts = false)
         zones[baseZone] = { img: gutsImg, guts: [] };
       }
     }
-    await pushZones(zones);
-    if (_needsSync) await syncScoreToBase(zones, _modeZone);
-    await resetCounterDelta(resolvedTarget);
+    await pushZones(zones, cx);
+    if (_needsSync) await syncScoreToBase(zones, _modeZone, cx);
+    await resetCounterDelta(resolvedTarget, cx);
     logTarget = ZONE_LABEL[baseZone] || baseZone;
   }
   // 補上 placeCard/moveCard/_finishDropZone 都有做的追蹤，這裡原本漏掉：Guts 牌成功落到某個
   // 格子時也要更新 _turnLastZoneType，回合結束的攻擊分數歸零判斷才不會沿用舊動作。放在所有
   // 分支的失敗 return 之後才賦值，避免攔網區已滿等失敗案例誤蓋掉真正的上一個動作記錄。
   if (_gto) _turnLastZoneType = _gto;
-  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}${cardState()}`);
+  addLog(L.name, `${allCards[gutsImg]?.name || gutsImg} 從 Guts 移至 ${logTarget}${cardState()}`, cx);
 }
 
 function showZoneAction(zoneName, cardData) {
@@ -7902,9 +8994,11 @@ function checkUrlJoin() {
 const DICE_FACES = ['⚀','⚁','⚂','⚃','⚄','⚅'];
 
 async function openDiceModal() {
+  if (!guardAction()) return;
+  const cx = gx();
   document.getElementById('dice-overlay').classList.add('open');
   // If there's an active roll in progress, restore state instead of wiping it
-  const snap = await db.ref(`games/${roomId}/diceRoll`).once('value');
+  const snap = await cx.ref('diceRoll').once('value');
   const existing = snap.val();
   if (existing && existing.phase !== 'done') {
     handleDiceRollUpdate({ diceRoll: existing });
@@ -7913,7 +9007,7 @@ async function openDiceModal() {
   // Fresh start — clear any stale done state
   _diceResultLogged = null;
   _diceDoneHandled = false;
-  await db.ref(`games/${roomId}/diceRoll`).remove();
+  await cx.ref('diceRoll').remove();
   _showDiceStep('pick');
 }
 
@@ -7931,6 +9025,8 @@ function _showDiceStep(step) {
 }
 
 async function pickDiceSide(pick) {
+  if (!guardAction()) return;
+  const cx = gx();
   // I am the initiator
   _showDiceStep('roll');
   document.getElementById('dice-result-text').textContent = `你選了「${pick}」，擲骰中...`;
@@ -7944,6 +9040,7 @@ async function pickDiceSide(pick) {
   }, 100);
 
   await new Promise(r => setTimeout(r, 1100));
+  if (!cxLive(cx) || actionLocked()) { closeDiceModal(); return; } // 擲骰動畫期間換場或暫停：這次擲骰作廢
 
   const roll = Math.floor(Math.random() * 6) + 1; // 1-6
   const rollType = roll % 2 === 1 ? '單' : '雙';
@@ -7957,7 +9054,7 @@ async function pickDiceSide(pick) {
     `骰子：${roll}（${rollType}）— 你選「${pick}」，對手選「${oppPick}」`;
 
   // Write to Firebase
-  await db.ref(`games/${roomId}/diceRoll`).set({
+  await cx.ref('diceRoll').set({
     initiator: myRole,
     initiatorPick: pick,
     roll,
@@ -7978,19 +9075,20 @@ async function pickDiceSide(pick) {
 }
 
 async function chooseTurn(choice) {
+  if (!guardAction()) return;
+  const cx = gx();
   const firstRole = choice === '先攻' ? myRole : (myRole === 'host' ? 'guest' : 'host');
-  await db.ref(`games/${roomId}/diceRoll`).update({
+  await cx.ref('diceRoll').update({
     firstTurn: firstRole,
     choiceLabel: choice,
     phase: 'done'
   });
-  await db.ref(`games/${roomId}/turn`).set(firstRole);
+  await cx.ref('turn').set(firstRole);
   // Auto-close the dice modal after showing result, then clear Firebase diceRoll
-  // Capture roomId now — player might leave during the 2.5s wait
-  const _diceRoomId = roomId;
+  // 抓著這份 ctx 等 2.5 秒：期間離房或換場的話，closeDiceModal 與 remove 都不該碰到新的房間／新場
   setTimeout(async () => {
-    closeDiceModal();
-    if (_diceRoomId) await db.ref(`games/${_diceRoomId}/diceRoll`).remove();
+    if (cxLive(cx)) closeDiceModal();
+    await cx.ref('diceRoll').remove();
   }, 2500);
 }
 

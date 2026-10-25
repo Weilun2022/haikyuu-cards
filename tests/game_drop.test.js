@@ -23,6 +23,8 @@ function makeCtx(over = {}) {
     dragData: null, isSpectator: false, calls,
     L: { pile: ['a', 'b'], hand: [], name: 'me' },
     allCards: {}, zonesState: { drop: [] },
+    // 再開一場的入口守衛與寫入脈絡：這個測試不涉及鎖定，一律放行
+    guardAction: () => true, gx: () => ({}), cxLive: () => true,
     toast: m => calls.push(['toast', m]),
     saveUndo: () => calls.push(['undo']),
     drawCard: () => calls.push(['draw']),
