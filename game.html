@@ -1763,6 +1763,38 @@ input[type=text]::placeholder { color: var(--text-dim); }
   backdrop-filter: blur(4px);
 }
 #drop-overlay.open { display: flex; }
+.drop-hd-left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; }
+.drop-hd-left .peek-panel-title { overflow-wrap: anywhere; }
+.drop-bulk-toggle {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.drop-bulk-toggle:hover { background: rgba(var(--accent-rgb), .12); }
+.drop-bulk-toggle:disabled { opacity: .4; cursor: default; }
+.drop-bulk-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.drop-bulk-options button {
+  flex: 1 1 auto;
+  min-width: 100px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.drop-bulk-options button:hover { background: var(--surface3); border-color: var(--accent); }
+.drop-bulk-options button:disabled { opacity: .5; cursor: default; }
 #drop-box {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -3269,8 +3301,16 @@ input[type=text]::placeholder { color: var(--text-dim); }
 <div id="drop-overlay" onclick="closeDropViewer()">
   <div id="drop-box" onclick="event.stopPropagation()">
     <div class="peek-panel-hd">
-      <span class="peek-panel-title" id="drop-title">棄牌區</span>
+      <div class="drop-hd-left">
+        <span class="peek-panel-title" id="drop-title">棄牌區</span>
+        <button class="drop-bulk-toggle" id="drop-bulk-toggle" type="button" style="display:none" onclick="toggleDropBulk()" aria-expanded="false" aria-controls="drop-bulk-options">♻ 全部放回牌庫 ▾</button>
+      </div>
       <button class="peek-panel-close" onclick="closeDropViewer()">✕</button>
+    </div>
+    <div class="drop-bulk-options" id="drop-bulk-options" hidden>
+      <button type="button" onclick="bulkReturnDrop('top')">↑ 放回牌頂</button>
+      <button type="button" onclick="bulkReturnDrop('bottom')">↓ 放回牌底</button>
+      <button type="button" onclick="bulkReturnDrop('shuffle')">⤨ 放回並洗牌</button>
     </div>
     <div class="peek-cards-row" id="drop-cards"></div>
   </div>
@@ -6744,6 +6784,14 @@ function openDropViewer(side) {
 
   document.getElementById('drop-title').textContent =
     `🗑 棄牌區（${drop.length}張）— ${name}`;
+
+  const bulkToggle  = document.getElementById('drop-bulk-toggle');
+  const bulkOptions = document.getElementById('drop-bulk-options');
+  bulkToggle.style.display = isSelf ? '' : 'none';
+  bulkToggle.disabled = !isSelf || drop.length === 0;
+  bulkToggle.setAttribute('aria-expanded', 'false');
+  bulkOptions.hidden = true;
+
   const wrap = document.getElementById('drop-cards');
   wrap.innerHTML = '';
 
@@ -6814,6 +6862,52 @@ async function _dropPlace(img, where) {
   }
 
   openDropViewer('self'); // refresh
+}
+
+function toggleDropBulk() {
+  const toggle  = document.getElementById('drop-bulk-toggle');
+  const options = document.getElementById('drop-bulk-options');
+  if (toggle.disabled) return;
+  options.hidden = !options.hidden;
+  toggle.setAttribute('aria-expanded', String(!options.hidden));
+}
+
+let _dropBulkBusy = false;
+
+async function bulkReturnDrop(where) {
+  if (_dropBulkBusy) return;
+  if (isSpectator) { toast('觀戰模式無法操作'); return; }
+  const zones = myZonesCopy();
+  const cards = (zones.drop || []).slice(); // 保留棄牌原相對順序（舊→新）
+  if (!cards.length) { toast('棄牌區為空'); return; }
+
+  _dropBulkBusy = true;
+  const toggle = document.getElementById('drop-bulk-toggle');
+  toggle.disabled = true;
+  document.querySelectorAll('#drop-bulk-options button').forEach(b => b.disabled = true);
+
+  try {
+    saveUndo();
+    zones.drop = [];
+    // L.pile 以 pop() 為抽牌方向（陣列尾端 = 牌頂），依序 push/unshift 維持棄牌原相對順序
+    cards.forEach(img => {
+      if (where === 'bottom') L.pile.unshift(img);
+      else L.pile.push(img); // 'top' 與 'shuffle' 皆先疊上牌頂，'shuffle' 再整副打散
+    });
+    if (where === 'shuffle') shuffle(L.pile);
+    await pushZones(zones);
+
+    document.getElementById('self-deck').textContent = L.pile.length;
+    document.getElementById('self-drop').textContent = countDrop(zones);
+    syncPileCount();
+
+    const label = where === 'top' ? '放回牌頂' : where === 'bottom' ? '放回牌底' : '放回並洗牌';
+    addLog(L.name, `♻️ 全部棄牌 ${cards.length} 張${label}${cardState()}`);
+    toast(`已將 ${cards.length} 張棄牌${label}`);
+    openDropViewer('self'); // refresh（自動收合選項列）
+  } finally {
+    _dropBulkBusy = false;
+  }
 }
 
 async function _dropPlaceToZone(img, zoneName) {
