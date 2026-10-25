@@ -31,7 +31,7 @@
 
 ## 測試現狀（老實說）
 
-**`functions/` 跟 `js/` 底下刻意不碰 DOM 的純函式模組有自動化測試，其餘（`index.html`／`game.html`／`js/*.js` 裡會碰 DOM 的檔案）沒有。** 這是刻意的分界，不是還沒做完：
+**`functions/` 跟 `js/` 底下刻意不碰 DOM 的純函式模組有自動化測試；另有下述 `game.html` 對戰同步例外，其餘會碰 DOM 的頁面維持手動驗證。**
 
 - **`functions/`**：唯一有第三方 npm 依賴的 Node 專案，也是最早採用這套慣例的地方，用 Node 內建的 `node:test` + `node:assert/strict`，**沒有裝任何新的測試框架依賴**（不是 Jest/Vitest，是刻意選擇，理由見 [docs/adr/0004](docs/adr/0004-node-test-runner-for-functions.md)）。
   - 執行：`cd functions && npm test`（`node --test` 會自動掃描並執行所有符合 `**/*.test.js` 的檔案，不用逐一註冊）。
@@ -45,6 +45,14 @@
   - 現有測試：`js/school-popularity.test.js`（`computeTopSchools` 熱門學校排行）。
 
 - **`index.html`／`game.html`／`js/*.js` 裡會碰 DOM 的檔案**：沒有模組系統（`export`/`import`），函式直接掛在頁面全域作用域，市面上標準測試框架抓不到單一函式來測。要幫這幾個檔案補測試，需要先決定要不要導入瀏覽器層級的測試工具（例如 Playwright，真的開瀏覽器跑腳本），這是一個比較大、還沒做的獨立決定，不要自己假設可以套用 `functions/`／`js/` 純函式模組那套 `node:test` 的做法。目前驗證方式維持手動：改完用瀏覽器實測（`console` 手動呼叫、注入 mock 盤面/mock 牌組資料、DOM 幾何量測），這個習慣不算「沒有測試」，只是沒有存成可重跑的腳本。
+
+- **例外：game.html 的對戰同步（再開一場／換牌組，見 [ADR 0008](docs/game/docs/adr/0008-per-match-node-rematch.md)）有可重跑的自動化測試**，放在根目錄 `tests/`（跟 `tests/game_drop.test.js` 同一套 `node:test`，不加第三方依賴）：
+  - 純邏輯 `js/game-rematch.js`（傳統腳本，game.html 以 `<script src>` 載入，測試以 `new Function` 載入同一份原始碼）：`tests/rematch-core.test.js`。
+  - Firebase 模擬本身的行為：`tests/mock-rtdb.test.js`（客戶端 `tests/helpers/mock-rtdb-client.js`、伺服器 `tests/helpers/mock-rtdb-hub.js`；沒有任何真實寫入）。
+  - 原始碼靜態檢查（場內寫入必須走 ctx、每個動牌／寫入的入口必須過 `guardAction()`）：`tests/game-rematch-static.test.js`。
+  - 兩個獨立瀏覽器頁面（桌面與手機版面）＋ mock Firebase 的端到端：`tests/game-rematch-e2e.test.js`、`tests/game-rematch-review.test.js`，harness 在 `tests/helpers/game-harness.js`。需要 `playwright-core` 與 Chromium；找不到時會 skip（可用環境變數 `PLAYWRIGHT_CORE` 指到 `playwright-core` 資料夾）。
+  - 全部執行：`node --test --test-concurrency=1 tests/*.test.js`（Windows 需要列明檔案或由 shell 展開）；`js/` 純模組另跑 `cd js && npm test`。端到端測試會動到 localStorage 與計時器，請序列執行。
+  - PowerShell 可用 `$gameTests = Get-ChildItem tests -Filter '*.test.js' | ForEach-Object FullName`，接著執行 `node --test --test-concurrency=1 $gameTests`。驗收對戰同步時必須確認 `skipped = 0`；缺少瀏覽器而跳過端到端測試不代表功能通過。
 
 採用 `tdd` skill 在 `index.html`/`game.html` 這類還沒有自動化測試的模組上是**引入新習慣**，不是「補回原本就有的測試」。第一次在這類模組用 TDD 之前，照 `tdd` skill 的規則跟使用者確認 seam 在哪，不要假設既有的手動驗證方式可以直接套用同一套 seam。`functions/` 底下則已經有真正的 seam 慣例可以直接沿用，不用重新確認。
 
