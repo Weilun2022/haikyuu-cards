@@ -158,3 +158,11 @@ it('自己所在的房間不被自己收掉', async () => {
   assert.ok(h.hub.get(`rooms/${room}`) && h.hub.get(`games/${room}/ctl`));
   assert.equal(await host.get('roomId'), room);
 });
+
+it('第一份 rooms 快照還沒到（或離線）時，掃描不能把「重新加入」存檔當成房間已消失而清掉', async () => {
+  const lobby = await h.newPlayer('大廳');
+  await lobby.run(`localStorage.setItem(SESSION_KEY, JSON.stringify({ roomId: '4321', role: 'host', savedAt: Date.now() })); _lobby.loaded = false; _lobby.rooms = {}; lobbySweep()`);
+  assert.notEqual(await lobby.page.evaluate(() => localStorage.getItem('hv_game_session')), null);
+  await lobby.run('_lobby.loaded = true; lobbySweep()');
+  assert.equal(await lobby.page.evaluate(() => localStorage.getItem('hv_game_session')), null, '快照到了、房間確實不在才清');
+});

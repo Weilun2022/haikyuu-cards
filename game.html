@@ -3881,11 +3881,12 @@ function serverNow() { return Date.now() + _serverTimeOffset; }
 function listenRooms() {
   checkRejoinSession();
   stopLobby();
-  const lobby = { ref: db.ref('rooms'), cb: null, rooms: {}, watch: new Map(), tombSeen: new Map(), timer: null };
+  const lobby = { ref: db.ref('rooms'), cb: null, rooms: {}, loaded: false, watch: new Map(), tombSeen: new Map(), timer: null };
   _lobby = lobby;
   lobby.cb = snap => {
     if (_lobby !== lobby) return;
     lobby.rooms = snap.val() || {};
+    lobby.loaded = true;
     syncLobbyWatches(lobby);
     const now = serverNow();
     Object.keys(lobby.rooms).forEach(id => {
@@ -4003,7 +4004,8 @@ function lobbySweep(lobby = _lobby) {
     if (lobby.rooms[id]?.status !== ROOM_REAPING) lobby.tombSeen.delete(id);
   }
   // 房間已經不在了（被收掉或過期）：本機的「重新加入」存檔指向它就沒有意義，橫幅一起收掉
-  if (!roomId) {
+  // 第一份 rooms 快照還沒到（或離線）時 rooms 是空的，不能當成「房間不在了」
+  if (!roomId && lobby.loaded) {
     try {
       const sess = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
       if (sess && sess.roomId && !lobby.rooms[sess.roomId]) clearSession();
