@@ -73,7 +73,7 @@ const NO_GUARD = {
   lifecycle: ['startFirebase', 'listenRooms', 'createRoom', 'joinRoom', 'spectateRoom', 'leaveRoom', 'cleanupRoom', 'readRoomHead', 'readMatchHead',
     'rejoinRoom', 'listenGame', 'listenGameLegacy', 'attachMatchListener', '_startPresenceWatch', 'startGame', 'enterGame', 'handlePresenceChange',
     // 大廳：監聽其他房間的 presence、清除過期的其他房間（自己所在的房間會被略過），不碰本機牌組或場內資料
-    'syncLobbyWatches', 'reapRoom'],
+    'syncLobbyWatches', 'reapRoom', 'abandonRoom'],
   // 再開一場自己的機制：必須在鎖定期間運作
   rematch: ['ctlRef', 'touchRoomLease', 'sendReady', 'commitRematch', 'sweepPreparedMatches', 'applyPendingMatch', 'resetLocalForNewMatch', 'sendAck'],
   // 只會從已守衛的入口，或對手事件（重置本局、輸一球）呼叫；寫入都走呼叫端抓好的 ctx，換場後自動變成 no-op

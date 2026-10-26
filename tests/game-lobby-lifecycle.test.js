@@ -123,6 +123,7 @@ it('觀戰者不算在線；未過期的雙離線房間定時掃描也不會被�
   assert.ok(await until(async () => (await listed(lobby, room)) === 0), '只有觀戰者在看時仍視為雙方離線');
   assert.equal(h.hub.get(`games/${room}/presence`), null, '觀戰者不寫 presence');
   await shiftClock(lobby, 29 * MIN);
+  await lobby.run('ROOM_ABANDON_MS = 1e12');   // 雙離線寬限另有 game-lobby-abandon.test.js；這裡只驗 30 分鐘租約
   await lobby.run('LOBBY_SWEEP_MS = 50; startLobbySweep(_lobby)');
   await sleep(700);
   assert.equal(h.hub.get(`rooms/${room}/status`), 'playing2', '租約未過期不能清');
@@ -356,12 +357,13 @@ it('重掛大廳監聽與頻繁切換畫面不累積監聽或計時器；房間�
   for (const p of [host, guest]) await p.page.waitForFunction(() => document.getElementById('screen-lobby').classList.contains('active'));
 });
 
-it('手機切背景暫離（雙方都斷線數分鐘）：大廳隱藏但不刪；回到前景後對局照常且重新列出', async () => {
+it('手機切背景暫離（雙方都斷線，租約內）：大廳隱藏但不刪；回到前景後對局照常且重新列出', async () => {
   const host = await h.newPlayer('甲', { mobile: true }), guest = await h.newPlayer('乙', { mobile: true });
   const lobby = await h.newPlayer('大廳');
   const room = await h.startMatch(host, guest);
   for (const p of [host, guest]) await p.rtdb(r => r.setOnline(false));
   assert.ok(await until(async () => (await listed(lobby, room)) === 0));
+  await lobby.run('ROOM_ABANDON_MS = 1e12');   // 這裡驗租約內不刪；雙離線超過寬限的收房見 game-lobby-abandon.test.js
   await shiftClock(lobby, 10 * MIN);
   await lobby.run('LOBBY_SWEEP_MS = 50; startLobbySweep(_lobby)');
   await lobby.page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));

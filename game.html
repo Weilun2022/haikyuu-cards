@@ -3867,8 +3867,11 @@ function showScreen(name) {
 //    ref.off() 不帶 callback 會把同一路徑上的監聽全部拿掉，路徑分開兩邊才不會互相拔掉。
 //  - 過期清理改由計時器與切回頁面觸發，不能只靠 rooms 事件：沒有其他房間變動時，舊房會一直留在清單上。
 //  - 刪除一律走 reapRoom() 的墓碑流程，不拿大廳的舊快照直接 remove。
+//  - 雙離線超過 ROOM_ABANDON_MS（1 分鐘）的 playing2 房間不必等 30 分鐘租約：由看見它的大廳走 abandonRoom() 收掉。
+//    短暫離頁（切去改牌組、手機背景）在寬限內回來就取消，租約仍是最後的保底。
 const ROOM_REAPING = 'reaping';
 let LOBBY_SWEEP_MS = 60 * 1000;
+let ROOM_ABANDON_MS = 60 * 1000;        // proto2 房間雙方都離線超過這麼久就收房（以本機看到雙離線的時間計；回來的一方會取消）
 let ROOM_REAP_TAKEOVER_MS = 15 * 1000;  // 別人留下的墓碑看到多久還沒清完才接手（以本機看到的時間計，不比對別台的時鐘）
 let _lobby = null;                      // { ref, cb, rooms, watch: Map<id,{host,guest,offs}>, tombSeen: Map<id,ms>, timer }
 const _reaping = new Set();             // 本頁正在清理中的房號，避免同一間重複送交易
@@ -3920,7 +3923,7 @@ function stopLobby() {
   clearInterval(lobby.timer);
   lobby.timer = null;
   try { lobby.ref.off('value', lobby.cb); } catch (_) {}
-  lobby.watch.forEach(w => w.offs.forEach(off => { try { off(); } catch (_) {} }));
+  lobby.watch.forEach(w => { clearTimeout(w.abandonTimer); w.offs.forEach(off => { try { off(); } catch (_) {} }); });
   lobby.watch.clear();
 }
 
@@ -3928,18 +3931,20 @@ function syncLobbyWatches(lobby) {
   const want = new Set(Object.keys(lobby.rooms).filter(id => lobby.rooms[id]?.status === GR.STATUS.PLAYING_V2));
   for (const [id, w] of lobby.watch) {
     if (want.has(id)) continue;
+    clearTimeout(w.abandonTimer);
     w.offs.forEach(off => { try { off(); } catch (_) {} });
     lobby.watch.delete(id);
   }
   want.forEach(id => {
     if (lobby.watch.has(id)) return;
-    const w = { host: undefined, guest: undefined, offs: [] };
+    const w = { host: undefined, guest: undefined, offs: [], emptySince: null, abandonTimer: null };
     lobby.watch.set(id, w);
     ['host', 'guest'].forEach(role => {
       const ref = db.ref(`games/${id}/presence/${role}`);
       const cb = snap => {
         if (_lobby !== lobby || lobby.watch.get(id) !== w) return;
         w[role] = !!snap.val();
+        trackAbandon(lobby, id, w);
         renderRoomList(lobby);
       };
       ref.on('value', cb);
@@ -3954,6 +3959,20 @@ function syncLobbyWatches(lobby) {
 function roomExpired(r, now) {
   const roomStale = (r.status === 'playing') ? STALE_MS : WAITING_STALE_MS;
   return (now - (Number(r.createdAt) || 0)) >= roomStale;
+}
+
+// 兩個角色都「確定」離線才開始計時（未知不算）；任一方回來就作廢。計時到了交給 lobbySweep 判斷與收房
+function trackAbandon(lobby, id, w) {
+  if (w.host === false && w.guest === false) {
+    if (w.emptySince != null) return;
+    w.emptySince = Date.now();
+    clearTimeout(w.abandonTimer);
+    w.abandonTimer = setTimeout(() => { w.abandonTimer = null; lobbySweep(lobby); }, ROOM_ABANDON_MS);
+  } else {
+    w.emptySince = null;
+    clearTimeout(w.abandonTimer);
+    w.abandonTimer = null;
+  }
 }
 
 function lobbyRoomVisible(lobby, id, r) {
@@ -3975,10 +3994,20 @@ function lobbySweep(lobby = _lobby) {
       if (seenAt - lobby.tombSeen.get(id) >= ROOM_REAP_TAKEOVER_MS) reapRoom(id, r);
     } else if (roomExpired(r, now)) {
       reapRoom(id, r);
+    } else if (r.status === GR.STATUS.PLAYING_V2) {
+      const w = lobby.watch.get(id);
+      if (w && w.emptySince != null && seenAt - w.emptySince >= ROOM_ABANDON_MS) abandonRoom(id, r);
     }
   });
   for (const id of lobby.tombSeen.keys()) {
     if (lobby.rooms[id]?.status !== ROOM_REAPING) lobby.tombSeen.delete(id);
+  }
+  // 房間已經不在了（被收掉或過期）：本機的「重新加入」存檔指向它就沒有意義，橫幅一起收掉
+  if (!roomId) {
+    try {
+      const sess = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null');
+      if (sess && sess.roomId && !lobby.rooms[sess.roomId]) clearSession();
+    } catch (_) {}
   }
   renderRoomList(lobby);
 }
@@ -4026,6 +4055,37 @@ async function reapRoom(id, seen) {
       await db.ref(`games/${id}`).transaction(cur => (cur == null || gamesMatchTomb(cur, tomb) ? null : undefined), undefined, false);
     }
     await db.ref(`rooms/${id}`).transaction(cur => (cur && sameTomb(cur, tomb) ? null : undefined), undefined, false);
+  } catch (_) {
+  } finally {
+    _reaping.delete(id);
+  }
+}
+
+// 雙離線寬限到了的 playing2 房間。不走墓碑：先刪 games，且「雙方 presence 仍都不在」是在刪除的同一筆 transaction 裡
+// 由伺服器驗證的（大廳手上的 presence 只是快照，對手可能剛好回來）；身分（inst／witness）不符也不刪，房號被新房重用時刪不到。
+// games 刪掉之後才移除 rooms 紀錄，同樣要求仍是同一個房間實例。缺身分一律不動，交給 30 分鐘租約。
+async function abandonRoom(id, seen) {
+  if (_reaping.has(id)) return;
+  _reaping.add(id);
+  try {
+    let ident = null;
+    if (seen.inst) {
+      ident = { inst: seen.inst };
+    } else {
+      const ctl = (await db.ref(`games/${id}/ctl`).once('value')).val();
+      if (ctl && ctl.proto === GR.PROTO && ctl.activeMatch) ident = { witness: ctl.activeMatch };
+    }
+    if (!ident) return;
+    const res = await db.ref(`games/${id}`).transaction(cur => {
+      if (cur == null) return null;
+      if (!gamesMatchTomb(cur, ident)) return undefined;
+      const p = cur.presence || {};
+      return p.host || p.guest ? undefined : null;
+    }, undefined, false);
+    if (!res || !res.committed) return;
+    await db.ref(`rooms/${id}`).transaction(
+      cur => (cur && cur.id === id && cur.status === GR.STATUS.PLAYING_V2 && (cur.inst || '') === (seen.inst || '') ? null : undefined),
+      undefined, false);
   } catch (_) {
   } finally {
     _reaping.delete(id);
