@@ -1346,13 +1346,22 @@ input[type=text]::placeholder { color: var(--text-dim); }
 #sb-atk   .sb-title  { border-left-color: var(--orange); color: var(--orange); }
 #sb-actions .sb-title { border-left-color: var(--text-dim); }
 
-/* 開局步驟（clone 進手機抽屜時 id 會被拿掉，所以用 class 掛樣式） */
-.sb-setup summary { cursor: pointer; list-style: none; margin-bottom: 0; border-left-color: var(--green); color: var(--green); }
+/* 開局步驟（clone 進手機抽屜時 id 會被拿掉，所以用 class 掛樣式）。主題色邊框＋淡底，靜態不閃爍 */
+.sb-setup {
+  margin: 6px 8px; padding: 8px 10px; border: 2px solid var(--accent); border-radius: 8px;
+  background: var(--surface2);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.sb-setup[hidden] { display: none !important; }   /* 雙方都出過牌：整塊不占空間（要壓過上面的 margin／padding） */
+.sb-setup summary { cursor: pointer; list-style: none; margin-bottom: 0; border-left-color: var(--accent); color: var(--accent); }
 .sb-setup summary::-webkit-details-marker { display: none; }
 .sb-setup summary::after { content: ' ▸'; }
 .sb-setup[open] summary::after { content: ' ▾'; }
 .sb-setup ol { margin: 6px 0 2px; padding-left: 20px; font-size: 11px; line-height: 1.6; color: var(--text); }
 .sb-setup li::marker { color: var(--text-dim); }
+.og-progress { margin: 6px 0 2px; font-size: 12px; font-weight: 700; line-height: 1.7; color: var(--text); }
+.og-row.done { color: var(--green); }
+.og-hint { margin-top: 4px; font-size: 10px; color: var(--text-dim); }
 
 /* 開局「補到 6 張」：只在開局階段、手牌不滿 6 張時出現 */
 .fill-hand-btn {
@@ -3111,9 +3120,13 @@ body.rm-locked #hand-area, body.rm-locked .board-side { pointer-events: none; op
 
     <!-- Sidebar -->
     <div id="sidebar">
-      <!-- 開局步驟：開局階段展開，第一次結束回合後自動收起（setOpeningPhase） -->
-      <details class="sb-section sb-setup" id="sb-setup">
+      <!-- 開局步驟：初始展開，雙方各成功出牌一次後整塊隱藏（updateOpeningGuide；與補牌資格 _openingPhase 無關） -->
+      <details class="sb-section sb-setup" id="sb-setup" open>
         <summary class="sb-title">🧭 開局步驟</summary>
+        <div class="og-progress" role="status">
+          <div class="og-row" data-og="self">○ 你尚未出牌</div>
+          <div class="og-row" data-og="opp">○ 對手尚未出牌</div>
+        </div>
         <ol>
           <li>🎲 擲骰決定先攻後攻</li>
           <li>雙方各補到 6 張手牌</li>
@@ -3123,6 +3136,7 @@ body.rm-locked #hand-area, body.rm-locked .board-side { pointer-events: none; op
           <li>再補到 6 張</li>
           <li>先攻方點 SET 補 2 張，開始第一回合</li>
         </ol>
+        <div class="og-hint">雙方各出一張牌後自動隱藏</div>
       </details>
       <!-- 局數戰績 -->
       <div class="sb-section" id="sb-score">
@@ -3671,8 +3685,8 @@ let myRole     = null;
 let roomId     = null;
 let isSpectator = false;
 let gameState  = null;
-// 開局階段：進場或重置本局後為 true，第一次結束回合（含輸一球）後為 false。
-// 只用來決定要不要顯示開局輔助 UI（setOpeningPhase），不影響任何規則判斷。
+// 開局補牌階段：進場或重置本局後為 true，第一次成功出牌／結束回合／補 SET 後為 false。
+// 只用來決定要不要顯示「補到 6 張」鈕（setOpeningPhase）；開局步驟面板另由 updateOpeningGuide 管，兩者獨立。
 let _openingPhase = false;
 // 輸一球後的補牌資格：與開局階段獨立。輸一球後為 true，直到自己下一次成功出牌
 // （角色/事件登場、GUTS 疊放、牌庫直接上場）才關閉；結束回合不會提前關閉。
@@ -4497,6 +4511,7 @@ function syncUI(data, prev) {
   if (!isSpectator) updateWaitingScreen(data);
   if (document.getElementById('screen-game').classList.contains('active')) {
     renderBoard(data);
+    updateOpeningGuide(data);
     if (!isSpectator) {
       // prev 為 null（進場首次同步）時不播，避免一進場就閃
       if (prev?.started && prev.turn !== myRole && data.turn === myRole) flashTurn('🏐 輪到你了');
@@ -6416,6 +6431,7 @@ function onZoneClick(zoneName, cardData, slotEl, e) {
 async function placeCard(handIdx, zoneName, asGuts = false) {
   if (!guardAction()) return;
   const cx = gx();
+  const openingGen = openingRoundKey(gameState);   // 動作開始當下的世代，之後 await 不再重讀
   closeCtx();
   clearSelection();
   clearZoneHighlights();
@@ -6443,7 +6459,7 @@ async function placeCard(handIdx, zoneName, asGuts = false) {
   // Optimistic UI: update hand and zone display immediately, before Firebase awaits
   renderHand();
   renderZones('self', zones, false);
-  await pushZones(zones, cx);
+  await pushZones(zones, cx, { openingPlay: openingGen });
   if (baseZone === 'serve' || baseZone === 'toss' || baseZone === 'attack') await syncScoreToBase(zones, baseZone, cx);
   await resetCounterDelta(zoneName, cx); // 攔網要用 resolve 後的 'block:i'，ZONE_TO_STAT 沒有裸 'block' 這個 key
   await _checkAndClearAtkAlert(zones, cx);
@@ -6619,6 +6635,7 @@ function cancelGuts() {
 async function applyGuts(handIdx, zoneName) {
   if (!guardAction()) return;
   const cx = gx();
+  const openingGen = openingRoundKey(gameState);
   saveUndo();
   const img   = L.hand.splice(handIdx, 1)[0];
   const zones = myZonesCopy();
@@ -6631,7 +6648,7 @@ async function applyGuts(handIdx, zoneName) {
   // Optimistic UI: update hand and zone display immediately, before Firebase await
   renderHand();
   renderZones('self', zones, false);
-  await pushZones(zones, cx);
+  await pushZones(zones, cx, { openingPlay: openingGen });
   addLog(L.name, `${ZONE_LABEL[zoneName.split(':')[0]]} 疊上 Guts（${allCards[img]?.name||img}）${cardState()}`, cx);
   cancelGuts();
 }
@@ -6750,10 +6767,55 @@ function drawFromPile() {
 
 function setOpeningPhase(on) {
   _openingPhase = on;
-  const guide = document.getElementById('sb-setup');
-  if (guide) guide.open = on;
   updateFillHandBtn();
 }
+
+// ── 開局步驟提示（只管畫面；補牌資格是上面的 _openingPhase，兩者互不影響）──
+// 「雙方各成功出牌一次」的唯一真實來源是遠端 openingPlayed/r{roundReset}/{role}：
+//   - 世代 key 帶 roundReset（前綴 r，避免 0 被 RTDB 當陣列索引）；重置本局換新 key，重置前才送出的舊寫入落在舊 key，蓋不回新局。
+//   - 兩個角色各寫自己的子路徑；標記和 zones 同一個 update 原子寫入，寫入被駁回就不會留下標記。
+//   - 畫面一律從資料推導、不另存「已隱藏」的本機狀態，所以 Firebase 預先回呼之後被回滾時會自動恢復顯示。
+//   - 復原／卡片離場都不會刪標記；只有成功的 placeCard／applyGuts 會寫。
+function openingRoundKey(data) { return 'r' + ((data && data.roundReset) || 0); }
+
+let _openingGuideClosed = false;   // 使用者手動收合；同步不得重新打開，換世代才重置
+let _openingGuideKey = null;
+function updateOpeningGuide(data) {
+  const els = document.querySelectorAll('.sb-setup');   // 桌面版＋手機抽屜 clone（clone 沒有 id）
+  if (!els.length || !data) return;
+  const gen = openingRoundKey(data);
+  // 只認明確標記：缺標記（含升級前已在打的舊場）一律保守顯示「尚未出牌」，下一次真正出牌就會補上標記，不做任何推斷或遷移
+  const played = role => !!data.openingPlayed?.[gen]?.[role];
+  const hostDone = played('host'), guestDone = played('guest');
+  const key = (_appliedMatchId || '') + ':' + gen;
+  if (key !== _openingGuideKey) { _openingGuideKey = key; _openingGuideClosed = false; }
+  const row = (done, name) => `${done ? '✓' : '○'} ${name}${done ? '已出牌' : '尚未出牌'}`;
+  let rows;
+  if (isSpectator) {
+    rows = [[hostDone, data.players?.host?.name || '房主'], [guestDone, data.players?.guest?.name || '挑戰者']];
+  } else {
+    const meDone = myRole === 'host' ? hostDone : guestDone;
+    const oppDone = myRole === 'host' ? guestDone : hostDone;
+    rows = [[meDone, '你'], [oppDone, '對手']];
+  }
+  const all = hostDone && guestDone;
+  els.forEach(el => {
+    el.hidden = all;
+    if (el.open === _openingGuideClosed) el.open = !_openingGuideClosed;
+    [['self', rows[0]], ['opp', rows[1]]].forEach(([k, [done, name]]) => {
+      const r = el.querySelector(`[data-og="${k}"]`);
+      if (!r) return;
+      const t = row(done, name);
+      if (r.textContent !== t) r.textContent = t;
+      r.classList.toggle('done', done);
+    });
+  });
+}
+// 收合是使用者的選擇（桌面與抽屜共用）；toggle 不冒泡，用 capture 接
+document.addEventListener('toggle', e => {
+  const el = e.target;
+  if (el && el.classList && el.classList.contains('sb-setup')) _openingGuideClosed = !el.open;
+}, true);
 
 function setPostLossRedrawEligible(on) {
   _postLossRedrawEligible = on;
@@ -7512,8 +7574,11 @@ function forcePhase(v) {
 // ══════════════════════════════════════════════════════
 // FIREBASE SYNC
 // ══════════════════════════════════════════════════════
-async function pushZones(zones, cx = gx()) {
-  await cx.ref(`players/${cx.role}/zones`).set(sanitise(zones));
+// openingPlay：成功出牌時傳入動作開始當下的世代 key（openingRoundKey），標記和 zones 同一個原子 update；其餘呼叫不記。
+async function pushZones(zones, cx = gx(), { openingPlay = null } = {}) {
+  const zonesPath = `players/${cx.role}/zones`;
+  if (!openingPlay) { await cx.ref(zonesPath).set(sanitise(zones)); return; }
+  await cx.ref().update({ [zonesPath]: sanitise(zones), [`openingPlayed/${openingPlay}/${cx.role}`]: true });
 }
 
 // 牌庫／手牌張數的 150ms 去抖。排隊時就綁定當下的 ctx：換場後才到期的那一次寫不進新場，
@@ -9546,6 +9611,7 @@ function closeMobileDrawer() {
     }
     if (logTitle && log && setup) { setup.after(logTitle); logTitle.after(log); }
     dc.appendChild(clone);
+    updateOpeningGuide(gameState);   // clone 當下的內容可能已過期；已開著的抽屜則由 syncUI 即時更新
     // 初始化 drawer log：複製原版 log 的當前內容
     const srcLog = document.getElementById('log-wrap');
     const dstLog = dc.querySelector('.log-wrap');
