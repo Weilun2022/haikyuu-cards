@@ -3860,26 +3860,37 @@ function showScreen(name) {
 // ══════════════════════════════════════════════════════
 // LOBBY — ROOM LIST
 // ══════════════════════════════════════════════════════
+// 大廳的房間清單與過期清理：
+//  - playing2 房間另外監聽兩個角色的 presence，雙方都確定離線（例如直接關掉分頁）就不列出；資料照 30 分鐘租約保留供重連。
+//    presence 還沒讀到時是「未知」，照常列出，不從缺資料推斷離線，也不為了推斷去寫任何東西。觀戰者不寫 presence，本來就不算。
+//    監聽的是 presence/host、presence/guest 兩個子路徑而不是 presence 本身：房內玩家的 listenGame 也監聽 presence，
+//    ref.off() 不帶 callback 會把同一路徑上的監聽全部拿掉，路徑分開兩邊才不會互相拔掉。
+//  - 過期清理改由計時器與切回頁面觸發，不能只靠 rooms 事件：沒有其他房間變動時，舊房會一直留在清單上。
+//  - 刪除一律走 reapRoom() 的墓碑流程，不拿大廳的舊快照直接 remove。
+const ROOM_REAPING = 'reaping';
+let LOBBY_SWEEP_MS = 60 * 1000;
+let ROOM_REAP_TAKEOVER_MS = 15 * 1000;  // 別人留下的墓碑看到多久還沒清完才接手（以本機看到的時間計，不比對別台的時鐘）
+let _lobby = null;                      // { ref, cb, rooms, watch: Map<id,{host,guest,offs}>, tombSeen: Map<id,ms>, timer }
+const _reaping = new Set();             // 本頁正在清理中的房號，避免同一間重複送交易
+
+function serverNow() { return Date.now() + _serverTimeOffset; }
+
 function listenRooms() {
   checkRejoinSession();
-  db.ref('rooms').on('value', snap => {
-    const rooms = snap.val() || {};
-    const now = Date.now();
-    // Auto-delete stale rooms from Firebase
-    Object.values(rooms).forEach(r => {
-      // playing2（新版對局中）刻意不走 4 小時／presence 這條舊路徑：已開著的舊版大廳只對 'playing' 檢查 presence，
-      // 而新版房間兩端暫時離線（切去卡牌資料庫改牌組、手機背景）是正常情境。它和舊版大廳對未知狀態一樣用 30 分鐘，
-      // 由房內的玩家定期續租 createdAt（見 startRoomLease），所以有人在線就不會過期，雙方都離開超過 30 分鐘才清。
-      const roomStale = (r.status === 'playing') ? STALE_MS : WAITING_STALE_MS;
-      if ((now - (r.createdAt || 0)) >= roomStale) {
-        db.ref(`rooms/${r.id}`).remove();
-        db.ref(`games/${r.id}`).remove();
-        return;
-      }
+  stopLobby();
+  const lobby = { ref: db.ref('rooms'), cb: null, rooms: {}, watch: new Map(), tombSeen: new Map(), timer: null };
+  _lobby = lobby;
+  lobby.cb = snap => {
+    if (_lobby !== lobby) return;
+    lobby.rooms = snap.val() || {};
+    syncLobbyWatches(lobby);
+    const now = serverNow();
+    Object.keys(lobby.rooms).forEach(id => {
+      const r = lobby.rooms[id];
       // For 'playing' rooms: check presence — if both absent, treat as abandoned
       // Skip own room: startGame() sets status='playing' before presence is written,
       // so this cleanup would race and delete our own active game.
-      if (r.status === 'playing' && r.id !== roomId) {
+      if (r && r.status === 'playing' && r.id !== roomId && !roomExpired(r, now)) {
         db.ref(`games/${r.id}/presence`).once('value').then(pSnap => {
           const p = pSnap.val() || {};
           if (!p.host && !p.guest) {
@@ -3889,42 +3900,197 @@ function listenRooms() {
         });
       }
     });
-    const isWaitingStatus = s => s === 'waiting' || s === GR.STATUS.WAITING_V2;
-    const isPlayingStatus = s => s === 'playing' || s === GR.STATUS.PLAYING_V2;
-    const allRooms = Object.values(rooms).filter(r =>
-      (isWaitingStatus(r.status) || isPlayingStatus(r.status)) &&
-      (now - (r.createdAt || 0)) < STALE_MS
-    );
-    const waiting = allRooms.filter(r => isWaitingStatus(r.status));
-    const cntEl = document.getElementById('room-count');
-    if (cntEl) cntEl.textContent = waiting.length ? `${waiting.length} 間等待中` : '目前無房間';
-    const el = document.getElementById('room-list');
-    if (!allRooms.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間<br>建立一個吧！</div>'; return; }
-    el.innerHTML = '';
-    allRooms.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).forEach(r => {
-      const isPlaying = isPlayingStatus(r.status);
-      const row = document.createElement('div');
-      row.className = 'room-item';
-      row.innerHTML = `
-        <div class="room-avatar">${esc(r.hostAvatar || '🦅')}</div>
-        <span class="room-code-tag">${esc(r.id)}</span>
-        <div class="room-info">
-          <div class="room-host">${esc(r.hostName)}</div>
-          <div class="room-deck">${esc(r.deckName || '未知牌組')}</div>
-        </div>
-        <span class="room-status${isPlaying ? ' playing' : ''}">
-          ${isPlaying ? '對戰中' : '等待中'}
-        </span>
-        ${isPlaying
-          ? `<button class="btn sm spectate-btn">👁 觀戰</button>`
-          : `<button class="btn sm primary">加入</button>`}`;
-      if (isPlaying) {
-        row.querySelector('.spectate-btn').addEventListener('click', e => { e.stopPropagation(); spectateRoom(r.id); });
-      } else {
-        row.querySelector('button').addEventListener('click', e => { e.stopPropagation(); joinRoom(r.id); });
-      }
-      el.appendChild(row);
+    lobbySweep(lobby);
+  };
+  lobby.ref.on('value', lobby.cb);
+  startLobbySweep(lobby);
+}
+
+function startLobbySweep(lobby = _lobby) {
+  if (!lobby || _lobby !== lobby) return;
+  clearInterval(lobby.timer);
+  lobby.timer = setInterval(() => lobbySweep(lobby), LOBBY_SWEEP_MS);
+}
+
+// 重掛（重新設定 Firebase）時先整批放掉：舊的回呼一律以 _lobby !== lobby 自我中止，不會改到新清單
+function stopLobby() {
+  const lobby = _lobby;
+  _lobby = null;
+  if (!lobby) return;
+  clearInterval(lobby.timer);
+  lobby.timer = null;
+  try { lobby.ref.off('value', lobby.cb); } catch (_) {}
+  lobby.watch.forEach(w => w.offs.forEach(off => { try { off(); } catch (_) {} }));
+  lobby.watch.clear();
+}
+
+function syncLobbyWatches(lobby) {
+  const want = new Set(Object.keys(lobby.rooms).filter(id => lobby.rooms[id]?.status === GR.STATUS.PLAYING_V2));
+  for (const [id, w] of lobby.watch) {
+    if (want.has(id)) continue;
+    w.offs.forEach(off => { try { off(); } catch (_) {} });
+    lobby.watch.delete(id);
+  }
+  want.forEach(id => {
+    if (lobby.watch.has(id)) return;
+    const w = { host: undefined, guest: undefined, offs: [] };
+    lobby.watch.set(id, w);
+    ['host', 'guest'].forEach(role => {
+      const ref = db.ref(`games/${id}/presence/${role}`);
+      const cb = snap => {
+        if (_lobby !== lobby || lobby.watch.get(id) !== w) return;
+        w[role] = !!snap.val();
+        renderRoomList(lobby);
+      };
+      ref.on('value', cb);
+      w.offs.push(() => ref.off('value', cb));
     });
+  });
+}
+
+// playing2（新版對局中）刻意不走 4 小時／presence 這條舊路徑：已開著的舊版大廳只對 'playing' 檢查 presence，
+// 而新版房間兩端暫時離線（切去卡牌資料庫改牌組、手機背景）是正常情境。它和舊版大廳對未知狀態一樣用 30 分鐘，
+// 由房內的玩家定期續租 createdAt（見 startRoomLease），所以有人在線就不會過期，雙方都離開超過 30 分鐘才清。
+function roomExpired(r, now) {
+  const roomStale = (r.status === 'playing') ? STALE_MS : WAITING_STALE_MS;
+  return (now - (Number(r.createdAt) || 0)) >= roomStale;
+}
+
+function lobbyRoomVisible(lobby, id, r) {
+  if (r.status !== GR.STATUS.PLAYING_V2) return true;
+  const w = lobby.watch.get(id);
+  if (!w || w.host === undefined || w.guest === undefined) return true;
+  return w.host || w.guest;
+}
+
+function lobbySweep(lobby = _lobby) {
+  if (!lobby || _lobby !== lobby) return;
+  const now = serverNow();
+  const seenAt = Date.now();
+  Object.keys(lobby.rooms).forEach(id => {
+    const r = lobby.rooms[id];
+    if (!r || (id === roomId && !isSpectator)) return;   // 自己所在的房間由自己續租，不由自己清
+    if (r.status === ROOM_REAPING) {
+      if (!lobby.tombSeen.has(id)) lobby.tombSeen.set(id, seenAt);
+      if (seenAt - lobby.tombSeen.get(id) >= ROOM_REAP_TAKEOVER_MS) reapRoom(id, r);
+    } else if (roomExpired(r, now)) {
+      reapRoom(id, r);
+    }
+  });
+  for (const id of lobby.tombSeen.keys()) {
+    if (lobby.rooms[id]?.status !== ROOM_REAPING) lobby.tombSeen.delete(id);
+  }
+  renderRoomList(lobby);
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') lobbySweep(); });
+
+// 清除過期房間。不能拿大廳的舊快照直接 remove rooms 再 remove games：
+//  1. 先決定「這一間」的身分：新版房間用 inst（建房時寫進 rooms 與 games 的實例 id）；沒有 inst 的舊版 proto 2 房間，
+//     用 ctl.activeMatch 當見證——它是 m/ 底下一個唯一的 push key，已啟用的場節點不會被刪，重開之後也還在。
+//     舊根佈局房間沒有可靠的唯一見證，身分未知。缺值一律不當成身分相等。
+//  2. rooms/<id> transaction：最新值必須跟讀見證「之前」看到的房間紀錄完全相同（createdAt 是伺服器時間，新房不可能相同），
+//     而且仍過期，才換成帶著身分的「清理中」墓碑。所以見證就算剛好讀到之後的新房，認領也會失敗。
+//     墓碑不能加入（joinRoom 只認等待狀態）、續租會中止（touchRoomLease），也佔住房號讓 createRoom 不會重用。
+//  3. games/<id> transaction：只在身分仍相符才刪（inst 相同；或沒有 inst 且見證的場節點還在）。身分未知就不刪 games，
+//     寧可留下沒有入口的舊資料，也不誤刪別人的房。自己的回覆晚到、房號已被新房重用時，新房身分不符，刪不到。
+//  4. 墓碑完全相同才刪 rooms/<id>。接手別人的墓碑一律沿用墓碑上記的身分，不重新讀現在的 games。
+// 每一步都可重複執行；失敗就留著墓碑，之後的掃描（自己或其他大廳）會接手。
+// 本機沒有快取時 transaction 第一次會拿 null 執行：games 那步對 null 回傳 null（伺服器其實有資料會駁回、用真值重跑），
+// rooms 那步對 null 中止。中止時回傳的快照可能是舊的本機值：拿它接手也只會走到上面兩個由伺服器驗證身分的 transaction。
+// 只鎖 rooms/<id> 與 games/<id> 兩個單一房間的節點，不對 rooms／games 整個集合做 transaction；不依賴寫入保序。
+async function reapRoom(id, seen) {
+  if (_reaping.has(id)) return;
+  _reaping.add(id);
+  try {
+    if (seen === undefined) seen = (await db.ref(`rooms/${id}`).once('value')).val();
+    if (!seen) return;
+    let tomb = seen;
+    if (seen.status !== ROOM_REAPING) {
+      if (!roomExpired(seen, serverNow())) return;
+      let ident = {};
+      if (seen.inst) {
+        ident = { inst: seen.inst };
+      } else {
+        const ctl = (await db.ref(`games/${id}/ctl`).once('value')).val();
+        if (ctl && ctl.proto === GR.PROTO && ctl.activeMatch) ident = { witness: ctl.activeMatch };
+      }
+      const want = stableJson(seen);
+      const res = await db.ref(`rooms/${id}`).transaction(cur => {
+        if (!cur || stableJson(cur) !== want || !roomExpired(cur, serverNow())) return undefined;
+        return Object.assign({ id, status: ROOM_REAPING, createdAt: Number(cur.createdAt) || 0 }, ident);
+      }, undefined, false);
+      tomb = res && res.snapshot ? res.snapshot.val() : null;
+    }
+    if (!tomb || tomb.status !== ROOM_REAPING) return;
+    if (tomb.inst || tomb.witness) {
+      await db.ref(`games/${id}`).transaction(cur => (cur == null || gamesMatchTomb(cur, tomb) ? null : undefined), undefined, false);
+    }
+    await db.ref(`rooms/${id}`).transaction(cur => (cur && sameTomb(cur, tomb) ? null : undefined), undefined, false);
+  } catch (_) {
+  } finally {
+    _reaping.delete(id);
+  }
+}
+
+// 同一個墓碑：只比墓碑自己寫的欄位。既有的單欄位寫入（重開後的 rooms/<id>/deckName、等待中的 status 等）可能落在墓碑上，
+// 整筆比對會讓清理永遠收不了尾。createdAt 是原房間的伺服器時間，不同房間實例不會相同，所以 inst／witness 都缺時也不會認錯。
+function sameTomb(cur, tomb) {
+  return cur.status === ROOM_REAPING && cur.id === tomb.id && Number(cur.createdAt) === Number(tomb.createdAt) &&
+    (cur.inst || '') === (tomb.inst || '') && (cur.witness || '') === (tomb.witness || '');
+}
+
+function gamesMatchTomb(cur, tomb) {
+  if (tomb.inst) return cur.inst === tomb.inst;
+  if (tomb.witness) return !cur.inst && !!cur.m && cur.m[tomb.witness] != null;
+  return false;
+}
+
+// 鍵排序後的 JSON：Firebase 回傳的物件鍵順序不保證一致，比對整筆紀錄時用
+function stableJson(v) {
+  if (v === null || v === undefined || typeof v !== 'object') return JSON.stringify(v === undefined ? null : v);
+  if (Array.isArray(v)) return '[' + v.map(stableJson).join(',') + ']';
+  return '{' + Object.keys(v).filter(k => v[k] != null).sort().map(k => JSON.stringify(k) + ':' + stableJson(v[k])).join(',') + '}';
+}
+
+function renderRoomList(lobby) {
+  if (_lobby !== lobby) return;
+  const now = serverNow();
+  const isWaitingStatus = s => s === 'waiting' || s === GR.STATUS.WAITING_V2;
+  const isPlayingStatus = s => s === 'playing' || s === GR.STATUS.PLAYING_V2;
+  const allRooms = Object.keys(lobby.rooms).filter(id => {
+    const r = lobby.rooms[id];
+    return r && (isWaitingStatus(r.status) || isPlayingStatus(r.status)) &&
+      !roomExpired(r, now) && lobbyRoomVisible(lobby, id, r);
+  }).map(id => lobby.rooms[id]);
+  const waiting = allRooms.filter(r => isWaitingStatus(r.status));
+  const cntEl = document.getElementById('room-count');
+  if (cntEl) cntEl.textContent = waiting.length ? `${waiting.length} 間等待中` : '目前無房間';
+  const el = document.getElementById('room-list');
+  if (!allRooms.length) { el.innerHTML = '<div class="room-empty">目前沒有等待中的房間<br>建立一個吧！</div>'; return; }
+  el.innerHTML = '';
+  allRooms.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).forEach(r => {
+    const isPlaying = isPlayingStatus(r.status);
+    const row = document.createElement('div');
+    row.className = 'room-item';
+    row.innerHTML = `
+      <div class="room-avatar">${esc(r.hostAvatar || '🦅')}</div>
+      <span class="room-code-tag">${esc(r.id)}</span>
+      <div class="room-info">
+        <div class="room-host">${esc(r.hostName)}</div>
+        <div class="room-deck">${esc(r.deckName || '未知牌組')}</div>
+      </div>
+      <span class="room-status${isPlaying ? ' playing' : ''}">
+        ${isPlaying ? '對戰中' : '等待中'}
+      </span>
+      ${isPlaying
+        ? `<button class="btn sm spectate-btn">👁 觀戰</button>`
+        : `<button class="btn sm primary">加入</button>`}`;
+    if (isPlaying) {
+      row.querySelector('.spectate-btn').addEventListener('click', e => { e.stopPropagation(); spectateRoom(r.id); });
+    } else {
+      row.querySelector('button').addEventListener('click', e => { e.stopPropagation(); joinRoom(r.id); });
+    }
+    el.appendChild(row);
   });
 }
 
@@ -3966,13 +4132,15 @@ async function createRoom() {
   _rmPending = null;
   _deckSnapshot = null;
 
+  // inst：這一個房間實例的 id（房號會重用，inst 不會）。清理過期房間時用來確認刪的是同一間，見 reapRoom()
   await db.ref(`rooms/${id}`).set({
-    id, status: GR.STATUS.WAITING_V2, proto: GR.PROTO,
+    id, status: GR.STATUS.WAITING_V2, proto: GR.PROTO, inst: matchId,
     hostName: L.name, hostAvatar: L.avatar, deckName: deck.name,
     createdAt: firebase.database.ServerValue.TIMESTAMP,
   });
 
   await db.ref(`games/${id}`).set({
+    inst: matchId,
     ctl: { proto: GR.PROTO, rev: 1, started: false, phase: GR.PHASE.IDLE, activeMatch: matchId, epoch: 1 },
     players: {
       host: { name:L.name, avatar:L.avatar, deckName:deck.name, ready:true },
@@ -4963,7 +5131,8 @@ function touchRoomLease(room, f = _leaseFlow) {
   if (!f || !flowAlive(f) || f.room !== room) return;
   db.ref(`rooms/${room}`).transaction(
     // 交易衝突會讓更新函式重跑；那時玩家可能已離房，不能只在送出前檢查。
-    cur => (flowAlive(f) && cur && cur.id === room && cur.status
+    // 清理中的墓碑也不續租：大廳已用最新租約判定過期，續租會讓墓碑帶著新時間殘留，房號一直被佔住。
+    cur => (flowAlive(f) && cur && cur.id === room && cur.status && cur.status !== ROOM_REAPING
       ? Object.assign({}, cur, { createdAt: Math.max(Number(cur.createdAt) || 0, Date.now() + _serverTimeOffset) })
       : undefined),
     undefined, false

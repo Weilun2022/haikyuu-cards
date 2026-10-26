@@ -50,7 +50,8 @@
   - 純邏輯 `js/game-rematch.js`（傳統腳本，game.html 以 `<script src>` 載入，測試以 `new Function` 載入同一份原始碼）：`tests/rematch-core.test.js`。
   - Firebase 模擬本身的行為：`tests/mock-rtdb.test.js`（客戶端 `tests/helpers/mock-rtdb-client.js`、伺服器 `tests/helpers/mock-rtdb-hub.js`；沒有任何真實寫入）。
   - 原始碼靜態檢查（場內寫入必須走 ctx、每個動牌／寫入的入口必須過 `guardAction()`）：`tests/game-rematch-static.test.js`。
-  - 兩個獨立瀏覽器頁面（桌面與手機版面）＋ mock Firebase 的端到端：`tests/game-rematch-e2e.test.js`、`tests/game-rematch-review.test.js`，harness 在 `tests/helpers/game-harness.js`。需要 `playwright-core` 與 Chromium；找不到時會 skip（可用環境變數 `PLAYWRIGHT_CORE` 指到 `playwright-core` 資料夾）。
+  - 兩個獨立瀏覽器頁面（桌面與手機版面）＋ mock Firebase 的端到端：`tests/game-rematch-e2e.test.js`、`tests/game-rematch-review.test.js`，harness 在 `tests/helpers/game-harness.js`。
+  - 大廳房間生命週期（雙離線隱藏、定時與墓碑清理，見 [ADR 0009](docs/game/docs/adr/0009-lobby-presence-hide-and-tombstone-reap.md)）：`tests/game-lobby-lifecycle.test.js`，同一套 harness，多頁 mock、把訊息扣在 hub 傳輸層重現競態。需要 `playwright-core` 與 Chromium；找不到時會 skip（可用環境變數 `PLAYWRIGHT_CORE` 指到 `playwright-core` 資料夾）。
   - 全部執行：`node --test --test-concurrency=1 tests/*.test.js`（Windows 需要列明檔案或由 shell 展開）；`js/` 純模組另跑 `cd js && npm test`。端到端測試會動到 localStorage 與計時器，請序列執行。
   - PowerShell 可用 `$gameTests = Get-ChildItem tests -Filter '*.test.js' | ForEach-Object FullName`，接著執行 `node --test --test-concurrency=1 $gameTests`。驗收對戰同步時必須確認 `skipped = 0`；缺少瀏覽器而跳過端到端測試不代表功能通過。
 

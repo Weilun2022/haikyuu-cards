@@ -834,7 +834,8 @@ it('大廳清理：playing2 不看 presence 只看租約期限；舊版 playing 
   const now = Date.now();
   const mk = (id, status, age) => {
     h.hub.seed(`rooms/${id}`, { id, status, createdAt: now - age, hostName: id, hostAvatar: '🦅', deckName: 'X', proto: 2 });
-    h.hub.seed(`games/${id}`, { ctl: { proto: 2, started: true } });
+    // 真實的 proto 2 房一定有 activeMatch 與對應場節點（沒有 inst 的舊房靠它當身分見證，見 ADR 0009）
+    h.hub.seed(`games/${id}`, { ctl: { proto: 2, started: true, activeMatch: `m${id}` }, m: { [`m${id}`]: { turn: 'host' } } });
   };
   mk('2001', 'playing2', 5 * 60 * 1000);          // 兩端都沒 presence，但租約還新 → 保留
   mk('2002', 'playing2', 31 * 60 * 1000);         // 超過 30 分鐘沒人續租 → 清掉
@@ -842,6 +843,8 @@ it('大廳清理：playing2 不看 presence 只看租約期限；舊版 playing 
   h.hub.seed('games/2003', { started: true });    // 舊版 playing 且沒有 presence → 舊政策照舊清掉
   h.hub.seed('rooms/2004', { id: '2004', status: 'playing', createdAt: now, hostName: 'x' });
   h.hub.seed('games/2004/presence/host', true);   // 舊版 playing 有人在線 → 保留
+  mk('2005', 'playing2', 5 * 60 * 1000);
+  h.hub.seed('games/2005/presence/guest', true);  // playing2 有一方在線 → 列出
   h.hub.seed('rooms/trigger2', { id: 'trigger2', status: 'waiting', createdAt: now, hostName: 't' });
   // 大廳清理是事件驅動＋非同步讀 presence：輪詢到結果出現（上限 5 秒），不靠固定等待時間
   for (let i = 0; i < 100 && (h.hub.get('rooms/2002') || h.hub.get('rooms/2003')); i++) await new Promise(r => setTimeout(r, 50));
@@ -852,7 +855,10 @@ it('大廳清理：playing2 不看 presence 只看租約期限；舊版 playing 
   assert.equal(h.hub.get('games/2002'), null);
   assert.equal(h.hub.get('rooms/2003'), null);
   assert.ok(h.hub.get('rooms/2004'));
-  const row = await lobby.page.$eval('.room-item:has(.room-code-tag:text("2001")) .room-status', el => el.textContent.trim());
+  // issue #114：雙方都確定離線的 playing2 保留資料但不列出；有人在線才列為對戰中
+  await lobby.page.waitForSelector('.room-code-tag:text("2005")');
+  assert.equal(await lobby.page.$('.room-code-tag:text("2001")'), null, '雙方都離線的 playing2 不列出');
+  const row = await lobby.page.$eval('.room-item:has(.room-code-tag:text("2005")) .room-status', el => el.textContent.trim());
   assert.match(row, /對戰中/);
 });
 
