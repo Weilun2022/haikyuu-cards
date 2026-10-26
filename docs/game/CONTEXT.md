@@ -60,6 +60,8 @@ Firebase 會在寫入確認前發送本機事件，因此發起方用 `_pendingR
 
 **房間存活（TTL）**：新版房間對局中的 `playing2` 不走舊版「`playing` 且 presence 全空就立刻清」的路徑，也不啟動 60 秒雙離線清房。房內玩家每 10 分鐘（以及切回、重連時）用 transaction 續租 `rooms/{room}.createdAt`；`rooms/{room}` 已不存在時續租會中止，不會長出幽靈房。雙方都離開超過 30 分鐘沒人續租，由大廳清理。
 
+**大廳顯示與清理**（[ADR 0009](docs/adr/0009-lobby-presence-hide-and-tombstone-reap.md)）：`playing2` 雙方 presence 都確定不在（例如直接關掉分頁）就不列出，資料仍照租約保留，任一方回來立即重新列出；presence 還沒讀到時照常列出，觀戰者不算。過期清理由大廳每 60 秒與切回前景時執行，不再只靠 `rooms` 事件。刪除走**墓碑**：先定身分——**inst**（建房時的房間實例 id，`rooms/{room}.inst` 與 `games/{room}/inst`），沒有 inst 的舊版 proto 2 房用 `ctl.activeMatch` 當**見證**，舊根佈局房身分未知；`rooms/{room}` transaction 驗證紀錄與讀身分前的快照相同且仍過期，才改成帶身分的 `status: 'reaping'`（不能加入、不能續租、房號不會被重用）→ `games/{room}` transaction 只在身分仍相符時刪（身分未知不刪 games）→ 再刪同一個墓碑。缺值不當成身分相等；中斷留下的墓碑由其他大廳沿用墓碑上的身分接手。已部署的舊版客戶端仍可能用快照直接刪，這部分不保證無競態。
+
 **已知相容限制**：舊版客戶端看不到也加不進新版房間（等待狀態是 `waiting2`、根層沒有 `started`）；舊版觀戰者無法觀戰新版房間；舊版房間不能重開；`ready`／`ack` 是單欄位寫入，以值（requestId／matchId）比對有效性而不是用 transaction；重開的歷史場節點保留在 `m/` 底下直到整個房間被清掉。
 
 ## 跟 game_engine/ 的關係
@@ -76,3 +78,4 @@ Firebase 會在寫入確認前發送本機事件，因此發起方用 `_pendingR
 - [0006](docs/adr/0006-processed-round-reset-first-sync-guard.md) — _processedRoundReset 用 _firstSync 旗標對齊，避免進場誤清手牌
 - [0007](docs/adr/0007-peek-sync-per-role-node.md) — 翻牌頂同步節點以角色分流，刻意捨棄舊分頁相容性
 - [0008](docs/adr/0008-per-match-node-rematch.md) — 重開用 per-match 節點隔離，而不是原地清盤
+- [0009](docs/adr/0009-lobby-presence-hide-and-tombstone-reap.md) — 大廳依 presence 隱藏雙離線對局，過期清理改成定時＋墓碑交易（補充 0002／0008）
