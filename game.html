@@ -1352,7 +1352,6 @@ input[type=text]::placeholder { color: var(--text-dim); }
   background: var(--surface2);
   background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
-.sb-setup[hidden] { display: none !important; }   /* 雙方都出過牌：整塊不占空間（要壓過上面的 margin／padding） */
 .sb-setup summary { cursor: pointer; list-style: none; margin-bottom: 0; border-left-color: var(--accent); color: var(--accent); }
 .sb-setup summary::-webkit-details-marker { display: none; }
 .sb-setup summary::after { content: ' ▸'; }
@@ -1362,6 +1361,7 @@ input[type=text]::placeholder { color: var(--text-dim); }
 .og-progress { margin: 6px 0 2px; font-size: 12px; font-weight: 700; line-height: 1.7; color: var(--text); }
 .og-row.done { color: var(--green); }
 .og-hint { margin-top: 4px; font-size: 10px; color: var(--text-dim); }
+.sb-setup .og-help-button { width: 100%; min-height: 44px; margin-top: 8px; border: 1px solid var(--accent); color: var(--accent); }
 
 /* 開局「補到 6 張」：只在開局階段、手牌不滿 6 張時出現 */
 .fill-hand-btn {
@@ -3120,7 +3120,7 @@ body.rm-locked #hand-area, body.rm-locked .board-side { pointer-events: none; op
 
     <!-- Sidebar -->
     <div id="sidebar">
-      <!-- 開局步驟：初始展開，雙方各成功出牌一次後整塊隱藏（updateOpeningGuide；與補牌資格 _openingPhase 無關） -->
+      <!-- 開局步驟：初始展開，雙方各成功出牌一次後收合（updateOpeningGuide；與補牌資格 _openingPhase 無關） -->
       <details class="sb-section sb-setup" id="sb-setup" open>
         <summary class="sb-title">🧭 開局步驟</summary>
         <div class="og-progress" role="status">
@@ -3136,7 +3136,8 @@ body.rm-locked #hand-area, body.rm-locked .board-side { pointer-events: none; op
           <li>再補到 6 張</li>
           <li>先攻方點 SET 補 2 張，開始第一回合</li>
         </ol>
-        <div class="og-hint">雙方各出一張牌後自動隱藏</div>
+        <div class="og-hint">雙方各出牌後自動收合；可點標題重新展開</div>
+        <button class="btn xs og-help-button" data-opening-guide-help onclick="showTutorial()" title="查看遊戲說明">📖 遊戲說明</button>
       </details>
       <!-- 局數戰績 -->
       <div class="sb-section" id="sb-score">
@@ -3204,7 +3205,6 @@ body.rm-locked #hand-area, body.rm-locked .board-side { pointer-events: none; op
       <div class="sb-section" id="sb-actions">
         <div class="sb-title">⚙️ 工具</div>
         <button class="btn xs" onclick="openDiceModal()" style="width:100%" title="擲骰子決定先攻後攻">🎲 先攻後攻</button>
-        <button class="btn xs" onclick="showTutorial()" style="width:100%;margin-top:4px" title="查看遊戲說明">📖 遊戲說明</button>
         <button class="btn xs danger" onclick="declareLost()" style="width:100%;margin-top:4px" title="重置本局：雙方所有牌洗回牌庫">🔄 重置本局</button>
         <button class="btn xs" data-rematch-open onclick="openRematch()" style="width:100%;margin-top:4px" title="保留這個房間，重新開一場；也可以換牌組">🔁 再開一場／換牌組</button>
       </div>
@@ -6774,12 +6774,17 @@ function setOpeningPhase(on) {
 // 「雙方各成功出牌一次」的唯一真實來源是遠端 openingPlayed/r{roundReset}/{role}：
 //   - 世代 key 帶 roundReset（前綴 r，避免 0 被 RTDB 當陣列索引）；重置本局換新 key，重置前才送出的舊寫入落在舊 key，蓋不回新局。
 //   - 兩個角色各寫自己的子路徑；標記和 zones 同一個 update 原子寫入，寫入被駁回就不會留下標記。
-//   - 畫面一律從資料推導、不另存「已隱藏」的本機狀態，所以 Firebase 預先回呼之後被回滾時會自動恢復顯示。
+//   - 完成階段由資料即時推導；階段轉換時重設展開預設，所以 Firebase 預先回呼被回滾後會恢復展開。
 //   - 復原／卡片離場都不會刪標記；只有成功的 placeCard／applyGuts 會寫。
 function openingRoundKey(data) { return 'r' + ((data && data.roundReset) || 0); }
 
-let _openingGuideClosed = false;   // 使用者手動收合；同步不得重新打開，換世代才重置
+let _openingGuideManualOpen = null; // null 採階段預設；boolean 是使用者在目前世代／階段內的選擇
 let _openingGuideKey = null;
+let _openingGuidePhase = null;
+function renderOpeningGuideOpenState() {
+  const open = _openingGuideManualOpen ?? (_openingGuidePhase !== 'complete');
+  document.querySelectorAll('.sb-setup').forEach(el => { el.open = open; });
+}
 function updateOpeningGuide(data) {
   const els = document.querySelectorAll('.sb-setup');   // 桌面版＋手機抽屜 clone（clone 沒有 id）
   if (!els.length || !data) return;
@@ -6787,8 +6792,13 @@ function updateOpeningGuide(data) {
   // 只認明確標記：缺標記（含升級前已在打的舊場）一律保守顯示「尚未出牌」，下一次真正出牌就會補上標記，不做任何推斷或遷移
   const played = role => !!data.openingPlayed?.[gen]?.[role];
   const hostDone = played('host'), guestDone = played('guest');
-  const key = (_appliedMatchId || '') + ':' + gen;
-  if (key !== _openingGuideKey) { _openingGuideKey = key; _openingGuideClosed = false; }
+  const key = [roomId || '', _appliedMatchId || '', gen].join(':');
+  const phase = hostDone && guestDone ? 'complete' : 'incomplete';
+  if (key !== _openingGuideKey || phase !== _openingGuidePhase) {
+    _openingGuideKey = key;
+    _openingGuidePhase = phase;
+    _openingGuideManualOpen = null;
+  }
   const row = (done, name) => `${done ? '✓' : '○'} ${name}${done ? '已出牌' : '尚未出牌'}`;
   let rows;
   if (isSpectator) {
@@ -6798,10 +6808,8 @@ function updateOpeningGuide(data) {
     const oppDone = myRole === 'host' ? guestDone : hostDone;
     rows = [[meDone, '你'], [oppDone, '對手']];
   }
-  const all = hostDone && guestDone;
+  renderOpeningGuideOpenState();
   els.forEach(el => {
-    el.hidden = all;
-    if (el.open === _openingGuideClosed) el.open = !_openingGuideClosed;
     [['self', rows[0]], ['opp', rows[1]]].forEach(([k, [done, name]]) => {
       const r = el.querySelector(`[data-og="${k}"]`);
       if (!r) return;
@@ -6811,10 +6819,20 @@ function updateOpeningGuide(data) {
     });
   });
 }
-// 收合是使用者的選擇（桌面與抽屜共用）；toggle 不冒泡，用 capture 接
-document.addEventListener('toggle', e => {
-  const el = e.target;
-  if (el && el.classList && el.classList.contains('sb-setup')) _openingGuideClosed = !el.open;
+// summary 的原生鍵盤操作也會產生 click；攔截預設切換，讓桌面與抽屜更新同一份狀態。
+document.addEventListener('click', e => {
+  const summary = e.target.closest?.('.sb-setup > summary');
+  if (!summary) return;
+  e.preventDefault();
+  _openingGuideManualOpen = !summary.parentElement.open;
+  renderOpeningGuideOpenState();
+}, true);
+document.addEventListener('keydown', e => {
+  const summary = e.target.closest?.('.sb-setup > summary');
+  if (!summary || (e.key !== 'Enter' && e.key !== ' ')) return;
+  e.preventDefault();
+  _openingGuideManualOpen = !summary.parentElement.open;
+  renderOpeningGuideOpenState();
 }, true);
 
 function setPostLossRedrawEligible(on) {

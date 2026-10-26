@@ -1,5 +1,5 @@
 'use strict';
-// 開局步驟提示（issue #112）：雙方各成功出牌一次後自動隱藏。
+// 開局步驟提示（issue #112）：雙方各成功出牌一次後自動收合，可手動再展開。
 // 真實瀏覽器 + mock Firebase；標記是遠端的 openingPlayed/r{roundReset}/{role}，與補牌資格（_openingPhase）互相獨立。
 // 環境找不到 Playwright／Chromium 時整個檔案 skip（不算失敗）。
 const test = require('node:test');
@@ -44,8 +44,19 @@ const guide = (p, drawer = false) => p.page.evaluate(d => {
   const el = d ? document.querySelector('#mobile-drawer-content .sb-setup') : document.getElementById('sb-setup');
   if (!el) return null;
   const r = el.getBoundingClientRect();
+  const summary = el.querySelector('summary');
+  const content = [...el.children].filter(child => child !== summary);
+  const help = el.querySelector('[data-opening-guide-help]');
+  const visibleRect = node => {
+    if (!node) return false;
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return style.display !== 'none' && style.visibility !== 'hidden' && box.width > 0 && box.height > 0 && node.checkVisibility();
+  };
   return {
     display: getComputedStyle(el).display, hidden: el.hidden, open: el.open, height: r.height,
+    titleVisible: visibleRect(summary), contentVisible: content.some(visibleRect), helpVisible: visibleRect(help),
+    helpInGuide: !!help && help.closest('.sb-setup') === el,
     text: el.textContent.replace(/\s+/g, ' '), steps: el.querySelectorAll('ol li').length,
     self: (el.querySelector('[data-og="self"]') || {}).textContent, opp: (el.querySelector('[data-og="opp"]') || {}).textContent,
   };
@@ -61,6 +72,7 @@ const rejoin = async (p, ...all) => {
 };
 
 const visible = g => g && g.display !== 'none' && g.height > 0;
+const collapsed = g => g && !g.hidden && !g.open && g.height > 0 && g.titleVisible && !g.contentVisible && !g.helpVisible;
 
 it('開場：醒目展開、七步不變、兩個「尚未出牌」；抽牌／棄牌／補牌不算出牌', async () => {
   const { host, guest, code, mid } = await setup();
@@ -70,7 +82,8 @@ it('開場：醒目展開、七步不變、兩個「尚未出牌」；抽牌／�
     assert.equal(g.steps, 7);
     assert.match(g.self, /○.*你尚未出牌/);
     assert.match(g.opp, /○.*對手尚未出牌/);
-    assert.match(g.text, /雙方各出一張牌後自動隱藏/);
+    assert.match(g.text, /雙方各出牌後自動收合/);
+    assert.ok(g.helpInGuide && g.helpVisible);
   }
   await host.run('drawToSix()');
   await host.run('discardFromHand(0)');
@@ -81,7 +94,7 @@ it('開場：醒目展開、七步不變、兩個「尚未出牌」；抽牌／�
   assert.equal(await host.get('_openingPhase'), true, '開局補牌資格不受教學影響');
 });
 
-it('單方出牌：該方顯示已出牌、對方看到對手已出牌，整塊仍在；雙方都出才消失', async () => {
+it('單方出牌維持展開；雙方都出後只收合內容並保留標題', async () => {
   const { host, guest, code, mid } = await setup();
   await host.run('drawToSix()');
   await host.run("placeCard(0, 'attack')");
@@ -98,8 +111,15 @@ it('單方出牌：該方顯示已出牌、對方看到對手已出牌，整塊�
   await settle(host, guest);
   for (const p of [host, guest]) {
     const g = await guide(p);
-    assert.equal(g.display, 'none');
-    assert.equal(g.height, 0, '整塊不占空間');
+    assert.equal(g.hidden, false);
+    assert.equal(g.open, false);
+    assert.ok(g.height > 0 && g.titleVisible, '標題仍可見');
+    assert.equal(g.contentVisible, false, '步驟內容已收合');
+    assert.equal(g.helpVisible, false, '說明按鈕隨內容收合');
+    await p.page.click('#sb-setup > summary');
+    const opened = await guide(p);
+    assert.equal(opened.open, true, '點標題可重新展開');
+    assert.ok(opened.helpVisible, '重新展開後說明入口可用');
   }
 });
 
@@ -181,7 +201,7 @@ it('寫入被伺服器駁回：不算出牌，面板仍在，標記不會永久�
   assert.equal(await host.get('gameState.openingPlayed && gameState.openingPlayed.r0 && gameState.openingPlayed.r0.host'), undefined);
 });
 
-it('重新整理再加入：進度延續（單方仍顯示、雙方已出仍隱藏）', async () => {
+it('重新整理再加入：進度延續（單方仍展開、雙方已出預設收合）', async () => {
   const { host, guest, code, mid } = await setup();
   await host.run('drawToSix()');
   await host.run("placeCard(0, 'attack')");
@@ -202,9 +222,9 @@ it('重新整理再加入：進度延續（單方仍顯示、雙方已出仍隱�
   await guest.run("placeCard(0, 'receive')");
   await settle(host, guest);
   await rejoin(guest);
-  assert.equal((await guide(guest)).display, 'none');
+  assert.ok(collapsed(await guide(guest)));
   await rejoin(host);
-  assert.equal((await guide(host)).display, 'none');
+  assert.ok(collapsed(await guide(host)));
   assert.equal(marker(code, mid, 'guest'), true);
 });
 
@@ -215,8 +235,11 @@ it('重置本局重新顯示；舊世代標記不影響新局；補牌資格照�
   await host.run("placeCard(0, 'attack')");
   await guest.run("placeCard(0, 'receive')");
   await settle(host, guest);
-  assert.equal((await guide(host)).display, 'none');
+  assert.ok(collapsed(await guide(host)));
   assert.equal(await host.get('_openingPhase'), false);
+  await host.page.click('#sb-setup > summary');
+  await host.page.click('#sb-setup > summary');
+  assert.equal((await guide(host)).open, false, '重置前手動覆寫成收合');
 
   await host.run('void declareLost()');
   await host.page.click('#gen-confirm-ok-btn');
@@ -249,7 +272,12 @@ it('同房再開一場：新場重新顯示，不沿用舊場進度', async () =
   await host.run("placeCard(0, 'attack')");
   await guest.run("placeCard(0, 'receive')");
   await settle(host, guest);
-  assert.equal((await guide(guest)).display, 'none');
+  assert.ok(collapsed(await guide(guest)));
+  for (const p of [host, guest]) {
+    await p.page.click('#sb-setup > summary');
+    await p.page.click('#sb-setup > summary');
+    assert.equal((await guide(p)).open, false, '再開前手動覆寫成收合');
+  }
   await host.page.click('#sb-actions [data-rematch-open]');
   await host.page.waitForSelector('#rematch-overlay.open');
   await host.page.click('#rm-opt-snapshot');
@@ -268,7 +296,7 @@ it('同房再開一場：新場重新顯示，不沿用舊場進度', async () =
 
 it('手動收合不會被同步重新打開；缺標記的場保守顯示尚未出牌、不補寫', async () => {
   const { host, guest, code, mid } = await setup();
-  await host.page.evaluate(() => { const el = document.getElementById('sb-setup'); el.open = false; el.dispatchEvent(new Event('toggle')); });
+  await host.page.click('#sb-setup > summary');
   await host.run('drawToSix()');
   await guest.run('drawToSix()');
   await host.run("placeCard(0, 'attack')");
@@ -285,13 +313,25 @@ it('手動收合不會被同步重新打開；缺標記的場保守顯示尚未�
   assert.equal(marker(code, mid, 'guest'), true);
 });
 
-it('手機：抽屜裡的 clone 即時同步（含已開著抽屜），雙方出牌後不占空間', async () => {
+it('手機：抽屜 clone 即時同步，雙方出牌後收合但保留標題', async () => {
   const { host, guest } = await setup({ hostMobile: true });
   await host.run('openMobileDrawer()');
   let d = await guide(host, true);
   assert.ok(visible(d), '抽屜裡有開局步驟');
   assert.equal(d.steps, 7);
   assert.match(d.self, /○/);
+  const mobileLayout = await host.page.evaluate(() => {
+    const help = document.querySelector('#mobile-drawer-content [data-opening-guide-help]');
+    const rect = help.getBoundingClientRect();
+    return {
+      helpHeight: rect.height,
+      toolsButtons: document.querySelectorAll('#mobile-drawer-content .drawer-tools > .btn').length,
+      helpIsLast: help.parentElement.lastElementChild === help,
+    };
+  });
+  assert.ok(mobileLayout.helpHeight >= 44, '手機說明按鈕至少 44px 高');
+  assert.equal(mobileLayout.toolsButtons, 3, '工具區三欄剛好三顆');
+  assert.equal(mobileLayout.helpIsLast, true, '說明入口是開局步驟最後一列');
   await guest.run('drawToSix()');
   await guest.run("placeCard(0, 'receive')");
   await settle(host, guest);
@@ -301,11 +341,73 @@ it('手機：抽屜裡的 clone 即時同步（含已開著抽屜），雙方出
   await host.run("placeCard(0, 'attack')");
   await settle(host, guest);
   d = await guide(host, true);
-  assert.equal(d.display, 'none');
-  assert.equal(d.height, 0);
+  assert.ok(collapsed(d));
   await host.run('closeMobileDrawer()');
   await host.run('openMobileDrawer()');
-  assert.equal((await guide(host, true)).display, 'none', '重開抽屜仍隱藏');
+  assert.ok(collapsed(await guide(host, true)), '重開抽屜仍收合');
+});
+
+it('桌面與手機摘要操作即時雙向同步；程式同步不改寫手動選擇', async () => {
+  const { host } = await setup({ hostMobile: true });
+  await host.run('openMobileDrawer()');
+  await host.page.click('#mobile-drawer-content .sb-setup > summary');
+  assert.equal((await guide(host)).open, false, '抽屜收合同步回桌面');
+  assert.equal((await guide(host, true)).open, false);
+  await host.page.locator('#sb-setup > summary').dispatchEvent('click');
+  assert.equal((await guide(host)).open, true, '桌面展開同步到抽屜');
+  assert.equal((await guide(host, true)).open, true);
+  await host.run('updateOpeningGuide(gameState)');
+  assert.equal((await guide(host)).open, true, '普通資料同步保留使用者展開');
+  assert.equal((await guide(host, true)).open, true);
+});
+
+it('預先完成回滾後恢復展開；之後真正完成仍再次自動收合', async () => {
+  const { host, guest, code, mid } = await setup();
+  await host.run('drawToSix()');
+  await guest.run('drawToSix()');
+  await guest.run("placeCard(0, 'receive')");
+  await settle(host, guest);
+  h.hub.reject(host.clientId, new RegExp(`^games/${code}/m/${mid}/openingPlayed/r0/host$`));
+  await host.run("placeCard(0, 'attack').catch(() => {})");
+  await settle(host, guest);
+  assert.equal(marker(code, mid, 'host'), undefined);
+  assert.ok(visible(await guide(host)) && (await guide(host)).open, '拒絕後回到未完成預設展開');
+
+  await host.run("placeCard(0, 'attack')");
+  await settle(host, guest);
+  assert.equal(marker(code, mid, 'host'), true);
+  assert.ok(collapsed(await guide(host)), '真正完成後再次自動收合');
+  await host.page.click('#sb-setup > summary');
+  await host.run('updateOpeningGuide(gameState)');
+  assert.equal((await guide(host)).open, true, '完成階段穩定時同步不蓋掉手動展開');
+});
+
+it('說明按鈕在開局步驟內且可手動開啟；已停用自動彈出也不影響手動入口', async () => {
+  const { host } = await setup();
+  const locations = await host.page.evaluate(() => ({
+    inGuide: !!document.querySelector('#sb-setup [data-opening-guide-help]'),
+    inTools: !!document.querySelector('#sb-actions [onclick="showTutorial()"]'),
+  }));
+  assert.deepEqual(locations, { inGuide: true, inTools: false });
+  await host.page.click('#sb-setup [data-opening-guide-help]');
+  await host.page.waitForFunction(() => document.getElementById('tutorial-overlay').style.display === 'flex');
+  await host.page.click('#tutorial-overlay button[onclick="closeTutorial()"]');
+  assert.equal((await guide(host)).open, true, '關閉說明不切換面板');
+});
+
+it('開局步驟標題以 Enter 與 Space 操作，收合時說明按鈕不在 Tab 順序', async () => {
+  const { host, guest } = await setup();
+  await host.run('drawToSix()'); await guest.run('drawToSix()');
+  await host.run("placeCard(0, 'attack')"); await guest.run("placeCard(0, 'receive')");
+  await settle(host, guest);
+  const summary = host.page.locator('#sb-setup > summary');
+  await summary.focus();
+  await host.page.keyboard.press('Enter');
+  assert.equal((await guide(host)).open, true);
+  await host.page.keyboard.press('Space');
+  assert.equal((await guide(host)).open, false);
+  await host.page.keyboard.press('Tab');
+  assert.notEqual(await host.page.evaluate(() => document.activeElement?.getAttribute('data-opening-guide-help')), '', '收合時 Tab 不會聚焦說明按鈕');
 });
 
 it('觀戰者視角不出現「你」的待操作提示', async () => {
@@ -318,6 +420,21 @@ it('觀戰者視角不出現「你」的待操作提示', async () => {
   assert.doesNotMatch(text, /你(尚未|已)出牌/);
   assert.match(text, /尚未出牌/);
   await host.run('updateOpeningGuide(gameState)');
+});
+
+it('觀戰者可從開局步驟閱讀說明；工具仍隱藏，手機抽屜 clone 也可用', async () => {
+  const { host, guest, code } = await setup();
+  const spectator = await h.newPlayer('觀戰甲', { mobile: true });
+  await spectator.run(`void spectateRoom('${code}')`);
+  await spectator.page.waitForFunction(() => document.getElementById('screen-game').classList.contains('active'));
+  await settle(host, guest, spectator);
+  assert.equal(await spectator.page.evaluate(() => document.getElementById('sb-actions').style.display), 'none');
+  await spectator.run('openMobileDrawer()');
+  assert.ok((await guide(spectator, true)).helpVisible);
+  await spectator.page.click('#mobile-drawer-content [data-opening-guide-help]');
+  await spectator.page.waitForFunction(() => document.getElementById('tutorial-overlay').style.display === 'flex');
+  await spectator.page.click('#tutorial-overlay button[onclick="closeTutorial()"]');
+  assert.ok((await guide(spectator, true)).helpVisible, '手機觀戰者在抽屜也有閱讀入口');
 });
 
 it('動作開始後才換世代：延遲到達的舊寫入只落在舊世代 key，新局不被視為已出牌', async () => {
