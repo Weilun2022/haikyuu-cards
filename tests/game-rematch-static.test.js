@@ -71,7 +71,9 @@ test('只有房間層級的路徑可以用 db.ref(games/…) 直接寫：presenc
 const NO_GUARD = {
   // 進房、離房、重連、監聽：房間生命週期，不是對局中的玩家動作
   lifecycle: ['startFirebase', 'listenRooms', 'createRoom', 'joinRoom', 'spectateRoom', 'leaveRoom', 'cleanupRoom', 'readRoomHead', 'readMatchHead',
-    'rejoinRoom', 'listenGame', 'listenGameLegacy', 'attachMatchListener', '_startPresenceWatch', 'startGame', 'enterGame', 'handlePresenceChange'],
+    'rejoinRoom', 'listenGame', 'listenGameLegacy', 'attachMatchListener', '_startPresenceWatch', 'startGame', 'enterGame', 'handlePresenceChange',
+    // 大廳：監聽其他房間的 presence、清除過期的其他房間（自己所在的房間會被略過），不碰本機牌組或場內資料
+    'syncLobbyWatches', 'reapRoom', 'abandonRoom'],
   // 再開一場自己的機制：必須在鎖定期間運作
   rematch: ['ctlRef', 'touchRoomLease', 'sendReady', 'commitRematch', 'sweepPreparedMatches', 'applyPendingMatch', 'resetLocalForNewMatch', 'sendAck'],
   // 只會從已守衛的入口，或對手事件（重置本局、輸一球）呼叫；寫入都走呼叫端抓好的 ctx，換場後自動變成 no-op
@@ -123,6 +125,20 @@ test('handleDrop 先清掉 dragData 才過守衛（鎖定時不留下殘存的�
 test('listenRooms 的清理與大廳列表認得新版的等待狀態，並維持 playing 的 4 小時語意', () => {
   assert.match(src, /isWaitingStatus\s*=\s*s\s*=>\s*s === 'waiting' \|\| s === GR\.STATUS\.WAITING_V2/);
   assert.match(src, /const roomStale = \(r\.status === 'playing'\) \? STALE_MS : WAITING_STALE_MS/);
+});
+
+test('過期清理只用 transaction（墓碑 → 驗身分刪 games → 驗墓碑刪 rooms），續租遇到墓碑中止', () => {
+  const fns = topLevelFunctions();
+  const reap = stripComments(fns.find(f => f.name === 'reapRoom').body);
+  assert.doesNotMatch(reap, /\.(remove|set|update)\(/, '清理不能用舊快照直接寫入／刪除');
+  const order = ['db.ref(`rooms/${id}`).transaction', 'db.ref(`games/${id}`).transaction', 'db.ref(`rooms/${id}`).transaction'];
+  let at = -1;
+  for (const s of order) { at = reap.indexOf(s, at + 1); assert.ok(at >= 0, s); }
+  assert.match(reap, /gamesMatchTomb\(cur, tomb\)/);
+  assert.doesNotMatch(stripComments(fns.find(f => f.name === 'gamesMatchTomb').body) + reap, /\|\| null\) ===/, '缺值不能當成身分相等');
+  assert.match(fns.find(f => f.name === 'touchRoomLease').body, /cur\.status !== ROOM_REAPING/);
+  const sweep = stripComments(fns.find(f => f.name === 'lobbySweep').body);
+  assert.doesNotMatch(sweep, /\.remove\(\)/);
 });
 
 test('離房與房間消失都走 teardownRoomState（脈絡一定被 kill，不留下可寫入的舊脈絡）', () => {

@@ -296,6 +296,7 @@
         release() { held = false; drain(); },
         coldNextTransaction() { coldTx = true; },
         pendingWrites: () => pending.map(o => ({ kind: o.kind, path: o.path })),
+        listenerPaths: () => listeners.map(l => l.path),
         queuedCount: () => queue.length,
         writeLog: () => writeLog.slice(),
         clearWriteLog: () => { writeLog.length = 0; },
