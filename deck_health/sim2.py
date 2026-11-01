@@ -4,6 +4,8 @@
 - LOSS → 局間：雙方補到 6 張，LOSS 方拿 1 張 Set 牌（沒有就輸掉比賽）；贏的一方下一局發球
 技能由 manual_cards.MANUAL 驅動。出牌決策是啟發式（見 evaluate），雙方使用同一套決策。"""
 import json, random, os, sys, itertools, re
+from collections import Counter
+from functools import lru_cache
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from manual_cards import MANUAL, NAME_CHOICE
 
@@ -19,6 +21,7 @@ CFG = dict(
                                    # ／smart（同拍會被どんぴしゃり叫出的治蓋掉就不付）／lethal_smart（兩個條件都要）
     verify_block=True,         # 攔網組合選好後，用登場技能實際結算的攔網值驗證（付不起代價、條件不成立的加值不算）
     w_cost=4.0, w_op=0.2,      # 評估權重：對手回應成本、送出的進攻值
+    draw_samples=2,            # 攔網／接球選擇時，對自己未來抽牌的假設牌庫樣本數（最多 4）
 )
 ZSTAT = dict(serve='srv', block='blk', receive='rcv', toss='tos', attack='atk')
 
@@ -33,7 +36,7 @@ def load_cards(path):
 
 
 class Card:
-    __slots__ = ('no', 'name', 'ev', 'pos', 'school', 'b', 'skills', 'phases', 'alts', 'nozones', 'aff', 'noskill', 'affs', 'whens', 'handsk')
+    __slots__ = ('no', 'name', 'ev', 'pos', 'school', 'b', 'skills', 'phases', 'alts', 'nozones', 'aff', 'noskill', 'affs', 'whens', 'handsk', 'grades')
 
     def __init__(self, raw):
         self.no = raw['card_no']; self.name = raw['name']; self.ev = raw['category'] == 'EVENT'
@@ -46,6 +49,8 @@ class Card:
         self.nozones = {z for z, k in (('serve', 'srv'), ('block', 'blk'), ('receive', 'rcv'), ('toss', 'tos'), ('attack', 'atk'))
                         if raw.get(k) is None} if not self.ev else set()  # 數值為「-」的區域
         self.aff = raw.get('affiliation') or ''
+        # 年級：所屬字串的點有 ·／・／･ 三種寫法，雙名卡有兩個年級（PR-013「梟谷·3年/梟谷2·年」兩個都算，使用者 2026-10-29）
+        self.grades = set(re.findall(r'(\d)\s*[·・･]?\s*年', self.aff))
         # 所屬（QA 1189／1817）：affiliation 欄位去掉學年後依「/」拆開；school_tags 會漏掉像「町内会」這種所屬，別々の所屬與翻牌比對改用這個
         self.affs = set(x for x in re.sub(r'[·・･]\d年$', '', self.aff).split('/') if x and x != '-')
         self.noskill = (raw.get('skill_jp') or '-').strip() in ('', '-')
@@ -75,9 +80,39 @@ def hand_score(hand):
     return s
 
 
+class CowRng:
+    """對局亂數：clone 只拿不可變的狀態快照，真的抽亂數才還原成 Random（狀態 625 字，每條試算路線都複製是最大耗時）。
+    snap 有值時恆等於目前狀態；real 是外部傳入的 Random 時，寫入都落在它身上，連續多場共用同一亂數流。"""
+    __slots__ = ('real', 'snap')
+
+    def __init__(self, real=None, snap=None): self.real, self.snap = real, snap
+
+    def live(self):
+        r = self.real
+        if r is None:
+            r = self.real = random.Random.__new__(random.Random); r.setstate(self.snap)
+        self.snap = None
+        return r
+
+    def random(self): return self.live().random()
+
+    def shuffle(self, x): self.live().shuffle(x)
+
+    def choice(self, seq): return self.live().choice(seq)
+
+    def getstate(self):
+        if self.snap is None: self.snap = self.real.getstate()
+        return self.snap
+
+    def setstate(self, state):
+        if self.real is not None and state is not self.snap: self.real.setstate(state)
+        self.snap = state
+
+
 class Player:
     def __init__(self, cards, rng, label):
         self.rng = rng; self.label = label
+        self.roster = tuple(cards)
         self.deck = cards[:]; rng.shuffle(self.deck)
         self.hand, self.drop, self.evz, self.setz = [], [], [], []
         self.zones = {z: [] for z in ZSTAT}
@@ -117,7 +152,10 @@ class Player:
 
     def clone(self):
         o = Player.__new__(Player)
-        o.rng = self.rng; o.label = self.label
+        o.rng = CowRng(None, self.rng.getstate()); o.label = self.label
+        o.roster = self.roster
+        if hasattr(self, "_route"): o._route = self._route
+        if hasattr(self, '_hypothesis'): o._hypothesis = self._hypothesis
         o.deck = self.deck[:]; o.hand = self.hand[:]; o.drop = self.drop[:]; o.evz = self.evz[:]; o.setz = self.setz[:]
         o.zones = {k: v[:] for k, v in self.zones.items()}
         o.pending_restrict = self.pending_restrict[:]; o.pending_trap = self.pending_trap
@@ -132,11 +170,57 @@ def newT(opp, op_in, src):
                 toss_cap=None, names={}, phase=None, allow_discard_cost=False, want_hinata=False, last_target_zone=None)
 
 
-def cloneT(T):
-    t = dict(T); t['mod'] = dict(T['mod']); t['locks'] = [dict(l) for l in T['locks']]; t['names'] = dict(T['names'])
+def cloneT(T, P=None, source=None):
+    t = dict(T); t['opp'] = T['opp'].clone()
+    if source is not None and T['opp'].rng is source.rng: t['opp'].rng = P.rng
+    t['mod'] = dict(T['mod']); t['locks'] = [dict(l) for l in T['locks']]; t['names'] = dict(T['names'])
     if 'negated' in T: t['negated'] = set(T['negated'])
     if 'captured' in T: t['captured'] = dict(T['captured'])
+    for key in ('once_used', 'deferred', 'defer_when', 'by_skill', 'side_blk_set'):
+        if T.get(key) is not None: t[key] = T[key].copy()
     return t
+
+
+def trial(P, opp, op_in, src):
+    p, o = P.clone(), opp.clone()
+    if P.rng is opp.rng: o.rng = p.rng
+    context = newT(o, op_in, src)
+    context['trial'] = True
+    return p, context
+
+
+def remember(P, T):
+    P._opponent_after = T['opp']
+    P._locks_after = T['locks']
+    return P
+
+
+def commit_trial(chosen, original, opp):
+    if getattr(chosen, '_hypothesis', False):
+        raise ValueError('不能提交假設牌序的試算狀態')
+    after = getattr(chosen, '_opponent_after', None)
+    locks = getattr(chosen, '_locks_after', [])
+    resolved = []
+    for lock in locks:
+        if lock['rule'] != 'pending_opp_place':
+            resolved.append(lock)
+        elif lock['place'] and any(c.ev for c in (after or opp).hand):
+            chosen.bump('對手放事件化解')
+        else:
+            resolved.append(lock['lock'])
+            chosen.bump('封鎖:' + lock['lock']['rule'])
+    locks[:] = resolved
+    shared = original.rng is opp.rng
+    original.rng.setstate(chosen.rng.getstate())
+    chosen.rng = original.rng
+    if after is not None:
+        opp_rng = opp.rng
+        if not shared: opp_rng.setstate(after.rng.getstate())
+        opp.__dict__.update(after.__dict__)
+        opp.rng = chosen.rng if shared else opp_rng
+    chosen.__dict__.pop('_opponent_after', None)
+    chosen.__dict__.pop('_locks_after', None)
+    return chosen
 
 
 # ── 限制（對手施加在我身上的）────────────────────────────
@@ -147,6 +231,7 @@ def can_enter(P, zone, card, from_hand=True):
                 and l['position'] in card.pos): return False
         if l['rule'] == 'cannot_enter' and l['role'] == zone and card.b['rcv'] >= l['base_rcv_ge']: return False
         if l['rule'] == 'blockout' and zone == 'block' and card.b['blk'] <= l['n']: return False  # 佐久早 P01-068：出了原本攔網值 ≤N 的攔網角色就 LOSS，所以不會出
+        if l['rule'] == 'cannot_enter_name' and l['role'] == zone and all(n == l['name'] for n in card.alts): return False  # 馬門 P04-037：本回合接球區不能登場百沢（雙名卡改叫別的名字就能登場）
     return True
 
 
@@ -182,11 +267,17 @@ def name_ok(T, zone, name):
 ZPREF = dict(attack={'木兎 光太郎', '宮 治'}, toss={'赤葦 京治', '宮 侑'})  # 同樣合法時的偏好（PR-031 條件、木兎攻擊；稲荷崎雙子）
 
 
-def alt_ok(T, zone, card): return any(name_ok(T, zone, n) for n in card.alts)
+def legal_names(T, zone, card, P=None):
+    """這張卡登場到 zone 時可選的名字：人名規則 ∩ 本回合鎖住的名字（給 P 才檢查鎖；馬門 P04-037）。"""
+    ban = locked_names(P, zone) if P is not None else ()
+    return [n for n in card.alts if name_ok(T, zone, n) and n not in ban]
 
 
-def choose_name(T, zone, card):
-    ok = [n for n in card.alts if name_ok(T, zone, n)] or card.alts
+def alt_ok(T, zone, card, P=None): return bool(legal_names(T, zone, card, P))
+
+
+def choose_name(T, zone, card, P=None):
+    ok = legal_names(T, zone, card, P) or card.alts
     return min(ok, key=lambda n: n not in ZPREF.get(zone, ()))
 
 
@@ -203,10 +294,15 @@ def assign_distinct(cards):
     return None
 
 
-def line_names(r, t, a):
+def locked_names(P, zone):  # 本回合不能用這些名字登場到 zone（馬門 P04-037）
+    return {l['name'] for l in P.restrict if l['rule'] == 'cannot_enter_name' and l['role'] == zone}
+
+
+def line_names(r, t, a, ban_receive=()):
     """接球→舉球→攻擊三人的名字：接≠舉、舉≠攻（ABA 可以），依 ZPREF 偏好。"""
     best = None
     for nr in r.alts:
+        if nr in ban_receive: continue
         for nt in t.alts:
             if nt == nr: continue
             for na in (a.alts if a is not None else [None]):
@@ -291,8 +387,8 @@ def cond_ok(c, P, T):
     if t == 'paid_guts_distinct_school':  # 縁下 P04-007：付的 Guts 全是某校、且卡名各不相同
         pg = T.get('paid_guts') or []
         return bool(pg) and all(c['school'] in x.school for x in pg) and len({x.name for x in pg}) == len(pg)
-    if t == 'opp_court_has_grade':  # 對手場上有 N 年級的角色（所屬字串結尾「·2年」）
-        return any(st and st[-1].aff.endswith('·%s年' % c['grade']) for z, st in opp.zones.items() if z in ZSTAT)
+    if t == 'opp_court_has_grade':  # 對手場上有 N 年級的角色
+        return any(st and str(c['grade']) in st[-1].grades for z, st in opp.zones.items() if z in ZSTAT)
     if t == 'enter_on_top_school_pos':  # 西谷 P04-005：疊在烏野的 S 角色上登場
         u = T.get('under'); return u is not None and not u.ev and c['school'] in u.school and c['position'] in u.pos
     if t == 'event_zone_name_count_ge':
@@ -302,6 +398,13 @@ def cond_ok(c, P, T):
     if t == 'phase_is': return T.get('phase') == c['phase']
     if t == 'receive_below_op': return cur_stat(P, T, 'receive') < T['op_in']  # 策略：接不住才用手牌代價
     if t == 'allow_discard': return bool(T.get('allow_discard_cost'))  # 策略：攻擊階段（有打算進攻）才付手牌代價
+    if t == 'bokuto063': return fuku_ready(P.guts('attack'))  # 策略（使用者 2026-10-29）：湊不到 3 種非木兎卡名就沒有 +7，不付
+    if t == 'konoha064': return konoha064_plan(P, T)  # 策略（使用者 2026-10-29），見 konoha064_plan
+    if t == 'komi066':  # 策略（使用者 2026-10-29）：接球 5 不夠、+1 剛好夠；或攻擊區已湊齊 3 種非木兎卡名、木兎 P04-063 在棄牌區要撿回來
+        cs = cur_stat(P, T, 'receive')
+        if cs < T['op_in'] <= cs + 1: return True
+        return (fuku_ready(P.zones['attack']) and not hand_add_locked(P) and any(x.no == 'HV-P04-063' for x in P.drop)
+                and not any(x.no == 'HV-P04-063' for x in P.hand))
     if t == 'guts_has_name': return any((not x.ev) and x.name == c['name'] for x in P.guts(c['zone']))
     if t == 'guts_pair_same_school':  # 策略：自己某一區的 Guts 有 n 張同所屬才打「がんばれ」
         for zz, st in P.zones.items():
@@ -322,7 +425,7 @@ def cond_ok(c, P, T):
     if t == 'is_side_blocker': return bool(T.get('entering_side'))
     if t == 'zone_char':  # 某區最上面的角色符合 school／grade／name
         st = P.zones[c['zone']]
-        return bool(st) and (not c.get('school') or c['school'] in st[-1].school) and (not c.get('grade') or st[-1].aff.endswith('·%s年' % c['grade']))
+        return bool(st) and (not c.get('school') or c['school'] in st[-1].school) and (not c.get('grade') or str(c['grade']) in st[-1].grades)
     if t == 'zone_stat_ge': return cur_stat(P, T, c['zone']) >= c['n']  # 岩泉 P04-020、P04-088：這區現在的數值 ≥n
     if t == 'evz_total_ge': return len(P.evz) >= c['n']  # 金田一 P03-005、国見 P03-007
     if t == 'self_set_fewer': return len(P.setz) < len(opp.setz)  # 岩泉 D04-002
@@ -361,8 +464,8 @@ def filt_ok(x, f):
     if f.get('affiliation') and f['affiliation'] not in x.aff.split('/'): return False
     if f.get('exclude_name') and x.name == f['exclude_name']: return False
     if f.get('affil') and f['affil'] not in x.affs: return False
-    if f.get('grades') and not any(x.aff.endswith('·%s年' % g) for g in f['grades']): return False
-    if f.get('grade') and not x.aff.endswith('·%s年' % f['grade']): return False
+    if f.get('grades') and not any(str(g) in x.grades for g in f['grades']): return False
+    if f.get('grade') and str(f['grade']) not in x.grades: return False
     if f.get('name') and x.name != f['name']: return False
     if f.get('positions') and not (x.pos & set(f['positions'])): return False
     return True
@@ -387,14 +490,17 @@ def cost_pay(costs, P, T, zone):
     for c in costs:
         t = c['type']
         if t in EXT_COST_PAY: EXT_COST_PAY[t](c, P, T, zone); continue
+        if t == 'guts' and c.get('pick'): pay_guts_pick_distinct(c, P, T, zone); continue
         if t == 'guts':
             gz = c.get('zone', zone)  # 事件可指定從哪一區付（音駒 P01-081：接球區）
             st = P.zones[gz]
             T['paid_guts'] = st[:c['n']]  # 白布：依實際疊的順序付，不刻意挑 S（使用者 2026-10-12）
             P.pay_guts(gz, c['n'])
         elif t == 'discard_filtered':
+            plan = T.get('plan_attack') if c.get('spare_plan') else None  # 接球時別棄掉這拍的攻擊手；receive_stage 依卡號共用結算，同號牌也留
             for _ in range(c['n']):
-                w = min([x for x in P.hand if filt_ok(x, c['filter'])], key=keep_value); P.hand.remove(w); P.drop.append(w)
+                cands = [x for x in P.hand if filt_ok(x, c['filter'])]
+                w = min([x for x in cands if not plan or x.no != plan[0].no] or cands, key=keep_value); P.hand.remove(w); P.drop.append(w)
         elif t == 'guts_multi' and T.get('aim_odd_attack') and set(c['zones']) == {'toss', 'attack'}:
             # 赤葦 P01-045：調整從攻擊區付的張數，讓之後出場的木兎 P01-043 底下 Guts 為奇數
             L = len(P.zones['attack']); gt = max(0, len(P.zones['toss']) - 1); ga = max(0, L - 1)
@@ -472,7 +578,7 @@ def apply_effects(effs, P, T, zone):
                 order = dict(receive=('receive',), toss=('toss', 'attack'), attack=('attack', 'toss'),
                              serve=('serve',), block=('block',)).get(T.get('phase'), ('attack', 'toss'))
                 z = next((z for z in order if P.zones[z] and (not tg.get('school') or tg['school'] in P.zones[z][-1].school)
-                          and (not tg.get('grade') or P.zones[z][-1].aff.endswith('·%s年' % tg['grade']))
+                          and (not tg.get('grade') or str(tg['grade']) in P.zones[z][-1].grades)
                           and (not tg.get('name') or T['names'].get(z, P.zones[z][-1].name) == tg['name'])), None)
                 if z is None: continue
             else:
@@ -480,7 +586,7 @@ def apply_effects(effs, P, T, zone):
                 st = P.zones[z]
                 if not st or (tg.get('school') and tg['school'] not in st[-1].school): continue
                 if tg.get('name') and T['names'].get(z, st[-1].name) != tg['name']: continue
-                if tg.get('grade') and not st[-1].aff.endswith('·%s年' % tg['grade']): continue
+                if tg.get('grade') and str(tg['grade']) not in st[-1].grades: continue
                 if tg.get('affil') and tg['affil'] not in st[-1].affs: continue
                 if tg.get('base_eq') is not None and st[-1].b[ZSTAT[z]] != tg['base_eq']: continue  # 追分 P02-090：攔網值剛好 3 的角色
             T['mod'][z] = T['mod'].get(z, 0) + e['n']; T['last_target_zone'] = z
@@ -498,6 +604,8 @@ def apply_effects(effs, P, T, zone):
                 else: T['doshat'] = e['n']; P.bump('ドシャット')  # 9-2：攔網成功的回合結束時，回給對手的進攻值變 N
             elif e['name'] == 'ブロックアウト':  # 9-5：對手下回合出原本攔網值 ≤N 的攔網角色就 LOSS
                 T['locks'].append(dict(rule='blockout', n=e['n'], duration='next_opp_turn')); P.bump('ブロックアウト')
+        elif t == 'self_lock':  # 對自己的本回合限制（take_turn 結束時清空）
+            P.restrict = P.restrict + [dict(rule=e['rule'], role=e['role'], name=e['name'])]
         elif t == 'mill':
             if P.deck and (not e.get('up_to') or T.get('allow_optional')):
                 m = P.deck.pop(0); P.drop.append(m)
@@ -564,7 +672,7 @@ def apply_effects(effs, P, T, zone):
                 apply_effects(opt, P, T, zone)
         elif t == 'guts_to_zone' and e.get('filter', {}).get('name'):  # P02-096：攻擊區 Guts 的牛島拉上場（比現在強才拉）
             z = e['zone']
-            g = [c for c in P.guts(z) if not c.ev and c.name == e['filter']['name'] and alt_ok(T, z, c)
+            g = [c for c in P.guts(z) if not c.ev and c.name == e['filter']['name'] and alt_ok(T, z, c, P)
                  and can_enter(P, z, c, from_hand=False)]
             if g:
                 best = max(g, key=lambda c: summon_value(P, c, z) + 1)
@@ -573,7 +681,7 @@ def apply_effects(effs, P, T, zone):
                     if e.get('then'): apply_effects([e['then']], P, T, z)
         elif t == 'guts_to_zone':
             g = [c for c in P.guts(e['zone']) if not c.ev and (not e.get('filter') or e['filter'].get('position', '') in c.pos)
-                 and alt_ok(T, e['zone'], c) and can_enter(P, e['zone'], c, from_hand=False)]
+                 and alt_ok(T, e['zone'], c, P) and can_enter(P, e['zone'], c, from_hand=False)]
             if g:
                 best = max(g, key=lambda c: c.b[ZSTAT[e['zone']]])
                 P.zones[e['zone']].remove(best)
@@ -622,7 +730,8 @@ def apply_effects(effs, P, T, zone):
             if cands:
                 best = max(cands, key=event_value); P.evz.remove(best); P.add_nondraw(best); P.bump('回收事件')
         elif t == 'event_to_hand':
-            cands = [c for c in P.evz if c.phases == {e['filter']['only_phase']}]
+            ph = e['filter'].get('only_phase')  # 孤爪 P01-018：條件成立時 Event 區任一事件都能回手牌（filter 為空）
+            cands = [c for c in P.evz if (c.phases == {ph} if ph else c.ev)]
             if cands:
                 best = max(cands, key=lambda c: (c.name == 'オープン攻撃', keep_value(c)))
                 P.evz.remove(best); P.add_nondraw(best); P.bump('回收攻擊事件')
@@ -682,7 +791,7 @@ def apply_effects(effs, P, T, zone):
             best = None
             for zz, st in P.zones.items():
                 if zz not in ZSTAT: continue
-                g = sorted([x for x in st[:-1] if not x.ev and x.aff.endswith('·%s年' % e['grade'])], key=keep_value, reverse=True)[:e['n']]
+                g = sorted([x for x in st[:-1] if not x.ev and str(e['grade']) in x.grades], key=keep_value, reverse=True)[:e['n']]
                 if g and (best is None or sum(map(keep_value, g)) > best[0]): best = (sum(map(keep_value, g)), zz, g)
             if best:
                 for c in best[2]: P.zones[best[1]].remove(c); P.add_nondraw(c)
@@ -833,7 +942,7 @@ def has_attack_skill(card):
 
 
 def enter(P, T, zone, card, from_hand, as_side_blocker=False, name=None, defer=None):
-    nm = name or choose_name(T, zone, card)
+    nm = name or choose_name(T, zone, card, P)
     under = None
     if as_side_blocker:
         P.zones.setdefault('_side', []).append(card)
@@ -872,7 +981,7 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     prot = (zone == 'attack' and under is not None and not as_side_blocker and any(
         w.get('protect') and ef_ok(card, nm, w.get('ef', {})) for w in under.whens))  # 岩泉 P04-021：疊在他上面的青葉城西角色不被減值
     rprot = (zone == 'receive' and any(a['on'] == 'receive_enter' and a.get('protect') and (not a.get('school') or a['school'] in card.school)
-                                      and (not a.get('grades') or any(card.aff.endswith('·%s年' % g) for g in a['grades'])) for a in P.auras))
+                                      and (not a.get('grades') or any(str(g) in card.grades for g in a['grades'])) for a in P.auras))
     if rprot:  # 黒川 P03-057：登場的烏野 2、3 年接球角色不被減值
         saved = P.restrict; P.restrict = [l for l in saved if l['rule'] not in ('opp_rcv_add', 'li_receive_add', 'opp_noskill_rcv_add')]
         try: _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker)
@@ -886,7 +995,7 @@ def enter_skills(P, T, zone, card, from_hand, under, nm, as_side_blocker):
     if zone == 'receive' and P.auras:  # 松川／千鹿谷／黒川：本回合接球角色登場加值
         for a in P.auras:
             if a['on'] == 'receive_enter' and (not a.get('school') or a['school'] in card.school) and (
-                    not a.get('grades') or any(card.aff.endswith('·%s年' % g) for g in a['grades'])):
+                    not a.get('grades') or any(str(g) in card.grades for g in a['grades'])):
                 T['mod']['receive'] = T['mod'].get('receive', 0) + a['n']; P.bump('接球登場加值')
     if P.auras:  # 入畑 P01-085：本回合該校角色登場，登場區的數值 +n
         for a in P.auras:
@@ -976,7 +1085,7 @@ def _enter_skills_core(P, T, zone, card, from_hand, under, nm, as_side_blocker):
                 if s['timing'] == 'trigger' and tr and tr['event'] == 'enter' and card.b['atk'] == tr['base_atk'] and P.deck:
                     P.drop.append(P.deck.pop(0))
                     T['mod']['toss'] = T['mod'].get('toss', 0) + 1; P.bump('研磨觸發')
-                    g = [c for c in P.guts('attack') if c is not card and not c.ev and alt_ok(T, 'attack', c)]
+                    g = [c for c in P.guts('attack') if c is not card and not c.ev and alt_ok(T, 'attack', c, P)]
                     if g:
                         aura = lambda c: T['aura'][1] if T.get('aura') and c.name == T['aura'][0] else 0
                         best = max(g, key=lambda c: summon_value(P, c, 'attack') + aura(c))
@@ -1023,7 +1132,7 @@ def best_guts_pull(P, T, srcs, flt, to, add=0, set_to=None):
     for zz in zs:
         for c in P.guts(zz):
             if c.ev or not filt_ok(c, flt): continue
-            if not alt_ok(T, to, c) or not can_enter(P, to, c, from_hand=False): continue
+            if not alt_ok(T, to, c, P) or not can_enter(P, to, c, from_hand=False): continue
             under = len(P.zones[to]) - (1 if zz == to else 0)
             v, ex = pulled_value(P, T, c, to, under)
             val = set_to if set_to is not None else v + add
@@ -1131,7 +1240,7 @@ def fx_summon_from_guts(e, P, T, zone):
     val, c, zz = r
     if val <= cur_stat(P, T, to): return
     P.zones[zz].remove(c)
-    _tagged_enter(P, T, to, c, False, by=e.get('by'), name=choose_name(T, to, c))
+    _tagged_enter(P, T, to, c, False, by=e.get('by'), name=choose_name(T, to, c, P))
     P.bump('觸發特召:' + (e.get('by') or '?'))
     if e.get('then'): apply_effects(e['then'], P, T, to)
 
@@ -1143,10 +1252,10 @@ def fx_holder_move(e, P, T, zone):
     if side:
         if len(P.zones.get('_side', [])) >= 2 or h.name in block_area_names(P, T) or len(block_area_names(P, T)) >= 3: return
         if not can_enter(P, 'block', h, from_hand=False): return
-    elif not alt_ok(T, to, h) or not can_enter(P, to, h, from_hand=False): return
+    elif not alt_ok(T, to, h, P) or not can_enter(P, to, h, from_hand=False): return
     P.zones[hz].pop()
     keep = T['names'].get('block')
-    enter(P, T, to, h, False, as_side_blocker=side, name=h.name if side else choose_name(T, to, h))
+    enter(P, T, to, h, False, as_side_blocker=side, name=h.name if side else choose_name(T, to, h, P))
     if side and keep is not None: T['names']['block'] = keep   # 側邊攔網不改變「中間攔網」的名字
     P.bump('觸發移動:' + h.no)
     if e.get('then'): apply_effects(e['then'], P, T, to)
@@ -1174,11 +1283,11 @@ def fx_back_attack(e, P, T, zone):
         if card in P.hand: P.hand.remove(card); from_hand = True
         elif card in P.drop: P.drop.remove(card)
         else: return
-    if not alt_ok(T, 'attack', card) or not can_enter(P, 'attack', card, from_hand=from_hand):
+    if not alt_ok(T, 'attack', card, P) or not can_enter(P, 'attack', card, from_hand=from_hand):
         if e.get('src', 'holder') == 'holder': return
         (P.hand if from_hand else P.drop).append(card); return
     if e.get('src', 'holder') == 'holder': P.zones[hz].pop()
-    enter(P, T, 'attack', card, from_hand, name=choose_name(T, 'attack', card), defer='__back__')
+    enter(P, T, 'attack', card, from_hand, name=choose_name(T, 'attack', card, P), defer='__back__')
     T['mod']['attack'] = n - card.b['atk']
     for a in P.auras:
         if a['on'] == 'backattack': T['mod']['attack'] += a['n']
@@ -1223,9 +1332,9 @@ def fx_deck_bottom_from_drop(e, P, T, zone):
 def fx_hand_card_enter(e, P, T, zone):
     """手牌技：自己已丟到棄牌區的這張卡登場到某區（五色 P03-011）。"""
     c = T.get('hs_card'); z = e['zone']
-    if c is None or c not in P.drop or not can_enter(P, z, c, from_hand=False) or not alt_ok(T, z, c): return
+    if c is None or c not in P.drop or not can_enter(P, z, c, from_hand=False) or not alt_ok(T, z, c, P): return
     P.drop.remove(c)
-    enter(P, T, z, c, False, name=choose_name(T, z, c))
+    enter(P, T, z, c, False, name=choose_name(T, z, c, P))
     if e.get('then'): apply_effects(e['then'], P, T, z)
 
 
@@ -1316,15 +1425,87 @@ def fx_drop_to_evz(e, P, T, zone):
 def fx_lock_unless_opp_places(e, P, T, zone):
     """山口 P02-004：對手手牌有事件時，有 p_place 的機率放一張到 Event 區（效果不生效）；否則掛上鎖。"""
     opp = T['opp']
-    if any(x.ev for x in opp.hand) and P.rng.random() < e.get('p_place', 0.6): P.bump('對手放事件化解'); return
+    place = P.rng.random() < e.get('p_place', 0.6)  # 先抽，讓亂數流不隨對手手牌改變
+    if T.get('trial'):
+        # 這個抽牌鎖不參與回應成本；對手是否化解只能在選定行動後結算。
+        T['locks'].append(dict(rule='pending_opp_place', lock=dict(e['lock']), place=place))
+        return
+    if place and any(x.ev for x in opp.hand): P.bump('對手放事件化解'); return
     T['locks'].append(dict(e['lock'])); P.bump('封鎖:' + e['lock']['rule'])
+
+
+FUKU_BOKUTO = '木兎 光太郎'
+
+
+def fuku_names(cards):
+    """木兎 P04-063 可付的 Guts 卡名：梟谷角色、不是木兎。"""
+    return {x.name for x in cards if (not x.ev) and '梟谷' in x.school and x.name != FUKU_BOKUTO}
+
+
+def fuku_ready(cards): return len(fuku_names(cards)) >= 3
+
+
+def pay_guts_pick_distinct(c, P, T, zone):
+    """木兎 P04-063：Guts 可自己挑（使用者 2026-10-29）。付某校、不含某人名、卡名各不相同的 n 張，同名付最不值錢的；湊不到就照疊的順序付。"""
+    st = P.zones[zone]; pick = {}
+    for x in sorted(st[:-1], key=keep_value):
+        if (not x.ev) and c['pick']['school'] in x.school and x.name != c['pick']['exclude_name']: pick.setdefault(x.name, x)
+    paid = list(pick.values())[:c['n']] if len(pick) >= c['n'] else st[:c['n']]
+    for x in paid: st.remove(x); P.drop.append(x)
+    T['paid_guts'] = paid
+
+
+def hand_add_locked(P): return any(l['rule'] == 'no_skill_add_hand' for l in P.restrict)  # 岩泉 P01-035
+
+
+def konoha064_swap(P, T):
+    """木葉 P04-064 互換要換哪兩張，回傳（換回手上的 Guts, 放上去的手牌）（使用者 2026-10-29）：
+    (a) 攻擊區 Guts 有木兎 P01-043（攻擊 0→5）→ 換回手上；(b) 換完攻擊區能湊齊 3 種非木兎卡名。都不成立回傳 None。"""
+    st = P.zones['attack']
+    if len(st) < 2 or hand_add_locked(P): return None
+    plan = T.get('plan_attack')
+    G = [x for x in st[:-1] if (not x.ev) and '梟谷' in x.school]
+    H = [x for x in P.hand if (not x.ev) and '梟谷' in x.school and x.name != FUKU_BOKUTO and not (plan and x is plan[0])]
+    if not G or not H: return None
+    k43 = [x for x in G if x.no == 'HV-P01-043']
+    if k43:
+        take = k43[0]
+        rest = fuku_names([x for x in st if x is not take])
+        return take, min([x for x in H if x.name not in rest] or H, key=keep_value)
+    if fuku_ready(st): return None
+    for take in sorted(G, key=keep_value):
+        rest = fuku_names([x for x in st if x is not take])
+        fresh = [x for x in H if x.name not in rest]
+        if fresh and len(rest) + 1 >= 3: return take, min(fresh, key=keep_value)
+    return None
+
+
+def konoha064_plan(P, T):
+    """木葉 P04-064 要不要發動：(a)(b) 見 konoha064_swap；(c) 這拍用猿杙 P04-065 攻擊，舉球 +1 後加上手上攻擊事件能到 7 以上。
+    攻擊手等舉球後才選時不算 (c)：指定猿杙的路線會另外試。"""
+    if konoha064_swap(P, T): return True
+    plan = T.get('plan_attack')
+    if not plan or plan[0].no != 'HV-P04-065': return False
+    a = plan[0]
+    fodder = any(x is not a and filt_ok(x, dict(school='梟谷', grade=3)) for x in P.hand)
+    events = sum(1 for x in P.hand if x.ev and 'attack' in x.phases)
+    return cur_stat(P, T, 'toss') + 1 + a.b['atk'] + (4 if fodder else 0) + events >= 7
+
+
+def fx_swap_hand_guts(e, P, T, zone):
+    """木葉 P04-064：手牌的梟谷角色與攻擊區的梟谷 Guts 各 1 張互換；換哪兩張見 konoha064_swap。"""
+    sw = konoha064_swap(P, T)
+    if not sw: return
+    take, give = sw; st = P.zones['attack']
+    st[st.index(take)] = give; P.hand.remove(give); P.add_nondraw(take)
+    P.bump('木葉互換:' + take.name)
 
 
 EXT_EFFECTS = dict(lock_unless_opp_places=fx_lock_unless_opp_places, feint=fx_feint, mill_feint=fx_mill_feint, drop_to_evz=fx_drop_to_evz, side_self_to_bottom=fx_side_self_to_bottom, summon_from_guts=fx_summon_from_guts, holder_move=fx_holder_move, holder_to_hand=fx_holder_to_hand,
                    aura_turn=fx_aura_turn, back_attack=fx_back_attack, synchro=fx_synchro, swap_toss=fx_swap_toss,
                    deck_bottom_from_drop=fx_deck_bottom_from_drop, hand_card_enter=fx_hand_card_enter, end_block=fx_end_block,
                    side_summon_drop=fx_side_summon_drop, mill_all_then=fx_mill_all_then, evz_to_hand_n=fx_evz_to_hand_n,
-                   reveal_take=fx_reveal_take, draw_or_fetch=fx_draw_or_fetch)
+                   reveal_take=fx_reveal_take, draw_or_fetch=fx_draw_or_fetch, swap_hand_guts=fx_swap_hand_guts)
 
 
 def fire_when(P, T, zone, card, from_hand, under, side, nm):
@@ -1615,7 +1796,7 @@ def block_total(B, comb, attacker, restrict, include_adj=True):
     return sum(pots) + adj + boost, None
 
 
-def response_cost(opp, op, locks, trap, src='attack', attacker=None):
+def _response_cost_known_hand(opp, op, locks, trap, src='attack', attacker=None):
     """對手要淨花幾張牌才接得住；接不住回傳 None。"""
     restrict = opp.restrict  # 暫存：用我施加的限制來判斷
     opp.restrict = locks
@@ -1643,6 +1824,56 @@ def response_cost(opp, op, locks, trap, src='attack', attacker=None):
     return best
 
 
+@lru_cache(maxsize=1024)
+def unseen_pool(roster, public):
+    shown = Counter(public)
+    pool = []
+    for c in sorted(roster, key=lambda c: c.no):
+        if shown[c.no]: shown[c.no] -= 1
+        else: pool.append(c)
+    return tuple(pool)
+
+
+def public_pool(P):
+    public = P.drop + P.evz + [c for st in P.zones.values() for c in st]
+    return unseen_pool(P.roster, tuple(sorted(c.no for c in public)))
+
+
+@lru_cache(maxsize=1024)
+def belief_hands(pool, hand_count):
+    # 固定四次抽樣，不讀對局 RNG；同一公開觀測永遠得到相同估計。
+    rng = random.Random(1)
+    return tuple(tuple(rng.sample(pool, min(hand_count, len(pool)))) for _ in range(4))
+
+
+_RC_CACHE = {}
+
+
+def response_cost(opp, op, locks, trap, src='attack', attacker=None):
+    """以公開牌表扣除公開區域、手牌張數，估計回應成本。"""
+    hands = belief_hands(public_pool(opp), len(opp.hand))
+    atk = opp.zones['attack']
+    # 成本只讀：樣本手牌、op、鎖、src、攻方 Event 區張數、對手接球 Guts 與攻擊區頂牌／張數；全部入鍵，同鍵必同值。
+    key = (hands, op, tuple(tuple(sorted((k, repr(v)) for k, v in l.items())) for l in locks), src,
+           len(attacker.evz) if attacker is not None else -1, len(opp.zones['receive']),
+           id(atk[-1]) if atk else 0, len(atk), len(opp.hand),
+           CFG['freeball_receive'], CFG['onetouch_attack_only'], CFG['li_restrict'], CFG['w_cost'])
+    hit = _RC_CACHE.get(key)
+    if hit is not None: return hit[0]
+    view = Player.__new__(Player)
+    view.__dict__ = dict(opp.__dict__)
+    costs = []
+    for hand in hands:
+        view.hand = hand
+        costs.append(_response_cost_known_hand(view, op, locks, trap, src, attacker))
+    if all(c is None for c in costs): res = None
+    # 接不住的分數與 evaluate 的 1000 分相同尺度，混合有／無回應樣本。
+    else: res = sum(1000 / CFG['w_cost'] if c is None else c for c in costs) / len(costs)
+    if len(_RC_CACHE) > 200000: _RC_CACHE.clear()
+    _RC_CACHE[key] = (res,)
+    return res
+
+
 def evaluate(P, op_sent, locks, trap, opp, src='attack'):
     cost = response_cost(opp, op_sent, locks, trap, src, attacker=P)
     s = hand_score(P.hand)
@@ -1654,15 +1885,25 @@ def evaluate(P, op_sent, locks, trap, opp, src='attack'):
 def wants_odd(c): return any(cd['type'] == 'zone_guts_odd' for s in c.skills for cd in s.get('conditions', []))
 
 
+def aim_odd(P, r, t, a, stop_after_toss):
+    if a is not None: return wants_odd(a)
+    if stop_after_toss:  # 攻擊手等舉球後再決定：手牌、棄牌區或攻擊區 Guts 有 P01-043 這類卡就調奇數
+        return any(wants_odd(c) for c in P.hand + P.drop + P.zones['attack'] if c is not r and c is not t)
+    return None
+
+
 def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
-    T['phase'] = 'receive'
-    ln = line_names(r, t, a)
+    ln = line_names(r, t, a, ban_receive=locked_names(P, 'receive'))
     if ln is None: return None
-    nr, nt, na = ln
-    T['plan_attack'] = (a, na) if a is not None else None
-    if a is not None: T['aim_odd_attack'] = wants_odd(a)
-    elif stop_after_toss:  # 攻擊手等舉球後再決定：手牌、棄牌區或攻擊區 Guts 有 P01-043 這類卡就調奇數
-        T['aim_odd_attack'] = any(wants_odd(c) for c in P.hand + P.drop + P.zones['attack'] if c is not r and c is not t)
+    T['plan_attack'] = (a, ln[2]) if a is not None else None
+    T['aim_odd_attack'] = aim_odd(P, r, t, a, stop_after_toss)
+    if not receive_part(P, T, r, ln[0]): return None
+    return toss_part(P, T, r, t, a, ln, aggressive, stop_after_toss)
+
+
+def receive_part(P, T, r, nr):
+    """接球階段。除了 r、nr，只讀 T 的攻擊計畫（plan_attack、aim_odd_attack），不看舉球手與進攻模式。"""
+    T['phase'] = 'receive'
     P.hand.remove(r); enter(P, T, 'receive', r, from_hand=True, name=nr)
     for ev in [e for e in P.hand if e.ev and 'receive' in e.phases]:
         if ev in P.hand: play_event(P, T, ev, 'receive')  # 絶望叫出的北可能棄掉手牌中的其他接球事件
@@ -1680,8 +1921,12 @@ def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
             for h in use:
                 P.hand.remove(h); P.drop.append(h); T['mod']['receive'] = T['mod'].get('receive', 0) + hand_trap(h)[1]
                 P.bump('緣下手坑' if h.no == 'HV-P01-013' else '手坑:' + h.no)
-    if cur_stat(P, T, 'receive') < T['op_in']: return None
-    if t not in P.hand or (a is not None and a not in P.hand): return None
+    return cur_stat(P, T, 'receive') >= T['op_in']
+
+
+def toss_part(P, T, r, t, a, ln, aggressive, stop_after_toss=False):
+    _, nt, na = ln
+    if t not in P.hand or (a is not None and a is not r and a not in P.hand): return None  # a is r：P03-016 回手牌後自己攻擊，登場時還不在手牌
     if not name_ok(T, 'toss', nt): return None
     T['phase'] = 'toss'
     P.hand.remove(t); T['allow_optional'] = aggressive == 'two'
@@ -1689,7 +1934,7 @@ def do_receive_line(P, T, r, t, a, aggressive, stop_after_toss=False):
     if T.get('two_attack') is not None:  # 二段攻擊：進攻值固定 N，跳到結束階段，對手下回合不能攔網
         T['locks'].append(dict(rule='max_enter', role='block', max=0, duration='next_opp_turn'))
         return T['two_attack']
-    if aggressive == 'two': return None
+    if aggressive == 'two' and not stop_after_toss: return None
     for ev in [e for e in P.hand if e.ev and 'toss' in e.phases]:
         cantrip = any(e['type'] == 'draw' for sk in ev.skills for e in sk['effects'])  # 今日 何をする？：會抽牌的舉球事件一律打
         if ev in P.hand and (cantrip or ('S' in t.pos and cur_stat(P, T, 'toss') < 2) or any(sk.get('toss_use') for sk in ev.skills)): play_event(P, T, ev, 'toss')
@@ -1712,51 +1957,154 @@ def attack_part(P, T, a, na, aggressive):
     return cur_stat(P, T, 'toss') + cur_stat(P, T, 'attack')
 
 
-def receive_best(Pd, opp, op_in, src):
-    """已抽完牌的狀態下，列舉接球→舉球→攻擊的所有組合，回傳最佳 (評分, P, 進攻值, src, locks, trap, 行動)。"""
+def receive_stage(stages, Pd, opp, op_in, src, r, t, a, ln, stop_after_toss=False):
+    """回傳已結算接球階段的路線副本，接不住回傳 (None, None)。同 r 的路線依 receive_part 讀到的計畫共用一次結算。"""
+    aim = aim_odd(Pd, r, t, a, stop_after_toss)
+    key = (ln[0], a.no if a is not None else None, ln[2], aim)
+    if key not in stages:
+        P1, T1 = trial(Pd, opp, op_in, src)
+        T1['plan_attack'] = (a, ln[2]) if a is not None else None
+        T1['aim_odd_attack'] = aim
+        stages[key] = (P1, T1) if receive_part(P1, T1, r, ln[0]) else None
+    stage = stages[key]
+    if stage is None: return None, None
+    P2 = stage[0].clone(); T = cloneT(stage[1], P2, stage[0])
+    if a is not None: T['plan_attack'] = (a, ln[2])
+    return P2, T
+
+
+def receive_options(Pd, opp, op_in, src):
     dchars = [c for c in Pd.hand if not c.ev]
-    rec_best = None
-    if len(dchars) < 2: return None
+    if len(dchars) < 2: return
     rcands = [c for c in dchars if can_enter(Pd, 'receive', c)]
     rcands.sort(key=lambda c: (keep_value(c), -c.b['rcv']))
     two_ok = any(any(e['type'] == 'optional' for e in s['effects']) for c in dchars for s in c.skills
                  if s['timing'] == 'on_enter' and 'toss' in s.get('zones', []))
+    ban = locked_names(Pd, 'receive')
+    seen = {}  # 走得通的路線：卡號與各階段手牌順序都相同就沿用結果。順序不同不能合併（棄牌同分時依手牌順序取捨）；走不通也不記（代價可能剛好棄掉這一張同號牌）
     for r in rcands[:5]:
+        stages = {}
+        after_r = [c for c in Pd.hand if c is not r]
+        key_r = (r.no, tuple(c.no for c in after_r))
         for t in dchars:
             if t is r or not can_differ(t, r) or not toss_allowed(Pd, t): continue
+            after_t = [c for c in after_r if c is not t]
+            key_t = key_r + (t.no, tuple(c.no for c in after_t))
             modes = [('two', None)] if two_ok else []
             modes += [(m, a) for a in dchars if a is not r and a is not t and can_differ(a, t) for m in (True, False)]
+            if has_holder_to_hand(r) and can_differ(r, t): modes += [(m, r) for m in (True, False)]  # 只有 P03-016：回手牌後同一張自己攻擊
             for aggressive, a in modes:
-                P2 = Pd.clone(); T = newT(opp, op_in, src)
-                op = do_receive_line(P2, T, r, t, a, aggressive)
+                route = key_t + (a.no if a is not None else None, a is r, aggressive, tuple(c.no for c in after_t if c is not a))
+                if route in seen:
+                    yield (r, t, a, aggressive), seen[route]; continue  # 同號牌另一條：別的樣本可能只有它走得通，分數要記在它名下
+                ln = line_names(r, t, a, ban_receive=ban)
+                if ln is None: continue
+                P2, T = receive_stage(stages, Pd, opp, op_in, src, r, t, a, ln)
+                if P2 is None: continue
+                op = toss_part(P2, T, r, t, a, ln, aggressive)
                 if op is None: continue
-                v = evaluate(P2, op, T['locks'], T['trap'], opp)
+                v = evaluate(P2, op, T['locks'], T['trap'], T['opp'])
                 act = 'receive2' if aggressive == 'two' else 'receive'
-                if rec_best is None or v > rec_best[0]:
-                    rec_best = (v, P2, op, 'attack', T['locks'], T['trap'], act)
-            if CFG['fetch_then_attack'] and has_fetch(t):
-                P2 = Pd.clone(); T = newT(opp, op_in, src)
-                if do_receive_line(P2, T, r, t, None, False, stop_after_toss=True) != 'TOSSED': continue
+                seen[route] = (v, remember(P2, T), op, 'attack', T['locks'], T['trap'], act)
+                yield (r, t, a, aggressive), seen[route]
+            route = key_t + ('fetch',)
+            if route in seen:
+                yield (r, t, None, 'fetch'), seen[route]
+            elif CFG['fetch_then_attack'] and has_fetch(t):
+                ln = line_names(r, t, None, ban_receive=ban)
+                if ln is None: continue
+                P2, T = receive_stage(stages, Pd, opp, op_in, src, r, t, None, ln, stop_after_toss=True)
+                if P2 is None or toss_part(P2, T, r, t, None, ln, False, stop_after_toss=True) != 'TOSSED': continue
+                rec_best = None
                 for a in {id(c): c for c in P2.hand if not c.ev}.values():
                     if not alt_ok(T, 'attack', a): continue
                     for aggressive in (True, False):
-                        P3 = P2.clone(); T3 = cloneT(T)
+                        P3 = P2.clone(); T3 = cloneT(T, P3, P2)
                         op = attack_part(P3, T3, a, choose_name(T3, 'attack', a), aggressive)
                         if op is None: continue
-                        v = evaluate(P3, op, T3['locks'], T3['trap'], opp)
+                        v = evaluate(P3, op, T3['locks'], T3['trap'], T3['opp'])
                         if rec_best is None or v > rec_best[0]:
                             P3.bump('舉球後選攻擊手')
                             if any(a is c for c in Pd.drop + Pd.zones['attack'] + Pd.zones['toss']): P3.bump('撿回立刻攻擊')
-                            rec_best = (v, P3, op, 'attack', T3['locks'], T3['trap'], 'receive')
-    return rec_best
+                            rec_best = (v, remember(P3, T3), op, 'attack', T3['locks'], T3['trap'], 'receive')
+                if rec_best is not None:
+                    seen[route] = rec_best
+                    yield (r, t, None, 'fetch'), rec_best
+
+
+_PLAN_RNG = random.Random(1).getstate()
+
+
+def planning_states(P):
+    for deck in belief_hands(own_unseen(P), len(P.deck))[:CFG['draw_samples']]:
+        candidate = P.clone()
+        candidate.deck = list(deck)
+        candidate.rng = CowRng(None, _PLAN_RNG)  # 規劃用固定亂數：不消耗真實亂數，也看不到真實的隨機結果
+        candidate._hypothesis = True
+        yield candidate
+
+
+def attack_after_fetch(P, T, before):
+    best = None
+    for a in {id(c): c for c in P.hand if not c.ev}.values():
+        if not alt_ok(T, 'attack', a): continue
+        for aggressive in (True, False):
+            values = []
+            for candidate in planning_states(P):
+                context = cloneT(T, candidate, P)
+                op = attack_part(candidate, context, a, choose_name(context, 'attack', a), aggressive)
+                values.append(-1 if op is None else evaluate(candidate, op, context['locks'], context['trap'], context['opp']))
+            value = sum(values) / len(values)
+            if best is None or value > best[0]: best = (value, a, aggressive)
+    if best is None: return None
+    value, a, aggressive = best
+    op = attack_part(P, T, a, choose_name(T, 'attack', a), aggressive)
+    if op is None: return None
+    P.bump('舉球後選攻擊手')
+    if any(a is c for c in before.drop + before.zones['attack'] + before.zones['toss']): P.bump('撿回立刻攻擊')
+    return value, remember(P, T), op, 'attack', T['locks'], T['trap'], 'receive'
+
+
+def receive_best(Pd, opp, op_in, src):
+    """用假設牌序選路線；實際撿牌後才依新的可見手牌選攻擊手。"""
+    if getattr(Pd, '_hypothesis', False):
+        return max((result for _, result in receive_options(Pd, opp, op_in, src)),
+                   key=lambda result: result[0], default=None)
+    scores = {}
+    samples = list(planning_states(Pd))
+    for i, sample in enumerate(samples):
+        for plan, result in receive_options(sample, opp, op_in, src):
+            scores.setdefault(plan, [-1] * len(samples))[i] = result[0]
+    if not scores: return None
+    plan = max(scores, key=lambda p: sum(scores[p]))
+    r, t, a, mode = plan
+    P, T = trial(Pd, opp, op_in, src)
+    if mode == 'fetch':
+        if do_receive_line(P, T, r, t, None, False, stop_after_toss=True) == 'TOSSED':
+            result = attack_after_fetch(P, T, Pd)
+            if result is not None: return result
+        return (-1, remember(P, T), None, 'attack', T['locks'], T['trap'], 'receive')
+    if mode == 'two':  # 翻牌後才知道二段攻擊成立與否；沒成立時舉球已結算，看到結果再選攻擊手
+        op = do_receive_line(P, T, r, t, None, 'two', stop_after_toss=True)
+        if op == 'TOSSED':
+            result = attack_after_fetch(P, T, Pd)
+            if result is not None: return result
+            op = None
+        return (sum(scores[plan]) / len(samples), remember(P, T), op, 'attack', T['locks'], T['trap'], 'receive2')
+    op = do_receive_line(P, T, r, t, a, mode)
+    return (sum(scores[plan]) / len(samples), remember(P, T), op, 'attack', T['locks'], T['trap'], 'receive')
 
 
 def has_end_block(c):
     return any(s['timing'] == 'on_enter' and 'block' in s.get('zones', []) and any(e['type'] == 'end_block' for e in s['effects']) for s in c.skills)
 
 
+def has_holder_to_hand(c):
+    return any(e['type'] == 'holder_to_hand' for s in c.skills if s.get('holder') == 'receive' for e in s['effects'])
+
+
 def has_fetch(t):
-    return any(e['type'] == 'drop_to_hand' for s in t.skills if s['timing'] == 'on_enter' and 'toss' in s.get('zones', [])
+    return any(e['type'] in ('drop_to_hand', 'swap_hand_guts') for s in t.skills if s['timing'] == 'on_enter' and 'toss' in s.get('zones', [])
                for e in s['effects'])
 
 
@@ -1807,17 +2155,61 @@ def apply_now(locks, target):
     return rest
 
 
+def own_unseen(P):
+    """牌庫與未公開 Set 的共同未知卡池，不以 Set 真實內容作排除。"""
+    seen = P.hand + P.drop + P.evz + [c for st in P.zones.values() for c in st]
+    return unseen_pool(P.roster, tuple(sorted(c.no for c in seen)))
+
+
+def draw_candidate(P2, opp2, op_eff, src, action=None):
+    """抽牌後才接球的候選：P2 已是假設牌序的副本，在副本上試抽。回傳 (估價, realize)；估價為 None 表示接不了。"""
+    result = realize_draw(P2.clone(), opp2.clone(), op_eff, src, action)
+    return (None if result[2] is None else result[0]), lambda: result
+
+
+def realize_draw(P2, opp2, op_eff, src, action=None):
+    P2.draw(1); draw_phase_events(P2, opp2, op_eff, src)
+    rb = receive_best(P2, opp2, op_eff, src)
+    if rb is None:
+        return (-1, remember(P2, newT(opp2, op_eff, src)), None, 'attack', [], False, action or 'receive')
+    return (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], action or rb[6])
+
+
 def take_turn(P, opp, op_in, src):
-    """回傳 ('loss', P) 或 ('ok', P_after, op_sent, src_sent, locks, trap, action)"""
+    scores = {}
+    samples = list(planning_states(P))
+    for i, sample in enumerate(samples):
+        estimates = {}
+        resolve_turn(sample, opp, op_in, src, estimates=estimates)
+        for plan, value in estimates.items():
+            scores.setdefault(plan, [-1] * len(samples))[i] = value
+    if not scores: return ('loss', P)
+    plan = max(scores, key=lambda p: sum(scores[p]))
+    return resolve_turn(P, opp, op_in, src, forced=plan)
+
+
+def resolve_turn(P, opp, op_in, src, forced=None, estimates=None):
+    """回傳 ('loss', P) 或 ('ok', P_after, op_sent, src_sent, locks, trap, action)；estimates 模式只填估價、不回傳。"""
     P.restrict, P.trap = P.pending_restrict, P.pending_trap
     P.pending_restrict, P.pending_trap = [], False
     P.auras, P.used = [], set()
     best = None
 
-    def consider(P2, op_sent, src_sent, locks, trap, action):
+    def consider(P2, op_sent, src_sent, locks, trap, action, plan):
         nonlocal best
-        v = evaluate(P2, op_sent, locks, trap, opp, src_sent)
+        v = evaluate(P2, op_sent, locks, trap, getattr(P2, '_opponent_after', opp), src_sent)
+        if estimates is not None: estimates[plan] = v
         if best is None or v > best[0]: best = (v, P2, op_sent, src_sent, locks, trap, action)
+
+    def consider_draw(P2, opp2, op_eff, action=None, plan=('receive', ())):
+        nonlocal best
+        if forced is not None:
+            if plan == forced: best = (0, lambda: realize_draw(P2, opp2, op_eff, src, action))
+            return
+        est, realize = draw_candidate(P2, opp2, op_eff, src, action)
+        v = -1 if est is None else est
+        if estimates is not None: estimates[plan] = v
+        if best is None or v > best[0]: best = (v, realize)
 
     chars = [c for c in P.hand if not c.ev]
     # 攔網（不抽牌）
@@ -1835,28 +2227,35 @@ def take_turn(P, opp, op_in, src):
     # 一觸：只放 1 張中間攔網，觸發後直接抽牌、接球（使用者確認）
     if mb >= 1 and not freeball and not onetouch_nullified(P.restrict):
         for c in {x.no: x for x in chars if onetouch_n(x) and can_enter(P, 'block', x)}.values():
-            P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['block_comb'] = (c,)
+            plan = ('onetouch', (c,))
+            if forced is not None and forced != plan: continue
+            P2, T = trial(P, opp, op_in, src); T['phase'] = 'block'; T['block_comb'] = (c,)
+            T['allow_discard_cost'] = True  # 一觸後同回合還要接球、進攻，付手牌代價（馬門 P04-037）值不值得交給 receive_best 比較
             P2.hand.remove(c); enter(P2, T, 'block', c, from_hand=True)
             if T.get('onetouch'):
-                P2.draw(1); draw_phase_events(P2, opp, op_in - T['onetouch'], src)
-                rb = receive_best(P2, opp, op_in - T['onetouch'], src)
-                if rb and (best is None or rb[0] > best[0]):
-                    best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'onetouch')
+                consider_draw(P2, T['opp'], op_in - T['onetouch'], 'onetouch', plan)
             elif c.b['blk'] + adj >= block_need(P.restrict, op_in):
-                consider(P2, T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block1')
+                consider(remember(P2, T), T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block1', plan)
+            elif forced is not None:  # 假設牌序下成立、實際沒成立：牌已登場，不能退回
+                return ('loss', commit_trial(remember(P2, T), P, opp))
     # 松川／千鹿谷：中間攔網放一張就結束攔網階段，回到自己的抽牌階段（不需要攔得住）
     if mb >= 1 and not freeball:
         for c in {x.no: x for x in chars if has_end_block(x) and can_enter(P, 'block', x)}.values():
-            P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = (c,)
+            plan = ('endblock', (c,))
+            if forced is not None and forced != plan: continue
+            P2, T = trial(P, opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = (c,)
             P2.hand.remove(c); enter(P2, T, 'block', c, from_hand=True)
-            if not T.get('end_block'): continue
+            if not T.get('end_block'):
+                if forced is None: continue
+                P2.drop += P2.zones.pop('_side', [])
+                return ('loss', commit_trial(remember(P2, T), P, opp))
             P2.drop += P2.zones.pop('_side', [])
-            P2.draw(1); draw_phase_events(P2, opp, op_in, src)
-            rb = receive_best(P2, opp, op_in, src)
-            if rb and (best is None or rb[0] > best[0]): best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'endblock')
+            consider_draw(P2, T['opp'], op_in, 'endblock', plan)
     blocks.sort(key=lambda cb: (len(cb), sum(keep_value(c) for c in cb)))
     for comb in blocks[:4]:
-        P2 = P.clone(); T = newT(opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = comb  # 這條路是靠攔網值合計攔下來
+        plan = ('block', comb)
+        if forced is not None and forced != plan: continue
+        P2, T = trial(P, opp, op_in, src); T['phase'] = 'block'; T['decline_onetouch'] = True; T['block_comb'] = comb  # 這條路是靠攔網值合計攔下來
         center = centers.get(id(comb)) or min(comb, key=keep_value)
         for c in comb: P2.hand.remove(c)  # 同時登場：先全部拿出手牌，再依序處理登場效果
         if any(c.whens for c in P2.zones['block'][-1:]) or any(c.whens for c in comb): T['defer_when'] = []
@@ -1866,48 +2265,82 @@ def take_turn(P, opp, op_in, src):
         if P2.hand and any(c.handsk for c in P2.hand): use_hand_skills(P2, T, 'block', 'block')
         if CFG['verify_block'] and not any(l['rule'] == 'center_no_blk' for l in P.restrict):
             play_block_events(P2, T, op_in)
-            if block_actual(P2, T) < block_need(P.restrict, op_in): P2.zones.pop('_side', None); continue  # 技能沒發動成功，這個組合擋不住
+            if block_actual(P2, T) < block_need(P.restrict, op_in):
+                if forced is not None:
+                    P2.drop += P2.zones.pop('_side', [])
+                    return ('loss', commit_trial(remember(P2, T), P, opp))
+                P2.zones.pop('_side', None); continue
         P2.drop += P2.zones.pop('_side', [])
-        if T.get('zeroed'): continue  # 有角色數值歸 0，原本的攔網合計不成立
-        if T.get('end_block'):  # 松川／千鹿谷：攔網階段結束，回到自己的抽牌階段（一般抽牌）接球
-            P2.draw(1); draw_phase_events(P2, opp, op_in, src)
-            rb = receive_best(P2, opp, op_in, src)
-            if rb and (best is None or rb[0] > best[0]): best = (rb[0], rb[1], rb[2], rb[3], rb[4], rb[5], 'endblock')
+        if T.get('zeroed'):
+            if forced is not None: return ('loss', commit_trial(remember(P2, T), P, opp))
             continue
-        consider(P2, T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb))
+        if T.get('end_block'):  # 松川／千鹿谷：攔網階段結束，回到自己的抽牌階段（一般抽牌）接球
+            consider_draw(P2, T['opp'], op_in, 'endblock', plan)
+            continue
+        consider(remember(P2, T), T.get('doshat', 0), CFG['blocked_ball_src'], T['locks'], T['trap'], 'block%d' % len(comb), plan)
     # 接球（抽 1）
-    Pd = P.clone(); Pd.draw(1); draw_phase_events(Pd, opp, op_in, src)
-    rec_best = receive_best(Pd, opp, op_in, src)
-    if freeball and rec_best is not None:
-        best = rec_best
-    elif rec_best is not None and (best is None or rec_best[0] > best[0]):
-        best = rec_best
+    Pd, Td = trial(P, opp, op_in, src)
+    consider_draw(Pd, Td['opp'], op_in)
+    if estimates is not None:
+        if freeball and estimates.get(('receive', ()), -1) >= 0:
+            value = estimates[('receive', ())]
+            estimates.clear(); estimates[('receive', ())] = value
+        return
     if best is None: return ('loss', P)
+    if callable(best[1]): best = best[1]()
     _, P2, op_sent, src_sent, locks, trap, action = best
+    P2 = commit_trial(P2, P, opp)
+    if op_sent is None: return ('loss', P2)
     P2.bump('行動:' + action)
     P2.restrict, P2.trap = [], False
     return ('ok', P2, op_sent, src_sent, locks, trap, action)
 
 
+def serve_options(P, opp):
+    for c in [x for x in P.hand if not x.ev and can_enter(P, 'serve', x)]:
+        P2, T = trial(P, opp, 0, None); T['phase'] = 'serve'
+        P2.hand.remove(c); enter(P2, T, 'serve', c, from_hand=True)
+        variants = [(P2, T, None)]
+        for ev in {e.name: e for e in P2.hand if e.ev and 'serve' in e.phases}.values():  # 發球階段事件：打或不打，選評分高的
+            P3 = P2.clone(); T3 = cloneT(T, P3, P2); T3['phase'] = 'serve'
+            ev3 = next((x for x in P3.hand if x.name == ev.name), None)
+            if ev3 is not None:
+                play_event(P3, T3, ev3, 'serve'); variants.append((P3, T3, ev))
+        for Pv, Tv, ev in variants:
+            op = cur_stat(Pv, Tv, 'serve')
+            v = evaluate(Pv, op, Tv['locks'], Tv['trap'], Tv['opp'], 'serve')
+            yield (c, ev), v
+
+
 def serve_turn(P, opp):
     P.restrict, P.trap = P.pending_restrict, P.pending_trap
     P.pending_restrict, P.pending_trap = [], False
-    best = None
-    for c in [x for x in P.hand if not x.ev and can_enter(P, 'serve', x)]:
-        P2 = P.clone(); T = newT(opp, 0, None); T['phase'] = 'serve'
-        P2.hand.remove(c); enter(P2, T, 'serve', c, from_hand=True)
-        variants = [(P2, T)]
-        for ev in {e.name: e for e in P2.hand if e.ev and 'serve' in e.phases}.values():  # 發球階段事件：打或不打，選評分高的
-            P3 = P2.clone(); T3 = cloneT(T); T3['phase'] = 'serve'
-            ev3 = next((x for x in P3.hand if x.name == ev.name), None)
-            if ev3 is not None:
-                play_event(P3, T3, ev3, 'serve'); variants.append((P3, T3))
-        for i, (Pv, Tv) in enumerate(variants):
-            op = cur_stat(Pv, Tv, 'serve')
-            v = evaluate(Pv, op, Tv['locks'], Tv['trap'], opp, 'serve')
-            if best is None or v > best[0] or (i > 0 and v >= best[0]): best = (v, Pv, op, Tv['locks'], Tv['trap'])  # 同分時打事件（會抽牌）
-    if best is None: return ('loss', P)
-    _, P2, op, locks, trap = best
+    scores = {}
+    samples = list(planning_states(P))
+    for i, sample in enumerate(samples):
+        for (server, _), value in serve_options(sample, opp):
+            values = scores.setdefault(server, [-1] * len(samples))
+            values[i] = max(values[i], value)
+    if not scores: return ('loss', P)
+    c = max(scores, key=lambda server: sum(scores[server]))
+    P2, T = trial(P, opp, 0, None); T['phase'] = 'serve'
+    P2.hand.remove(c); enter(P2, T, 'serve', c, from_hand=True)
+    events = list({e.name: e for e in P2.hand if e.ev and 'serve' in e.phases}.values())
+    if events:
+        best_event, best_value = None, None
+        for ev in [None] + events:
+            values = []
+            for candidate in planning_states(P2):
+                context = cloneT(T, candidate, P2)
+                if ev is not None: play_event(candidate, context, ev, 'serve')
+                values.append(evaluate(candidate, cur_stat(candidate, context, 'serve'),
+                                       context['locks'], context['trap'], context['opp'], 'serve'))
+            value = sum(values)
+            if best_value is None or value >= best_value: best_event, best_value = ev, value  # 同分時打事件（會抽牌）
+        if best_event is not None: play_event(P2, T, best_event, 'serve')
+    op, locks, trap = cur_stat(P2, T, 'serve'), T['locks'], T['trap']
+    remember(P2, T)
+    P2 = commit_trial(P2, P, opp)
     P2.restrict, P2.trap = [], False
     return ('ok', P2, op, 'serve', locks, trap, 'serve')
 
@@ -1919,6 +2352,7 @@ def mulligan(P):
 
 
 def play_game(cardsA, cardsB, rng, log=None):
+    rng = CowRng(rng)
     pl = {'A': Player(cardsA, rng, 'A'), 'B': Player(cardsB, rng, 'B')}
     server = rng.choice('AB')
     other = lambda x: 'B' if x == 'A' else 'A'
@@ -1938,10 +2372,11 @@ def play_game(cardsA, cardsB, rng, log=None):
             while True:
                 cur = other(cur); beats += 1
                 res = take_turn(pl[cur], pl[other(cur)], op, src)
+                pl[cur] = res[1]
+                if pl[cur].gift or pl[cur].owed: pl[other(cur)].draw(pl[cur].gift + pl[cur].owed); pl[cur].gift = pl[cur].owed = 0
                 if res[0] == 'loss' or beats > CFG['max_turns_per_set']:
                     loser = cur; pl[cur].bump('LOSS'); break
                 _, pl[cur], op, src, locks, trap, act = res
-                if pl[cur].gift or pl[cur].owed: pl[other(cur)].draw(pl[cur].gift + pl[cur].owed); pl[cur].gift = pl[cur].owed = 0
                 turns_log.append(dict(set=set_no, beat=beats, who=cur, act=act, op=op))
                 if log is not None:
                     log.append((set_no, beats, cur, act, op, len(pl[cur].hand), len(pl[cur].deck)))

@@ -54,19 +54,20 @@ MANUAL_BATCH5 = {
     # 百沢 P04-032：付的全是沒技能的百沢 → 再 +2（2026-10-25 補上；付 Guts 不刻意挑牌）
     'HV-P04-037': [ON(['block'], cost=[dict(type='discard_filtered', n=1, filter=dict(school='角川'))], use_if=[dict(type='allow_discard')], effects=[
         dict(type='drop_to_hand', who='self', filter=dict(name='百沢 雄大', category='CHARACTER'), max=1),
-        dict(type='keyword', name='ワンタッチ', n=2)])],
-    # ※ 馬門 P04-037：「本回合不能把百沢登場到接球區」沒模擬（代價是少掉一種接球選擇，實戰影響小）
-    'HV-P04-063': [ON(['attack'], cost=G(3), effects=[
+        dict(type='keyword', name='ワンタッチ', n=2),
+        dict(type='self_lock', rule='cannot_enter_name', role='receive', name='百沢 雄大')])],
+    # 馬門 P04-037：本回合接球區不能登場百沢（2026-10-27 補上；會擋掉同回合的 P03-016 接球 combo）
+    'HV-P04-063': [ON(['attack'], cost=[dict(type='guts', n=3, pick=dict(school='梟谷', exclude_name='木兎 光太郎'))], use_if=[dict(type='bokuto063')], effects=[
         dict(type='stat_add', target='this', stat='atk', n=7, **{'if': [dict(type='paid_guts_school_excl_name', school='梟谷', exclude_name='木兎 光太郎')]})])],
-    'HV-P04-064': [ON(['toss'], cost=G(2), effects=[S('tos', 1)])],
-    # ※ 木葉 P04-064：「手牌梟谷角色與攻擊區梟谷 Guts 互換」沒模擬
+    'HV-P04-064': [ON(['toss'], cost=G(2), use_if=[dict(type='konoha064')], effects=[S('tos', 1), dict(type='swap_hand_guts')])],
+    # 使用者 2026-10-29：木兎 P04-063 可挑 Guts；木葉 064／小見 066 何時發動見 sim2.konoha064_plan、cond komi066；鷲尾 067 能付就發動
     'HV-P04-065': [ON(['attack'], conditions=[dict(type='self_role_name', role='toss', name='木葉 秋紀')],
                       cost=[dict(type='discard_filtered', n=1, filter=dict(school='梟谷', grade=3))], use_if=[dict(type='allow_discard')], effects=[S('atk', 4)])],
-    'HV-P04-066': [ON(['receive'], cost=[dict(type='discard_filtered', n=1, filter=dict(school='梟谷', grade=3)), dict(type='guts', n=2)],
-                      use_if=[dict(type='allow_discard')], effects=[
+    'HV-P04-066': [ON(['receive'], cost=[dict(type='discard_filtered', n=1, filter=dict(school='梟谷', grade=3), spare_plan=True), dict(type='guts', n=2)],
+                      use_if=[dict(type='komi066')], effects=[
         S('rcv', 1), dict(type='drop_to_hand', who='self', filter=dict(school='梟谷', grade=3, category='CHARACTER'), max=1)])],
     'HV-P04-067': [ON(['serve'], cost=[dict(type='discard_filtered', n=1, filter=dict(school='梟谷', grade=3)), dict(type='guts', n=1)],
-                      use_if=[dict(type='allow_discard')], effects=[dict(type='draw', who='self', n=2), S('srv', 3)])],
+                      effects=[dict(type='draw', who='self', n=2), S('srv', 3)])],
     'HV-P04-077': [ON(['receive', 'attack'], cost=[dict(type='event_hand_to_evz', n=1, filter=dict(school='ユース'))], effects=[DRAW, S('any', 3)])],
     'HV-PR-001': [ON(ALL, conditions=[dict(type='enter_on_top_name', name='日向 翔陽')], effects=[S('any', 1)])],
     'HV-PR-002': [ON(ALL, conditions=[dict(type='enter_on_top_name', name='影山 飛雄')], effects=[S('any', 1)])],

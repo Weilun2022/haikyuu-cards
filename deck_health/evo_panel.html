@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>演化進度</title>
+<script src="/lib/lz-string.min.js"></script>
+<style>
+/* 基底色取自主站 css/theme.css，其餘是面板自己的 */
+:root{color-scheme:light;--bg:#FAFAFA;--surface:#fff;--surface2:#F3EFEA;--border:#E2DCD3;--line:#ECE8E1;--text:#0D0506;--dim:#6B6B6B;
+ --accent:#BE520B;--official:#DF600D;--amber:#EDA613;--amber-bg:#FFF6E0;--warn:#8A5200;--ok:#237A52;--ok-bg:#E8F5EE;--bad:#C63D3D;--bad-bg:#FDECEC;--gray:#A8A096;
+ --shadow:0 1px 3px rgba(13,5,6,.05),0 4px 12px rgba(13,5,6,.04)}
+:root[data-theme=dark]{color-scheme:dark;--bg:#13110F;--surface:#1C1917;--surface2:#26221E;--border:#3D352D;--line:#29241F;--text:#F5F2EB;--dim:#A8A096;
+ --accent:#FF8A3D;--official:#FF7A29;--amber:#FBBF24;--amber-bg:#2E2510;--warn:#FBBF24;--ok:#34D399;--ok-bg:#142B20;--bad:#F87171;--bad-bg:#331A1A;--gray:#6F675D;--shadow:0 2px 6px rgba(0,0,0,.4)}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);background-image:linear-gradient(to right,var(--line) 1px,transparent 1px),linear-gradient(to bottom,var(--line) 1px,transparent 1px);background-size:40px 40px;color:var(--text);font:14px/1.55 "Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;-webkit-font-smoothing:antialiased;padding-bottom:40px}
+.n{font-variant-numeric:tabular-nums}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--official);outline-offset:2px}
+.top{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.top::before{content:"";display:block;height:4px;background:linear-gradient(90deg,var(--official),var(--amber))}
+.topin,.wrap{max-width:1140px;margin:0 auto;padding-inline:16px}
+.topin{padding-block:10px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+h1{font-size:17px;font-weight:700}
+.meta{font-size:12px;color:var(--dim)}
+.right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:700;border:1px solid currentColor;white-space:nowrap}
+.pill.run,.pill.done{color:var(--ok);background:var(--ok-bg)}.pill.stall,.pill.unknown{color:var(--warn);background:var(--amber-bg)}.pill.dead{color:var(--bad);background:var(--bad-bg)}
+.pill.wait{color:var(--dim);background:var(--surface2)}
+.pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.run i{animation:p 1.6s infinite}@keyframes p{50%{opacity:.25}}
+@media(prefers-reduced-motion:reduce){.pill.run i{animation:none}}
+.ghost{background:none;border:1px solid var(--border);color:var(--dim);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer}
+.warn{margin:14px 0;background:var(--amber-bg);border:1px solid var(--amber);border-left-width:5px;border-radius:8px;padding:9px 14px;font-size:13px}
+.warn b{color:var(--warn)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;box-shadow:var(--shadow)}
+.ask{font-size:12px;font-weight:700;color:var(--dim);letter-spacing:.04em;margin-bottom:6px}
+.big{font-size:30px;font-weight:800;line-height:1.15;letter-spacing:-.3px}
+.big.o{color:var(--accent)}
+.sub{font-size:12.5px;color:var(--dim);margin-top:4px}
+.up{color:var(--ok);font-weight:700}.down{color:var(--bad);font-weight:700}
+.sec{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin:22px 0 10px;flex-wrap:wrap}
+.sec::before{content:"";width:4px;height:16px;border-radius:2px;background:var(--official)}
+.sec small{font-size:12px;font-weight:400;color:var(--dim)}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.g2{display:grid;grid-template-columns:1.6fr 1fr;gap:14px}
+.check{display:flex;gap:7px;font-size:13px;padding:2px 0}
+.check b{flex:none;width:44px;font-size:11px;text-align:center;border-radius:4px;padding:1px 0;height:max-content;margin-top:2px}
+.check .no{background:var(--amber-bg);color:var(--warn);border:1px solid var(--amber)}
+.check .wait{background:var(--surface2);color:var(--dim);border:1px solid var(--border)}
+.check .yes{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok)}
+.steps{display:flex;gap:4px;margin-top:8px}
+.step{flex:1;font-size:11px;text-align:center;padding:4px 2px;border-radius:5px;background:var(--surface2);color:var(--dim);line-height:1.3}
+.step.on{background:var(--accent);color:#fff;font-weight:700}.step.past{background:var(--ok-bg);color:var(--ok)}
+:root[data-theme=dark] .step.on{color:#13110F}
+.jobs{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:7px}
+.job{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:3px 10px;align-items:center;font-size:13.5px}
+.job .r{font-size:12.5px;color:var(--dim);text-align:right}
+.st{font-size:11px;text-align:center;border-radius:4px;padding:1px 0;background:var(--surface2);color:var(--dim);border:1px solid var(--border)}
+.job.done .st{background:var(--ok-bg);color:var(--ok);border-color:var(--ok)}
+.job.running .st{background:var(--accent);color:#fff;border-color:var(--accent)}
+.job.running{font-weight:700}.job.running .r{font-weight:400}
+.job.stall .st,.job.unknown .st{background:var(--amber-bg);color:var(--warn);border-color:var(--amber)}
+.job.failed .st{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+:root[data-theme=dark] .job.running .st{color:#13110F}
+.bar{grid-column:2/-1;height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--official)}
+.deck{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.deck.final{border:2px solid var(--official)}
+.dtop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rank{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:13px;background:var(--surface2);flex:none}
+.tag{font-size:11px;font-weight:700;padding:1px 8px;border-radius:99px;white-space:nowrap}
+.tag.final{background:var(--accent);color:#fff}.tag.cand,.tag.past{background:var(--surface2);color:var(--dim)}
+:root[data-theme=dark] .tag.final{color:#13110F}
+.wr{font-size:24px;font-weight:800;margin-top:6px;line-height:1.2}
+.wr small{font-size:12px;font-weight:400;color:var(--dim);margin-left:4px}
+.why{font-size:12.5px;color:var(--dim);margin:4px 0 10px;flex:1}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(50px,1fr));gap:5px}
+.cd{position:relative;aspect-ratio:5/7;border-radius:4px;overflow:hidden;background:var(--surface2);font-size:10px;color:var(--dim);display:grid;place-items:center;text-align:center}
+.cd img{width:100%;height:100%;object-fit:cover;display:block}
+.cd em{position:absolute;right:2px;bottom:2px;font-style:normal;font-size:11px;font-weight:800;background:rgba(13,5,6,.85);color:#fff;border-radius:99px;padding:0 5px}
+.acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.btn{font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:6px;border:1px solid var(--border);background:var(--surface);text-decoration:none;cursor:pointer}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme=dark] .btn.p{color:#13110F}
+.btn:hover{border-color:var(--official)}
+details.more{margin-top:18px}
+details.more>summary{cursor:pointer;font-weight:700;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;list-style-position:inside}
+details.more[open]>summary{margin-bottom:14px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font:12px "Noto Sans TC","Microsoft JhengHei",sans-serif;fill:var(--dim)}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-top:6px}
+.leg i{display:inline-block;width:14px;height:3px;background:var(--official);vertical-align:middle;margin-right:5px}
+.leg i.b{height:9px;background:color-mix(in srgb,var(--official) 22%,transparent)}
+.leg i.d{background:none;border-top:2px dashed var(--gray);height:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px}
+.chip.in{background:var(--ok-bg);color:var(--ok)}.chip.out{background:var(--bad-bg);color:var(--bad)}
+.dec{font-size:13.5px}
+.dec h3{font-size:19px;margin-bottom:6px}
+.dec .box{background:var(--surface2);border-left:3px solid var(--gray);border-radius:4px;padding:8px 10px;margin:8px 0}
+.todo{font-size:12.5px;color:var(--dim);border:1px dashed var(--border);border-radius:8px;padding:10px 12px;background:var(--surface)}
+.rd{position:relative;padding:0 0 18px 26px;border-left:2px solid var(--border);margin-left:8px}
+.rd:last-child{border-color:transparent}
+.rd::before{content:"";position:absolute;left:-8px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--surface);border:3px solid var(--gray)}
+.rd.ok::before{background:var(--official);border-color:var(--official)}
+.rdh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.rdh b{font-size:15px}
+.fun{font-size:12px;color:var(--dim)}
+.path{font-size:11.5px;color:var(--dim);margin-top:14px;word-break:break-all}
+@media(max-width:900px){.g3,.g2{grid-template-columns:1fr}.big{font-size:26px}}
+@media(max-width:699px){.job{grid-template-columns:52px minmax(0,1fr)}.job .r{grid-column:2;text-align:left}}
+</style>
+</head>
+<body>
+<header class="top"><div class="topin">
+  <div class="brand"><h1>梟谷四彈演化</h1><span class="meta n" id="runmeta"></span></div>
+  <div class="right"><span id="pill"></span><span class="meta n" id="beat"></span><button class="ghost" id="theme">深淺色</button></div>
+</div></header>
+<div class="wrap">
+  <div class="warn" role="alert" id="warn"><b>暫定結果｜</b>以下是模擬器勝率，不是真實對局勝率。</div>
+  <section class="card" id="jobs" aria-label="全流程進度" style="margin-bottom:14px" hidden></section>
+  <section class="g3" aria-label="目前狀況"><div class="card" id="alive"></div><div class="card" id="better"></div><div class="card" id="trust"></div></section>
+  <div class="sec">勝率前 3 名牌組<small>依目前估計排名，候選只驗一次、數字可能偏高；橘框是採用牌組；沒被採用不代表等效</small></div>
+  <div class="g3" id="tops"></div>
+  <details class="more"><summary>過程細節：勝率變化、最近決策、輪次紀錄、牌組變化</summary><div id="detail"></div></details>
+  <p class="path" id="path"></p>
+</div>
+<canvas id="cv" hidden></canvas>
+<script>
+const SITE='https://weilun2022.github.io/haikyuu-cards/index.html',$=s=>document.querySelector(s);
+const p1=x=>(x*100).toFixed(1),p2=x=>(x*100).toFixed(2),sign=x=>x>0?'+':'';
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const short=c=>`${c.name} ${c.no.replace('HV-','')}`;
+const mv=m=>`−${m.k} ${esc(short(m.out))} ＋${m.k} ${esc(short(m.in))}`;
+const stat=x=>`${p1(x.wr)}%±${p1(x.se)}`,full=x=>`${stat(x)}（${x.n} 場）`;
+const mins=s=>s<90?Math.round(s)+' 秒':s<5400?Math.round(s/60)+' 分鐘':Math.round(s/3600)+' 小時';
+const LABEL={run:'執行中',done:'已結束',stall:'疑似卡住',dead:'已中斷',unknown:'狀態不明',wait:'等下一步'},TAG={final:'目前採用',past:'過去採用',cand:'未採用候選'};
+let S=null,sig='';
+
+const JOB={done:'完成',running:'進行中',stall:'疑似卡住',failed:'中斷',pending:'等待',unknown:'狀態不明'};
+const clock=t=>new Date(t*1000).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+function jobNote(j){
+ if(j.status=='failed')return'程序不在，紀錄沒有完成標記';
+ if(j.status=='stall')return`超過 ${mins(j.age||0)}沒有更新`;
+ if(j.status=='unknown')return'讀不到程序清單';
+ if(j.status=='running'){const done=j.pct!=null?`${j.label?`${esc(j.label)} · 本輪 `:''}${Math.floor(j.pct)}%${j.total?`（${j.done}／${j.total}${j.label?' 場':''}）`:''}`:j.kind=='log'||j.kind=='lines'?'剛開始':j.note?esc(j.note):'';
+  return[done,j.eta_secs?`約剩 ${mins(j.eta_secs)}`:j.round_eta?`本輪約剩 ${mins(j.round_eta)}`:''].filter(Boolean).join(' · ')}
+ if(j.status=='pending'&&j.eta_secs)return`預估 ${mins(j.eta_secs)}`;
+ return j.note?esc(j.note):''}
+function jobsCard(s){const p=s.pipeline,tail=p.finish_at?` · 預計 ${clock(p.finish_at)} 完成${p.unestimated.length?`（不含${p.unestimated.map(esc).join('、')}）`:''}`:'';
+ return`<div class="ask">全流程進度 · ${p.done}／${p.total} 步完成${tail}</div><ol class="jobs">${s.jobs.map(j=>`<li class="job ${j.status}"><b class="st">${JOB[j.status]}</b><span>${esc(j.title)}</span><span class="r n">${jobNote(j)}</span>${j.status=='running'||j.status=='stall'?`<div class="bar"><i style="width:${j.pct||0}%"></i></div>`:''}</li>`).join('')}</ol>`}
+
+function alive(s){const st=s.stage,last=s.rounds[s.rounds.length-1],flow=s.pipeline,cur=flow&&flow.current;
+ if(cur&&cur.kind!='search')return`<div class="ask">活著嗎</div><div class="big">${esc(cur.title)}</div><div class="sub n">${jobNote(cur)}</div>`;
+ if(flow&&!cur&&flow.kind=='dead'){const bad=s.jobs.find(j=>j.status=='failed');return`<div class="ask">活著嗎</div><div class="big">${esc(bad.title)}中斷</div><div class="sub">${jobNote(bad)}。</div>`}
+ if(flow&&!cur&&flow.kind=='wait'){const next=s.jobs.find(j=>j.status=='pending');return`<div class="ask">活著嗎</div><div class="big">等下一步</div><div class="sub">接下來：${esc(next.title)}。</div>`}
+ if(s.kind=='run'&&st){const names=['第一段','粗篩','複驗'],counts=[st.candidates,30,''],job=(s.jobs||[]).find(j=>j.kind=='search'&&j.pct!=null);
+  const left=job?(job.round_eta!=null?`本輪約剩 ${mins(job.round_eta)}`:'本輪剛開始'):st.expect_secs==null?'第一次跑到這段，還沒有耗時可參考':st.expect_secs>(s.age||0)?`本階段約剩 ${mins(st.expect_secs-(s.age||0))}（依上一輪同階段耗時）`:'已超過上一輪同階段耗時';
+  return`<div class="ask">活著嗎</div><div class="big">${job?`${esc(job.label)} ${Math.floor(job.pct)}%`:`第 ${st.round} 輪 · ${names[st.step]}`}</div>${job?`<div class="bar"><i style="width:${job.pct}%"></i></div>`:''}<div class="steps">${names.map((t,i)=>`<div class="step ${i<st.step?'past':i==st.step?'on':''}">${t} ${counts[i]}</div>`).join('')}</div><div class="sub">${left}。總輪數未定。</div>`}
+ const msg={done:last&&!last.adopted?`第 ${last.round} 輪換 ${last.k} 張也沒有候選過 2×SE，依規則停止。`:'已跑滿輪數上限。',
+  run:s.rounds.length?'正在收尾。':'還在強制換掉禁用卡，第 1 輪尚未開始。',stall:'程序還在，但 CPU 幾乎沒動，或紀錄太久沒更新。',dead:'搜尋程序不在了，紀錄沒有結束標記。已採用的結果都還在。',unknown:'讀不到程序清單。'}[s.kind];
+ const big={done:'已結束',run:'準備中',stall:'可能卡住',dead:'已中斷',unknown:'狀態不明'}[s.kind];
+ return`<div class="ask">活著嗎</div><div class="big">${big}</div><div class="sub">${msg}</div>`}
+
+function better(s){const f=s.final,base=s.rounds[0]&&s.rounds[0].cur;if(!f)return`<div class="ask">有變好嗎</div><div class="big">—</div><div class="sub">第一次複驗完成後才有數字。</div>`;
+ const g=base?f.wr-base.wr:null,seG=base?Math.hypot(f.se,base.se):0;  // 兩次獨立重驗，差值 SE 用平方和
+ const note=f.selected?(s.finished?'這是被挑中時的分數，沒有再重驗過，通常偏高。':'這是被挑中時的分數，通常偏高，下一輪重驗後才準。'):f.rechecks.length>1?`歷次重驗 ${f.rechecks.map(stat).join('、')}，所以別看小數點。`:'只重驗過一次。';
+ return`<div class="ask">有變好嗎</div><div class="big o n">${p1(f.wr)}%</div><div class="sub n">±${p1(f.se)}（${f.n} 場）${g==null?'':` · 相對起點 <span class="${g<0?'down':'up'}">${sign(g)}${p1(g)}±${p1(seG)} 百分點</span>`}</div>
+ <div class="sub n">${note}</div>`}
+
+const holdout=s=>{const h=s.holdout_result;return`<div class="check"><b class="${h?'yes':'wait'}">${h?'已評估':'未評估'}</b><span>留出對手 ${s.holdout.map(esc).join('、')}${h?`：${p1(h.wr)}%，相對起點 <span class="n">${sign(h.diff)}${p2(h.diff)}±${p2(h.se)}</span>`:''}</span></div>`};
+const trust=s=>`<div class="ask">可信嗎</div>
+ <div class="check"><b class="${s.m1_done?'yes':'no'}">${s.m1_done?'已完成':'未完成'}</b><span>引擎 M1 收尾（失效清單、code-review）</span></div>
+ ${holdout(s)}
+ <div class="check"><b class="wait">未驗證</b><span>與真實對局勝率的對照</span></div>`;
+
+function chart(rounds){const list=rounds.filter(r=>r.cur);if(list.length<2)return'<div class="sub">至少兩輪複驗後才畫得出趨勢。</div>';
+ const W=innerWidth<700?340:640,H=250,L=42,R=18,T=12,B=30,wrs=list.map(r=>r.cur.wr*100),lo=Math.floor((Math.min(...wrs)-3)/5)*5,hi=Math.ceil((Math.max(...wrs)+3)/5)*5;
+ const x=i=>L+i*(W-L-R)/(list.length-1),y=v=>T+(hi-v*100)/(hi-lo)*(H-T-B);
+ let s='';for(let v=lo;v<=hi;v+=5)s+=`<line x1="${L}" x2="${W-R}" y1="${y(v/100)}" y2="${y(v/100)}" stroke="${css('--line')}"/><text x="${L-7}" y="${y(v/100)+4}" text-anchor="end">${v}%</text>`;
+ if(lo<50&&hi>50)s+=`<line x1="${L}" x2="${W-R}" y1="${y(.5)}" y2="${y(.5)}" stroke="${css('--amber')}" stroke-dasharray="5 3" stroke-width="1.5"/>`;
+ s+=`<line x1="${L}" x2="${W-R}" y1="${y(list[0].cur.wr)}" y2="${y(list[0].cur.wr)}" stroke="${css('--gray')}" stroke-dasharray="3 4"/>`;
+ const up=list.map((r,i)=>[x(i),y(r.cur.wr+r.cur.se)]),dn=list.map((r,i)=>[x(i),y(r.cur.wr-r.cur.se)]).reverse();
+ s+=`<path d="M${up.concat(dn).map(a=>a.join(',')).join('L')}Z" fill="${css('--official')}" opacity=".18"/>`;
+ s+=`<path d="M${list.map((r,i)=>x(i)+','+y(r.cur.wr)).join('L')}" fill="none" stroke="${css('--official')}" stroke-width="2.5" stroke-linejoin="round"/>`;
+ list.forEach((r,i)=>{const c=r.cur;s+=`<circle cx="${x(i)}" cy="${y(c.wr)}" r="5" fill="${css('--official')}" stroke="${css('--surface')}" stroke-width="2"><title>第 ${r.round} 輪開始時的牌組：${p1(c.wr)}% ±${p1(c.se)}（${c.n} 場）</title></circle>
+ <text x="${x(i)}" y="${y(c.wr)-11}" text-anchor="middle" class="n" style="font-weight:700;fill:${css('--text')}">${p1(c.wr)}±${p1(c.se)}</text><text x="${x(i)}" y="${H-8}" text-anchor="middle">第${r.round}輪</text>`});
+ return`<svg viewBox="0 0 ${W} ${H}" style="max-width:${W}px" role="img" aria-label="各輪目前牌組的複驗勝率，從 ${p1(list[0].cur.wr)}% 到 ${p1(list[list.length-1].cur.wr)}%">${s}</svg>
+ <div class="leg"><span><i></i>每輪開始時用新種子重驗的勝率（每點 ${list[0].cur.n} 場）</span><span><i class="b"></i>±1 SE</span><span><i class="d"></i>起點</span></div>`}
+
+/* Δ/SE 條：每輪同一軸，門檻線對齊才能跨輪比較 */
+function ratios(r){const W=innerWidth<700?320:560,L=W<400?136:236,R=46,rowH=24,H=r.recheck.length*rowH+6,min=-2,max=4,x=v=>L+(Math.max(min,Math.min(max,v))-min)/(max-min)*(W-L-R);
+ let s=`<line x1="${x(0)}" x2="${x(0)}" y1="0" y2="${H}" stroke="${css('--dim')}"/><line x1="${x(2)}" x2="${x(2)}" y1="0" y2="${H}" stroke="${css('--amber')}" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+ r.recheck.forEach((c,i)=>{const yy=3+i*rowH,a=x(0),b=x(c.ratio),col=c.adopted?css('--official'):css('--gray');
+  s+=`<text x="${L-8}" y="${yy+13}" text-anchor="end" style="font-size:11.5px;${c.adopted?`font-weight:700;fill:${css('--text')}`:''}">−${esc(c.out.no.replace('HV-',''))} ＋${esc(c.in.no.replace('HV-',''))}</text>
+  <rect x="${Math.min(a,b)}" y="${yy+2}" width="${Math.abs(b-a)}" height="13" rx="3" fill="${col}"><title>${esc(c.out.name)}→${esc(c.in.name)}：Δ ${sign(c.delta)}${p2(c.delta)} ±${p2(c.se)}，Δ/SE ${c.ratio.toFixed(2)}</title></rect>
+  <text x="${Math.max(a,b)+6}" y="${yy+13}" class="n" style="font-size:11.5px;fill:${css('--text')}">${sign(c.ratio)}${c.ratio.toFixed(1)}</text>`});
+ return`<svg viewBox="0 0 ${W} ${H}" style="max-width:${W}px" role="img" aria-label="第 ${r.round} 輪複驗候選的 Δ/SE">${s}</svg>`}
+
+function decision(s){const d=s.decision;if(!d)return'<div class="ask">最近一次決策</div><div class="sub">第一次複驗完成後才有決策。</div>';
+ const head=`<div class="ask">最近一次決策 · 第 ${d.round} 輪</div>`,eq='<div class="sub">沒被採用不代表兩者等效。</div>';
+ if(d.adopted)return`${head}<div class="dec"><h3>採用</h3><div class="box">${mv(d.adopted)} <b class="n">${sign(d.adopted.delta)}${p2(d.adopted.delta)}±${p2(d.adopted.se)}</b></div>${eq}</div>`;
+ const body=d.passed?`差值最高的候選沒過門檻，所以沒採用；${mv(d.passed)} 雖然到 <b class="n">${d.passed.ratio.toFixed(2)}</b> 個 SE，但搜尋只檢查第一名。`:d.closest?`最接近的是 ${mv(d.closest)}，差 <b class="n">${d.gap.toFixed(2)}</b> 個 SE。`:'這幾輪沒有候選比目前牌組好。';
+ return`${head}<div class="dec"><h3>未採用${s.finished?'，搜尋停止':''}</h3><div class="box">${body}</div>${eq}</div>`}
+
+const timeline=s=>`<div class="sec">輪次紀錄<small>Δ/SE 條共用同一軸，虛線是 2×SE 門檻</small></div>
+ ${[...s.rounds].reverse().map((r,i)=>{const a=r.recheck.find(c=>c.adopted),wait=!r.recheck.length&&!r.no_candidate;
+ const note=a?`<b style="color:var(--accent)">採用</b> ${mv(a)} <span class="n">+${p2(a.delta)}±${p2(a.se)}</span>`:wait?'<span class="sub">進行中，複驗後才有結果</span>':r.no_candidate?'<b>未採用</b> <span class="sub">粗篩沒有正向候選</span>':`<b>未採用</b> <span class="sub">${r.recheck.some(c=>c.ratio>2)?'差值最高的候選沒過門檻':'沒有候選過門檻'}${r.k>1?'，改換 1 張':'，搜尋停止'}</span>`;
+ return`<section class="rd ${a?'ok':''}"><div class="rdh"><b>第 ${r.round} 輪</b><span class="fun n">換 ${r.k} 張 · ${r.funnel.join(' → ')} 候選${r.cur?` · 目前 ${full(r.cur)}`:''}</span></div>
+ <div class="card" style="padding:12px 14px"><div style="margin-bottom:${r.recheck.length?8:0}px;font-size:13.5px">${note}</div>${r.recheck.length?ratios(r):''}</div></section>`}).join('')}
+ ${s.forced?`<section class="rd"><div class="rdh"><b>起點前</b><span class="fun">強制換掉禁用卡</span></div><div class="sub n">${mv(s.forced)}（${sign(s.forced.delta)}${p2(s.forced.delta)}±${p2(s.forced.se)}），不看門檻，因為那張卡不能用。</div></section>`:''}`;
+
+const deckTitle=d=>`梟谷演化 第${d.rank}名 ${stat(d)}`;
+const link=d=>SITE+'?deck='+LZString.compressToEncodedURIComponent(JSON.stringify({n:deckTitle(d),c:d.cards.map(c=>[c.img,c.count])}));
+const tile=c=>`<div class="cd" title="${esc(c.no)} ${esc(c.name)} ×${c.count}">${c.img?`<img src="/img/${encodeURIComponent(c.img)}" alt="${esc(c.name)}" loading="lazy">`:esc(c.no)}${c.count>1?`<em>×${c.count}</em>`:''}</div>`;
+function deckCard(d,i,s){const tag=d.kind=='final'&&s.finished?'最終採用':TAG[d.kind];
+ return`<article class="deck ${d.kind=='final'?'final':''}"><div class="dtop"><span class="rank">${d.rank}</span><span class="tag ${d.kind}">${tag}</span></div>
+ <div class="wr n">${p1(d.wr)}%<small>±${p1(d.se)}（${d.n} 場）</small></div><div class="why">${esc(d.why)}</div><div class="cards">${d.cards.map(tile).join('')}</div>
+ <div class="acts"><a class="btn p" target="_blank" rel="noopener" href="${link(d)}">在卡牌資料庫開啟</a><button class="btn" data-dl="${i}">下載圖片</button></div></article>`}
+
+function rr(x,a,b,w,h,r){x.beginPath();x.moveTo(a+r,b);x.arcTo(a+w,b,a+w,b+h,r);x.arcTo(a+w,b+h,a,b+h,r);x.arcTo(a,b+h,a,b,r);x.arcTo(a,b,a+w,b,r);x.closePath()}
+async function download(i){const d=S.tops[i],cv=$('#cv'),title=deckTitle(d),K=2,COLS=8,CW=100,CH=140,G=10,P=24,HH=64,n=d.cards.length,rows=Math.ceil(n/COLS),W=P*2+COLS*CW+(COLS-1)*G,H=HH+P+rows*CH+(rows-1)*G+P;
+ cv.width=W*K;cv.height=H*K;const x=cv.getContext('2d');x.scale(K,K);x.fillStyle='#fff';x.fillRect(0,0,W,H);x.strokeStyle='#101114';x.lineWidth=2;rr(x,P,14,W-P*2,HH-14,6);x.stroke();
+ x.fillStyle='#0D0506';x.font='bold 22px "Segoe UI","Noto Sans TC",sans-serif';x.textBaseline='middle';x.fillText(title,P+16,14+(HH-14)/2);
+ const tot=d.cards.reduce((a,c)=>a+c.count,0),ev=d.cards.filter(c=>c.ev).reduce((a,c)=>a+c.count,0);
+ x.textAlign='right';x.font='bold 16px "Segoe UI","Noto Sans TC",sans-serif';x.fillText(`事件 ${ev}　牌組 ${tot}/40`,W-P-16,14+(HH-14)/2);x.textAlign='left';
+ const ims=await Promise.all(d.cards.map(c=>new Promise(r=>{if(!c.img)return r(null);const m=new Image();m.onload=()=>r(m);m.onerror=()=>r(null);m.src='/img/'+encodeURIComponent(c.img)})));
+ d.cards.forEach((c,k)=>{const cx=P+(k%COLS)*(CW+G),cy=HH+P+Math.floor(k/COLS)*(CH+G);x.save();rr(x,cx,cy,CW,CH,6);x.clip();x.fillStyle='#ddd';x.fillRect(cx,cy,CW,CH);if(ims[k])x.drawImage(ims[k],cx,cy,CW,CH);
+  const g=x.createLinearGradient(0,cy+CH-34,0,cy+CH);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.9)');x.fillStyle=g;x.fillRect(cx,cy+CH-34,CW,34);x.restore();
+  x.fillStyle='#fff';x.font='10px "Segoe UI",sans-serif';x.textAlign='center';x.fillText(c.no.replace('HV-',''),cx+CW/2,cy+CH-9);x.textAlign='left';
+  if(c.count>1){x.fillStyle='rgba(190,82,11,.92)';rr(x,cx+CW-26,cy+4,22,17,5);x.fill();x.fillStyle='#fff';x.font='bold 11px "Segoe UI",sans-serif';x.textAlign='center';x.fillText('×'+c.count,cx+CW-15,cy+13);x.textAlign='left'}});
+ const a=document.createElement('a');a.href=cv.toDataURL('image/png');a.download=`梟谷演化-第${d.rank}名.png`;a.click()}
+
+function drawSlow(s){$('#tops').innerHTML=s.tops.length?s.tops.map((d,i)=>deckCard(d,i,s)).join(''):'<div class="todo">第一次複驗完成後才有排名。</div>';
+ $('#detail').innerHTML=`<div class="g2"><div class="card"><div class="ask">各輪複驗勝率</div>${chart(s.rounds)}</div><div class="card">${decision(s)}</div></div>${timeline(s)}
+ <div class="sec">牌組相對起點的淨變化</div><div class="chips">${s.net.out.map(c=>`<span class="chip out">−${c.count} ${esc(short(c))}</span>`).join('')}${s.net.in.map(c=>`<span class="chip in">＋${c.count} ${esc(short(c))}</span>`).join('')||'<span class="sub">還沒有換牌</span>'}</div>
+ <div class="todo" style="margin-top:12px">對 10 副對手的逐項勝率：目前的輸出沒有記錄，要等 search.py 寫事件紀錄才有。</div>`}
+
+function draw(s){S=s;const base=s.rounds[0]&&s.rounds[0].cur,p=s.proc||{},flow=s.pipeline,cur=flow&&flow.current,kind=flow?flow.kind:s.kind,age=cur&&cur.kind!='search'?cur.age:s.age;
+ $('#runmeta').textContent=`${s.run} · 引擎 ${s.engine}${base?` · 起點勝率 ${full(base)}`:''}`;
+ $('#pill').innerHTML=`<span class="pill ${kind}"><i></i>${LABEL[kind]}</span>`;
+ $('#jobs').hidden=!flow;if(flow)$('#jobs').innerHTML=jobsCard(s);
+ $('#beat').textContent=[age==null?'還沒有紀錄':`最後更新 ${mins(age)}前`,p.main?`${p.workers} 程序`:cur&&cur.workers?`${cur.workers} 程序`:'',s.busy==null||!p.main?'':`CPU ${s.busy.toFixed(1)} 核`].filter(Boolean).join(' · ');
+ const todo=[s.m1_done?'':'引擎 M1 尚未收尾',s.holdout_result?'':'留出對手還沒評估'].filter(Boolean).join('，');
+ $('#warn').innerHTML=`<b>${todo?'暫定結果':'模擬結果'}｜</b>${todo?todo+'。':''}以下是模擬器勝率，不是真實對局勝率。`;
+ $('#alive').innerHTML=alive(s);$('#better').innerHTML=better(s);$('#trust').innerHTML=trust(s);$('#path').textContent=s.log;
+ const k=JSON.stringify([s.rounds,s.tops,s.net,s.forced,s.finished]);if(k!==sig){sig=k;drawSlow(s)}}  // 只在資料變動時重畫，圖片不閃、摺疊狀態不跳
+
+async function tick(){try{draw(await (await fetch('/state')).json())}catch(e){$('#pill').innerHTML='<span class="pill dead"><i></i>連不到面板</span>';$('#beat').textContent=String(e)}}
+const setTheme=t=>{document.documentElement.dataset.theme=t;if(S)drawSlow(S)};
+let saved=null;try{saved=localStorage.getItem('evo-theme')}catch{}
+setTheme(saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'));
+$('#theme').onclick=()=>{const t=document.documentElement.dataset.theme=='dark'?'light':'dark';try{localStorage.setItem('evo-theme',t)}catch{}setTheme(t)};
+document.addEventListener('click',e=>{const b=e.target.closest('[data-dl]');if(b)download(+b.dataset.dl)});
+matchMedia('(max-width:699px)').addEventListener('change',()=>{if(S)drawSlow(S)});
+tick();setInterval(tick,5000);
+</script>
+</body>
+</html>

@@ -63,7 +63,7 @@ ok('付不起 Guts 的侑（舉 1）不會蓋掉舉 2 的侑', P.zones['toss'][-
 opp = sim2.Player([C(FILL)] * 5, rng, 'B')
 opp.hand = [C('HV-P01-051'), C('HV-P01-050'), C('HV-P01-045'), C('HV-P01-049')]  # 鷲尾一觸(3)＋接 6
 lock = [dict(rule='nullify_onetouch_and_receive_hand', duration='next_opp_turn')]
-c_free = sim2.response_cost(opp, 9, [], False); c_lock = sim2.response_cost(opp, 9, lock, False)
+c_free = sim2._response_cost_known_hand(opp, 9, [], False); c_lock = sim2._response_cost_known_hand(opp, 9, lock, False)  # 測試對手的牌表沒有這些手牌，驗已知手牌版本
 ok('一觸可用時 9 點要花 3 張（實得 %s），被封鎖後接不住（實得 %s）' % (c_free, c_lock), c_free == 3 and c_lock is None)
 
 # 7. D03-002：舉球是侑，手牌 1 張放牌庫底，攻擊 +2

@@ -18,7 +18,8 @@ att = pl(); att.evz = [C(EV), C(EV)]
 B = pl(); B.hand = [C('HV-P02-003'), C(EV), C(F), C(F), C(F)]
 tot, _ = sim2.block_total(B, (B.hand[0],), att, [])
 ok('月島：預估攔網 2+6=8（實得 %d）' % tot, tot == 8)
-ok('月島：對手 8 點只要 1 張攔網（response_cost=%s）' % sim2.response_cost(B, 8, [], False, attacker=att), sim2.response_cost(B, 8, [], False, attacker=att) == 1)
+c = sim2._response_cost_known_hand(B, 8, [], False, attacker=att)  # 測試對手的牌表沒有這些手牌，驗已知手牌版本
+ok('月島：對手 8 點只要 1 張攔網（response_cost=%s）' % c, c == 1)
 att.evz = [C(EV)]
 ok('月島：攻方 Event 區只有 1 張 → 不加', sim2.block_total(B, (B.hand[0],), att, [])[0] == 2)
 att.evz = [C(EV), C(EV)]; B.hand = [C('HV-P02-003'), C(F), C(F)]
