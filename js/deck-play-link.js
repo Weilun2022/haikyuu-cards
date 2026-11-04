@@ -1,4 +1,4 @@
-// 牌組面板「🏐 AI對練」按鈕：把目前牌組用分享連結格式（?deck=，同 index.html 的 encodeDeck）
+// 牌組面板「AI對練」按鈕：把目前牌組用分享連結格式（?deck=，同 index.html 的 encodeDeck）
 // 帶到第三方的 BREAK 對練台。刻意不碰 DOM，讓 node:test 能把門檻與網址釘住。
 //
 // 門檻照對練台的匯入檢查，不是我們網站的規則：我們的牌組面板不限上限也不擋事件卡，
@@ -22,7 +22,7 @@ export function deckPlayStatus({ total, events }) {
     };
   }
   return {
-    ready: true, label: '🏐 AI對練',
+    ready: true, label: 'AI對練',
     reason: '用這副牌到 BREAK 對練台跟 AI 對練（另開外部網站 haikyuu-playmat.web.app）',
   };
 }
