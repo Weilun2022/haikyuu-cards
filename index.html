@@ -25,6 +25,7 @@
     fetchSchoolPopularitySnapshot, flushSchoolPopularityIncrement,
   } from './js/school-popularity-firestore.js';
   import { computeDeckImageLayout } from './js/deck-image-layout.js';
+  import { deckPlayStatus, deckPlayUrl } from './js/deck-play-link.js';
   window.hvSchoolPopularity = {
     computeTopSchools, addView, buildIncrementPayload,
     onFlushSuccess, onFlushFailure, applySnapshot,
@@ -32,6 +33,7 @@
   };
   window.hvCardNameSuggest = { buildSuggestions };
   window.hvDeckImageLayout = { computeDeckImageLayout };
+  window.hvDeckPlayLink = { deckPlayStatus, deckPlayUrl };
   // 比照 cloud-sync.js 的 hv-cloud-sync-ready：不能只靠 DOMContentLoaded
   // 判斷這個 module script 是否執行完畢，因為 school-popularity-firestore.js
   // 動態 import 外部 CDN 的 firebase-firestore.js，實測 DOMContentLoaded
@@ -1133,6 +1135,7 @@
   .count-num { font-size: 13px; font-weight: 700; min-width: 18px; text-align: center; }
 
   .deck-panel-footer-toggle {
+    position: relative;
     display: flex; align-items: center; justify-content: center;
     padding: 4px 16px; border-top: 1px solid var(--border);
     cursor: pointer; font-size: 11px; color: var(--text-dim);
@@ -1142,6 +1145,21 @@
   .deck-panel-footer-toggle:hover { color: var(--text); }
   .deck-panel-footer-toggle .toggle-arrow { transition: transform 0.2s; }
   .deck-panel-footer-toggle.open .toggle-arrow { transform: rotate(180deg); }
+  /* 絕對定位疊在「工具」列右側：高 20px 小於列高，工具列高度一像素都不變 */
+  .deck-play-pill {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    display: inline-flex; align-items: center; height: 20px; padding: 0 9px 0 7px;
+    border: 0; border-radius: 999px; background: var(--accent); color: var(--on-accent);
+    font: inherit; font-size: 11px; font-weight: 700; line-height: 1; white-space: nowrap; cursor: pointer;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: filter 0.15s, box-shadow 0.15s;
+  }
+  .deck-play-pill:hover { filter: brightness(1.08); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .deck-play-pill[aria-disabled="true"] {
+    background: var(--surface2); color: var(--text-dim);
+    box-shadow: inset 0 0 0 1px var(--border); cursor: not-allowed; filter: none;
+  }
+  .deck-play-pill[hidden] { display: none; }
   .deck-panel-footer {
     padding: 0 16px; border-top: none;
     display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
@@ -1762,6 +1780,7 @@
     </div>
     <div class="deck-panel-footer-toggle" id="deck-footer-toggle">
       <span class="toggle-arrow">▲</span><span>工具</span>
+      <button type="button" class="deck-play-pill" id="deck-play-btn" hidden></button>
     </div>
     <div class="deck-panel-footer" id="deck-panel-footer">
       <div class="cloud-sync-block cloud-sync-compact" id="cloud-sync-block">
@@ -2202,6 +2221,8 @@ const COLOR_LS_KEY = 'hv_deck_colors';
 let deckColorState = {};
 
 // ── Share / QR ─────────────────────────────────────────────────────────
+// 這份 payload 也是第三方 BREAK 對練台的匯入格式（牌組面板「🏐 對練 ↗」按鈕帶過去），
+// 已答應對方欄位（n/c/k）盡量不改，要改得先通知他
 function encodeDeck(deck) {
   const payload = {
     n: deck.name,
@@ -3658,6 +3679,24 @@ function renderDeckStatsRow(deck) {
       <span class="deck-stat-label">牌組</span>
       <span class="deck-stat-badge">${total}/40</span>
     </div>`;
+  // 掛在這裡而不是 renderDeckPanel：上色模式改張數時只重繪格子、不走 renderDeckPanel，
+  // 但每條會改張數的路徑最後都會呼叫統計列
+  renderDeckPlayButton(deck);
+}
+
+function deckPlayStatusOf(deck) {
+  return window.hvDeckPlayLink?.deckPlayStatus({ total: getTotalCount(deck), events: getEventCount(deck) });
+}
+
+function renderDeckPlayButton(deck) {
+  const btn = document.getElementById('deck-play-btn');
+  const status = deckPlayStatusOf(deck);
+  // 橋接的 module script 還沒跑完就先藏著，不要露出一顆還不會動的按鈕
+  btn.hidden = !status;
+  if (!status) return;
+  btn.textContent = status.label;
+  btn.title = status.reason;
+  btn.setAttribute('aria-disabled', String(!status.ready));
 }
 
 // Expand deck.cards into canvas entries (each color group → separate slot)
@@ -5092,6 +5131,22 @@ function bindDeckEvents() {
     // 不然手機上 60vh 塞不下，會卡在看不到、也捲不到最下面幾顆按鈕
     document.getElementById('deck-panel').classList.toggle('footer-open', open);
   });
+
+  document.getElementById('deck-play-btn').addEventListener('click', e => {
+    e.stopPropagation(); // 按鈕疊在「工具」列裡，不擋的話會順便開關工具抽屜
+    // 跟統計列一樣，沒有目前牌組時當空牌組：按鈕顯示「還差 40 張」，點了也要跳提示
+    const deck = getCurrentDeck() || { cards: [] };
+    const status = deckPlayStatusOf(deck);
+    if (!status) return;
+    // 手機看不到 title，點灰色按鈕時改用提示說明為什麼不能去
+    if (!status.ready) { showToast(status.reason); return; }
+    window.open(window.hvDeckPlayLink.deckPlayUrl(encodeDeck(deck)), '_blank', 'noopener,noreferrer');
+  });
+  // 橋接 module 要等外部 CDN，面板可能在它掛好前就已經畫過、按鈕還藏著；掛好時補畫一次
+  if (!window.hvDeckPlayLink) {
+    window.addEventListener('hv-school-popularity-ready',
+      () => renderDeckPlayButton(getCurrentDeck() || { cards: [] }), { once: true });
+  }
 
   document.getElementById('deck-panel-close').addEventListener('click', closeDeckPanel);
   document.getElementById('deck-panel-overlay').addEventListener('click', e => {
