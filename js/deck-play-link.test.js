@@ -5,7 +5,7 @@ import { deckPlayStatus, deckPlayUrl } from './deck-play-link.js';
 test('deckPlayStatus：剛好 40 張、事件卡 8 張可以帶去對練台', () => {
   const s = deckPlayStatus({ total: 40, events: 8 });
   assert.equal(s.ready, true);
-  assert.equal(s.label, '🏐 對練 ↗');
+  assert.equal(s.label, '🏐 AI對練');
 });
 
 test('deckPlayStatus：未滿 40 張不能出發，標示還差幾張', () => {
