@@ -41,6 +41,13 @@
   // 但實測環境確實會發生），用明確的 ready 事件才可靠。
   window.dispatchEvent(new CustomEvent('hv-school-popularity-ready'));
 </script>
+<script type="module">
+  // 刻意不併進上面那支：它靜態 import 依賴外部 CDN Firebase 的模組，CDN 慢或被擋時
+  // 整支不會執行，「特殊效果」篩選選項不該跟著出不來。
+  import { buildEffectOptions, cardHasEffect } from './js/card-effects.js';
+  window.hvCardEffects = { buildEffectOptions, cardHasEffect };
+  window.dispatchEvent(new CustomEvent('hv-card-effects-ready'));
+</script>
 <link rel="stylesheet" href="css/theme.css">
 <link rel="stylesheet" href="css/components.css">
 <style>
@@ -1642,6 +1649,14 @@
     </select>
   </div>
 
+  <!-- 特殊效果 -->
+  <div class="filter-group" title="效果文字裡有該效果標記的卡，包含剋制、配合該效果的卡">
+    <label>特殊效果</label>
+    <select id="filter-effect">
+      <option value="">全部</option>
+    </select>
+  </div>
+
   <!-- 稀有度 -->
   <div class="filter-group">
     <label>稀有度</label>
@@ -2148,11 +2163,11 @@ function savePendingDelta(pendingDelta) {
   }
 }
 let viewCountState = { pendingDelta: loadPendingDelta(), lastSyncedSnapshot: {} };
-// 7 個篩選維度收成一個物件，不再各自是獨立全域變數：加新篩選維度只需要在這裡
-// 登記一個 key，不用同步改 bindEvents/applyFilters/btn-reset/updateFilterBadge
-// 四個地方各自的變數清單。
+// 8 個篩選維度收成一個物件，不再各自是獨立全域變數。加新篩選維度時仍要一起改：
+// 這裡和 resetFilterState、bindEvents 的監聽、btn-reset 清空下拉、applyFilters 的
+// 判斷、updateFilterBadge 的計數陣列。
 const filterState = {
-  category: '', series: '', school: '', rarity: '', position: '', search: '', favoriteOnly: false,
+  category: '', series: '', school: '', rarity: '', position: '', effect: '', search: '', favoriteOnly: false,
 };
 function resetFilterState() {
   filterState.category = '';
@@ -2160,6 +2175,7 @@ function resetFilterState() {
   filterState.school = '';
   filterState.rarity = '';
   filterState.position = '';
+  filterState.effect = '';
   filterState.search = '';
   filterState.favoriteOnly = false;
 }
@@ -2414,6 +2430,20 @@ function buildFilters() {
     opt.textContent = RARITY_LABEL[r] || r;
     raritySel.appendChild(opt);
   });
+
+  // 特殊效果：init() 比 type="module" 橋接腳本先跑，同 initSchoolViewCountSync() 等 ready 事件
+  if (window.hvCardEffects) fillEffectFilterOptions();
+  else window.addEventListener('hv-card-effects-ready', fillEffectFilterOptions, { once: true });
+}
+
+function fillEffectFilterOptions() {
+  const effectSel = document.getElementById('filter-effect');
+  window.hvCardEffects.buildEffectOptions(cards).forEach(({ name, count }) => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `${name}（${count}）`;
+    effectSel.appendChild(opt);
+  });
 }
 
 // ── Events ─────────────────────────────────────────────────────────────
@@ -2443,6 +2473,11 @@ function bindEvents() {
     applyFilters(filterState);
   });
 
+  document.getElementById('filter-effect').addEventListener('change', e => {
+    filterState.effect = e.target.value;
+    applyFilters(filterState);
+  });
+
   document.getElementById('filter-sort').addEventListener('change', () => applyFilters(filterState));
 
   document.getElementById('filter-variant-mode').addEventListener('change', e => {
@@ -2467,6 +2502,7 @@ function bindEvents() {
     document.getElementById('filter-rarity').value = '';
     document.getElementById('filter-category').value = '';
     document.getElementById('filter-position').value = '';
+    document.getElementById('filter-effect').value = '';
     document.getElementById('filter-favorite-only').value = '';
     resetFilterState();
     activeVariantMode = 'off';
@@ -2840,6 +2876,7 @@ function applyFilters(state = filterState) {
     if (state.rarity && c.rarity !== state.rarity && c.rarity !== state.rarity + 'P') return false;
     // 雙位置卡的 position 是逗號串接（如 'MB,S'、'ボール拾い,WS'），任一位置符合就算
     if (state.position && !(c.position || '').split(',').includes(state.position)) return false;
+    if (state.effect && !window.hvCardEffects?.cardHasEffect(c, state.effect)) return false;
     if (state.favoriteOnly && !isFavorite(c.image_file)) return false;
     if (state.search) {
       const stats = [
@@ -2927,7 +2964,7 @@ function updatePromoBanner() {
 }
 
 function updateFilterBadge(state = filterState) {
-  const count = [state.series, state.school, state.category, state.rarity, state.position, state.search, state.favoriteOnly ? '1' : '']
+  const count = [state.series, state.school, state.category, state.rarity, state.position, state.effect, state.search, state.favoriteOnly ? '1' : '']
     .filter(Boolean).length;
   const badge = document.getElementById('filter-badge');
   const badgeC = document.getElementById('filter-badge-compact');
