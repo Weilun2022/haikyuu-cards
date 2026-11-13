@@ -286,7 +286,7 @@ Object.entries(stats).forEach(([k, v]) => {
 console.log('\n總問題數: ' + total);
 console.log('有問題的卡片數: ' + issues.length);
 
-// 2026-08 新增：以前這支腳本不管抓到幾個問題永遠 exit 0，SOP 步驟 7 寫著要跑它，
+// 2026-08 新增：以前這支腳本不管抓到幾個問題永遠 exit 0，SOP 步驟 8 寫著要跑它，
 // 但沒有東西真的會因為它失敗——等於是個只會印出來、沒人保證會看的關卡。改成抓到
 // 問題就 exit 1，才能真的擋下不合站內慣例的資料（跟 pytest/check_new_cards.py
 // 一樣用 exit code 表達成功/失敗）。

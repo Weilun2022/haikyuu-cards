@@ -88,6 +88,8 @@ build_data.py - 生成網站用的 cards_data.js
 import json, re, sys, os
 from name_zh_data import NAME_ZH_ENTRIES
 from audio_data import AUDIO_ENTRIES
+from special_cards_data import SPECIAL_CARD_ENTRIES
+from check_special_cards import build_special_lookup, pending_review, validate_entries
 from pipeline_paths import ALL_CARDS_JSON, QA_ZH_JSON, CARDS_DATA_JS, CARDS_ZH_JSON
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -1681,6 +1683,8 @@ def normalize_name_key(s):
     return s.strip()
 
 
+SPECIAL_LOOKUP = build_special_lookup(SPECIAL_CARD_ENTRIES)
+
 AUDIO_BY_CARD_NO = {}
 for _a in AUDIO_ENTRIES:
     if _a.get('status') != 'ready':
@@ -1784,6 +1788,7 @@ def main():
             'skill_zh':  skill_zh,
             'annotation_jp': (c.get('annotation','') or '').strip() if (c.get('annotation','') or '').strip() not in ('', '-') else '',
             'annotation_zh': translate_annotation(c.get('annotation',''), _EVENT_NAMES),
+            'special':   SPECIAL_LOOKUP.get(card_no),
             'qa':        [
                 {
                     'id':          qa_entry['id'],
@@ -1841,6 +1846,14 @@ def main():
     print(f'[INFO] name_zh 查無翻譯（預期只有純漢字組合卡/無變化名稱，共 {len(missing_zh)} 個）：')
     for n in missing_zh:
         print(f'       - {n}')
+
+    # 新卡還沒判定只警告、不中止：新卡可以先上線，之後再補判定（見 docs/translation/SOP.md）
+    print(f'[INFO] 特殊卡            : {len(SPECIAL_LOOKUP)} 個卡號')
+    if validate_entries(SPECIAL_CARD_ENTRIES):
+        print('[WARN] special_cards_data.py 有格式錯誤，錯的條目已略過，請跑 python check_special_cards.py')
+    pending = pending_review(raw, SPECIAL_CARD_ENTRIES)
+    if pending:
+        print(f'[WARN] 特殊卡未判定 {len(pending)} 個卡號，請跑 python check_special_cards.py')
 
 if __name__ == '__main__':
     main()
