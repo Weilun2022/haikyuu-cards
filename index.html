@@ -1651,7 +1651,7 @@
 
   <!-- 特殊效果 -->
   <div class="filter-group" title="效果文字裡有該效果標記的卡，包含剋制、配合該效果的卡">
-    <label>特殊效果</label>
+    <label>效果</label>
     <select id="filter-effect">
       <option value="">全部</option>
     </select>
@@ -2438,10 +2438,10 @@ function buildFilters() {
 
 function fillEffectFilterOptions() {
   const effectSel = document.getElementById('filter-effect');
-  window.hvCardEffects.buildEffectOptions(cards).forEach(({ name, count }) => {
+  window.hvCardEffects.buildEffectOptions(cards).forEach(({ name }) => {
     const opt = document.createElement('option');
     opt.value = name;
-    opt.textContent = `${name}（${count}）`;
+    opt.textContent = name;
     effectSel.appendChild(opt);
   });
 }
