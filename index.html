@@ -2886,7 +2886,8 @@ function applyFilters(state = filterState) {
       const typeZh = ({CHARACTER:'角色',EVENT:'事件',SERVE:'發球'})[c.category] || '';
       const haystack = [c.card_no, c.name, (c.name || '').replace(/\s+/g, ''),
         c.name_zh, (c.name_zh || '').replace(/\s+/g, ''),
-        c.affiliation, c.skill_zh, c.rarity, stats, typeZh, c.position, c.position_zh]
+        c.affiliation, c.skill_zh, c.rarity, stats, typeZh, c.position, c.position_zh,
+        c.special && c.special.keywords]
         .filter(Boolean).join(' ').toLowerCase();
       const terms = state.search.split(/\s+/).filter(Boolean);
       if (!terms.every(t => haystack.includes(t))) return false;

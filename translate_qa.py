@@ -230,7 +230,7 @@ def load_character_names(all_cards_path) -> list[str]:
     """回傳所有 CHARACTER 卡的 name，按長度降序排列（長名先替換）。
 
     讀原始 all_cards.json（下載 pipeline 步驟1的輸出），不是 build_data.py
-    建置出的 cards_data.js——後者只在 SOP 步驟6才會重新產生，若這裡讀 cards_data.js
+    建置出的 cards_data.js——後者只在 SOP 步驟7才會重新產生，若這裡讀 cards_data.js
     會拿到上一輪舊資料，新卡的角色名在這次 QA 翻譯時就不會被佔位符保護
     （2026-08 架構檢視發現的隱性步驟順序依賴）。"""
     with open(all_cards_path, encoding='utf-8') as f:

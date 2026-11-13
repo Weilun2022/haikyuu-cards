@@ -66,16 +66,27 @@ python apply_qa_fixes.py
 - 只有 `apply_qa_fixes.py` 裡的 `FIXES` 表有新條目（例如收到新的 GitHub issue 回報翻譯錯誤）才需要跑這步——例行更新官方資料不一定要執行。
 - 用內容比對定位要修正的 QA 條目，已經套用過的會自動跳過（no-op），找不到匹配或匹配到多筆會直接報錯中止，不會誤改。
 
-### 6. 建置網站實際載入的資料
+### 6. 特殊卡判定
+
+```bash
+python check_special_cards.py
+```
+
+- 首頁搜尋列打「特殊卡」找到的卡，是人工判定的結果，存在 `special_cards_data.py`。效果文字含「相手」的卡號都要有一筆判定（算或不算都要記）。
+- 印「特殊卡判定齊全（N 筆）」就往下走。
+- 列出未判定卡號（附卡名與日文效果文字）、exit 1 時：照 [SPECIAL_CARDS.md](SPECIAL_CARDS.md) 的準則逐張判，在 `special_cards_data.py` 各加一筆，重跑到通過為止。
+- 印「[提醒]」列出過期條目（表裡有、資料裡已不存在或已不含「相手」）時 exit 仍是 0：確認是官方下架或改文字後，把那幾筆移除或重判。
+
+### 7. 建置網站實際載入的資料
 
 ```bash
 python build_data.py
 ```
 
-- 讀 `all_cards.json`＋`qa_data_zh.json`＋`name_zh_data.py`＋`official_terms.json`，套用 `translate_skill()`／`clean_qa_text()` 規則鏈，輸出 `cards_data.js`／`cards_zh.json`。
+- 讀 `all_cards.json`＋`qa_data_zh.json`＋`name_zh_data.py`＋`special_cards_data.py`＋`official_terms.json`，套用 `translate_skill()`／`clean_qa_text()` 規則鏈，輸出 `cards_data.js`／`cards_zh.json`。
 - 這是網站實際會載入的檔案，`cards_data.js` 有進版控，`cards_zh.json` 沒有（見根目錄 `.gitignore`）。
 
-### 7. 品質檢查
+### 8. 品質檢查
 
 ```bash
 node check_translations.js
@@ -85,12 +96,12 @@ pytest
 - `check_translations.js`：假名/片假名殘留掃描 + 官方術語一致性檢查（含 QA 文字），抓「規則沒命中、整段還是日文」或用詞跟站內慣例不符的漏翻；現在抓到問題會直接 exit 1，不是只印出來。
 - `pytest`：跑現有的回歸測試套件（`translate_skill()`/`clean_qa_text()` 規則鏈、新卡/新QA偵測決策、QA 修正比對邏輯），確認這次資料更新沒有連帶跑出程式邏輯層級的問題。**也包含一個靜態掃描 `build_data.py` 原始碼本身的安全網測試**（`test_build_data_source_has_no_hardcoded_name_replacements`）：找有沒有任何已登記在 `name_zh_data.py` 裡的角色/台詞譯名被寫死翻譯、繞過查表機制——這是 2026-08 修「灰羽リエーフ」等 3 筆歷史譯名分歧時新增的，往後同款問題會在這裡自動被抓到，見 `docs/translation/CONTEXT.md`「譯名單一真相來源」。
 
-### 8. Commit + push
+### 9. Commit + push
 
-`cards_data.js`、`haikyuu_output/qa_data_zh.json`、以及根目錄 `images/` 底下新增的卡圖都要進版控（`all_cards.json`/`qa_data.json`/`cards_zh.json`/`haikyuu_output/images/` 是可以從官方 API 重建的可拋棄資料，維持 gitignore 不動；`qa_data_zh.json` 混有人工審核修正、無法重建，見 `docs/adr/0005`；根目錄 `images/` 是網站實際讀圖的位置，步驟 2 的 `sync_images_to_site()` 已經把新卡圖同步過去，這裡只是要把新增的檔案 `git add` 進去）。
+`cards_data.js`、`special_cards_data.py`、`haikyuu_output/qa_data_zh.json`、以及根目錄 `images/` 底下新增的卡圖都要進版控（`all_cards.json`/`qa_data.json`/`cards_zh.json`/`haikyuu_output/images/` 是可以從官方 API 重建的可拋棄資料，維持 gitignore 不動；`qa_data_zh.json` 混有人工審核修正、無法重建，見 `docs/adr/0005`；根目錄 `images/` 是網站實際讀圖的位置，步驟 2 的 `sync_images_to_site()` 已經把新卡圖同步過去，這裡只是要把新增的檔案 `git add` 進去）。
 
 ```bash
-git add cards_data.js haikyuu_output/qa_data_zh.json images/
+git add cards_data.js special_cards_data.py haikyuu_output/qa_data_zh.json images/
 git commit -m "chore(cards): 更新官方新卡資料（含 P0X 系列）"
 git push
 ```
@@ -103,4 +114,5 @@ git push
 - `translate_qa_new.py` 翻譯結果出現「翻譯失敗」字樣：Google Translate 那次呼叫失敗，腳本會繼續跑完其他卡，跑完後手動針對失敗的卡再跑一次，或直接編輯 `qa_data_zh.json` 對應欄位。
 - 翻譯用詞系統性錯誤（同一種誤譯出現在很多張卡）：改 `translate_qa.py` 的 `TERM_FIX` 表，不要一張一張手改 `qa_data_zh.json`；個別卡的裁定文字邏輯性翻錯才用 `apply_qa_fixes.py`。
 - `pytest` 在 `test_build_data_source_has_no_hardcoded_name_replacements` 失敗：代表 `build_data.py` 裡有某個已登記在 `name_zh_data.py` 的角色/台詞名字被寫死翻譯、沒透過查表機制——錯誤訊息會指出是哪一行、對應哪個日文詞，改成呼叫 `_apply_confirmed_name_zh()`（全文掃描，需要 `status: confirmed`）或 `_name_zh_value(jp, fallback)`（個別鎖定，不看 status），不要留著寫死字面量。`MANUAL_OVERRIDES` 裡的個別條目不在這個測試掃描範圍內，要另外人工核對是否跟 `name_zh_data.py` 一致。
+- `check_special_cards.py` 列出的新卡拿不準算不算特殊卡：不要硬判，列出來問維護者。真的要先上線，可以先不判——`build_data.py` 遇到未判定只會印 `[WARN]`、照常產出，那幾張新卡暫時搜不到「特殊卡」，之後補判定再重建即可。
 - 更多細節（規則鏈怎麼運作、各種例外情況）見 `docs/translation/CONTEXT.md`。
